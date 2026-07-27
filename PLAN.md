@@ -240,3 +240,38 @@ We will walk through this list together once Stage 10 is complete.
   *types* of places you described (nursing home, assisted living, etc.)
   in the Northeast Ohio area conceptually, but with invented names,
   invented people, and invented details throughout.
+
+## 11. Roadmap decisions log
+
+Decisions that affect future direction but aren't Phase One work
+themselves, recorded here so they don't get re-litigated or lost —
+useful background if a separate roadmap document is being maintained
+elsewhere too.
+
+### Department / multi-organization support — deferred (2026-07-27)
+
+**Decision:** Phase One remains single-department (Bikur Cholim of
+Cleveland's Senior Living Resident Support Services team). No
+`department_id`-style fields or multi-organization functionality are
+added to the core database tables at this time.
+
+**Reasoning:** designing real multi-department data-sharing/permission
+rules without a real second department to design against means
+guessing at requirements (should residents be shared across
+departments? Staff? Facilities? Fully separate, or partially?). That
+guess would likely be wrong and costly to unwind. Deferring until
+there's a concrete second use case lets that design be done properly
+instead.
+
+**What this means in practice:**
+- No department filters, permissions, screens, or workflows are built
+  now, since there's nothing real for them to do yet.
+- The current department's name ("Bikur Cholim of Cleveland") is kept
+  out of reusable database logic entirely (nothing in
+  `supabase/migrations/` references it), and centralized to a single
+  place in the application code (`src/lib/config.ts`) rather than
+  scattered across components — so that if/when this changes, it's a
+  small, contained edit rather than a search-and-replace.
+- This is a **future roadmap item**, not a rejected idea: revisit with
+  real requirements once a second department or organization is
+  actually being planned.

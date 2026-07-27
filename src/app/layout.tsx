@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { APP_NAME, ORGANIZATION_NAME } from "@/lib/config";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,9 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Resident Support Services",
-  description:
-    "Internal CRM for the Bikur Cholim of Cleveland Senior Living Resident Support Services department.",
+  title: APP_NAME,
+  description: `Internal CRM for the ${ORGANIZATION_NAME} Senior Living Resident Support Services department.`,
 };
 
 export default function RootLayout({

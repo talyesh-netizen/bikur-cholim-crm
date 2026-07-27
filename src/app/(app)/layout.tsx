@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
 import { SidebarNavLinks, MobileBottomNavLinks } from "@/components/nav-links";
+import { APP_NAME, ORGANIZATION_NAME } from "@/lib/config";
 import { LogOut } from "lucide-react";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -27,8 +28,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       {/* Desktop sidebar */}
       <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-card p-4 md:flex">
         <div className="mb-6 px-2">
-          <p className="font-semibold leading-tight">Resident Support Services</p>
-          <p className="text-xs text-muted-foreground">Bikur Cholim of Cleveland</p>
+          <p className="font-semibold leading-tight">{APP_NAME}</p>
+          <p className="text-xs text-muted-foreground">{ORGANIZATION_NAME}</p>
         </div>
 
         <SidebarNavLinks />
@@ -52,7 +53,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       {/* Mobile top bar */}
       <header className="flex items-center justify-between border-b border-border bg-card px-4 py-3 md:hidden">
         <div>
-          <p className="text-sm font-semibold leading-tight">Resident Support Services</p>
+          <p className="text-sm font-semibold leading-tight">{APP_NAME}</p>
           {displayName ? (
             <p className="text-xs text-muted-foreground">{displayName}</p>
           ) : null}

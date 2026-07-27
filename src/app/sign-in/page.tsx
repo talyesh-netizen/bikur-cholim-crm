@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signIn, type SignInState } from "@/lib/actions/auth";
+import { APP_NAME } from "@/lib/config";
 
 const initialState: SignInState = { error: null };
 
@@ -22,7 +23,7 @@ export default function SignInPage() {
     <main className="flex min-h-screen flex-col items-center justify-center bg-background p-6">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="text-2xl">Resident Support Services</CardTitle>
+          <CardTitle className="text-2xl">{APP_NAME}</CardTitle>
           <CardDescription>Sign in with your staff account.</CardDescription>
         </CardHeader>
         <CardContent>
