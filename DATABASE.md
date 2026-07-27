@@ -1,18 +1,22 @@
-# Database Structure (Proposed)
+# Database Structure
 
-_Last updated: 2026-07-27 (revised after feedback on family contacts and
-geographic clusters)_
+_Last updated: 2026-07-27 (implemented and tested)_
 
-This document explains how information will be organized in the database,
-in plain English, before any code is written. Think of each **table** as
-its own spreadsheet tab, and each row as one record (one facility, one
-resident, one visit, etc.). "Linking" one table to another just means one
-spreadsheet has a column that says "this row belongs to row #47 on that
-other tab."
+**Status: built and tested.** Everything described below now exists as
+real SQL migration files in `supabase/migrations/`, and has been tested
+against a local PostgreSQL server (standing in for Supabase, since this
+environment can't run Supabase's full stack) — including proving the
+security rules actually block/allow access correctly, not just that the
+tables exist. See `supabase/local-test/README.md` for how that was
+verified, and `supabase/seed.sql` / `scripts/seed-demo-users.ts` for the
+fictional demo data that will load into the real Supabase project once
+one exists.
 
-This is a **proposal** — nothing is built yet. Let me know if anything
-here doesn't match how the department actually thinks about its work
-before we build it.
+This document explains how information is organized in the database, in
+plain English. Think of each **table** as its own spreadsheet tab, and
+each row as one record (one facility, one resident, one visit, etc.).
+"Linking" one table to another just means one spreadsheet has a column
+that says "this row belongs to row #47 on that other tab."
 
 ## Decisions confirmed so far
 

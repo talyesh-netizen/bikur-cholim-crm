@@ -114,7 +114,26 @@ Other useful commands:
 
 ### Current status
 
-As of Stage 1, this is the visual scaffold only: the color palette,
-fonts, and a handful of reusable interface pieces (buttons, cards,
-inputs). There is no sign-in, database connection, or real functionality
-yet — that comes in the following stages described in `PLAN.md`.
+- **Stage 1 (done):** the visual scaffold — color palette, fonts, and a
+  handful of reusable interface pieces (buttons, cards, inputs).
+- **Stage 2 (done):** the real database structure exists as migration
+  files in `supabase/migrations/`, with security rules tested and
+  fictional demo data ready to load. See `DATABASE.md`.
+- **Not yet connected:** the running app doesn't talk to a database yet
+  — there is no real Supabase project behind it, so sign-in and every
+  data screen are still ahead. That's next, per `PLAN.md`.
+
+### Setting up the database (once a Supabase project exists)
+
+1. Create a free Supabase project at [supabase.com](https://supabase.com).
+2. Fill in `.env.local` with that project's URL, anon key, and service
+   role key (see `.env.example` for where to find each one).
+3. Apply the migrations in `supabase/migrations/` to that project, in
+   filename order (e.g., via the Supabase CLI's `supabase db push`, or
+   by pasting each file into the Supabase SQL Editor in order).
+4. Run `npm run seed:users` to create three fictional demo staff
+   accounts, then run the contents of `supabase/seed.sql` against the
+   project to load the rest of the fictional demo data.
+
+To instead verify the database design itself on this machine, without a
+real Supabase project, see `supabase/local-test/README.md`.
