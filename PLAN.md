@@ -97,6 +97,9 @@ useful at the very end.
 - Facility detail page (view/edit) including the "related records" panels
   (residents at this facility, staff contacts, past interactions, upcoming
   tasks).
+- A small Admin-only settings screen for managing the list of geographic
+  clusters (add, rename, retire) — so grouping facilities by region never
+  requires a code change.
 - Add/edit facility form.
 
 **Stage 5 — Residents**
@@ -160,21 +163,53 @@ so much that it's confusing:
 - **Staff** — can view and edit facilities, residents, contacts,
   interactions, and tasks. This is the normal working role.
 - **Admin** — everything Staff can do, plus managing user accounts (who
-  has a login).
+  has a login) and managing the geographic cluster list (add/rename/retire
+  regions used to group facilities).
 
 Every table has a "private notes" concept where relevant (e.g., a
 resident's internal notes) and, from the start, we structure the database
 so that a future "sensitive/restricted note" tier is a small addition, not
 a redesign. See `PRIVACY_AND_SECURITY.md` for details and caveats.
 
-## 7. What Phase One deliberately leaves out
+## 7. Design philosophy: when to build "the robust version" vs. "the simple version"
+
+You asked us to optimize for long-term scale (hundreds or thousands of
+residents, multiple staff, volunteers, possibly more than one Bikur
+Cholim organization someday) rather than always taking the fastest
+shortcut. In practice, we're applying that as a rule of thumb, not a
+blanket policy:
+
+- **Where a "simple" design would obviously break down in normal, real
+  use** — for example, a rabbi who serves several residents, or a
+  facility region list that would otherwise require calling a developer
+  to rename — we build the more robust version now. Two concrete
+  examples already applied: contacts (family, rabbis, staff) can be
+  linked to *multiple* residents or facilities, each with their own
+  relationship type, instead of being limited to one; and geographic
+  regions are a manageable list an Admin controls, not text typed
+  differently by every staff member. See `DATABASE.md` for both.
+- **Where a scalability concern is speculative** — for example, support
+  for a *second* Bikur Cholim organization, which isn't a real
+  requirement yet — we deliberately do *not* build for it today. Adding
+  structure for a hypothetical future need means guessing at requirements
+  (e.g., what should and shouldn't be shared between two organizations)
+  instead of designing it properly when it's real. We'll revisit this
+  specific question, carefully, if and when a second organization
+  actually becomes real. This was a direct decision you confirmed.
+
+The database itself (PostgreSQL) also scales to millions of rows without
+architectural changes, so "hundreds or thousands of residents" is well
+within what this foundation supports as-is — that part doesn't require
+any special design work now.
+
+## 8. What Phase One deliberately leaves out
 
 To keep the foundation solid and avoid half-built features, Phase One does
 **not** include: SMS/text messaging, a family-facing portal, maps, volunteer
 reminder automation, calendar sync, automated report generation, or a
 knowledge base. These are noted as Phase Two+ ideas in `README.md`.
 
-## 8. Phase One acceptance criteria (how we'll know we're done)
+## 9. Phase One acceptance criteria (how we'll know we're done)
 
 Directly from your requirements — you should be able to:
 
@@ -191,7 +226,7 @@ Directly from your requirements — you should be able to:
 
 We will walk through this list together once Stage 10 is complete.
 
-## 9. Open decisions I'm making by default (flag if you'd prefer differently)
+## 10. Open decisions I'm making by default (flag if you'd prefer differently)
 
 - **Hosting**: we'll build so the app can be deployed on Vercel (a common
   Next.js hosting provider) with Supabase as the database, but Phase One

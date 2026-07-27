@@ -1,6 +1,7 @@
 # Database Structure (Proposed)
 
-_Last updated: 2026-07-27_
+_Last updated: 2026-07-27 (revised after feedback on family contacts and
+geographic clusters)_
 
 This document explains how information will be organized in the database,
 in plain English, before any code is written. Think of each **table** as
@@ -12,6 +13,31 @@ other tab."
 This is a **proposal** — nothing is built yet. Let me know if anything
 here doesn't match how the department actually thinks about its work
 before we build it.
+
+## Decisions confirmed so far
+
+- **A resident can have multiple family contacts**, each with their own
+  relationship (son, daughter, spouse, sibling, grandchild, power of
+  attorney, friend, clergy, other), their own phone/email/address/notes,
+  and one may be flagged as the **Primary Contact**. Details below.
+- **Geographic clusters are a managed list**, not free text and not fixed
+  in code — an Admin can add, rename, or retire a cluster without a code
+  change. Details below.
+- **Single organization for now.** Phase One is scoped to Bikur Cholim of
+  Cleveland only. We are deliberately *not* adding "which organization"
+  fields throughout the database in anticipation of a hypothetical future
+  second organization — if that ever becomes real, it deserves its own
+  careful design conversation at that time (access rules between
+  organizations are a real decision, not just a database column). Building
+  it in now, before there's a second organization to design against, would
+  mean guessing.
+- **General design philosophy going forward:** where there's a real,
+  foreseeable reason a "simple" version would break down at scale (e.g.,
+  "a rabbi can only be linked to one resident" clearly doesn't hold up),
+  we build the more robust version now, as long as it doesn't make the
+  app harder to use day-to-day. Where a scalability concern is
+  speculative rather than foreseeable, we keep things simple and revisit
+  later with real requirements in hand.
 
 ## Design choices explained up front
 
@@ -33,6 +59,39 @@ before we build it.
   #47." That's internal bookkeeping the app handles for you.
 
 ## Tables
+
+### `geographic_clusters` — admin-managed list
+
+One row per named region the department uses to group facilities (e.g.,
+"East Side," "West Side," "Akron area"). This exists as its own table,
+not as free text typed on each facility, specifically so that:
+
+- Every facility using "East Side" is guaranteed to be spelled and
+  grouped consistently (no "East Side" vs. "east side" vs. "Eastside"
+  drift, which would quietly break any future route planning, reporting,
+  or volunteer-assignment feature built on top of it).
+- An **Admin** can add a new cluster, rename an existing one (the name
+  updates everywhere it's used automatically, since every facility just
+  points to this row), or **retire** one that's no longer used — all from
+  a settings screen, with no code change or developer involvement.
+- Retiring a cluster doesn't delete it or break history — it just hides
+  it from the dropdown when adding *new* facilities, while facilities
+  already assigned to it keep working normally.
+
+| Field | Purpose |
+|---|---|
+| Name | e.g., "East Side" |
+| Description | Optional — what this cluster covers, for staff clarity |
+| Display order | Controls the order clusters appear in dropdowns |
+| Active | Whether this cluster is available for new assignments (retiring sets this to false rather than deleting) |
+| Created at / Updated at | Standard audit timestamps |
+
+Each facility belongs to exactly **one** cluster (a facility can't be in
+two regions at once), and a cluster can contain any number of facilities.
+
+A minimal admin screen to manage this list (add / rename / retire) is
+part of Phase One, since without it the "no code change needed" goal
+wouldn't actually be true on day one.
 
 ### `profiles` — staff accounts
 
@@ -60,7 +119,7 @@ One row per facility (nursing home, assisted living, etc.).
 | Main phone | Facility's front desk / main line |
 | Website | Optional link |
 | Parent healthcare group | e.g., a hospital system or ownership group the facility belongs to, if any |
-| Geographic cluster | A department-defined grouping (e.g., "East Side," "West Side," "Akron area") used for planning visit routes |
+| Geographic cluster | Link to `geographic_clusters` (see below) — each facility belongs to exactly one cluster |
 | Approx. Jewish resident count | A number, since exact counts often aren't knowable |
 | Jewish residents currently known | Yes/No — useful even before any individual resident is added |
 | Engagement status | Not contacted / Initial contact made / Staff relationship developing / Active facility / Recurring visits / Recurring programming / No Jewish residents currently known / Follow up needed |
@@ -86,8 +145,8 @@ One row per resident. Always linked to their **current** facility.
 | Current facility | Link to `facilities` |
 | Room number | |
 | Phone number | Resident's own phone, if any |
-| Family contact | Link to a `contacts` record (see below) rather than typing family info twice |
-| Rabbi / synagogue connection | Free text, or link to a `contacts` record if that rabbi is already in the system |
+| Family contacts | Not a field on this table — see `resident_contacts` below. A resident can have any number of family contacts, one of which can be flagged Primary. |
+| Rabbi / synagogue connection | Free text, or link to a `contacts` record via `resident_contacts` if that rabbi is already in the system |
 | Jewish interests / background | Free text |
 | Kosher food needs | Free text or short selection |
 | Holiday support needs | Free text |
@@ -119,28 +178,56 @@ visits, tasks, or contacts at Facility A disappears.
 
 ### `contacts`
 
-One row per person who isn't a resident: facility staff, family members,
-rabbis, synagogue contacts, community partners, volunteers, or other
-referral sources.
+One row per **person**, kept separate from *how that person relates to a
+resident or facility* (that relationship lives in the two connector
+tables below). This split matters in practice: the same rabbi might be
+the spiritual contact for three different residents, and a facility's
+Activities Director is a staff contact who isn't tied to any one
+resident at all. Storing "who someone is" separately from "who they're
+connected to and how" is what makes both of those normal, everyday
+situations easy to represent correctly.
 
 | Field | Purpose |
 |---|---|
 | Name | |
-| Organization | e.g., a facility name, a synagogue, a nonprofit |
-| Role | e.g., "Activities Director," "Daughter," "Volunteer" |
-| Phone, Email | |
+| Organization | e.g., a facility name, a synagogue, a nonprofit (free text — this is about where they work/volunteer, separate from any specific facility link) |
 | Contact type | Facility staff / Family member / Rabbi / Synagogue contact / Community partner / Volunteer / Other referral source |
-| Related facility | Optional link to `facilities` |
-| Related resident | Optional link to `residents` |
+| Phone, Email | |
+| Address | Street, city, state, ZIP — optional, most useful for family contacts (e.g., holiday cards) |
 | Preferred communication method | e.g., Phone / Email / Text (recorded, even though texting isn't built yet) |
-| Notes | |
+| Notes | General notes about this person, not specific to one resident relationship |
+| Active | Whether this contact is current (e.g., staff member who has left is marked inactive, not deleted) |
 
-A contact can be linked to a facility, a resident, both, or neither
-(e.g., a community partner not tied to one specific place). A person who
-supports several residents (a rabbi, for example) can currently have one
-primary related resident recorded; supporting a contact being linked to
-*many* residents cleanly is a reasonable Phase Two refinement if this
-department needs it — flagging it now rather than over-building it today.
+### `resident_contacts` — how a contact relates to a specific resident
+
+One row per resident–contact relationship. This is what lets a single
+person (say, Rabbi Cohen) be linked to several residents, and lets a
+resident have several family contacts, each with their own relationship
+type.
+
+| Field | Purpose |
+|---|---|
+| Resident | Link to `residents` |
+| Contact | Link to `contacts` |
+| Relationship to resident | e.g., Son / Daughter / Spouse / Sibling / Grandchild / Power of attorney / Friend / Rabbi / Other — describes this specific relationship |
+| Primary contact | Yes/No — at most one contact per resident can be marked Primary (enforced by the database itself, not just the app, so this can never quietly end up with two "primary" contacts by mistake) |
+| Relationship notes | Notes specific to this relationship (e.g., "handles medical decisions," "prefers not to be called after 6pm") — separate from the general notes on the person themselves |
+
+A resident's page shows all of their linked contacts, with the Primary
+Contact highlighted for quick reference, exactly as you described.
+
+### `facility_contacts` — how a contact relates to a specific facility
+
+Same idea, for facility staff: one row per facility–contact relationship,
+so a regional director who oversees multiple facilities, for example,
+can be correctly linked to all of them rather than forced into just one.
+
+| Field | Purpose |
+|---|---|
+| Facility | Link to `facilities` |
+| Contact | Link to `contacts` |
+| Role at facility | e.g., "Activities Director," "Social Worker," "Front Desk" |
+| Primary contact | Yes/No — the main person to reach out to at that facility |
 
 ### `interactions` — the central log
 
@@ -183,15 +270,24 @@ One row per follow-up item.
 ## How things connect (plain-English map)
 
 ```
+geographic_clusters ──< facilities (a cluster has many facilities;
+                          each facility belongs to exactly one cluster)
+
 facilities ──< residents (a facility has many residents)
-facilities ──< contacts (a facility has many staff contacts)
 facilities ──< interactions
 facilities ──< tasks
+facilities ──< facility_contacts >── contacts (many-to-many: a facility
+                has many staff contacts; a person like a regional
+                director can be linked to several facilities)
 
 residents  ──< resident_facility_history (a resident's full facility timeline)
 residents  ──< interactions
 residents  ──< tasks
-residents  ──< contacts (family, etc. linked to a specific resident)
+residents  ──< resident_contacts >── contacts (many-to-many: a resident
+                has many family/rabbi/other contacts; a person like a
+                rabbi can be linked to several residents; each link
+                carries its own relationship type and an optional
+                "Primary Contact" flag)
 
 interactions ──< interaction_volunteers >── contacts (many-to-many: a
                   visit can involve several volunteers; a volunteer can be
@@ -208,13 +304,9 @@ residents with invented names and invented details, a few fictional
 contacts, a handful of logged interactions, and a few open and completed
 tasks — enough to make every screen meaningful to look at immediately.
 
-## Questions for you before we build this
+## Remaining open question
 
-1. Does "Family contact" on a resident need to support **multiple** family
-   members (e.g., two adult children), or is one primary family contact
-   enough for Phase One?
-2. Is "Geographic cluster" something the department already has a fixed
-   list for (e.g., specific named regions), or should it start as free
-   text?
-3. Anything above that doesn't match how you'd actually describe a
-   resident's status or a facility's engagement in real life?
+Anything above that doesn't match how you'd actually describe a
+resident's status or a facility's engagement in real life? Everything
+else (family contacts, geographic clusters, single-organization scope)
+has been confirmed and is reflected above.
