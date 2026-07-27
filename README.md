@@ -84,15 +84,37 @@ See `PLAN.md` for why these were chosen and how the pieces fit together.
   additional professional review is still needed before using real
   resident data.
 
-## Getting the app running on your own computer (for later, once code exists)
+## Getting the app running on your own computer
 
-This section will be filled in once Stage 1 (project scaffolding) is
-complete. In short, you will need:
+1. Install [Node.js](https://nodejs.org) (version 20 or newer) if you
+   don't already have it.
+2. Get a copy of this repository onto your computer (e.g., `git clone`).
+3. In a terminal, inside the project folder, run:
+   ```
+   npm install
+   ```
+   This downloads the various pieces the app depends on. You only need
+   to do this once (and again any time those dependencies change).
+4. Copy `.env.example` to a new file named `.env.local`, and fill in the
+   Supabase connection details (see the comments inside that file for
+   where to find them — this step isn't needed yet if you're just looking
+   at the visual scaffold, since sign-in and the database aren't wired up
+   yet). `.env.local` is automatically excluded from Git, so your
+   credentials never get committed.
+5. Start the app:
+   ```
+   npm run dev
+   ```
+6. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-1. Node.js installed on your computer.
-2. A free or paid Supabase project (this is where the database lives).
-3. A copy of this repository, with a `.env.local` file containing your
-   Supabase connection details (never committed to Git).
+Other useful commands:
+- `npm run build` — builds an optimized production version (mainly used
+  for deployment, or to double check nothing is broken).
+- `npm run lint` — checks the code for common mistakes.
 
-Detailed, copy-pasteable steps will be added here as soon as there's a
-running application to start.
+### Current status
+
+As of Stage 1, this is the visual scaffold only: the color palette,
+fonts, and a handful of reusable interface pieces (buttons, cards,
+inputs). There is no sign-in, database connection, or real functionality
+yet — that comes in the following stages described in `PLAN.md`.

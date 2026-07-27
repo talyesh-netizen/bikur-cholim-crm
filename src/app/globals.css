@@ -1,0 +1,128 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/*
+  Color palette notes (plain English):
+
+  This app intentionally avoids the cold blue/white/grey look of typical
+  clinical or hospital software. Instead it uses warm, muted tones —
+  ivory backgrounds, a warm clay/terracotta accent color, and soft sand
+  neutrals — meant to feel calm and human rather than institutional.
+*/
+
+:root {
+  --radius: 0.75rem;
+
+  --background: #faf6f0;
+  --foreground: #2b2420;
+
+  --card: #ffffff;
+  --card-foreground: #2b2420;
+
+  --popover: #ffffff;
+  --popover-foreground: #2b2420;
+
+  --primary: #b5592f;
+  --primary-foreground: #fff8f2;
+
+  --secondary: #efe4d6;
+  --secondary-foreground: #4a3f33;
+
+  --muted: #f1ebe1;
+  --muted-foreground: #7a6f62;
+
+  --accent: #e7d9c4;
+  --accent-foreground: #3a2f25;
+
+  --destructive: #b3271e;
+  --destructive-foreground: #fff8f2;
+
+  --success: #4f7a5c;
+  --success-foreground: #fff8f2;
+
+  --warning: #a5720a;
+  --warning-foreground: #fff8f2;
+
+  --border: #e4d9c8;
+  --input: #e4d9c8;
+  --ring: #b5592f;
+}
+
+.dark {
+  --background: #201a15;
+  --foreground: #f4ece1;
+
+  --card: #2a231d;
+  --card-foreground: #f4ece1;
+
+  --popover: #2a231d;
+  --popover-foreground: #f4ece1;
+
+  --primary: #e08a56;
+  --primary-foreground: #201a15;
+
+  --secondary: #3a3129;
+  --secondary-foreground: #f4ece1;
+
+  --muted: #332b24;
+  --muted-foreground: #b8aa98;
+
+  --accent: #3f3428;
+  --accent-foreground: #f4ece1;
+
+  --destructive: #e5675a;
+  --destructive-foreground: #201a15;
+
+  --success: #7fae8b;
+  --success-foreground: #201a15;
+
+  --warning: #d9a441;
+  --warning-foreground: #201a15;
+
+  --border: #3f362c;
+  --input: #3f362c;
+  --ring: #e08a56;
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
