@@ -8,6 +8,7 @@ import {
   VISIT_PRIORITIES,
 } from "@/lib/domain/facility";
 import type { FacilityWithSummary } from "@/lib/domain/facility";
+import { formatDateTime } from "@/lib/format-date";
 import { MapPin, Users } from "lucide-react";
 
 function priorityVariant(priority: string): "destructive" | "warning" | "secondary" {
@@ -17,9 +18,8 @@ function priorityVariant(priority: string): "destructive" | "warning" | "seconda
 }
 
 function formatLastVisit(lastVisitAt: string | null) {
-  if (!lastVisitAt) return "No visits logged yet";
-  const date = new Date(lastVisitAt);
-  return `Last visit ${date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+  const formatted = formatDateTime(lastVisitAt);
+  return formatted ? `Last visit ${formatted}` : "No visits logged yet";
 }
 
 export function FacilityCard({ facility }: { facility: FacilityWithSummary }) {

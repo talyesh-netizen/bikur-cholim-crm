@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getFacility } from "@/lib/queries/facilities";
 import { setFacilityActive } from "@/lib/actions/facilities";
+import { listResidents } from "@/lib/queries/residents";
 import {
   labelFor,
   FACILITY_TYPES,
@@ -12,7 +13,9 @@ import {
   VISIT_PRIORITIES,
   KOSHER_FOOD_OPTIONS,
 } from "@/lib/domain/facility";
-import { Pencil } from "lucide-react";
+import { RESIDENT_STATUSES } from "@/lib/domain/resident";
+import { formatDateTime } from "@/lib/format-date";
+import { Pencil, Plus } from "lucide-react";
 
 export default async function FacilityDetailPage({
   params,
@@ -20,7 +23,10 @@ export default async function FacilityDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const facility = await getFacility(id);
+  const [facility, residents] = await Promise.all([
+    getFacility(id),
+    listResidents({ facilityId: id, showAllStatuses: true }),
+  ]);
 
   if (!facility) notFound();
 
@@ -103,10 +109,47 @@ export default async function FacilityDetailPage({
                   : undefined
               }
             />
-            <InfoRow label="Last visit" value={formatLastVisit(facility.last_visit_at)} />
+            <InfoRow
+              label="Last visit"
+              value={formatDateTime(facility.last_visit_at) ?? "No visits logged yet"}
+            />
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-base">Residents ({residents.length})</CardTitle>
+          <Button size="sm" variant="outline" asChild>
+            <Link href={`/residents/new?facility=${facility.id}`}>
+              <Plus className="size-4" />
+              Add resident
+            </Link>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {residents.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No residents on file yet.</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {residents.map((resident) => (
+                <li key={resident.id}>
+                  <Link
+                    href={`/residents/${resident.id}`}
+                    className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+                  >
+                    <span>
+                      {resident.preferred_name ?? resident.first_name} {resident.last_name}
+                      {resident.room_number ? ` · Room ${resident.room_number}` : ""}
+                    </span>
+                    <Badge variant="secondary">{labelFor(RESIDENT_STATUSES, resident.status)}</Badge>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
       {facility.notes ? (
         <Card>
@@ -136,13 +179,4 @@ function formatAddress(facility: { address: string | null; city: string | null; 
     Boolean
   );
   return parts.length ? parts.join(", ") : undefined;
-}
-
-function formatLastVisit(lastVisitAt: string | null) {
-  if (!lastVisitAt) return "No visits logged yet";
-  return new Date(lastVisitAt).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 }

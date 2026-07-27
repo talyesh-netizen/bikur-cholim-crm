@@ -53,13 +53,7 @@ export type KosherFoodAvailability = (typeof KOSHER_FOOD_OPTIONS)[number]["value
 /** Looks up the plain-English label for a stored option value. Falls
  * back to the raw value itself if it's ever somehow not in the list,
  * rather than showing nothing. */
-export function labelFor(
-  options: readonly { value: string; label: string }[],
-  value: string | null | undefined
-): string {
-  if (!value) return "—";
-  return options.find((o) => o.value === value)?.label ?? value;
-}
+export { labelFor } from "./options";
 
 export type GeographicCluster = {
   id: string;
