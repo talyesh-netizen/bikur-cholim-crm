@@ -46,7 +46,16 @@ export async function updateSession(request: NextRequest) {
   }
 
   const pathname = request.nextUrl.pathname;
-  const isPublicPath = PUBLIC_PATHS.some((path) => pathname.startsWith(path));
+  // The root path is a special case: it's where Supabase sends people
+  // after they click a "reset your password" or magic-link email, with
+  // the actual proof-of-identity token attached as a URL fragment
+  // (the part after "#"). Browsers never send that fragment to the
+  // server, so this proxy has no way to see it here — only the page's
+  // own client-side code can read it. That means "/" has to render even
+  // for a signed-out visitor; the page itself (src/app/page.tsx) checks
+  // for that token and redirects to /sign-in if there isn't one.
+  const isPublicPath =
+    pathname === "/" || PUBLIC_PATHS.some((path) => pathname.startsWith(path));
 
   if (!user && !isPublicPath) {
     const url = request.nextUrl.clone();
