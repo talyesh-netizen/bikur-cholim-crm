@@ -5,10 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getResident, getResidentFacilityHistory } from "@/lib/queries/residents";
 import { listInteractionsForResident } from "@/lib/queries/interactions";
+import { listResidentContacts } from "@/lib/queries/contacts";
+import { removeResidentContact, setPrimaryResidentContact } from "@/lib/actions/resident-contacts";
 import { labelFor, RESIDENT_STATUSES } from "@/lib/domain/resident";
+import { labelFor as labelForContact, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
 import { formatDateOnly, formatDateTime } from "@/lib/format-date";
 import { InteractionList } from "@/app/(app)/interactions/interaction-list";
-import { Pencil, ArrowRightLeft, Building2, Plus } from "lucide-react";
+import { Pencil, ArrowRightLeft, Building2, Plus, X, Star } from "lucide-react";
 
 export default async function ResidentDetailPage({
   params,
@@ -16,10 +19,11 @@ export default async function ResidentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [resident, history, interactions] = await Promise.all([
+  const [resident, history, interactions, familyContacts] = await Promise.all([
     getResident(id),
     getResidentFacilityHistory(id),
     listInteractionsForResident(id),
+    listResidentContacts(id),
   ]);
 
   if (!resident) notFound();
@@ -114,6 +118,61 @@ export default async function ResidentDetailPage({
                 </li>
               ))}
             </ol>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-base">Family contacts</CardTitle>
+          <Button size="sm" variant="outline" asChild>
+            <Link href={`/residents/${resident.id}/contacts/new`}>
+              <Plus className="size-4" />
+              Add family contact
+            </Link>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {familyContacts.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No family contacts on file yet.</p>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {familyContacts.map((rc) => {
+                const removeContact = removeResidentContact.bind(null, resident.id, rc.id);
+                const makePrimary = setPrimaryResidentContact.bind(null, resident.id, rc.id);
+                return (
+                  <li key={rc.id} className="flex items-start justify-between gap-4 text-sm">
+                    <div>
+                      <Link href={`/contacts/${rc.contact.id}`} className="font-medium hover:underline">
+                        {rc.contact.name}
+                      </Link>
+                      <p className="text-xs text-muted-foreground">
+                        {rc.relationship_to_resident === "other" && rc.relationship_other_description
+                          ? rc.relationship_other_description
+                          : labelForContact(RESIDENT_CONTACT_RELATIONSHIPS, rc.relationship_to_resident)}
+                        {rc.contact.phone ? ` · ${rc.contact.phone}` : ""}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {rc.is_primary_contact ? (
+                        <Badge>Primary</Badge>
+                      ) : (
+                        <form action={makePrimary}>
+                          <Button size="sm" variant="ghost" type="submit" title="Make primary contact">
+                            <Star className="size-4" />
+                          </Button>
+                        </form>
+                      )}
+                      <form action={removeContact}>
+                        <Button size="sm" variant="ghost" type="submit" title="Remove">
+                          <X className="size-4" />
+                        </Button>
+                      </form>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </CardContent>
       </Card>
