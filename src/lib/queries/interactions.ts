@@ -53,6 +53,18 @@ export async function listInteractionsForResident(residentId: string) {
   return (data ?? []).map((row) => toInteractionWithNames(row as unknown as Parameters<typeof toInteractionWithNames>[0]));
 }
 
+export async function getInteraction(id: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("interactions")
+    .select(SELECT_WITH_NAMES)
+    .eq("id", id)
+    .single();
+
+  if (error) return null;
+  return toInteractionWithNames(data as unknown as Parameters<typeof toInteractionWithNames>[0]);
+}
+
 export async function listInteractionsForFacility(facilityId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase

@@ -8,6 +8,7 @@ import { setFacilityActive } from "@/lib/actions/facilities";
 import { listResidents } from "@/lib/queries/residents";
 import { listInteractionsForFacility } from "@/lib/queries/interactions";
 import { listFacilityContacts } from "@/lib/queries/contacts";
+import { listTasks } from "@/lib/queries/tasks";
 import { removeFacilityContact, setPrimaryFacilityContact } from "@/lib/actions/facility-contacts";
 import {
   labelFor,
@@ -20,6 +21,7 @@ import { RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { labelFor as labelForContact, CONTACT_TYPES } from "@/lib/domain/contact";
 import { formatDateTime } from "@/lib/format-date";
 import { InteractionList } from "@/app/(app)/interactions/interaction-list";
+import { TaskList } from "@/app/(app)/tasks/task-list";
 import { Pencil, Plus, X, Star } from "lucide-react";
 
 export default async function FacilityDetailPage({
@@ -28,11 +30,12 @@ export default async function FacilityDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [facility, residents, interactions, facilityContacts] = await Promise.all([
+  const [facility, residents, interactions, facilityContacts, tasks] = await Promise.all([
     getFacility(id),
     listResidents({ facilityId: id, showAllStatuses: true }),
     listInteractionsForFacility(id),
     listFacilityContacts(id),
+    listTasks({ facilityId: id, showAllStatuses: true }),
   ]);
 
   if (!facility) notFound();
@@ -214,6 +217,21 @@ export default async function FacilityDetailPage({
               })}
             </ul>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-base">Follow-up tasks</CardTitle>
+          <Button size="sm" variant="outline" asChild>
+            <Link href={`/tasks/new?facility=${facility.id}`}>
+              <Plus className="size-4" />
+              Add task
+            </Link>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <TaskList tasks={tasks} />
         </CardContent>
       </Card>
 

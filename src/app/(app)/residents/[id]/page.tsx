@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 import { getResident, getResidentFacilityHistory } from "@/lib/queries/residents";
 import { listInteractionsForResident } from "@/lib/queries/interactions";
 import { listResidentContacts } from "@/lib/queries/contacts";
+import { listTasks } from "@/lib/queries/tasks";
 import { removeResidentContact, setPrimaryResidentContact } from "@/lib/actions/resident-contacts";
 import { labelFor, RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { labelFor as labelForContact, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
 import { formatDateOnly, formatDateTime } from "@/lib/format-date";
 import { InteractionList } from "@/app/(app)/interactions/interaction-list";
+import { TaskList } from "@/app/(app)/tasks/task-list";
 import { Pencil, ArrowRightLeft, Building2, Plus, X, Star } from "lucide-react";
 
 export default async function ResidentDetailPage({
@@ -19,11 +21,12 @@ export default async function ResidentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [resident, history, interactions, familyContacts] = await Promise.all([
+  const [resident, history, interactions, familyContacts, tasks] = await Promise.all([
     getResident(id),
     getResidentFacilityHistory(id),
     listInteractionsForResident(id),
     listResidentContacts(id),
+    listTasks({ residentId: id, showAllStatuses: true }),
   ]);
 
   if (!resident) notFound();
@@ -174,6 +177,21 @@ export default async function ResidentDetailPage({
               })}
             </ul>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-base">Follow-up tasks</CardTitle>
+          <Button size="sm" variant="outline" asChild>
+            <Link href={`/tasks/new?resident=${resident.id}`}>
+              <Plus className="size-4" />
+              Add task
+            </Link>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <TaskList tasks={tasks} />
         </CardContent>
       </Card>
 

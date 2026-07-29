@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { labelFor, INTERACTION_TYPES } from "@/lib/domain/interaction";
 import type { InteractionWithNames } from "@/lib/domain/interaction";
+import { ListPlus } from "lucide-react";
 
 /** Recent-interactions list shown on both resident and facility pages —
  * the "other side" of the record (facility name on a resident page,
@@ -26,7 +28,7 @@ export function InteractionList({
               <span className="font-medium">
                 {labelFor(INTERACTION_TYPES, interaction.interaction_type)}
               </span>
-              <span className="whitespace-nowrap text-xs text-muted-foreground">
+              <span className="flex items-center gap-2 whitespace-nowrap text-xs text-muted-foreground">
                 {new Date(interaction.occurred_at).toLocaleString("en-US", {
                   month: "short",
                   day: "numeric",
@@ -34,6 +36,13 @@ export function InteractionList({
                   hour: "numeric",
                   minute: "2-digit",
                 })}
+                <Link
+                  href={`/tasks/new?interaction=${interaction.id}`}
+                  title="Add a follow-up task for this interaction"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <ListPlus className="size-4" />
+                </Link>
               </span>
             </div>
             {otherParty || interaction.staff_member_name ? (
