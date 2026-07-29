@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { getFacility } from "@/lib/queries/facilities";
 import { setFacilityActive } from "@/lib/actions/facilities";
 import { listResidents } from "@/lib/queries/residents";
+import { listInteractionsForFacility } from "@/lib/queries/interactions";
 import {
   labelFor,
   FACILITY_TYPES,
@@ -15,6 +16,7 @@ import {
 } from "@/lib/domain/facility";
 import { RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { formatDateTime } from "@/lib/format-date";
+import { InteractionList } from "@/app/(app)/interactions/interaction-list";
 import { Pencil, Plus } from "lucide-react";
 
 export default async function FacilityDetailPage({
@@ -23,9 +25,10 @@ export default async function FacilityDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [facility, residents] = await Promise.all([
+  const [facility, residents, interactions] = await Promise.all([
     getFacility(id),
     listResidents({ facilityId: id, showAllStatuses: true }),
+    listInteractionsForFacility(id),
   ]);
 
   if (!facility) notFound();
@@ -47,6 +50,12 @@ export default async function FacilityDetailPage({
           </p>
         </div>
         <div className="flex gap-2">
+          <Button asChild>
+            <Link href={`/interactions/new?facility=${facility.id}`}>
+              <Plus className="size-4" />
+              Log an interaction
+            </Link>
+          </Button>
           <Button variant="outline" asChild>
             <Link href={`/facilities/${facility.id}/edit`}>
               <Pencil className="size-4" />
@@ -148,6 +157,15 @@ export default async function FacilityDetailPage({
               ))}
             </ul>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Recent interactions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <InteractionList interactions={interactions} variant="facility" />
         </CardContent>
       </Card>
 

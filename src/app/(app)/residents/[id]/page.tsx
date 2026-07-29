@@ -4,9 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getResident, getResidentFacilityHistory } from "@/lib/queries/residents";
+import { listInteractionsForResident } from "@/lib/queries/interactions";
 import { labelFor, RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { formatDateOnly, formatDateTime } from "@/lib/format-date";
-import { Pencil, ArrowRightLeft, Building2 } from "lucide-react";
+import { InteractionList } from "@/app/(app)/interactions/interaction-list";
+import { Pencil, ArrowRightLeft, Building2, Plus } from "lucide-react";
 
 export default async function ResidentDetailPage({
   params,
@@ -14,9 +16,10 @@ export default async function ResidentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [resident, history] = await Promise.all([
+  const [resident, history, interactions] = await Promise.all([
     getResident(id),
     getResidentFacilityHistory(id),
+    listInteractionsForResident(id),
   ]);
 
   if (!resident) notFound();
@@ -37,6 +40,12 @@ export default async function ResidentDetailPage({
           </p>
         </div>
         <div className="flex gap-2">
+          <Button asChild>
+            <Link href={`/interactions/new?resident=${resident.id}`}>
+              <Plus className="size-4" />
+              Log an interaction
+            </Link>
+          </Button>
           <Button variant="outline" asChild>
             <Link href={`/residents/${resident.id}/edit`}>
               <Pencil className="size-4" />
@@ -106,6 +115,15 @@ export default async function ResidentDetailPage({
               ))}
             </ol>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Recent interactions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <InteractionList interactions={interactions} variant="resident" />
         </CardContent>
       </Card>
 
