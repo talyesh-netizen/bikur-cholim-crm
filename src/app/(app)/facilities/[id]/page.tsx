@@ -7,6 +7,8 @@ import { getFacility } from "@/lib/queries/facilities";
 import { setFacilityActive } from "@/lib/actions/facilities";
 import { listResidents } from "@/lib/queries/residents";
 import { listInteractionsForFacility } from "@/lib/queries/interactions";
+import { listFacilityContacts } from "@/lib/queries/contacts";
+import { removeFacilityContact, setPrimaryFacilityContact } from "@/lib/actions/facility-contacts";
 import {
   labelFor,
   FACILITY_TYPES,
@@ -15,9 +17,10 @@ import {
   KOSHER_FOOD_OPTIONS,
 } from "@/lib/domain/facility";
 import { RESIDENT_STATUSES } from "@/lib/domain/resident";
+import { labelFor as labelForContact, CONTACT_TYPES } from "@/lib/domain/contact";
 import { formatDateTime } from "@/lib/format-date";
 import { InteractionList } from "@/app/(app)/interactions/interaction-list";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, X, Star } from "lucide-react";
 
 export default async function FacilityDetailPage({
   params,
@@ -25,10 +28,11 @@ export default async function FacilityDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [facility, residents, interactions] = await Promise.all([
+  const [facility, residents, interactions, facilityContacts] = await Promise.all([
     getFacility(id),
     listResidents({ facilityId: id, showAllStatuses: true }),
     listInteractionsForFacility(id),
+    listFacilityContacts(id),
   ]);
 
   if (!facility) notFound();
@@ -155,6 +159,59 @@ export default async function FacilityDetailPage({
                   </Link>
                 </li>
               ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-base">Facility contacts</CardTitle>
+          <Button size="sm" variant="outline" asChild>
+            <Link href={`/facilities/${facility.id}/contacts/new`}>
+              <Plus className="size-4" />
+              Add facility contact
+            </Link>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {facilityContacts.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No facility contacts on file yet.</p>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {facilityContacts.map((fc) => {
+                const removeContact = removeFacilityContact.bind(null, facility.id, fc.id);
+                const makePrimary = setPrimaryFacilityContact.bind(null, facility.id, fc.id);
+                return (
+                  <li key={fc.id} className="flex items-start justify-between gap-4 text-sm">
+                    <div>
+                      <Link href={`/contacts/${fc.contact.id}`} className="font-medium hover:underline">
+                        {fc.contact.name}
+                      </Link>
+                      <p className="text-xs text-muted-foreground">
+                        {fc.role_at_facility || labelForContact(CONTACT_TYPES, fc.contact.contact_type)}
+                        {fc.contact.phone ? ` · ${fc.contact.phone}` : ""}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {fc.is_primary_contact ? (
+                        <Badge>Primary</Badge>
+                      ) : (
+                        <form action={makePrimary}>
+                          <Button size="sm" variant="ghost" type="submit" title="Make primary contact">
+                            <Star className="size-4" />
+                          </Button>
+                        </form>
+                      )}
+                      <form action={removeContact}>
+                        <Button size="sm" variant="ghost" type="submit" title="Remove">
+                          <X className="size-4" />
+                        </Button>
+                      </form>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </CardContent>

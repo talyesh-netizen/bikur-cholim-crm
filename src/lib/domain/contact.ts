@@ -69,3 +69,14 @@ export type ResidentContact = {
   relationship_notes: string | null;
   contact: Contact;
 };
+
+/** A facility_contacts row plus the linked contact's own fields, for
+ * display on a facility's page. */
+export type FacilityContact = {
+  id: string;
+  facility_id: string;
+  contact_id: string;
+  role_at_facility: string | null;
+  is_primary_contact: boolean;
+  contact: Contact;
+};

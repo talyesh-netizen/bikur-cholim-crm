@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getContact, listResidentsForContact } from "@/lib/queries/contacts";
+import { getContact, listResidentsForContact, listFacilitiesForContact } from "@/lib/queries/contacts";
 import { setContactActive } from "@/lib/actions/contacts";
 import { labelFor, CONTACT_TYPES, PREFERRED_COMMUNICATION_METHODS, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
 import { Pencil } from "lucide-react";
@@ -14,9 +14,10 @@ export default async function ContactDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [contact, residentLinks] = await Promise.all([
+  const [contact, residentLinks, facilityLinks] = await Promise.all([
     getContact(id),
     listResidentsForContact(id),
+    listFacilitiesForContact(id),
   ]);
 
   if (!contact) notFound();
@@ -98,6 +99,36 @@ export default async function ContactDetailPage({
                       <Badge variant="secondary">
                         {labelFor(RESIDENT_CONTACT_RELATIONSHIPS, link.relationship_to_resident)}
                       </Badge>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Connected facilities</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {facilityLinks.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Not linked to any facilities yet.</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {facilityLinks.map((link) => (
+                <li key={link.facility_contact_id}>
+                  <Link
+                    href={`/facilities/${link.facility_id}`}
+                    className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+                  >
+                    <span>{link.facility_name}</span>
+                    <span className="flex items-center gap-2">
+                      {link.is_primary_contact ? <Badge>Primary</Badge> : null}
+                      {link.role_at_facility ? (
+                        <Badge variant="secondary">{link.role_at_facility}</Badge>
+                      ) : null}
                     </span>
                   </Link>
                 </li>

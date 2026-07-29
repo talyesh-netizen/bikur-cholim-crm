@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import type { Contact, ResidentContact } from "@/lib/domain/contact";
+import type { Contact, ResidentContact, FacilityContact } from "@/lib/domain/contact";
 
 export type ContactFilters = {
   search?: string;
@@ -56,6 +56,50 @@ export async function listResidentContacts(residentId: string) {
     relationship_notes: row.relationship_notes,
     contact: row.contacts as unknown as Contact,
   })) as ResidentContact[];
+}
+
+export async function listFacilityContacts(facilityId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("facility_contacts")
+    .select("id, facility_id, contact_id, role_at_facility, is_primary_contact, contacts(*)")
+    .eq("facility_id", facilityId)
+    .order("is_primary_contact", { ascending: false });
+
+  if (error) throw new Error(error.message);
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    facility_id: row.facility_id,
+    contact_id: row.contact_id,
+    role_at_facility: row.role_at_facility,
+    is_primary_contact: row.is_primary_contact,
+    contact: row.contacts as unknown as Contact,
+  })) as FacilityContact[];
+}
+
+/** The facilities a given contact is linked to — shown on the contact's
+ * own detail page (e.g., a regional director who oversees several
+ * facilities). */
+export async function listFacilitiesForContact(contactId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("facility_contacts")
+    .select("id, role_at_facility, is_primary_contact, facilities(id, name)")
+    .eq("contact_id", contactId);
+
+  if (error) throw new Error(error.message);
+
+  return (data ?? []).map((row) => {
+    const facility = row.facilities as unknown as { id: string; name: string } | null;
+    return {
+      facility_contact_id: row.id,
+      role_at_facility: row.role_at_facility,
+      is_primary_contact: row.is_primary_contact,
+      facility_id: facility?.id ?? null,
+      facility_name: facility?.name ?? "Unknown facility",
+    };
+  });
 }
 
 /** The residents a given contact is linked to — shown on the contact's
