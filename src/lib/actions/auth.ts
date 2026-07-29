@@ -20,6 +20,10 @@ export async function signIn(
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
+    // Logged server-side only (visible in Vercel's function logs), never
+    // shown to the person signing in — the message below stays generic
+    // on purpose so we don't hint at which part was wrong.
+    console.error("Sign-in failed:", error.status, error.code, error.message);
     return { error: "That email and password didn't match. Please try again." };
   }
 
