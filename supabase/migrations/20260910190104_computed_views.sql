@@ -9,7 +9,7 @@
 -- Which interaction types count as an actual visit to a facility, for
 -- the purposes of "last visit date." A phone call or email does not
 -- count as a visit.
-create or replace view public.facility_summary as
+create or replace view public.facility_summary with (security_invoker = true) as
 select
   f.*,
   gc.name as geographic_cluster_name,
@@ -31,7 +31,7 @@ left join public.geographic_clusters gc on gc.id = f.geographic_cluster_id;
 comment on view public.facility_summary is
   'Facilities plus their computed last visit date (from the interaction log) and current active resident count. Read from this view instead of the raw facilities table when you need those fields.';
 
-create or replace view public.resident_summary as
+create or replace view public.resident_summary with (security_invoker = true) as
 select
   r.*,
   f.name as current_facility_name,

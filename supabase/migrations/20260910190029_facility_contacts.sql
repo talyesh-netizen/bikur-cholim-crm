@@ -36,20 +36,20 @@ alter table public.facility_contacts enable row level security;
 create policy "facility contacts are readable by active staff"
   on public.facility_contacts for select
   to authenticated
-  using (public.is_active_staff());
+  using (crm_private.is_active_staff());
 
 create policy "active staff can add facility contacts"
   on public.facility_contacts for insert
   to authenticated
-  with check (public.is_active_staff());
+  with check (crm_private.is_active_staff());
 
 create policy "active staff can update facility contacts"
   on public.facility_contacts for update
   to authenticated
-  using (public.is_active_staff())
-  with check (public.is_active_staff());
+  using (crm_private.is_active_staff())
+  with check (crm_private.is_active_staff());
 
 create policy "active staff can remove facility contacts"
   on public.facility_contacts for delete
   to authenticated
-  using (public.is_active_staff());
+  using (crm_private.is_active_staff());

@@ -53,18 +53,18 @@ alter table public.residents enable row level security;
 create policy "residents are readable by active staff"
   on public.residents for select
   to authenticated
-  using (public.is_active_staff());
+  using (crm_private.is_active_staff());
 
 create policy "active staff can add residents"
   on public.residents for insert
   to authenticated
-  with check (public.is_active_staff());
+  with check (crm_private.is_active_staff());
 
 create policy "active staff can update residents"
   on public.residents for update
   to authenticated
-  using (public.is_active_staff())
-  with check (public.is_active_staff());
+  using (crm_private.is_active_staff())
+  with check (crm_private.is_active_staff());
 
 -- No delete policy: residents are marked with a status (e.g., "Returned
 -- home," "Deceased," "No longer receiving services"), never deleted, so

@@ -70,21 +70,21 @@ async function main() {
 
     console.log(`Created ${user.email} (${data.user.id})`);
 
-    if (user.role === "admin") {
+    {
       // Direct table update via the service role key bypasses row-level
       // security, which is exactly what's needed to set the very first
       // admin account — see the note in
-      // supabase/migrations/20260727000002_profiles.sql about this
+      // supabase/migrations/20260910185935_profiles.sql about this
       // bootstrapping step.
       const { error: roleError } = await supabase
         .from("profiles")
-        .update({ role: "admin" })
+        .update({ role: user.role, active: true })
         .eq("id", data.user.id);
 
       if (roleError) {
-        console.error(`Failed to promote ${user.email} to admin:`, roleError.message);
+        console.error(`Failed to approve demo account ${user.email}:`, roleError.message);
       } else {
-        console.log(`Promoted ${user.email} to admin.`);
+        console.log(`Approved ${user.email} as ${user.role}.`);
       }
     }
   }

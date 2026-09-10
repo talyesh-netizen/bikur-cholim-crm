@@ -1,6 +1,6 @@
 /**
  * Task-related types and option lists. Must stay in sync with the CHECK
- * constraints in supabase/migrations/20260727000011_tasks.sql — see the
+ * constraints in supabase/migrations/20260910190057_tasks.sql — see the
  * same note in src/lib/domain/facility.ts for why.
  */
 

@@ -1,3 +1,8 @@
+-- Internal helpers are not exposed through the Data API.
+create schema if not exists crm_private;
+revoke all on schema crm_private from public, anon;
+grant usage on schema crm_private to authenticated;
+
 -- Extensions and shared helper functions used by every table that follows.
 --
 -- Plain-English summary: this file sets up small pieces of reusable
@@ -14,6 +19,7 @@
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
+set search_path = ''
 as $$
 begin
   new.updated_at = now();

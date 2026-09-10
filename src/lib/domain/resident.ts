@@ -1,7 +1,7 @@
 /**
  * Resident-related types and option lists. Must stay in sync with the
  * CHECK constraint in
- * supabase/migrations/20260727000005_residents.sql — see the same note
+ * supabase/migrations/20260910185959_residents.sql — see the same note
  * in src/lib/domain/facility.ts for why.
  */
 
@@ -48,7 +48,7 @@ export type Resident = {
 
 /** A resident row as returned by the resident_summary view — the real
  * residents table plus computed fields. See
- * supabase/migrations/20260727000012_computed_views.sql. */
+ * supabase/migrations/20260910190104_computed_views.sql. */
 export type ResidentWithSummary = Resident & {
   current_facility_name: string | null;
   last_visit_at: string | null;

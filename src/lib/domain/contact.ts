@@ -1,7 +1,7 @@
 /**
  * Contact-related types and option lists. Must stay in sync with the
- * CHECK constraints in supabase/migrations/20260727000007_contacts.sql
- * and 20260727000008_resident_contacts.sql — see the same note in
+ * CHECK constraints in supabase/migrations/20260910190014_contacts.sql
+ * and 20260910190022_resident_contacts.sql — see the same note in
  * src/lib/domain/facility.ts for why.
  */
 

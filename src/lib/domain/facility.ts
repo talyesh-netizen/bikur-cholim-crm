@@ -1,7 +1,7 @@
 /**
  * Facility-related types and option lists. These option lists must stay
  * in sync with the CHECK constraints in
- * supabase/migrations/20260727000004_facilities.sql — the database is
+ * supabase/migrations/20260910185951_facilities.sql — the database is
  * the ultimate source of truth (it will reject anything not in these
  * lists), but keeping them mirrored here is what lets the app show
  * plain-English labels and dropdowns instead of raw database codes.
@@ -88,7 +88,7 @@ export type Facility = {
 
 /** A facility row as returned by the facility_summary view — the real
  * facilities table plus computed fields. See
- * supabase/migrations/20260727000012_computed_views.sql. */
+ * supabase/migrations/20260910190104_computed_views.sql. */
 export type FacilityWithSummary = Facility & {
   geographic_cluster_name: string | null;
   last_visit_at: string | null;

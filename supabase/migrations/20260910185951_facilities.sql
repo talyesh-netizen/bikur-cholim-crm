@@ -69,18 +69,18 @@ alter table public.facilities enable row level security;
 create policy "facilities are readable by active staff"
   on public.facilities for select
   to authenticated
-  using (public.is_active_staff());
+  using (crm_private.is_active_staff());
 
 create policy "active staff can add facilities"
   on public.facilities for insert
   to authenticated
-  with check (public.is_active_staff());
+  with check (crm_private.is_active_staff());
 
 create policy "active staff can update facilities"
   on public.facilities for update
   to authenticated
-  using (public.is_active_staff())
-  with check (public.is_active_staff());
+  using (crm_private.is_active_staff())
+  with check (crm_private.is_active_staff());
 
 -- No delete policy: facilities are deactivated (active = false), never
 -- deleted, so that residents/interactions/tasks tied to them never lose

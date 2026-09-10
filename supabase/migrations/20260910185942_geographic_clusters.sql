@@ -34,10 +34,10 @@ alter table public.geographic_clusters enable row level security;
 create policy "clusters are readable by active staff"
   on public.geographic_clusters for select
   to authenticated
-  using (public.is_active_staff());
+  using (crm_private.is_active_staff());
 
 create policy "only admins manage clusters"
   on public.geographic_clusters for all
   to authenticated
-  using (public.is_admin())
-  with check (public.is_admin());
+  using (crm_private.is_admin())
+  with check (crm_private.is_admin());

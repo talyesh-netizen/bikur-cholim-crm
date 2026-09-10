@@ -56,20 +56,20 @@ alter table public.resident_contacts enable row level security;
 create policy "resident contacts are readable by active staff"
   on public.resident_contacts for select
   to authenticated
-  using (public.is_active_staff());
+  using (crm_private.is_active_staff());
 
 create policy "active staff can add resident contacts"
   on public.resident_contacts for insert
   to authenticated
-  with check (public.is_active_staff());
+  with check (crm_private.is_active_staff());
 
 create policy "active staff can update resident contacts"
   on public.resident_contacts for update
   to authenticated
-  using (public.is_active_staff())
-  with check (public.is_active_staff());
+  using (crm_private.is_active_staff())
+  with check (crm_private.is_active_staff());
 
 create policy "active staff can remove resident contacts"
   on public.resident_contacts for delete
   to authenticated
-  using (public.is_active_staff());
+  using (crm_private.is_active_staff());

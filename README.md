@@ -114,14 +114,37 @@ Other useful commands:
 
 ### Current status
 
-- **Stage 1 (done):** the visual scaffold — color palette, fonts, and a
-  handful of reusable interface pieces (buttons, cards, inputs).
-- **Stage 2 (done):** the real database structure exists as migration
-  files in `supabase/migrations/`, with security rules tested and
-  fictional demo data ready to load. See `DATABASE.md`.
-- **Not yet connected:** the running app doesn't talk to a database yet
-  — there is no real Supabase project behind it, so sign-in and every
-  data screen are still ahead. That's next, per `PLAN.md`.
+The repository now contains sign-in, dashboard, facilities, residents,
+contacts, interactions, and follow-up screens with Supabase queries and
+server actions. The earlier Stage 1/2 description was out of date.
+
+On September 10, 2026, the existing Supabase project was restored and its
+14 database migrations were applied. Migration filenames match the
+versions returned by that project's migration history.
+
+Database access fixes included in this setup:
+
+- New accounts stay inactive until an administrator approves them.
+- Summary views enforce the caller's row-level access rules.
+- Privileged helper functions live in an internal schema.
+- Explicit grants expose only the operations the application uses.
+- Resident transfers lock the resident row before updating its history.
+
+Verified against the hosted database: anonymous users cannot read the
+base tables or summary views; authenticated users without approved staff
+membership cannot read the fixtures or insert records. The test rolls
+back all fictional fixtures. See `supabase/access-smoke-test.sql`.
+
+Remaining before a working app handoff:
+
+- Approve the owner's existing sign-in as the first CRM administrator.
+- Verify Vercel's environment configuration and current deployment.
+- Complete a signed-in walkthrough of the core forms and phone layout.
+- Address the existing privacy review requirements before real resident
+  information is entered.
+
+No resident data or demo accounts were imported. No end-to-end app test
+or new Vercel deployment has been completed in this setup session.
 
 ### Setting up the database (once a Supabase project exists)
 

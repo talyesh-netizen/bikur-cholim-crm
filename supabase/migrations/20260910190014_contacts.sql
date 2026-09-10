@@ -51,15 +51,15 @@ alter table public.contacts enable row level security;
 create policy "contacts are readable by active staff"
   on public.contacts for select
   to authenticated
-  using (public.is_active_staff());
+  using (crm_private.is_active_staff());
 
 create policy "active staff can add contacts"
   on public.contacts for insert
   to authenticated
-  with check (public.is_active_staff());
+  with check (crm_private.is_active_staff());
 
 create policy "active staff can update contacts"
   on public.contacts for update
   to authenticated
-  using (public.is_active_staff())
-  with check (public.is_active_staff());
+  using (crm_private.is_active_staff())
+  with check (crm_private.is_active_staff());

@@ -42,7 +42,7 @@ alter table public.resident_facility_history enable row level security;
 create policy "facility history is readable by active staff"
   on public.resident_facility_history for select
   to authenticated
-  using (public.is_active_staff());
+  using (crm_private.is_active_staff());
 
 -- There is deliberately no insert/update policy here for regular use.
 -- Rows in this table are written automatically by the two trigger
@@ -53,7 +53,7 @@ create policy "facility history is readable by active staff"
 -- are added to the system, so every resident always has exactly one
 -- "current" stay recorded from day one, without staff having to do
 -- anything extra.
-create or replace function public.create_initial_facility_history()
+create or replace function crm_private.create_initial_facility_history()
 returns trigger
 language plpgsql
 security definer set search_path = public
@@ -67,7 +67,7 @@ $$;
 
 create trigger create_initial_facility_history
   after insert on public.residents
-  for each row execute function public.create_initial_facility_history();
+  for each row execute function crm_private.create_initial_facility_history();
 
 -- The heart of "move a resident without losing history": whenever a
 -- resident's current_facility_id actually changes (however that change
@@ -78,7 +78,7 @@ create trigger create_initial_facility_history
 -- rather than relying on the app to remember every step, the history
 -- can never accidentally fall out of sync with a resident's actual
 -- current facility.
-create or replace function public.record_facility_transfer()
+create or replace function crm_private.record_facility_transfer()
 returns trigger
 language plpgsql
 security definer set search_path = public
@@ -98,4 +98,4 @@ $$;
 
 create trigger record_facility_transfer
   after update of current_facility_id on public.residents
-  for each row execute function public.record_facility_transfer();
+  for each row execute function crm_private.record_facility_transfer();
