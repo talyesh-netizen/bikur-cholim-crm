@@ -32,7 +32,7 @@ declare
 begin
   select current_facility_id into v_old_facility_id
     from public.residents
-    where id = p_resident_id;
+    where id = p_resident_id for update;
 
   if v_old_facility_id is null then
     raise exception 'Resident not found, or you do not have access to view them.';

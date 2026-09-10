@@ -1,6 +1,6 @@
 /**
  * Interaction-related types and option lists. Must stay in sync with the
- * CHECK constraint in supabase/migrations/20260727000010_interactions.sql
+ * CHECK constraint in supabase/migrations/20260910190050_interactions.sql
  * — see the same note in src/lib/domain/facility.ts for why.
  */
 

@@ -52,18 +52,18 @@ alter table public.interactions enable row level security;
 create policy "interactions are readable by active staff"
   on public.interactions for select
   to authenticated
-  using (public.is_active_staff());
+  using (crm_private.is_active_staff());
 
 create policy "active staff can log interactions"
   on public.interactions for insert
   to authenticated
-  with check (public.is_active_staff());
+  with check (crm_private.is_active_staff());
 
 create policy "active staff can update interactions"
   on public.interactions for update
   to authenticated
-  using (public.is_active_staff())
-  with check (public.is_active_staff());
+  using (crm_private.is_active_staff())
+  with check (crm_private.is_active_staff());
 
 -- interaction_volunteers: which volunteers (drawn from the contacts
 -- table) were involved in a given interaction. A separate table because
@@ -83,14 +83,14 @@ alter table public.interaction_volunteers enable row level security;
 create policy "interaction volunteers are readable by active staff"
   on public.interaction_volunteers for select
   to authenticated
-  using (public.is_active_staff());
+  using (crm_private.is_active_staff());
 
 create policy "active staff can record interaction volunteers"
   on public.interaction_volunteers for insert
   to authenticated
-  with check (public.is_active_staff());
+  with check (crm_private.is_active_staff());
 
 create policy "active staff can remove interaction volunteers"
   on public.interaction_volunteers for delete
   to authenticated
-  using (public.is_active_staff());
+  using (crm_private.is_active_staff());

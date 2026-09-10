@@ -11,7 +11,7 @@ create table public.profiles (
   full_name text not null,
   email text not null,
   role text not null default 'staff' check (role in ('staff', 'admin')),
-  active boolean not null default true,
+  active boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -29,19 +29,20 @@ create trigger set_updated_at
 
 -- Automatically creates a profile row whenever someone signs up through
 -- Supabase Auth, so staff never have to manually create a matching
--- "profiles" row themselves. New accounts default to the Staff role;
+-- "profiles" row themselves. New accounts are inactive until approved;
 -- an Admin can promote someone to Admin afterward.
-create or replace function public.handle_new_user()
+create or replace function crm_private.handle_new_user()
 returns trigger
 language plpgsql
 security definer set search_path = public
 as $$
 begin
-  insert into public.profiles (id, full_name, email)
+  insert into public.profiles (id, full_name, email, active)
   values (
     new.id,
-    coalesce(new.raw_user_meta_data ->> 'full_name', new.email),
-    new.email
+    coalesce(new.raw_user_meta_data ->> 'full_name', new.email, 'Pending account'),
+    coalesce(new.email, ''),
+    false
   );
   return new;
 end;
@@ -49,7 +50,7 @@ $$;
 
 create trigger on_auth_user_created
   after insert on auth.users
-  for each row execute function public.handle_new_user();
+  for each row execute function crm_private.handle_new_user();
 
 -- Helper function used throughout the rest of the security rules to ask
 -- "is the currently signed-in person an Admin?". It's marked `security
@@ -57,7 +58,7 @@ create trigger on_auth_user_created
 -- the caller's behalf even though the caller's own row-level security
 -- would otherwise apply — this avoids the security rules checking
 -- themselves in an endless loop.
-create or replace function public.is_admin()
+create or replace function crm_private.is_admin()
 returns boolean
 language sql
 stable
@@ -69,13 +70,13 @@ as $$
   );
 $$;
 
-comment on function public.is_admin() is
+comment on function crm_private.is_admin() is
   'Returns true if the signed-in user is an active Admin. Used by security rules across the app.';
 
 -- Helper function: "is the currently signed-in person an active member
 -- of staff at all (Staff or Admin)?" Every table's security rules
 -- require at least this before allowing any access.
-create or replace function public.is_active_staff()
+create or replace function crm_private.is_active_staff()
 returns boolean
 language sql
 stable
@@ -87,7 +88,7 @@ as $$
   );
 $$;
 
-comment on function public.is_active_staff() is
+comment on function crm_private.is_active_staff() is
   'Returns true if the signed-in user has an active Staff or Admin account. The baseline check for all data access.';
 
 -- Safety net: the "update your own profile" policy above only checks
@@ -105,7 +106,7 @@ comment on function public.is_active_staff() is
 -- app). That bootstrapping step requires already having direct database
 -- access, which is a strictly higher level of trust than being signed
 -- into the app.
-create or replace function public.protect_profile_privileges()
+create or replace function crm_private.protect_profile_privileges()
 returns trigger
 language plpgsql
 security definer set search_path = public
@@ -113,7 +114,7 @@ as $$
 begin
   if auth.uid() is not null
      and (new.role is distinct from old.role or new.active is distinct from old.active)
-     and not public.is_admin() then
+     and not crm_private.is_admin() then
     raise exception 'Only an admin can change a profile''s role or active status.';
   end if;
   return new;
@@ -122,7 +123,7 @@ $$;
 
 create trigger protect_profile_privileges
   before update on public.profiles
-  for each row execute function public.protect_profile_privileges();
+  for each row execute function crm_private.protect_profile_privileges();
 
 alter table public.profiles enable row level security;
 
@@ -132,7 +133,7 @@ alter table public.profiles enable row level security;
 create policy "profiles are readable by active staff"
   on public.profiles for select
   to authenticated
-  using (public.is_active_staff());
+  using (crm_private.is_active_staff());
 
 -- A person can update their own display name.
 create policy "users can update their own profile"
@@ -146,8 +147,8 @@ create policy "users can update their own profile"
 create policy "admins can update any profile"
   on public.profiles for update
   to authenticated
-  using (public.is_admin())
-  with check (public.is_admin());
+  using (crm_private.is_admin())
+  with check (crm_private.is_admin());
 
 -- Note: there is intentionally no INSERT or DELETE policy for regular
 -- use. New profile rows are created automatically by the

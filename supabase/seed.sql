@@ -246,7 +246,7 @@ insert into public.tasks (title, description, due_date, priority, status, assign
 -- database outside of the app. The resident_facility_history bookkeeping
 -- still happens automatically either way, because it's driven by the
 -- trigger on the residents table (see
--- supabase/migrations/20260727000006_resident_facility_history.sql),
+-- supabase/migrations/20260910190006_resident_facility_history.sql),
 -- not by the function itself. When a real staff member performs a
 -- transfer through the app, they'll use transfer_resident() as usual.
 -- ---------------------------------------------------------------------

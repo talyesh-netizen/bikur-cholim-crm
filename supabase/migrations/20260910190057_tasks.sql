@@ -50,15 +50,15 @@ alter table public.tasks enable row level security;
 create policy "tasks are readable by active staff"
   on public.tasks for select
   to authenticated
-  using (public.is_active_staff());
+  using (crm_private.is_active_staff());
 
 create policy "active staff can add tasks"
   on public.tasks for insert
   to authenticated
-  with check (public.is_active_staff());
+  with check (crm_private.is_active_staff());
 
 create policy "active staff can update tasks"
   on public.tasks for update
   to authenticated
-  using (public.is_active_staff())
-  with check (public.is_active_staff());
+  using (crm_private.is_active_staff())
+  with check (crm_private.is_active_staff());

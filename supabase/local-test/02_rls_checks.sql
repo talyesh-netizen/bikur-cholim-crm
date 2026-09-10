@@ -12,12 +12,12 @@ set role anon;
 do $$
 declare v_count int;
 begin
-  select count(*) into v_count from public.residents;
-  if v_count = 0 then
-    raise notice 'PASS (1): signed-out visitor sees 0 residents';
-  else
-    raise exception 'FAIL (1): signed-out visitor could see % resident row(s)', v_count;
-  end if;
+  begin
+    select count(*) into v_count from public.residents;
+    if v_count <> 0 then raise exception 'FAIL: anonymous read returned data'; end if;
+  exception when insufficient_privilege then
+    raise notice 'PASS (1): signed-out visitor denied table access';
+  end;
 end $$;
 reset role;
 
@@ -92,7 +92,7 @@ begin
   else
     raise exception 'FAIL (4b): admin insert did not take effect as expected';
   end if;
-  delete from public.geographic_clusters where name = 'Admin Test Cluster';
+  update public.geographic_clusters set active = false where name = 'Admin Test Cluster';
 end $$;
 
 -- ===== Check 5: at most one Primary Contact per resident =====

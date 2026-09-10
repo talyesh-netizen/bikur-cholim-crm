@@ -17,7 +17,7 @@ const transferSchema = z.object({
  * The one place in the app that moves a resident to a different
  * facility. It delegates to the database's transfer_resident()
  * function (see
- * supabase/migrations/20260727000013_resident_transfer_function.sql),
+ * supabase/migrations/20260910190113_resident_transfer_function.sql),
  * which updates the resident's current facility, automatically rewrites
  * their facility history, and logs the move in the interaction log — as
  * a single all-or-nothing operation. This action's job is just to
