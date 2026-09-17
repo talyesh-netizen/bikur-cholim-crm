@@ -2,18 +2,50 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getDashboardSummary } from "@/lib/queries/dashboard";
+import { createClient } from "@/lib/supabase/server";
 import { TaskCard } from "../tasks/task-card";
 import { labelFor, INTERACTION_TYPES } from "@/lib/domain/interaction";
 import { ENGAGEMENT_STATUSES } from "@/lib/domain/facility";
 import { formatDateTime, formatDateOnly } from "@/lib/format-date";
+import {
+  ListChecks,
+  Users,
+  Building2,
+  AlertCircle,
+  UserRoundX,
+  Activity,
+  type LucideIcon,
+} from "lucide-react";
 
-function StatCard({ label, value, href }: { label: string; value: number; href: string }) {
+function greeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function StatCard({
+  label,
+  value,
+  href,
+  icon: Icon,
+}: {
+  label: string;
+  value: number;
+  href: string;
+  icon: LucideIcon;
+}) {
   return (
     <Link href={href}>
       <Card className="transition-colors hover:border-primary/50">
-        <CardContent className="p-4">
-          <p className="text-2xl font-semibold">{value}</p>
-          <p className="text-sm text-muted-foreground">{label}</p>
+        <CardContent className="flex items-center gap-3 p-4">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <Icon className="size-5" />
+          </div>
+          <div>
+            <p className="text-2xl font-semibold leading-none">{value}</p>
+            <p className="text-sm text-muted-foreground">{label}</p>
+          </div>
         </CardContent>
       </Card>
     </Link>
@@ -22,19 +54,29 @@ function StatCard({ label, value, href }: { label: string; value: number; href: 
 
 function SectionCard({
   title,
+  icon: Icon,
   count,
   emptyMessage,
+  className,
   children,
 }: {
   title: string;
+  icon: LucideIcon;
   count: number;
   emptyMessage: string;
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
-    <Card>
-      <CardHeader>
+    <Card className={className}>
+      <CardHeader className="flex-row items-center gap-2 space-y-0">
+        <Icon className="size-4 text-muted-foreground" />
         <CardTitle className="text-base">{title}</CardTitle>
+        {count > 0 ? (
+          <Badge variant="secondary" className="ml-auto">
+            {count}
+          </Badge>
+        ) : null}
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {count === 0 ? (
@@ -48,27 +90,44 @@ function SectionCard({
 }
 
 export default async function DashboardPage() {
-  const summary = await getDashboardSummary();
+  const supabase = await createClient();
+  const [{ data: { user } }, summary] = await Promise.all([
+    supabase.auth.getUser(),
+    getDashboardSummary(),
+  ]);
+
+  let firstName = "";
+  if (user) {
+    const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user.id).single();
+    firstName = profile?.full_name?.split(" ")[0] ?? "";
+  }
 
   const attentionTasks = [...summary.overdueTasks, ...summary.dueTodayTasks].slice(0, 6);
+  const today = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
 
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">
-          A quick summary of what needs attention today.
-        </p>
+        <h1 className="text-2xl font-semibold">
+          {greeting()}
+          {firstName ? `, ${firstName}` : ""}
+        </h1>
+        <p className="text-sm text-muted-foreground">{today} — here&apos;s what needs attention.</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <StatCard label="Open tasks" value={summary.counts.openTasks} href="/tasks" />
-        <StatCard label="Active residents" value={summary.counts.activeResidents} href="/residents" />
-        <StatCard label="Active facilities" value={summary.counts.activeFacilities} href="/facilities" />
+        <StatCard label="Open tasks" value={summary.counts.openTasks} href="/tasks" icon={ListChecks} />
+        <StatCard label="Active residents" value={summary.counts.activeResidents} href="/residents" icon={Users} />
+        <StatCard label="Active facilities" value={summary.counts.activeFacilities} href="/facilities" icon={Building2} />
       </div>
 
       <SectionCard
         title="Needs attention today"
+        icon={AlertCircle}
         count={attentionTasks.length}
         emptyMessage="No overdue or due-today tasks — you're caught up."
       >
@@ -84,84 +143,94 @@ export default async function DashboardPage() {
         ) : null}
       </SectionCard>
 
-      <SectionCard
-        title="Residents without a recent visit"
-        count={summary.staleResidents.length}
-        emptyMessage="Everyone active has had a visit logged in the last 30 days."
-      >
-        <div className="flex flex-col divide-y divide-border">
-          {summary.staleResidents.map((resident) => (
-            <Link
-              key={resident.id}
-              href={`/residents/${resident.id}`}
-              className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0 hover:text-primary"
-            >
-              <div>
-                <p className="font-medium leading-tight">
-                  {resident.preferred_name ?? resident.first_name} {resident.last_name}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {resident.current_facility_name ?? "No facility"}
-                </p>
-              </div>
-              <span className="whitespace-nowrap text-xs text-muted-foreground">
-                {resident.last_visit_at ? `Last visit ${formatDateTime(resident.last_visit_at)}` : "No visit logged yet"}
-              </span>
-            </Link>
-          ))}
-        </div>
-      </SectionCard>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <SectionCard
+          title="Residents without a recent visit"
+          icon={UserRoundX}
+          count={summary.staleResidents.length}
+          emptyMessage="Everyone active has had a visit logged in the last 30 days."
+        >
+          <div className="flex flex-col divide-y divide-border">
+            {summary.staleResidents.map((resident) => (
+              <Link
+                key={resident.id}
+                href={`/residents/${resident.id}`}
+                className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0 hover:text-primary"
+              >
+                <div>
+                  <p className="font-medium leading-tight">
+                    {resident.preferred_name ?? resident.first_name} {resident.last_name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {resident.current_facility_name ?? "No facility"}
+                  </p>
+                </div>
+                <span className="whitespace-nowrap text-xs text-muted-foreground">
+                  {resident.last_visit_at ? `Last visit ${formatDateTime(resident.last_visit_at)}` : "No visit logged yet"}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </SectionCard>
 
-      <SectionCard
-        title="Facilities needing attention"
-        count={summary.facilitiesNeedingAttention.length}
-        emptyMessage="No facilities currently flagged as needing attention."
-      >
-        <div className="flex flex-col divide-y divide-border">
-          {summary.facilitiesNeedingAttention.map((facility) => (
-            <Link
-              key={facility.id}
-              href={`/facilities/${facility.id}`}
-              className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0 hover:text-primary"
-            >
-              <div>
-                <p className="font-medium leading-tight">{facility.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {facility.last_visit_at ? `Last visit ${formatDateTime(facility.last_visit_at)}` : "No visit logged yet"}
-                </p>
-              </div>
-              <div className="flex flex-col items-end gap-1">
-                {facility.visit_priority === "high" ? <Badge variant="destructive">High priority</Badge> : null}
-                {facility.engagement_status === "follow_up_needed" ? (
-                  <Badge variant="warning">{labelFor(ENGAGEMENT_STATUSES, facility.engagement_status)}</Badge>
-                ) : null}
-              </div>
-            </Link>
-          ))}
-        </div>
-      </SectionCard>
+        <SectionCard
+          title="Facilities needing attention"
+          icon={Building2}
+          count={summary.facilitiesNeedingAttention.length}
+          emptyMessage="No facilities currently flagged as needing attention."
+        >
+          <div className="flex flex-col divide-y divide-border">
+            {summary.facilitiesNeedingAttention.map((facility) => (
+              <Link
+                key={facility.id}
+                href={`/facilities/${facility.id}`}
+                className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0 hover:text-primary"
+              >
+                <div>
+                  <p className="font-medium leading-tight">{facility.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {facility.last_visit_at ? `Last visit ${formatDateTime(facility.last_visit_at)}` : "No visit logged yet"}
+                  </p>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  {facility.visit_priority === "high" ? <Badge variant="destructive">High priority</Badge> : null}
+                  {facility.engagement_status === "follow_up_needed" ? (
+                    <Badge variant="warning">{labelFor(ENGAGEMENT_STATUSES, facility.engagement_status)}</Badge>
+                  ) : null}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </SectionCard>
+      </div>
 
       <SectionCard
         title="Recent activity"
+        icon={Activity}
         count={summary.recentActivity.length}
         emptyMessage="No activity logged yet."
       >
         <div className="flex flex-col divide-y divide-border">
           {summary.recentActivity.map((interaction) => (
-            <div key={interaction.id} className="py-2.5 first:pt-0 last:pb-0">
-              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-                <p className="text-sm font-medium leading-tight">
-                  {labelFor(INTERACTION_TYPES, interaction.interaction_type)}
-                  {interaction.resident_name ? ` · ${interaction.resident_name}` : ""}
-                  {interaction.facility_name ? ` · ${interaction.facility_name}` : ""}
-                </p>
-                <span className="whitespace-nowrap text-xs text-muted-foreground">
-                  {formatDateOnly(interaction.occurred_at.slice(0, 10))}
-                </span>
+            <div key={interaction.id} className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0">
+              <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-secondary-foreground">
+                {(interaction.staff_member_name ?? "?").charAt(0).toUpperCase()}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Logged by {interaction.staff_member_name ?? "Unknown"}
-              </p>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                  <p className="text-sm font-medium leading-tight">
+                    {labelFor(INTERACTION_TYPES, interaction.interaction_type)}
+                    {interaction.resident_name ? ` · ${interaction.resident_name}` : ""}
+                    {interaction.facility_name ? ` · ${interaction.facility_name}` : ""}
+                  </p>
+                  <span className="whitespace-nowrap text-xs text-muted-foreground">
+                    {formatDateOnly(interaction.occurred_at.slice(0, 10))}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Logged by {interaction.staff_member_name ?? "Unknown"}
+                </p>
+              </div>
             </div>
           ))}
         </div>
