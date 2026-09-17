@@ -65,6 +65,18 @@ export async function getInteraction(id: string) {
   return toInteractionWithNames(data as unknown as Parameters<typeof toInteractionWithNames>[0]);
 }
 
+export async function listRecentInteractions(limit = 8) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("interactions")
+    .select(SELECT_WITH_NAMES)
+    .order("occurred_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => toInteractionWithNames(row as unknown as Parameters<typeof toInteractionWithNames>[0]));
+}
+
 export async function listInteractionsForFacility(facilityId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
