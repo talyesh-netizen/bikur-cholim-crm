@@ -41,8 +41,12 @@ function toInteractionWithNames(row: {
   };
 }
 
+// contacts!interactions_contact_id_fkey disambiguates: interaction_volunteers
+// also links interactions to contacts (many-to-many), so PostgREST can't
+// infer which relationship "contacts(...)" means without the hint — it
+// returns an HTTP 300 "multiple relationships found" error otherwise.
 const SELECT_WITH_NAMES =
-  "id, occurred_at, interaction_type, facility_id, resident_id, contact_id, staff_member_id, notes, created_at, residents(first_name, last_name, preferred_name), facilities(name), contacts(name), profiles(full_name)";
+  "id, occurred_at, interaction_type, facility_id, resident_id, contact_id, staff_member_id, notes, created_at, residents(first_name, last_name, preferred_name), facilities(name), contacts!interactions_contact_id_fkey(name), profiles(full_name)";
 
 export async function listInteractionsForResident(residentId: string) {
   const supabase = await createClient();
