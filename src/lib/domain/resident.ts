@@ -41,6 +41,7 @@ export type Resident = {
   visitation_needs: string | null;
   preferred_visit_frequency: string | null;
   status: ResidentStatus;
+  referral_source: string | null;
   private_internal_notes: string | null;
   created_at: string;
   updated_at: string;

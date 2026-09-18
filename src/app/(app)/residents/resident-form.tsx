@@ -33,6 +33,7 @@ function residentToFormValues(resident?: Resident): Record<string, string> {
     visitation_needs: resident.visitation_needs ?? "",
     preferred_visit_frequency: resident.preferred_visit_frequency ?? "",
     status: resident.status,
+    referral_source: resident.referral_source ?? "",
     private_internal_notes: resident.private_internal_notes ?? "",
   };
 }
@@ -108,6 +109,15 @@ export function ResidentForm({
 
         <Field label="Status" htmlFor="status" required>
           <SelectField name="status" defaultValue={values.status} options={RESIDENT_STATUSES} />
+        </Field>
+
+        <Field label="How we found this resident" htmlFor="referral_source">
+          <Input
+            id="referral_source"
+            name="referral_source"
+            placeholder="e.g., Rabbi Kirsch, Jewish Federation Chaplaincy"
+            defaultValue={values.referral_source}
+          />
         </Field>
       </section>
 

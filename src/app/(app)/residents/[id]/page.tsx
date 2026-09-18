@@ -81,6 +81,7 @@ export default async function ResidentDetailPage({
             <InfoRow label="Visitation needs" value={resident.visitation_needs} />
             <InfoRow label="Last visit" value={formatDateTime(resident.last_visit_at)} />
             <InfoRow label="Next follow-up" value={formatDateOnly(resident.next_follow_up_date)} />
+            <InfoRow label="How we found them" value={resident.referral_source} />
           </CardContent>
         </Card>
 

@@ -10,11 +10,18 @@ import {
 import type { FacilityWithSummary } from "@/lib/domain/facility";
 import { formatDateTime } from "@/lib/format-date";
 import { MapPin, Users } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 function priorityVariant(priority: string): "destructive" | "warning" | "secondary" {
   if (priority === "high") return "destructive";
   if (priority === "medium") return "warning";
   return "secondary";
+}
+
+function priorityAccent(priority: string): string {
+  if (priority === "high") return "border-l-4 border-l-destructive";
+  if (priority === "medium") return "border-l-4 border-l-warning";
+  return "";
 }
 
 function formatLastVisit(lastVisitAt: string | null) {
@@ -25,7 +32,7 @@ function formatLastVisit(lastVisitAt: string | null) {
 export function FacilityCard({ facility }: { facility: FacilityWithSummary }) {
   return (
     <Link href={`/facilities/${facility.id}`}>
-      <Card className="transition-colors hover:border-primary/50">
+      <Card className={cn("transition-colors hover:border-primary/50", priorityAccent(facility.visit_priority))}>
         <CardContent className="flex flex-col gap-2 p-4">
           <div className="flex items-start justify-between gap-2">
             <div>

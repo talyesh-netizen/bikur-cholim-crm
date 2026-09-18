@@ -39,6 +39,7 @@ const residentSchema = z.object({
   visitation_needs: optionalText(),
   preferred_visit_frequency: optionalText(),
   status: z.enum(statusValues),
+  referral_source: optionalText(),
   private_internal_notes: optionalText(),
 });
 
