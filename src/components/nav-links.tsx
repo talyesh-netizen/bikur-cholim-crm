@@ -8,6 +8,7 @@ import {
   Users,
   Contact,
   ListChecks,
+  History,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -17,6 +18,7 @@ export const NAV_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/facilities", label: "Facilities", icon: Building2 },
   { href: "/residents", label: "Residents", icon: Users },
   { href: "/contacts", label: "Contacts", icon: Contact },
+  { href: "/interactions", label: "Interactions", icon: History },
   { href: "/tasks", label: "Tasks", icon: ListChecks },
 ];
 

@@ -35,10 +35,12 @@ export type Interaction = {
   created_at: string;
 };
 
-/** An interaction row plus the resident/facility/staff names needed to
- * display it in a list — see lib/queries/interactions.ts. */
+/** An interaction row plus the resident/facility/contact/staff names needed
+ * to display it in a list — see lib/queries/interactions.ts. */
 export type InteractionWithNames = Interaction & {
   resident_name: string | null;
   facility_name: string | null;
+  contact_id: string | null;
+  contact_name: string | null;
   staff_member_name: string | null;
 };

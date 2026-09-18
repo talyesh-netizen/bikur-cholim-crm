@@ -54,6 +54,17 @@ export async function getFacility(id: string) {
   return data as FacilityWithSummary;
 }
 
+export async function listFacilityOptions() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("facilities")
+    .select("id, name")
+    .order("name", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as { id: string; name: string }[];
+}
+
 export async function listGeographicClusters(includeInactive = false) {
   const supabase = await createClient();
   let query = supabase

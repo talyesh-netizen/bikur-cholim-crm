@@ -18,6 +18,7 @@ import {
   KOSHER_FOOD_OPTIONS,
 } from "@/lib/domain/facility";
 import { RESIDENT_STATUSES } from "@/lib/domain/resident";
+import { clusterColor } from "@/lib/domain/cluster-colors";
 import { labelFor as labelForContact, CONTACT_TYPES } from "@/lib/domain/contact";
 import { formatDateTime } from "@/lib/format-date";
 import { InteractionList } from "@/app/(app)/interactions/interaction-list";
@@ -50,10 +51,19 @@ export default async function FacilityDetailPage({
             <h1 className="text-2xl font-semibold">{facility.name}</h1>
             {!facility.active ? <Badge variant="outline">Inactive</Badge> : null}
           </div>
-          <p className="text-sm text-muted-foreground">
+          <p className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
             {labelFor(FACILITY_TYPES, facility.facility_type)}
             {facility.city ? ` · ${facility.city}` : ""}
-            {facility.geographic_cluster_name ? ` · ${facility.geographic_cluster_name}` : ""}
+            {facility.geographic_cluster_name ? (
+              <span className="inline-flex items-center gap-1">
+                ·
+                <span
+                  className="size-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: clusterColor(facility.geographic_cluster_id) }}
+                />
+                {facility.geographic_cluster_name}
+              </span>
+            ) : null}
           </p>
         </div>
         <div className="flex gap-2">
