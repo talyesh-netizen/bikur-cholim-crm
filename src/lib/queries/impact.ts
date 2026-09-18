@@ -19,6 +19,7 @@ const BUCKET_DEFS: { key: string; label: string; color: string; types: Interacti
   { key: "resident_visits", label: "Resident visits", color: "#2a78d6", types: ["resident_visit", "resident_phone_call", "volunteer_visit"] },
   { key: "facility_staff", label: "Facility & staff", color: "#eb6834", types: ["facility_staff_communication", "facility_discovery_visit"] },
   { key: "programs", label: "Programs & events", color: "#1baf7a", types: ["program"] },
+  { key: "school", label: "School engagement", color: "#e34948", types: ["school_engagement"] },
   { key: "kosher_food", label: "Kosher food", color: "#eda100", types: ["kosher_food_coordination"] },
   { key: "family", label: "Family contact", color: "#e87ba4", types: ["family_communication"] },
   { key: "referrals", label: "Referrals", color: "#008300", types: ["referral"] },

@@ -14,6 +14,7 @@ export const INTERACTION_TYPES = [
   { value: "facility_discovery_visit", label: "Facility discovery visit" },
   { value: "volunteer_visit", label: "Volunteer visit" },
   { value: "program", label: "Program" },
+  { value: "school_engagement", label: "School engagement" },
   { value: "kosher_food_coordination", label: "Kosher food coordination" },
   { value: "hospital_related_communication", label: "Hospital-related communication" },
   { value: "referral", label: "Referral" },
