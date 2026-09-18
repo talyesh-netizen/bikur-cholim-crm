@@ -2,8 +2,10 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getDashboardSummary } from "@/lib/queries/dashboard";
+import { getImpactBreakdown, type ImpactPeriod } from "@/lib/queries/impact";
 import { createClient } from "@/lib/supabase/server";
 import { TaskCard } from "../tasks/task-card";
+import { DonutChart } from "@/components/donut-chart";
 import { labelFor, INTERACTION_TYPES } from "@/lib/domain/interaction";
 import { ENGAGEMENT_STATUSES } from "@/lib/domain/facility";
 import { formatRelative, formatDateOnly } from "@/lib/format-date";
@@ -15,9 +17,16 @@ import {
   UserRoundX,
   Activity,
   CheckCircle2,
+  PieChart,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const IMPACT_PERIODS: { value: ImpactPeriod; label: string }[] = [
+  { value: "month", label: "This month" },
+  { value: "quarter", label: "This quarter" },
+  { value: "all", label: "All time" },
+];
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -113,11 +122,20 @@ function SectionCard({
   );
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
+  const params = await searchParams;
+  const impactPeriod: ImpactPeriod =
+    params.impact === "quarter" || params.impact === "all" ? params.impact : "month";
+
   const supabase = await createClient();
-  const [{ data: { user } }, summary] = await Promise.all([
+  const [{ data: { user } }, summary, impact] = await Promise.all([
     supabase.auth.getUser(),
     getDashboardSummary(),
+    getImpactBreakdown(impactPeriod),
   ]);
 
   let firstName = "";
@@ -148,6 +166,34 @@ export default async function DashboardPage() {
         <StatCard label="Active residents" value={summary.counts.activeResidents} href="/residents" icon={Users} tone="primary" />
         <StatCard label="Active facilities" value={summary.counts.activeFacilities} href="/facilities" icon={Building2} tone="success" />
       </div>
+
+      <Card>
+        <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
+          <div className="flex items-center gap-2">
+            <PieChart className="size-4 text-muted-foreground" />
+            <CardTitle className="text-base">Impact</CardTitle>
+          </div>
+          <div className="flex gap-1 rounded-md bg-muted p-1">
+            {IMPACT_PERIODS.map((p) => (
+              <Link
+                key={p.value}
+                href={p.value === "month" ? "/dashboard" : `/dashboard?impact=${p.value}`}
+                className={cn(
+                  "rounded px-2.5 py-1 text-xs font-medium transition-colors",
+                  impactPeriod === p.value
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {p.label}
+              </Link>
+            ))}
+          </div>
+        </CardHeader>
+        <CardContent>
+          <DonutChart segments={impact.buckets} title={`Interactions by type — ${IMPACT_PERIODS.find((p) => p.value === impactPeriod)?.label}`} />
+        </CardContent>
+      </Card>
 
       <SectionCard
         title="Needs attention today"
