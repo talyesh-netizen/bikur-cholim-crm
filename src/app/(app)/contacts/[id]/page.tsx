@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { getContact, listResidentsForContact, listFacilitiesForContact } from "@/lib/queries/contacts";
 import { setContactActive } from "@/lib/actions/contacts";
 import { labelFor, CONTACT_TYPES, PREFERRED_COMMUNICATION_METHODS, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
+import { telHref, mailtoHref, mapsHref } from "@/lib/link-helpers";
+import { InfoRow } from "@/components/info-row";
 import { Pencil } from "lucide-react";
 
 export default async function ContactDetailPage({
@@ -23,6 +25,10 @@ export default async function ContactDetailPage({
   if (!contact) notFound();
 
   const toggleActive = setContactActive.bind(null, contact.id, !contact.active);
+  const fullAddress =
+    [contact.address, [contact.city, contact.state, contact.zip].filter(Boolean).join(" ")]
+      .filter(Boolean)
+      .join(", ") || undefined;
 
   return (
     <div className="flex flex-col gap-4">
@@ -57,16 +63,9 @@ export default async function ContactDetailPage({
           <CardTitle className="text-base">Contact information</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-2 text-sm">
-          <InfoRow label="Phone" value={contact.phone} />
-          <InfoRow label="Email" value={contact.email} />
-          <InfoRow
-            label="Address"
-            value={
-              [contact.address, [contact.city, contact.state, contact.zip].filter(Boolean).join(" ")]
-                .filter(Boolean)
-                .join(", ") || undefined
-            }
-          />
+          <InfoRow label="Phone" value={contact.phone} href={telHref(contact.phone)} />
+          <InfoRow label="Email" value={contact.email} href={mailtoHref(contact.email)} />
+          <InfoRow label="Address" value={fullAddress} href={mapsHref(fullAddress)} />
           <InfoRow
             label="Preferred communication method"
             value={
@@ -152,11 +151,3 @@ export default async function ContactDetailPage({
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: string | null | undefined }) {
-  return (
-    <div className="flex justify-between gap-4">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-right">{value || "—"}</span>
-    </div>
-  );
-}

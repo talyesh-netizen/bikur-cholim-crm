@@ -11,8 +11,10 @@ import { removeResidentContact, setPrimaryResidentContact } from "@/lib/actions/
 import { labelFor, RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { labelFor as labelForContact, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
 import { formatDateOnly, formatDateTime } from "@/lib/format-date";
+import { telHref } from "@/lib/link-helpers";
 import { InteractionList } from "@/app/(app)/interactions/interaction-list";
 import { TaskList } from "@/app/(app)/tasks/task-list";
+import { InfoRow } from "@/components/info-row";
 import { Pencil, ArrowRightLeft, Building2, Plus, X, Star } from "lucide-react";
 
 export default async function ResidentDetailPage({
@@ -76,7 +78,7 @@ export default async function ResidentDetailPage({
             <CardTitle className="text-base">Contact &amp; visitation</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-2 text-sm">
-            <InfoRow label="Phone number" value={resident.phone_number} />
+            <InfoRow label="Phone number" value={resident.phone_number} href={telHref(resident.phone_number)} />
             <InfoRow label="Preferred visit frequency" value={resident.preferred_visit_frequency} />
             <InfoRow label="Visitation needs" value={resident.visitation_needs} />
             <InfoRow label="Last visit" value={formatDateTime(resident.last_visit_at)} />
@@ -154,7 +156,16 @@ export default async function ResidentDetailPage({
                         {rc.relationship_to_resident === "other" && rc.relationship_other_description
                           ? rc.relationship_other_description
                           : labelForContact(RESIDENT_CONTACT_RELATIONSHIPS, rc.relationship_to_resident)}
-                        {rc.contact.phone ? ` · ${rc.contact.phone}` : ""}
+                        {rc.contact.phone ? (
+                          <>
+                            {" · "}
+                            <a href={telHref(rc.contact.phone)} className="hover:underline">
+                              {rc.contact.phone}
+                            </a>
+                          </>
+                        ) : (
+                          ""
+                        )}
                       </p>
                     </div>
                     <div className="flex items-center gap-1">
@@ -219,11 +230,3 @@ export default async function ResidentDetailPage({
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: string | null | undefined }) {
-  return (
-    <div className="flex justify-between gap-4">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-right">{value || "—"}</span>
-    </div>
-  );
-}

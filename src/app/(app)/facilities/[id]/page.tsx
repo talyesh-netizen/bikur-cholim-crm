@@ -21,8 +21,10 @@ import { RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { clusterColor } from "@/lib/domain/cluster-colors";
 import { labelFor as labelForContact, CONTACT_TYPES } from "@/lib/domain/contact";
 import { formatDateTime } from "@/lib/format-date";
+import { telHref, websiteHref, mapsHref } from "@/lib/link-helpers";
 import { InteractionList } from "@/app/(app)/interactions/interaction-list";
 import { TaskList } from "@/app/(app)/tasks/task-list";
+import { InfoRow } from "@/components/info-row";
 import { Pencil, Plus, X, Star } from "lucide-react";
 
 export default async function FacilityDetailPage({
@@ -103,9 +105,9 @@ export default async function FacilityDetailPage({
             <CardTitle className="text-base">Contact information</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-2 text-sm">
-            <InfoRow label="Address" value={formatAddress(facility)} />
-            <InfoRow label="Main phone" value={facility.main_phone} />
-            <InfoRow label="Website" value={facility.website} />
+            <InfoRow label="Address" value={formatAddress(facility)} href={mapsHref(formatAddress(facility))} />
+            <InfoRow label="Main phone" value={facility.main_phone} href={telHref(facility.main_phone)} />
+            <InfoRow label="Website" value={facility.website} href={websiteHref(facility.website)} />
             <InfoRow label="Parent healthcare group" value={facility.parent_healthcare_group} />
           </CardContent>
         </Card>
@@ -203,7 +205,16 @@ export default async function FacilityDetailPage({
                       </Link>
                       <p className="text-xs text-muted-foreground">
                         {fc.role_at_facility || labelForContact(CONTACT_TYPES, fc.contact.contact_type)}
-                        {fc.contact.phone ? ` · ${fc.contact.phone}` : ""}
+                        {fc.contact.phone ? (
+                          <>
+                            {" · "}
+                            <a href={telHref(fc.contact.phone)} className="hover:underline">
+                              {fc.contact.phone}
+                            </a>
+                          </>
+                        ) : (
+                          ""
+                        )}
                       </p>
                     </div>
                     <div className="flex items-center gap-1">
@@ -264,15 +275,6 @@ export default async function FacilityDetailPage({
           </CardContent>
         </Card>
       ) : null}
-    </div>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value: string | null | undefined }) {
-  return (
-    <div className="flex justify-between gap-4">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-right">{value || "—"}</span>
     </div>
   );
 }
