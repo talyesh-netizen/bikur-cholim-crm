@@ -27,3 +27,16 @@ export function formatDateOnly(value: string | null | undefined): string | null 
     year: "numeric",
   });
 }
+
+/** A short, scannable "how long ago" label for a timestamp (dashboard
+ * lists), falling back to the plain date once it's more than a week out
+ * so old items don't show an ever-growing day count. */
+export function formatRelative(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const then = new Date(value);
+  const days = Math.floor((Date.now() - then.getTime()) / (1000 * 60 * 60 * 24));
+  if (days <= 0) return "Today";
+  if (days === 1) return "Yesterday";
+  if (days < 7) return `${days} days ago`;
+  return formatDateTime(value);
+}

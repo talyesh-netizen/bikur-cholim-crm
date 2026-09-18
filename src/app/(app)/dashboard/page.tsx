@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { TaskCard } from "../tasks/task-card";
 import { labelFor, INTERACTION_TYPES } from "@/lib/domain/interaction";
 import { ENGAGEMENT_STATUSES } from "@/lib/domain/facility";
-import { formatDateTime, formatDateOnly } from "@/lib/format-date";
+import { formatRelative, formatDateOnly } from "@/lib/format-date";
 import {
   ListChecks,
   Users,
@@ -14,8 +14,10 @@ import {
   AlertCircle,
   UserRoundX,
   Activity,
+  CheckCircle2,
   type LucideIcon,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -24,22 +26,31 @@ function greeting(): string {
   return "Good evening";
 }
 
+const STAT_TONES = {
+  warning: { bg: "bg-warning/10", text: "text-warning" },
+  primary: { bg: "bg-primary/10", text: "text-primary" },
+  success: { bg: "bg-success/10", text: "text-success" },
+} as const;
+
 function StatCard({
   label,
   value,
   href,
   icon: Icon,
+  tone,
 }: {
   label: string;
   value: number;
   href: string;
   icon: LucideIcon;
+  tone: keyof typeof STAT_TONES;
 }) {
+  const { bg, text } = STAT_TONES[tone];
   return (
     <Link href={href}>
-      <Card className="transition-colors hover:border-primary/50">
+      <Card className="transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md">
         <CardContent className="flex items-center gap-3 p-4">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <div className={cn("flex size-11 shrink-0 items-center justify-center rounded-full", bg, text)}>
             <Icon className="size-5" />
           </div>
           <div>
@@ -52,23 +63,33 @@ function StatCard({
   );
 }
 
+const ACCENT_BORDERS = {
+  destructive: "border-l-4 border-l-destructive",
+  warning: "border-l-4 border-l-warning",
+  neutral: "",
+} as const;
+
 function SectionCard({
   title,
   icon: Icon,
   count,
+  accent = "neutral",
   emptyMessage,
+  emptyIcon: EmptyIcon = CheckCircle2,
   className,
   children,
 }: {
   title: string;
   icon: LucideIcon;
   count: number;
+  accent?: keyof typeof ACCENT_BORDERS;
   emptyMessage: string;
+  emptyIcon?: LucideIcon;
   className?: string;
   children: React.ReactNode;
 }) {
   return (
-    <Card className={className}>
+    <Card className={cn(count > 0 ? ACCENT_BORDERS[accent] : "", "transition-shadow hover:shadow-md", className)}>
       <CardHeader className="flex-row items-center gap-2 space-y-0">
         <Icon className="size-4 text-muted-foreground" />
         <CardTitle className="text-base">{title}</CardTitle>
@@ -80,7 +101,10 @@ function SectionCard({
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {count === 0 ? (
-          <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+          <div className="flex items-center gap-2 rounded-lg bg-success/10 px-3 py-2.5 text-sm text-success">
+            <EmptyIcon className="size-4 shrink-0" />
+            <span>{emptyMessage}</span>
+          </div>
         ) : (
           children
         )}
@@ -116,19 +140,20 @@ export default async function DashboardPage() {
           {greeting()}
           {firstName ? `, ${firstName}` : ""}
         </h1>
-        <p className="text-sm text-muted-foreground">{today} — here&apos;s what needs attention.</p>
+        <p className="text-sm text-muted-foreground">{today} &mdash; here&apos;s what needs attention.</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <StatCard label="Open tasks" value={summary.counts.openTasks} href="/tasks" icon={ListChecks} />
-        <StatCard label="Active residents" value={summary.counts.activeResidents} href="/residents" icon={Users} />
-        <StatCard label="Active facilities" value={summary.counts.activeFacilities} href="/facilities" icon={Building2} />
+        <StatCard label="Open tasks" value={summary.counts.openTasks} href="/tasks" icon={ListChecks} tone="warning" />
+        <StatCard label="Active residents" value={summary.counts.activeResidents} href="/residents" icon={Users} tone="primary" />
+        <StatCard label="Active facilities" value={summary.counts.activeFacilities} href="/facilities" icon={Building2} tone="success" />
       </div>
 
       <SectionCard
         title="Needs attention today"
         icon={AlertCircle}
         count={attentionTasks.length}
+        accent={summary.overdueTasks.length > 0 ? "destructive" : "warning"}
         emptyMessage="No overdue or due-today tasks — you're caught up."
       >
         <div className="flex flex-col gap-3">
@@ -138,7 +163,7 @@ export default async function DashboardPage() {
         </div>
         {summary.overdueTasks.length + summary.dueTodayTasks.length > attentionTasks.length ? (
           <Link href="/tasks" className="text-sm font-medium text-primary hover:underline">
-            View all tasks →
+            View all tasks &rarr;
           </Link>
         ) : null}
       </SectionCard>
@@ -148,6 +173,7 @@ export default async function DashboardPage() {
           title="Residents without a recent visit"
           icon={UserRoundX}
           count={summary.staleResidents.length}
+          accent="warning"
           emptyMessage="Everyone active has had a visit logged in the last 30 days."
         >
           <div className="flex flex-col divide-y divide-border">
@@ -166,7 +192,7 @@ export default async function DashboardPage() {
                   </p>
                 </div>
                 <span className="whitespace-nowrap text-xs text-muted-foreground">
-                  {resident.last_visit_at ? `Last visit ${formatDateTime(resident.last_visit_at)}` : "No visit logged yet"}
+                  {resident.last_visit_at ? `Last visit ${formatRelative(resident.last_visit_at)}` : "No visit logged yet"}
                 </span>
               </Link>
             ))}
@@ -177,6 +203,7 @@ export default async function DashboardPage() {
           title="Facilities needing attention"
           icon={Building2}
           count={summary.facilitiesNeedingAttention.length}
+          accent="warning"
           emptyMessage="No facilities currently flagged as needing attention."
         >
           <div className="flex flex-col divide-y divide-border">
@@ -189,7 +216,7 @@ export default async function DashboardPage() {
                 <div>
                   <p className="font-medium leading-tight">{facility.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {facility.last_visit_at ? `Last visit ${formatDateTime(facility.last_visit_at)}` : "No visit logged yet"}
+                    {facility.last_visit_at ? `Last visit ${formatRelative(facility.last_visit_at)}` : "No visit logged yet"}
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1">
@@ -209,11 +236,12 @@ export default async function DashboardPage() {
         icon={Activity}
         count={summary.recentActivity.length}
         emptyMessage="No activity logged yet."
+        emptyIcon={Activity}
       >
         <div className="flex flex-col divide-y divide-border">
           {summary.recentActivity.map((interaction) => (
             <div key={interaction.id} className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0">
-              <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-secondary-foreground">
+              <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
                 {(interaction.staff_member_name ?? "?").charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
