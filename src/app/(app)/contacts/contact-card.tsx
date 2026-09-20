@@ -2,7 +2,9 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ContactTypeBadge } from "@/components/contact-type-badge";
+import { ContactAvatar } from "@/components/contact-avatar";
 import { labelFor, CONTACT_TYPES } from "@/lib/domain/contact";
+import { contactTypeColor } from "@/lib/domain/contact-colors";
 import type { ContactListItem } from "@/lib/queries/contacts";
 
 // A contact who has left their role reads better as "Left role" than
@@ -17,14 +19,24 @@ export function ContactCard({ contact }: { contact: ContactListItem }) {
 
   return (
     <Link href={`/contacts/${contact.id}`}>
-      <Card className={contact.active ? "transition-colors hover:border-primary/50" : "opacity-70 transition-colors hover:border-primary/50"}>
+      <Card
+        className={
+          contact.active
+            ? "border-l-4 transition-colors hover:border-primary/50"
+            : "border-l-4 opacity-70 transition-colors hover:border-primary/50"
+        }
+        style={{ borderLeftColor: contactTypeColor(contact.contact_type) }}
+      >
         <CardContent className="flex flex-col gap-2 p-4">
           <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="font-semibold leading-tight">{contact.name}</p>
-              {contact.organization ? (
-                <span className="text-sm text-muted-foreground">{contact.organization}</span>
-              ) : null}
+            <div className="flex items-start gap-3">
+              <ContactAvatar name={contact.name} contactType={contact.contact_type} />
+              <div>
+                <p className="font-semibold leading-tight">{contact.name}</p>
+                {contact.organization ? (
+                  <span className="text-sm text-muted-foreground">{contact.organization}</span>
+                ) : null}
+              </div>
             </div>
             <div className="flex flex-col items-end gap-1">
               <ContactTypeBadge

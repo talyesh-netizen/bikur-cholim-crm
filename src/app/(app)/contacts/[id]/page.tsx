@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ContactTypeBadge } from "@/components/contact-type-badge";
+import { ContactAvatar } from "@/components/contact-avatar";
 import { getContact, listResidentsForContact, listFacilitiesForContact } from "@/lib/queries/contacts";
 import { getOrganizationForContact } from "@/lib/queries/organizations";
 import { listInteractionsForContact } from "@/lib/queries/interactions";
@@ -39,15 +40,18 @@ export default async function ContactDetailPage({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold">{contact.name}</h1>
-            <ContactTypeBadge contactType={contact.contact_type} label={labelFor(CONTACT_TYPES, contact.contact_type)} />
-            {!contact.active ? <Badge variant="outline">Inactive</Badge> : null}
+        <div className="flex items-start gap-3">
+          <ContactAvatar name={contact.name} contactType={contact.contact_type} size="lg" />
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-semibold">{contact.name}</h1>
+              <ContactTypeBadge contactType={contact.contact_type} label={labelFor(CONTACT_TYPES, contact.contact_type)} />
+              {!contact.active ? <Badge variant="outline">Inactive</Badge> : null}
+            </div>
+            {contact.organization ? (
+              <p className="text-sm text-muted-foreground">{contact.organization}</p>
+            ) : null}
           </div>
-          {contact.organization ? (
-            <p className="text-sm text-muted-foreground">{contact.organization}</p>
-          ) : null}
         </div>
         <div className="flex gap-2">
           <Button variant="outline" asChild>
