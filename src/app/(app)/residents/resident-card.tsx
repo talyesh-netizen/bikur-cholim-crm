@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ClusterBadge } from "@/components/cluster-badge";
 import { labelFor, RESIDENT_STATUSES } from "@/lib/domain/resident";
 import type { ResidentWithSummary } from "@/lib/domain/resident";
+import { clusterColor } from "@/lib/domain/cluster-colors";
 import { formatDateOnly, formatDateTime } from "@/lib/format-date";
-import { Building2 } from "lucide-react";
 
 function statusVariant(status: string): "success" | "warning" | "destructive" | "secondary" {
   if (status === "active") return "success";
@@ -23,15 +24,22 @@ export function ResidentCard({ resident }: { resident: ResidentWithSummary }) {
 
   return (
     <Link href={`/residents/${resident.id}`}>
-      <Card className="transition-colors hover:border-primary/50">
+      <Card
+        className="border-l-4 transition-colors hover:border-primary/50"
+        style={{ borderLeftColor: clusterColor(resident.current_facility_cluster_id) }}
+      >
         <CardContent className="flex flex-col gap-2 p-4">
           <div className="flex items-start justify-between gap-2">
-            <div>
+            <div className="flex flex-col gap-1">
               <p className="font-semibold leading-tight">{displayName}</p>
-              <span className="flex items-center gap-1 text-sm text-muted-foreground">
-                <Building2 className="size-3.5" />
-                {resident.current_facility_name}
-                {resident.room_number ? ` · Room ${resident.room_number}` : ""}
+              <span className="flex items-center gap-1.5">
+                <ClusterBadge
+                  clusterId={resident.current_facility_cluster_id}
+                  name={resident.current_facility_name ?? "Unknown facility"}
+                />
+                {resident.room_number ? (
+                  <span className="text-sm text-muted-foreground">Room {resident.room_number}</span>
+                ) : null}
               </span>
             </div>
             <Badge variant={statusVariant(resident.status)}>

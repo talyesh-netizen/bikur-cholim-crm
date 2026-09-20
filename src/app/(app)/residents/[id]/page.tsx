@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ClusterBadge } from "@/components/cluster-badge";
 import { getResident, getResidentFacilityHistory } from "@/lib/queries/residents";
 import { listInteractionsForResident } from "@/lib/queries/interactions";
 import { listResidentContacts } from "@/lib/queries/contacts";
@@ -15,7 +16,7 @@ import { telHref } from "@/lib/link-helpers";
 import { InteractionList } from "@/app/(app)/interactions/interaction-list";
 import { TaskList } from "@/app/(app)/tasks/task-list";
 import { InfoRow } from "@/components/info-row";
-import { Pencil, ArrowRightLeft, Building2, Plus, X, Star } from "lucide-react";
+import { Pencil, ArrowRightLeft, Plus, X, Star } from "lucide-react";
 
 export default async function ResidentDetailPage({
   params,
@@ -42,10 +43,14 @@ export default async function ResidentDetailPage({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">{displayName}</h1>
-          <p className="flex items-center gap-1 text-sm text-muted-foreground">
-            <Building2 className="size-3.5" />
-            {resident.current_facility_name}
-            {resident.room_number ? ` · Room ${resident.room_number}` : ""}
+          <p className="mt-1 flex items-center gap-1.5">
+            <ClusterBadge
+              clusterId={resident.current_facility_cluster_id}
+              name={resident.current_facility_name ?? "Unknown facility"}
+            />
+            {resident.room_number ? (
+              <span className="text-sm text-muted-foreground">Room {resident.room_number}</span>
+            ) : null}
           </p>
         </div>
         <div className="flex gap-2">
