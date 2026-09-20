@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { CONTACT_TYPES, PREFERRED_COMMUNICATION_METHODS } from "@/lib/domain/contact";
 import type { FacilityContactFormState } from "@/lib/actions/facility-contacts";
+import { capitalizeOnBlur } from "@/lib/format-text";
 
 type Action = (
   state: FacilityContactFormState,
@@ -39,7 +40,7 @@ export function FacilityContactForm({ action }: { action: Action }) {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Name" htmlFor="name" error={fieldErrors.name} required>
-          <Input id="name" name="name" defaultValue={values.name} required />
+          <Input id="name" name="name" defaultValue={values.name} onBlur={capitalizeOnBlur} required />
         </Field>
         <Field label="Contact type" htmlFor="contact_type" error={fieldErrors.contact_type} required>
           <SelectField

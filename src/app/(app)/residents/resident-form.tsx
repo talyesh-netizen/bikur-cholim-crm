@@ -15,6 +15,7 @@ import {
 import { RESIDENT_STATUSES } from "@/lib/domain/resident";
 import type { Resident } from "@/lib/domain/resident";
 import type { ResidentFormState } from "@/lib/actions/residents";
+import { capitalizeOnBlur } from "@/lib/format-text";
 
 type Action = (state: ResidentFormState, formData: FormData) => Promise<ResidentFormState>;
 
@@ -71,15 +72,15 @@ export function ResidentForm({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="First name" htmlFor="first_name" error={fieldErrors.first_name} required>
-            <Input id="first_name" name="first_name" defaultValue={values.first_name} required />
+            <Input id="first_name" name="first_name" defaultValue={values.first_name} onBlur={capitalizeOnBlur} required />
           </Field>
           <Field label="Last name" htmlFor="last_name" error={fieldErrors.last_name} required>
-            <Input id="last_name" name="last_name" defaultValue={values.last_name} required />
+            <Input id="last_name" name="last_name" defaultValue={values.last_name} onBlur={capitalizeOnBlur} required />
           </Field>
         </div>
 
         <Field label="Preferred name" htmlFor="preferred_name">
-          <Input id="preferred_name" name="preferred_name" defaultValue={values.preferred_name} />
+          <Input id="preferred_name" name="preferred_name" defaultValue={values.preferred_name} onBlur={capitalizeOnBlur} />
         </Field>
 
         {facilities ? (
