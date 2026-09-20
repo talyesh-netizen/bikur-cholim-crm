@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { TransferFormState } from "@/lib/actions/transfer-resident";
+import { Undo2 } from "lucide-react";
 
 type Action = (state: TransferFormState, formData: FormData) => Promise<TransferFormState>;
 
@@ -19,10 +20,12 @@ export function TransferForm({
   action,
   facilities,
   currentFacilityName,
+  previousFacility,
 }: {
   action: Action;
   facilities: { id: string; name: string }[];
   currentFacilityName: string;
+  previousFacility?: { id: string; name: string } | null;
 }) {
   const [state, formAction, isPending] = useActionState<TransferFormState, FormData>(action, {
     error: null,
@@ -35,6 +38,18 @@ export function TransferForm({
         <p role="alert" className="text-sm text-destructive">
           {state.error}
         </p>
+      ) : null}
+
+      {previousFacility ? (
+        <Button
+          type="button"
+          variant="secondary"
+          className="w-fit"
+          onClick={() => setFacilityId(previousFacility.id)}
+        >
+          <Undo2 className="size-4" />
+          Move back to {previousFacility.name}
+        </Button>
       ) : null}
 
       <div className="flex flex-col gap-1.5">

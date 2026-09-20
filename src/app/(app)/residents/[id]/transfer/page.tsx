@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getResident } from "@/lib/queries/residents";
+import { getResident, getResidentFacilityHistory } from "@/lib/queries/residents";
 import { listFacilities } from "@/lib/queries/facilities";
 import { transferResident } from "@/lib/actions/transfer-resident";
 import { TransferForm } from "./transfer-form";
@@ -14,11 +14,26 @@ export default async function TransferResidentPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [resident, facilities] = await Promise.all([getResident(id), listFacilities()]);
+  const [resident, facilities, history] = await Promise.all([
+    getResident(id),
+    listFacilities(),
+    getResidentFacilityHistory(id),
+  ]);
 
   if (!resident) notFound();
 
   const otherFacilities = facilities.filter((f) => f.id !== resident.current_facility_id);
+
+  // The stay right before this one -- e.g. a short-term rehab move --
+  // lets us offer "move back to X" as a one-click option instead of
+  // making staff hunt for (and remember) the right facility, which is
+  // how a resident's current facility ends up stale after a stay like
+  // that ends. Only offered if that facility is still active/available.
+  const previousHistoryEntry = history[1];
+  const previousFacility = previousHistoryEntry
+    ? otherFacilities.find((f) => f.id === previousHistoryEntry.facility_id)
+    : undefined;
+
   const action = transferResident.bind(null, resident.id);
   const displayName = resident.preferred_name
     ? `${resident.preferred_name} ${resident.last_name}`
@@ -51,6 +66,7 @@ export default async function TransferResidentPage({
               action={action}
               facilities={otherFacilities}
               currentFacilityName={resident.current_facility_name ?? "their current facility"}
+              previousFacility={previousFacility ? { id: previousFacility.id, name: previousFacility.name } : null}
             />
           )}
         </CardContent>
