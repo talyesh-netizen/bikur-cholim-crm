@@ -104,9 +104,14 @@ export async function addFacilityContact(
   redirect(`/facilities/${facilityId}`);
 }
 
-export async function removeFacilityContact(facilityId: string, facilityContactId: string) {
+export async function setFacilityContactActive(facilityId: string, facilityContactId: string, active: boolean) {
   const supabase = await createClient();
-  await supabase.from("facility_contacts").delete().eq("id", facilityContactId);
+  // Deactivating clears "Primary" too -- an inactive link staying
+  // marked primary would be a confusing state to reactivate back into.
+  await supabase
+    .from("facility_contacts")
+    .update(active ? { active } : { active, is_primary_contact: false })
+    .eq("id", facilityContactId);
   revalidatePath(`/facilities/${facilityId}`);
 }
 

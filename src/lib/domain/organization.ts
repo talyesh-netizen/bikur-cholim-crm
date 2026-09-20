@@ -40,5 +40,6 @@ export type OrganizationContact = {
   contact_id: string;
   role_at_organization: string | null;
   is_primary_contact: boolean;
+  active: boolean;
   contact: import("./contact").Contact;
 };

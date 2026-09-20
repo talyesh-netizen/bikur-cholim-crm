@@ -8,7 +8,7 @@ import { getResident, getResidentFacilityHistory } from "@/lib/queries/residents
 import { listInteractionsForResident } from "@/lib/queries/interactions";
 import { listResidentContacts } from "@/lib/queries/contacts";
 import { listTasks } from "@/lib/queries/tasks";
-import { removeResidentContact, setPrimaryResidentContact } from "@/lib/actions/resident-contacts";
+import { setResidentContactActive, setPrimaryResidentContact } from "@/lib/actions/resident-contacts";
 import { labelFor, RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { labelFor as labelForContact, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
 import { formatDateOnly, formatDateTime } from "@/lib/format-date";
@@ -16,7 +16,7 @@ import { telHref } from "@/lib/link-helpers";
 import { InteractionList } from "@/app/(app)/interactions/interaction-list";
 import { TaskList } from "@/app/(app)/tasks/task-list";
 import { InfoRow } from "@/components/info-row";
-import { Pencil, ArrowRightLeft, Plus, X, Star } from "lucide-react";
+import { Pencil, ArrowRightLeft, Plus, UserX, Undo2, Star } from "lucide-react";
 
 export default async function ResidentDetailPage({
   params,
@@ -149,10 +149,14 @@ export default async function ResidentDetailPage({
           ) : (
             <ul className="flex flex-col gap-3">
               {familyContacts.map((rc) => {
-                const removeContact = removeResidentContact.bind(null, resident.id, rc.id);
+                const deactivate = setResidentContactActive.bind(null, resident.id, rc.id, false);
+                const reactivate = setResidentContactActive.bind(null, resident.id, rc.id, true);
                 const makePrimary = setPrimaryResidentContact.bind(null, resident.id, rc.id);
                 return (
-                  <li key={rc.id} className="flex items-start justify-between gap-4 text-sm">
+                  <li
+                    key={rc.id}
+                    className={`flex items-start justify-between gap-4 text-sm ${rc.active ? "" : "opacity-60"}`}
+                  >
                     <div>
                       <Link href={`/contacts/${rc.contact.id}`} className="font-medium hover:underline">
                         {rc.contact.name}
@@ -174,7 +178,9 @@ export default async function ResidentDetailPage({
                       </p>
                     </div>
                     <div className="flex items-center gap-1">
-                      {rc.is_primary_contact ? (
+                      {!rc.active ? (
+                        <Badge variant="outline">Inactive</Badge>
+                      ) : rc.is_primary_contact ? (
                         <Badge>Primary</Badge>
                       ) : (
                         <form action={makePrimary}>
@@ -183,11 +189,19 @@ export default async function ResidentDetailPage({
                           </Button>
                         </form>
                       )}
-                      <form action={removeContact}>
-                        <Button size="sm" variant="ghost" type="submit" title="Remove">
-                          <X className="size-4" />
-                        </Button>
-                      </form>
+                      {rc.active ? (
+                        <form action={deactivate}>
+                          <Button size="sm" variant="ghost" type="submit" title="Deactivate">
+                            <UserX className="size-4" />
+                          </Button>
+                        </form>
+                      ) : (
+                        <form action={reactivate}>
+                          <Button size="sm" variant="ghost" type="submit" title="Reactivate">
+                            <Undo2 className="size-4" />
+                          </Button>
+                        </form>
+                      )}
                     </div>
                   </li>
                 );
