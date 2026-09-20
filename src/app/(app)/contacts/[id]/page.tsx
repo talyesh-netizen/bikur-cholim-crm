@@ -9,11 +9,24 @@ import { getContact, listResidentsForContact, listFacilitiesForContact } from "@
 import { getOrganizationForContact } from "@/lib/queries/organizations";
 import { listInteractionsForContact } from "@/lib/queries/interactions";
 import { setContactActive } from "@/lib/actions/contacts";
-import { labelFor, PREFERRED_COMMUNICATION_METHODS, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
+import {
+  labelFor,
+  PREFERRED_COMMUNICATION_METHODS,
+  RESIDENT_CONTACT_RELATIONSHIPS,
+  BACKGROUND_CHECK_STATUSES,
+} from "@/lib/domain/contact";
 import { telHref, mailtoHref, mapsHref } from "@/lib/link-helpers";
+import { formatDateOnly } from "@/lib/format-date";
 import { InfoRow } from "@/components/info-row";
 import { InteractionRow } from "../../interactions/interaction-row";
 import { Pencil, Plus } from "lucide-react";
+
+const BACKGROUND_CHECK_BADGE_VARIANT: Record<string, "success" | "warning" | "destructive" | "secondary"> = {
+  cleared: "success",
+  pending: "warning",
+  expired: "destructive",
+  not_started: "secondary",
+};
 
 export default async function ContactDetailPage({
   params,
@@ -92,6 +105,30 @@ export default async function ContactDetailPage({
           />
         </CardContent>
       </Card>
+
+      {contact.contact_type === "volunteer" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Volunteer info</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Background check</span>
+              <span className="flex items-center gap-2">
+                <Badge variant={BACKGROUND_CHECK_BADGE_VARIANT[contact.background_check_status]}>
+                  {labelFor(BACKGROUND_CHECK_STATUSES, contact.background_check_status)}
+                </Badge>
+                {contact.background_check_date ? (
+                  <span className="text-xs text-muted-foreground">
+                    {formatDateOnly(contact.background_check_date)}
+                  </span>
+                ) : null}
+              </span>
+            </div>
+            <InfoRow label="Availability" value={contact.availability_notes} />
+          </CardContent>
+        </Card>
+      ) : null}
 
       {organizationLink ? (
         <Card>
