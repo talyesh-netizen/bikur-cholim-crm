@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ContactTypeBadge } from "@/components/contact-type-badge";
 import { labelFor, CONTACT_TYPES } from "@/lib/domain/contact";
+import { contactTypeColor } from "@/lib/domain/contact-colors";
 import type { ContactListItem } from "@/lib/queries/contacts";
 
 // A contact who has left their role reads better as "Left role" than
@@ -16,7 +18,14 @@ export function ContactCard({ contact }: { contact: ContactListItem }) {
 
   return (
     <Link href={`/contacts/${contact.id}`}>
-      <Card className={contact.active ? "transition-colors hover:border-primary/50" : "opacity-70 transition-colors hover:border-primary/50"}>
+      <Card
+        className={
+          contact.active
+            ? "border-l-4 transition-colors hover:border-primary/50"
+            : "border-l-4 opacity-70 transition-colors hover:border-primary/50"
+        }
+        style={{ borderLeftColor: contactTypeColor(contact.contact_type) }}
+      >
         <CardContent className="flex flex-col gap-2 p-4">
           <div className="flex items-start justify-between gap-2">
             <div>
@@ -26,7 +35,10 @@ export function ContactCard({ contact }: { contact: ContactListItem }) {
               ) : null}
             </div>
             <div className="flex flex-col items-end gap-1">
-              <Badge variant="secondary">{labelFor(CONTACT_TYPES, contact.contact_type)}</Badge>
+              <ContactTypeBadge
+                contactType={contact.contact_type}
+                label={labelFor(CONTACT_TYPES, contact.contact_type)}
+              />
               {!contact.active ? (
                 <Badge variant="destructive">
                   {LEFT_ROLE_TYPES.has(contact.contact_type) ? "Left role" : "Inactive"}

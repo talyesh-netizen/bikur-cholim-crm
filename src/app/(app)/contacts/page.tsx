@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { listContacts } from "@/lib/queries/contacts";
 import { CONTACT_QUICK_FILTERS } from "@/lib/domain/contact";
+import { contactTypeColor } from "@/lib/domain/contact-colors";
 import { ContactFilters } from "./contact-filters";
 import { ContactCard } from "./contact-card";
 import { cn } from "@/lib/utils";
@@ -52,12 +53,16 @@ export default async function ContactsPage({
             key={f.key}
             href={`/contacts?type=${f.key}`}
             className={cn(
-              "rounded px-2.5 py-1.5 text-sm font-medium transition-colors",
+              "flex items-center gap-1.5 rounded px-2.5 py-1.5 text-sm font-medium transition-colors",
               params.type === f.key
                 ? "bg-card text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
+            <span
+              className="size-2 shrink-0 rounded-full"
+              style={{ backgroundColor: contactTypeColor(f.types[0]) }}
+            />
             {f.label}
           </Link>
         ))}
