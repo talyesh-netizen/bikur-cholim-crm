@@ -90,8 +90,25 @@ export function InteractionForm({
     };
   const formKey = JSON.stringify(values);
 
+  const [interactionType, setInteractionType] = useState(values.interaction_type);
+  const isVolunteerVisit = interactionType === "volunteer_visit";
+  const [checkedVolunteerIds, setCheckedVolunteerIds] = useState<string[]>(initialVolunteerIds ?? []);
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    // A volunteer visit with nobody checked off is exactly the gap
+    // that left the volunteer-impact report empty for months of real
+    // visits -- a nudge here, not a hard block, since occasionally the
+    // volunteer genuinely isn't known yet.
+    if (isVolunteerVisit && checkedVolunteerIds.length === 0) {
+      const proceed = window.confirm(
+        "No volunteers are checked off for this volunteer visit. It won't count toward the volunteer impact report unless someone is selected. Log it anyway?"
+      );
+      if (!proceed) e.preventDefault();
+    }
+  }
+
   return (
-    <form key={formKey} action={formAction} className="flex flex-col gap-4">
+    <form key={formKey} action={formAction} onSubmit={handleSubmit} className="flex flex-col gap-4">
       {state.error ? (
         <p role="alert" className="text-sm text-destructive">
           {state.error}
@@ -143,7 +160,8 @@ export function InteractionForm({
       >
         <SelectField
           name="interaction_type"
-          defaultValue={values.interaction_type}
+          value={interactionType}
+          onValueChange={setInteractionType}
           options={INTERACTION_TYPES}
           placeholder="Choose a type…"
         />
@@ -162,8 +180,22 @@ export function InteractionForm({
       ) : null}
 
       {volunteers && volunteers.length > 0 ? (
-        <div className="flex flex-col gap-1.5">
-          <Label>Volunteers involved</Label>
+        <div
+          className={
+            isVolunteerVisit
+              ? "flex flex-col gap-1.5 rounded-md border-2 border-primary p-3"
+              : "flex flex-col gap-1.5"
+          }
+        >
+          <Label>
+            Volunteers involved
+            {isVolunteerVisit ? <span className="text-destructive"> *</span> : null}
+          </Label>
+          {isVolunteerVisit ? (
+            <p className="text-xs text-muted-foreground">
+              This is what makes a volunteer visit show up in the Volunteer Impact report — check off who was there.
+            </p>
+          ) : null}
           <div className="grid max-h-48 grid-cols-1 gap-1.5 overflow-y-auto rounded-md border border-border p-3 sm:grid-cols-2">
             {volunteers.map((v) => (
               <label key={v.id} className="flex items-center gap-2 text-sm">
@@ -172,6 +204,11 @@ export function InteractionForm({
                   name="volunteer_ids"
                   value={v.id}
                   defaultChecked={initialVolunteerIds?.includes(v.id) ?? false}
+                  onChange={(e) =>
+                    setCheckedVolunteerIds((prev) =>
+                      e.target.checked ? [...prev, v.id] : prev.filter((id) => id !== v.id)
+                    )
+                  }
                   className="accent-primary"
                 />
                 {v.name}
@@ -222,17 +259,26 @@ function Field({
 function SelectField({
   name,
   defaultValue,
+  value: controlledValue,
+  onValueChange: controlledOnValueChange,
   options,
   placeholder,
   allowEmpty,
 }: {
   name: string;
   defaultValue?: string;
+  /** Pass value + onValueChange together to let a parent component
+   * react to this field's selection (e.g. showing/requiring another
+   * field based on it) instead of managing it internally. */
+  value?: string;
+  onValueChange?: (value: string) => void;
   options: readonly { value: string; label: string }[];
   placeholder?: string;
   allowEmpty?: boolean;
 }) {
-  const [value, setValue] = useState(defaultValue ?? "");
+  const [internalValue, setInternalValue] = useState(defaultValue ?? "");
+  const value = controlledValue ?? internalValue;
+  const setValue = controlledOnValueChange ?? setInternalValue;
 
   return (
     <>
