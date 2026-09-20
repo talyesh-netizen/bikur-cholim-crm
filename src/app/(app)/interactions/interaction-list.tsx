@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { labelFor, INTERACTION_TYPES } from "@/lib/domain/interaction";
 import type { InteractionWithNames } from "@/lib/domain/interaction";
-import { ListPlus } from "lucide-react";
+import { ListPlus, Pencil } from "lucide-react";
 
 /** Recent-interactions list shown on both resident and facility pages —
  * the "other side" of the record (facility name on a resident page,
@@ -42,6 +42,13 @@ export function InteractionList({
                   className="text-muted-foreground hover:text-foreground"
                 >
                   <ListPlus className="size-4" />
+                </Link>
+                <Link
+                  href={`/interactions/${interaction.id}/edit`}
+                  title="Edit this interaction"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <Pencil className="size-4" />
                 </Link>
               </span>
             </div>

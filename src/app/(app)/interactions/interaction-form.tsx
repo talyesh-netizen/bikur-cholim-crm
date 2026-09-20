@@ -36,6 +36,9 @@ export function InteractionForm({
   defaultFacilityId,
   fixedResident,
   residents,
+  initialValues,
+  submitLabel = "Log interaction",
+  savingLabel = "Saving…",
 }: {
   action: Action;
   facilities: { id: string; name: string }[];
@@ -46,19 +49,31 @@ export function InteractionForm({
   /** Set when logging from a facility's page (no fixed resident) — an
    * optional picker limited to that facility's residents. */
   residents?: { id: string; name: string }[];
+  /** Set when editing an existing interaction, to pre-fill the form
+   * with its current values instead of blank/"now" defaults. */
+  initialValues?: {
+    facility_id: string;
+    resident_id: string;
+    occurred_at: string;
+    interaction_type: string;
+    notes: string;
+  };
+  submitLabel?: string;
+  savingLabel?: string;
 }) {
   const [state, formAction, isPending] = useActionState<InteractionFormState, FormData>(action, {
     error: null,
   });
   const fieldErrors = state.fieldErrors ?? {};
   const [defaultOccurredAt] = useState(() => toDatetimeLocalValue(new Date()));
-  const values = state.values ?? {
-    facility_id: defaultFacilityId ?? "",
-    resident_id: fixedResident?.id ?? "",
-    occurred_at: defaultOccurredAt,
-    interaction_type: "",
-    notes: "",
-  };
+  const values = state.values ??
+    initialValues ?? {
+      facility_id: defaultFacilityId ?? "",
+      resident_id: fixedResident?.id ?? "",
+      occurred_at: defaultOccurredAt,
+      interaction_type: "",
+      notes: "",
+    };
   const formKey = JSON.stringify(values);
 
   return (
@@ -126,7 +141,7 @@ export function InteractionForm({
 
       <div className="flex justify-end">
         <Button type="submit" disabled={isPending}>
-          {isPending ? "Saving…" : "Log interaction"}
+          {isPending ? savingLabel : submitLabel}
         </Button>
       </div>
     </form>

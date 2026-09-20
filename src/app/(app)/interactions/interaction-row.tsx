@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { labelFor, INTERACTION_TYPES } from "@/lib/domain/interaction";
 import type { InteractionWithNames } from "@/lib/domain/interaction";
 import { formatDateTime } from "@/lib/format-date";
+import { Pencil } from "lucide-react";
 
 /** One row in the global interactions log — unlike the embedded
  * InteractionList (which already has a resident/facility as context), this
@@ -24,7 +25,16 @@ export function InteractionRow({ interaction }: { interaction: InteractionWithNa
     <li className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 text-sm">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <Badge variant="secondary">{labelFor(INTERACTION_TYPES, interaction.interaction_type)}</Badge>
-        <span className="text-xs text-muted-foreground">{formatDateTime(interaction.occurred_at)}</span>
+        <span className="flex items-center gap-2 text-xs text-muted-foreground">
+          {formatDateTime(interaction.occurred_at)}
+          <Link
+            href={`/interactions/${interaction.id}/edit`}
+            title="Edit this interaction"
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <Pencil className="size-3.5" />
+          </Link>
+        </span>
       </div>
 
       {parties.length > 0 ? (
