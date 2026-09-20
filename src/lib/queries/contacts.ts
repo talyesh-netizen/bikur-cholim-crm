@@ -55,6 +55,20 @@ export async function listContacts(filters: ContactFilters = {}): Promise<Contac
   });
 }
 
+/** Lightweight {id, name} options for pickers (interaction forms, etc.)
+ * -- active contacts only, optionally narrowed to one contact_type
+ * (e.g., "volunteer" for the "who was involved" checklist). */
+export async function listContactOptions(contactType?: string) {
+  const supabase = await createClient();
+  let query = supabase.from("contacts").select("id, name").eq("active", true).order("name", { ascending: true });
+  if (contactType) {
+    query = query.eq("contact_type", contactType);
+  }
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data ?? []) as { id: string; name: string }[];
+}
+
 export async function getContact(id: string) {
   const supabase = await createClient();
   const { data, error } = await supabase.from("contacts").select("*").eq("id", id).single();

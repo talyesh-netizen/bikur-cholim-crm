@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getInteraction } from "@/lib/queries/interactions";
+import { getInteraction, getInteractionVolunteerIds } from "@/lib/queries/interactions";
 import { listFacilities } from "@/lib/queries/facilities";
 import { listResidents } from "@/lib/queries/residents";
+import { listContactOptions } from "@/lib/queries/contacts";
 import { updateInteraction } from "@/lib/actions/interactions";
 import { InteractionForm } from "../../interaction-form";
 
@@ -32,11 +33,14 @@ export default async function EditInteractionPage({
       ? `/facilities/${interaction.facility_id}`
       : "/interactions";
 
-  const [facilities, residentsAtFacility] = await Promise.all([
+  const [facilities, residentsAtFacility, contacts, volunteers, volunteerIds] = await Promise.all([
     listFacilities(),
     interaction.facility_id
       ? listResidents({ facilityId: interaction.facility_id, showAllStatuses: true })
       : Promise.resolve([]),
+    listContactOptions(),
+    listContactOptions("volunteer"),
+    getInteractionVolunteerIds(id),
   ]);
 
   const action = updateInteraction.bind(null, id, redirectTo);
@@ -60,9 +64,13 @@ export default async function EditInteractionPage({
               id: r.id,
               name: `${r.preferred_name ?? r.first_name} ${r.last_name}`,
             }))}
+            contacts={contacts}
+            volunteers={volunteers}
+            initialVolunteerIds={volunteerIds}
             initialValues={{
               facility_id: interaction.facility_id ?? "",
               resident_id: interaction.resident_id ?? "",
+              contact_id: interaction.contact_id ?? "",
               occurred_at: toDatetimeLocalValue(interaction.occurred_at),
               interaction_type: interaction.interaction_type,
               notes: interaction.notes ?? "",

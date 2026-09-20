@@ -4,11 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getContact, listResidentsForContact, listFacilitiesForContact } from "@/lib/queries/contacts";
+import { listInteractionsForContact } from "@/lib/queries/interactions";
 import { setContactActive } from "@/lib/actions/contacts";
 import { labelFor, CONTACT_TYPES, PREFERRED_COMMUNICATION_METHODS, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
 import { telHref, mailtoHref, mapsHref } from "@/lib/link-helpers";
 import { InfoRow } from "@/components/info-row";
-import { Pencil } from "lucide-react";
+import { InteractionRow } from "../../interactions/interaction-row";
+import { Pencil, Plus } from "lucide-react";
 
 export default async function ContactDetailPage({
   params,
@@ -16,10 +18,11 @@ export default async function ContactDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [contact, residentLinks, facilityLinks] = await Promise.all([
+  const [contact, residentLinks, facilityLinks, interactions] = await Promise.all([
     getContact(id),
     listResidentsForContact(id),
     listFacilitiesForContact(id),
+    listInteractionsForContact(id),
   ]);
 
   if (!contact) notFound();
@@ -133,6 +136,31 @@ export default async function ContactDetailPage({
                 </li>
               ))}
             </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-base">Interactions ({interactions.length})</CardTitle>
+          <Button size="sm" variant="outline" asChild>
+            <Link href="/interactions/new">
+              <Plus className="size-4" />
+              Log an interaction
+            </Link>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {interactions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No interactions logged with this contact yet.
+            </p>
+          ) : (
+            <ol className="flex flex-col gap-3">
+              {interactions.map((interaction) => (
+                <InteractionRow key={interaction.id} interaction={interaction} />
+              ))}
+            </ol>
           )}
         </CardContent>
       </Card>
