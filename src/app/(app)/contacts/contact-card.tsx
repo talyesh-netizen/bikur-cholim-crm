@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ContactTypeBadge } from "@/components/contact-type-badge";
 import { labelFor, CONTACT_TYPES } from "@/lib/domain/contact";
 import type { ContactListItem } from "@/lib/queries/contacts";
 
@@ -26,7 +27,10 @@ export function ContactCard({ contact }: { contact: ContactListItem }) {
               ) : null}
             </div>
             <div className="flex flex-col items-end gap-1">
-              <Badge variant="secondary">{labelFor(CONTACT_TYPES, contact.contact_type)}</Badge>
+              <ContactTypeBadge
+                contactType={contact.contact_type}
+                label={labelFor(CONTACT_TYPES, contact.contact_type)}
+              />
               {!contact.active ? (
                 <Badge variant="destructive">
                   {LEFT_ROLE_TYPES.has(contact.contact_type) ? "Left role" : "Inactive"}
