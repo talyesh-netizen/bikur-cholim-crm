@@ -1,22 +1,38 @@
 import { createClient } from "@/lib/supabase/server";
+import { CONTACT_QUICK_FILTERS } from "@/lib/domain/contact";
 import type { Contact, ResidentContact, FacilityContact } from "@/lib/domain/contact";
 
 export type ContactFilters = {
   search?: string;
+  /** Either an exact contact_type, or one of CONTACT_QUICK_FILTERS' keys. */
   contactType?: string;
   showInactive?: boolean;
 };
 
-export async function listContacts(filters: ContactFilters = {}) {
+/** A contact plus its role at the facility it's primarily linked to (if
+ * any) — shown on the contacts list so "Facility staff" isn't the only
+ * thing visible; e.g. "Activities Director at Sunrise Manor". */
+export type ContactListItem = Contact & {
+  role_at_facility: string | null;
+  facility_name: string | null;
+};
+
+export async function listContacts(filters: ContactFilters = {}): Promise<ContactListItem[]> {
   const supabase = await createClient();
 
-  let query = supabase.from("contacts").select("*").order("name", { ascending: true });
+  let query = supabase
+    .from("contacts")
+    .select("*, facility_contacts(role_at_facility, is_primary_contact, facilities(name))")
+    .order("name", { ascending: true });
 
   if (!filters.showInactive) {
     query = query.eq("active", true);
   }
   if (filters.contactType) {
-    query = query.eq("contact_type", filters.contactType);
+    const group = CONTACT_QUICK_FILTERS.find((g) => g.key === filters.contactType);
+    query = group
+      ? query.in("contact_type", group.types)
+      : query.eq("contact_type", filters.contactType);
   }
   if (filters.search) {
     query = query.or(`name.ilike.%${filters.search}%,organization.ilike.%${filters.search}%`);
@@ -24,7 +40,19 @@ export async function listContacts(filters: ContactFilters = {}) {
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  return (data ?? []) as Contact[];
+
+  return (data ?? []).map((row) => {
+    const { facility_contacts, ...contact } = row as Contact & {
+      facility_contacts: { role_at_facility: string | null; is_primary_contact: boolean; facilities: { name: string } | null }[];
+    };
+    const links = facility_contacts ?? [];
+    const primary = links.find((l) => l.is_primary_contact) ?? links[0] ?? null;
+    return {
+      ...contact,
+      role_at_facility: primary?.role_at_facility ?? null,
+      facility_name: primary?.facilities?.name ?? null,
+    };
+  });
 }
 
 export async function getContact(id: string) {
