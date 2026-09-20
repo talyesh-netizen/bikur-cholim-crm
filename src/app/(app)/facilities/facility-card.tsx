@@ -8,7 +8,7 @@ import {
   VISIT_PRIORITIES,
 } from "@/lib/domain/facility";
 import type { FacilityWithSummary } from "@/lib/domain/facility";
-import { clusterColor } from "@/lib/domain/cluster-colors";
+import { ClusterBadge } from "@/components/cluster-badge";
 import { formatDateTime } from "@/lib/format-date";
 import { MapPin, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -55,17 +55,13 @@ export function FacilityCard({ facility }: { facility: FacilityWithSummary }) {
               <span className="flex items-center gap-1">
                 <MapPin className="size-3.5" />
                 {facility.city}
-                {facility.geographic_cluster_name ? (
-                  <span className="flex items-center gap-1">
-                    ·
-                    <span
-                      className="size-2 shrink-0 rounded-full"
-                      style={{ backgroundColor: clusterColor(facility.geographic_cluster_id) }}
-                    />
-                    {facility.geographic_cluster_name}
-                  </span>
-                ) : null}
               </span>
+            ) : null}
+            {facility.geographic_cluster_name ? (
+              <ClusterBadge
+                clusterId={facility.geographic_cluster_id}
+                name={facility.geographic_cluster_name}
+              />
             ) : null}
             <span className="flex items-center gap-1">
               <Users className="size-3.5" />

@@ -18,14 +18,14 @@ import {
   KOSHER_FOOD_OPTIONS,
 } from "@/lib/domain/facility";
 import { RESIDENT_STATUSES } from "@/lib/domain/resident";
-import { clusterColor } from "@/lib/domain/cluster-colors";
+import { ClusterBadge } from "@/components/cluster-badge";
 import { labelFor as labelForContact, CONTACT_TYPES } from "@/lib/domain/contact";
 import { formatDateTime } from "@/lib/format-date";
 import { telHref, websiteHref, mapsHref } from "@/lib/link-helpers";
 import { InteractionList } from "@/app/(app)/interactions/interaction-list";
 import { TaskList } from "@/app/(app)/tasks/task-list";
 import { InfoRow } from "@/components/info-row";
-import { Pencil, Plus, X, Star } from "lucide-react";
+import { Pencil, Plus, X, Star, User, Mail, Phone } from "lucide-react";
 
 export default async function FacilityDetailPage({
   params,
@@ -44,6 +44,7 @@ export default async function FacilityDetailPage({
   if (!facility) notFound();
 
   const toggleActive = setFacilityActive.bind(null, facility.id, !facility.active);
+  const mainContact = facilityContacts.find((fc) => fc.is_primary_contact) ?? null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -53,18 +54,14 @@ export default async function FacilityDetailPage({
             <h1 className="text-2xl font-semibold">{facility.name}</h1>
             {!facility.active ? <Badge variant="outline">Inactive</Badge> : null}
           </div>
-          <p className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
+          <p className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
             {labelFor(FACILITY_TYPES, facility.facility_type)}
             {facility.city ? ` · ${facility.city}` : ""}
             {facility.geographic_cluster_name ? (
-              <span className="inline-flex items-center gap-1">
-                ·
-                <span
-                  className="size-2 shrink-0 rounded-full"
-                  style={{ backgroundColor: clusterColor(facility.geographic_cluster_id) }}
-                />
-                {facility.geographic_cluster_name}
-              </span>
+              <ClusterBadge
+                clusterId={facility.geographic_cluster_id}
+                name={facility.geographic_cluster_name}
+              />
             ) : null}
           </p>
         </div>
@@ -98,6 +95,38 @@ export default async function FacilityDetailPage({
           <Badge variant="secondary">Jewish residents known</Badge>
         ) : null}
       </div>
+
+      {mainContact ? (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-border bg-card px-4 py-2.5 text-sm">
+          <span className="flex items-center gap-1.5 font-medium">
+            <User className="size-4 text-muted-foreground" />
+            <Link href={`/contacts/${mainContact.contact.id}`} className="hover:underline">
+              {mainContact.contact.name}
+            </Link>
+          </span>
+          <span className="text-muted-foreground">
+            {mainContact.role_at_facility || labelForContact(CONTACT_TYPES, mainContact.contact.contact_type)}
+          </span>
+          {mainContact.contact.phone ? (
+            <a
+              href={telHref(mainContact.contact.phone)}
+              className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground hover:underline"
+            >
+              <Phone className="size-3.5" />
+              {mainContact.contact.phone}
+            </a>
+          ) : null}
+          {mainContact.contact.email ? (
+            <a
+              href={`mailto:${mainContact.contact.email}`}
+              className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground hover:underline"
+            >
+              <Mail className="size-3.5" />
+              {mainContact.contact.email}
+            </a>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
