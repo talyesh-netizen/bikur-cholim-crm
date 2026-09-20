@@ -52,6 +52,7 @@ export type Resident = {
  * supabase/migrations/20260727000012_computed_views.sql. */
 export type ResidentWithSummary = Resident & {
   current_facility_name: string | null;
+  current_facility_cluster_id: string | null;
   last_visit_at: string | null;
   next_follow_up_date: string | null;
   primary_contact_resident_contact_id: string | null;
