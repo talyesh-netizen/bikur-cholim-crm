@@ -10,6 +10,7 @@ import {
   ListChecks,
   History,
   Settings,
+  MoreHorizontal,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,13 @@ export const NAV_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
 ];
 
 const ADMIN_NAV_ITEM = { href: "/settings/staff", label: "Staff", icon: Settings };
+
+// The sidebar has room for every item, but a phone's bottom bar gets
+// cramped past ~5 icons (see the "cluttered on the bottom" feedback) --
+// these are the ones worth a full-time slot there; everything else
+// (Contacts, and Staff for admins) lives under "More" instead.
+const MOBILE_PRIMARY_HREFS = ["/dashboard", "/facilities", "/residents", "/interactions", "/tasks"];
+const MOBILE_MORE_ITEM = { href: "/more", label: "More", icon: MoreHorizontal };
 
 function isActive(pathname: string, href: string) {
   return href === "/dashboard" ? pathname === href : pathname.startsWith(href);
@@ -58,14 +66,16 @@ export function SidebarNavLinks({ isAdmin = false }: { isAdmin?: boolean }) {
   );
 }
 
-export function MobileBottomNavLinks({ isAdmin = false }: { isAdmin?: boolean }) {
+export function MobileBottomNavLinks() {
   const pathname = usePathname();
-  const items = isAdmin ? [...NAV_ITEMS, ADMIN_NAV_ITEM] : NAV_ITEMS;
+  const primaryItems = NAV_ITEMS.filter((item) => MOBILE_PRIMARY_HREFS.includes(item.href));
+  const moreIsActive = !primaryItems.some((item) => isActive(pathname, item.href));
+  const items = [...primaryItems, MOBILE_MORE_ITEM];
 
   return (
     <nav className="flex items-stretch justify-between">
       {items.map((item) => {
-        const active = isActive(pathname, item.href);
+        const active = item.href === "/more" ? moreIsActive : isActive(pathname, item.href);
         const Icon = item.icon;
         return (
           <Link
@@ -83,4 +93,11 @@ export function MobileBottomNavLinks({ isAdmin = false }: { isAdmin?: boolean })
       })}
     </nav>
   );
+}
+
+/** The nav items that don't get a full-time slot in the mobile bottom
+ * bar -- shown on the /more page instead. */
+export function mobileMoreItems(isAdmin: boolean) {
+  const secondary = NAV_ITEMS.filter((item) => !MOBILE_PRIMARY_HREFS.includes(item.href));
+  return isAdmin ? [...secondary, ADMIN_NAV_ITEM] : secondary;
 }

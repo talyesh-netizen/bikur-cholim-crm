@@ -71,7 +71,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
       {/* Mobile bottom nav */}
       <nav className="fixed inset-x-0 bottom-0 border-t border-border bg-card md:hidden">
-        <MobileBottomNavLinks isAdmin={role === "admin"} />
+        <MobileBottomNavLinks />
       </nav>
     </div>
   );
