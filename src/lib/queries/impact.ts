@@ -103,6 +103,43 @@ export async function getStaffActivity(period: ImpactPeriod = "month"): Promise<
   return Array.from(counts.values()).sort((a, b) => b.count - a.count);
 }
 
+export type MonthlyCount = { key: string; label: string; count: number };
+
+/** Total interactions logged per month, most recent `months` months
+ * (oldest first) -- a simple trend line for showing growth over time,
+ * separate from the type/staff/volunteer breakdowns above. */
+export async function getInteractionTrend(months = 6): Promise<MonthlyCount[]> {
+  const supabase = await createClient();
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
+
+  const { data, error } = await supabase
+    .from("interactions")
+    .select("occurred_at")
+    .gte("occurred_at", start.toISOString());
+  if (error) throw new Error(error.message);
+
+  const buckets: MonthlyCount[] = [];
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    buckets.push({
+      key: `${d.getFullYear()}-${d.getMonth()}`,
+      label: d.toLocaleDateString("en-US", { month: "short" }),
+      count: 0,
+    });
+  }
+  const indexByKey = new Map(buckets.map((b, i) => [b.key, i]));
+
+  for (const row of data ?? []) {
+    const d = new Date(row.occurred_at as string);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    const idx = indexByKey.get(key);
+    if (idx !== undefined) buckets[idx].count += 1;
+  }
+
+  return buckets;
+}
+
 /** How many logged interactions each volunteer took part in during the
  * period — the volunteer-side equivalent of getStaffActivity, for
  * showing volunteer impact separately from staff impact. */
