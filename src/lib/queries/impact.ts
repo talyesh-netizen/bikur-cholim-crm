@@ -69,3 +69,71 @@ export async function getImpactBreakdown(period: ImpactPeriod = "month"): Promis
   const total = buckets.reduce((sum, b) => sum + b.count, 0);
   return { buckets, total };
 }
+
+export type PersonImpactRow = { id: string; name: string; count: number };
+
+/** How many interactions each staff member logged in the period — lets
+ * the director show funders (and staff themselves) impact beyond just
+ * their own work, not just a single org-wide total. */
+export async function getStaffActivity(period: ImpactPeriod = "month"): Promise<PersonImpactRow[]> {
+  const supabase = await createClient();
+  const start = periodStart(period);
+
+  let query = supabase.from("interactions").select("staff_member_id, profiles(full_name)");
+  if (start) query = query.gte("occurred_at", start);
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+
+  const counts = new Map<string, PersonImpactRow>();
+  for (const row of data ?? []) {
+    const r = row as unknown as { staff_member_id: string; profiles: { full_name: string } | null };
+    const existing = counts.get(r.staff_member_id);
+    if (existing) {
+      existing.count += 1;
+    } else {
+      counts.set(r.staff_member_id, {
+        id: r.staff_member_id,
+        name: r.profiles?.full_name ?? "Unknown",
+        count: 1,
+      });
+    }
+  }
+
+  return Array.from(counts.values()).sort((a, b) => b.count - a.count);
+}
+
+/** How many logged interactions each volunteer took part in during the
+ * period — the volunteer-side equivalent of getStaffActivity, for
+ * showing volunteer impact separately from staff impact. */
+export async function getVolunteerImpact(period: ImpactPeriod = "month"): Promise<PersonImpactRow[]> {
+  const supabase = await createClient();
+  const start = periodStart(period);
+
+  const { data, error } = await supabase
+    .from("interaction_volunteers")
+    .select("contact_id, contacts(name), interactions(occurred_at)");
+  if (error) throw new Error(error.message);
+
+  const counts = new Map<string, PersonImpactRow>();
+  for (const row of data ?? []) {
+    const r = row as unknown as {
+      contact_id: string;
+      contacts: { name: string } | null;
+      interactions: { occurred_at: string } | null;
+    };
+    if (start && (!r.interactions || r.interactions.occurred_at < start)) continue;
+    const existing = counts.get(r.contact_id);
+    if (existing) {
+      existing.count += 1;
+    } else {
+      counts.set(r.contact_id, {
+        id: r.contact_id,
+        name: r.contacts?.name ?? "Unknown volunteer",
+        count: 1,
+      });
+    }
+  }
+
+  return Array.from(counts.values()).sort((a, b) => b.count - a.count);
+}
