@@ -19,6 +19,16 @@ export const CONTACT_TYPES = [
 
 export type ContactType = (typeof CONTACT_TYPES)[number]["value"];
 
+/** What decides a contact's main color/identity in the app -- see
+ * primary_profile_kind on the contacts table. */
+export const PRIMARY_PROFILE_KINDS = [
+  { value: "contact_type", label: "Their type (default)" },
+  { value: "facility", label: "Their facility" },
+  { value: "organization", label: "Their shul/school/partner" },
+] as const;
+
+export type PrimaryProfileKind = (typeof PRIMARY_PROFILE_KINDS)[number]["value"];
+
 /** Quick-filter groupings shown as tabs on the contacts list, so staff
  * can jump straight to "the volunteers" or "the shul contacts" instead
  * of always browsing one flat list. Purely a UI grouping over
@@ -69,6 +79,7 @@ export type Contact = {
   preferred_communication_method: string | null;
   notes: string | null;
   active: boolean;
+  primary_profile_kind: PrimaryProfileKind;
   created_at: string;
   updated_at: string;
 };

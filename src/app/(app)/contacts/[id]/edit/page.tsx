@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getContact } from "@/lib/queries/contacts";
+import { getContact, listFacilitiesForContact } from "@/lib/queries/contacts";
+import { getOrganizationForContact } from "@/lib/queries/organizations";
 import { updateContact } from "@/lib/actions/contacts";
 import { ContactForm } from "../../contact-form";
 
@@ -10,7 +11,11 @@ export default async function EditContactPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const contact = await getContact(id);
+  const [contact, facilityLinks, organizationLink] = await Promise.all([
+    getContact(id),
+    listFacilitiesForContact(id),
+    getOrganizationForContact(id),
+  ]);
   if (!contact) notFound();
 
   const action = updateContact.bind(null, contact.id);
@@ -26,7 +31,12 @@ export default async function EditContactPage({
           <CardTitle className="text-base">Contact details</CardTitle>
         </CardHeader>
         <CardContent>
-          <ContactForm action={action} contact={contact} />
+          <ContactForm
+            action={action}
+            contact={contact}
+            primaryFacilityName={facilityLinks[0]?.facility_name}
+            primaryOrganizationName={organizationLink?.organization_name}
+          />
         </CardContent>
       </Card>
     </div>
