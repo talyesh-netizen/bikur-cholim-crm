@@ -191,4 +191,75 @@ begin
   end if;
 end $$;
 
+-- ===== Check 9: a restricted account sees only its assigned facility =====
+reset role;
+select set_config('request.jwt.claims', '', false);
+update public.profiles set facility_access_scope = 'restricted'
+  where email = 'noah.fischer@example.org';
+insert into public.profile_facility_access (profile_id, facility_id)
+  values (
+    (select id from auth.users where email = 'noah.fischer@example.org'),
+    (select id from public.facilities where name = 'Maple Grove Rehabilitation and Nursing Center')
+  );
+
+select set_config(
+  'request.jwt.claims',
+  json_build_object('sub', (select id from auth.users where email = 'noah.fischer@example.org')::text)::text,
+  false
+);
+set role authenticated;
+do $$
+declare v_facility_count int;
+declare v_resident_count int;
+begin
+  select count(*) into v_facility_count from public.facilities;
+  select count(*) into v_resident_count from public.residents;
+
+  if v_facility_count = 1 and v_resident_count = 2 then
+    raise notice 'PASS (9): restricted account sees exactly its 1 assigned facility and its 2 residents';
+  else
+    raise exception 'FAIL (9): expected 1 facility / 2 residents for restricted account, got % facilities / % residents', v_facility_count, v_resident_count;
+  end if;
+end $$;
+
+-- ===== Check 10: a restricted account cannot see another facility's residents by name =====
+do $$
+declare v_count int;
+begin
+  select count(*) into v_count from public.residents where last_name = 'Weiss';
+  if v_count = 0 then
+    raise notice 'PASS (10): restricted account cannot see a resident at a facility it was not granted';
+  else
+    raise exception 'FAIL (10): restricted account could see % row(s) for a resident outside its granted facility', v_count;
+  end if;
+end $$;
+
+-- ===== Check 11: restoring 'all' access removes the restriction =====
+reset role;
+select set_config('request.jwt.claims', '', false);
+update public.profiles set facility_access_scope = 'all'
+  where email = 'noah.fischer@example.org';
+delete from public.profile_facility_access
+  where profile_id = (select id from auth.users where email = 'noah.fischer@example.org');
+
+select set_config(
+  'request.jwt.claims',
+  json_build_object('sub', (select id from auth.users where email = 'noah.fischer@example.org')::text)::text,
+  false
+);
+set role authenticated;
+do $$
+declare v_facility_count int;
+begin
+  select count(*) into v_facility_count from public.facilities;
+  if v_facility_count > 1 then
+    raise notice 'PASS (11): switching the account back to ''all'' access restores full visibility (% facilities)', v_facility_count;
+  else
+    raise exception 'FAIL (11): account still restricted after being switched back to ''all'' access';
+  end if;
+end $$;
+
+reset role;
+select set_config('request.jwt.claims', '', false);
+
 \echo 'All checks passed.'
