@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getDataQualityReport } from "@/lib/queries/data-quality";
+import { getDataQualityReport, getVolunteerVisitGapCount } from "@/lib/queries/data-quality";
 import type { DataQualityRow } from "@/lib/queries/data-quality";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, ChevronRight } from "lucide-react";
 
 function Section({ title, rows }: { title: string; rows: DataQualityRow[] }) {
   return (
@@ -36,13 +36,17 @@ function Section({ title, rows }: { title: string; rows: DataQualityRow[] }) {
 }
 
 export default async function DataQualityPage() {
-  const report = await getDataQualityReport();
+  const [report, volunteerVisitGapCount] = await Promise.all([
+    getDataQualityReport(),
+    getVolunteerVisitGapCount(),
+  ]);
   const totalGaps =
     report.contactsMissingPhone.length +
     report.contactsMissingEmail.length +
     report.facilitiesMissingPhone.length +
     report.facilitiesMissingAddress.length +
-    report.organizationsMissingPhone.length;
+    report.organizationsMissingPhone.length +
+    volunteerVisitGapCount;
 
   return (
     <div className="flex flex-col gap-4">
@@ -52,6 +56,30 @@ export default async function DataQualityPage() {
           {totalGaps} gap{totalGaps === 1 ? "" : "s"} across active records — click any name to fix it directly.
         </p>
       </div>
+
+      <Link href="/data-quality/volunteer-visits">
+        <Card className="transition-colors hover:border-primary/50">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-base">Volunteer visits missing a volunteer</CardTitle>
+            <div className="flex items-center gap-2">
+              {volunteerVisitGapCount > 0 ? <Badge variant="warning">{volunteerVisitGapCount}</Badge> : null}
+              <ChevronRight className="size-4 text-muted-foreground" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            {volunteerVisitGapCount === 0 ? (
+              <div className="flex items-center gap-2 rounded-lg bg-success/10 px-3 py-2.5 text-sm text-success">
+                <CheckCircle2 className="size-4 shrink-0" />
+                <span>Nothing missing here.</span>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Logged visits where nobody&apos;s checked off in &quot;Volunteers involved&quot; — tap to see the full list.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </Link>
 
       <Section title="Contacts missing a phone number" rows={report.contactsMissingPhone} />
       <Section title="Contacts missing an email" rows={report.contactsMissingEmail} />
