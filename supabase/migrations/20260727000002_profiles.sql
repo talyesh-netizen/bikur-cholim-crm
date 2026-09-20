@@ -11,7 +11,7 @@ create table public.profiles (
   full_name text not null,
   email text not null,
   role text not null default 'staff' check (role in ('staff', 'admin')),
-  active boolean not null default true,
+  active boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -21,7 +21,7 @@ comment on table public.profiles is
 comment on column public.profiles.role is
   'staff = normal working role. admin = staff permissions plus managing user accounts and the geographic cluster list.';
 comment on column public.profiles.active is
-  'Whether this person currently has access. Deactivating an account (rather than deleting it) preserves the history of what they created/changed.';
+  'Whether this person currently has access. New accounts start inactive until an admin approves them (see handle_new_user below); deactivating later (rather than deleting) preserves the history of what they created/changed.';
 
 create trigger set_updated_at
   before update on public.profiles
@@ -29,19 +29,21 @@ create trigger set_updated_at
 
 -- Automatically creates a profile row whenever someone signs up through
 -- Supabase Auth, so staff never have to manually create a matching
--- "profiles" row themselves. New accounts default to the Staff role;
--- an Admin can promote someone to Admin afterward.
+-- "profiles" row themselves. New accounts default to the Staff role
+-- and stay inactive (see the active column above) until an Admin
+-- approves them; an Admin can also promote someone to Admin afterward.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer set search_path = public
 as $$
 begin
-  insert into public.profiles (id, full_name, email)
+  insert into public.profiles (id, full_name, email, active)
   values (
     new.id,
-    coalesce(new.raw_user_meta_data ->> 'full_name', new.email),
-    new.email
+    coalesce(new.raw_user_meta_data ->> 'full_name', new.email, 'Pending account'),
+    coalesce(new.email, ''),
+    false
   );
   return new;
 end;
