@@ -4,11 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getContact, listResidentsForContact, listFacilitiesForContact } from "@/lib/queries/contacts";
+import { getOrganizationForContact } from "@/lib/queries/organizations";
+import { listInteractionsForContact } from "@/lib/queries/interactions";
 import { setContactActive } from "@/lib/actions/contacts";
 import { labelFor, CONTACT_TYPES, PREFERRED_COMMUNICATION_METHODS, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
 import { telHref, mailtoHref, mapsHref } from "@/lib/link-helpers";
 import { InfoRow } from "@/components/info-row";
-import { Pencil } from "lucide-react";
+import { InteractionRow } from "../../interactions/interaction-row";
+import { Pencil, Plus } from "lucide-react";
 
 export default async function ContactDetailPage({
   params,
@@ -16,10 +19,12 @@ export default async function ContactDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [contact, residentLinks, facilityLinks] = await Promise.all([
+  const [contact, residentLinks, facilityLinks, interactions, organizationLink] = await Promise.all([
     getContact(id),
     listResidentsForContact(id),
     listFacilitiesForContact(id),
+    listInteractionsForContact(id),
+    getOrganizationForContact(id),
   ]);
 
   if (!contact) notFound();
@@ -77,6 +82,25 @@ export default async function ContactDetailPage({
         </CardContent>
       </Card>
 
+      {organizationLink ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Organization</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Link
+              href={`/organizations/${organizationLink.organization_id}`}
+              className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+            >
+              <span>{organizationLink.organization_name}</span>
+              {organizationLink.role_at_organization ? (
+                <Badge variant="secondary">{organizationLink.role_at_organization}</Badge>
+              ) : null}
+            </Link>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Connected residents</CardTitle>
@@ -133,6 +157,31 @@ export default async function ContactDetailPage({
                 </li>
               ))}
             </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-base">Interactions ({interactions.length})</CardTitle>
+          <Button size="sm" variant="outline" asChild>
+            <Link href="/interactions/new">
+              <Plus className="size-4" />
+              Log an interaction
+            </Link>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {interactions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No interactions logged with this contact yet.
+            </p>
+          ) : (
+            <ol className="flex flex-col gap-3">
+              {interactions.map((interaction) => (
+                <InteractionRow key={interaction.id} interaction={interaction} />
+              ))}
+            </ol>
           )}
         </CardContent>
       </Card>

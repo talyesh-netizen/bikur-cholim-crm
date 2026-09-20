@@ -36,7 +36,10 @@ export function InteractionForm({
   defaultFacilityId,
   fixedResident,
   residents,
+  contacts,
+  volunteers,
   initialValues,
+  initialVolunteerIds,
   submitLabel = "Log interaction",
   savingLabel = "Saving…",
 }: {
@@ -49,15 +52,25 @@ export function InteractionForm({
   /** Set when logging from a facility's page (no fixed resident) — an
    * optional picker limited to that facility's residents. */
   residents?: { id: string; name: string }[];
+  /** Any contact this interaction is with directly (e.g., a facility
+   * staff communication, a family call) — separate from the resident. */
+  contacts?: { id: string; name: string }[];
+  /** Contacts with contact_type "volunteer", for the "who was
+   * involved" checklist -- this is what actually links an interaction
+   * to a specific volunteer, which the dashboard's volunteer-impact
+   * panel reads from. */
+  volunteers?: { id: string; name: string }[];
   /** Set when editing an existing interaction, to pre-fill the form
    * with its current values instead of blank/"now" defaults. */
   initialValues?: {
     facility_id: string;
     resident_id: string;
+    contact_id: string;
     occurred_at: string;
     interaction_type: string;
     notes: string;
   };
+  initialVolunteerIds?: string[];
   submitLabel?: string;
   savingLabel?: string;
 }) {
@@ -70,6 +83,7 @@ export function InteractionForm({
     initialValues ?? {
       facility_id: defaultFacilityId ?? "",
       resident_id: fixedResident?.id ?? "",
+      contact_id: "",
       occurred_at: defaultOccurredAt,
       interaction_type: "",
       notes: "",
@@ -134,6 +148,38 @@ export function InteractionForm({
           placeholder="Choose a type…"
         />
       </Field>
+
+      {contacts && contacts.length > 0 ? (
+        <Field label="Contact" htmlFor="contact_id" error={fieldErrors.contact_id}>
+          <SelectField
+            name="contact_id"
+            defaultValue={values.contact_id}
+            options={contacts.map((c) => ({ value: c.id, label: c.name }))}
+            placeholder="No specific contact"
+            allowEmpty
+          />
+        </Field>
+      ) : null}
+
+      {volunteers && volunteers.length > 0 ? (
+        <div className="flex flex-col gap-1.5">
+          <Label>Volunteers involved</Label>
+          <div className="grid max-h-48 grid-cols-1 gap-1.5 overflow-y-auto rounded-md border border-border p-3 sm:grid-cols-2">
+            {volunteers.map((v) => (
+              <label key={v.id} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name="volunteer_ids"
+                  value={v.id}
+                  defaultChecked={initialVolunteerIds?.includes(v.id) ?? false}
+                  className="accent-primary"
+                />
+                {v.name}
+              </label>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <Field label="Notes" htmlFor="notes" error={fieldErrors.notes}>
         <Textarea id="notes" name="notes" rows={4} defaultValue={values.notes} />

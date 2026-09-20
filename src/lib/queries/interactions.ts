@@ -143,3 +143,58 @@ export async function listInteractionsForFacility(facilityId: string) {
   if (error) throw new Error(error.message);
   return (data ?? []).map((row) => toInteractionWithNames(row as unknown as Parameters<typeof toInteractionWithNames>[0]));
 }
+
+/** Every interaction a contact shows up on -- either as the direct
+ * contact_id (e.g., a facility-staff communication) or as one of the
+ * volunteers involved (interaction_volunteers). Used on a contact's own
+ * page so a volunteer's or staff member's history is visible there,
+ * not just on the resident/facility side. */
+export async function listInteractionsForContact(contactId: string) {
+  const supabase = await createClient();
+
+  const [direct, viaVolunteers] = await Promise.all([
+    supabase
+      .from("interactions")
+      .select(SELECT_WITH_NAMES)
+      .eq("contact_id", contactId)
+      .order("occurred_at", { ascending: false })
+      .limit(RECENT_INTERACTIONS_LIMIT),
+    supabase
+      .from("interaction_volunteers")
+      .select(`interactions!inner(${SELECT_WITH_NAMES})`)
+      .eq("contact_id", contactId)
+      .order("occurred_at", { referencedTable: "interactions", ascending: false })
+      .limit(RECENT_INTERACTIONS_LIMIT),
+  ]);
+
+  if (direct.error) throw new Error(direct.error.message);
+  if (viaVolunteers.error) throw new Error(viaVolunteers.error.message);
+
+  const byId = new Map<string, InteractionWithNames>();
+  for (const row of direct.data ?? []) {
+    const interaction = toInteractionWithNames(row as unknown as Parameters<typeof toInteractionWithNames>[0]);
+    byId.set(interaction.id, interaction);
+  }
+  for (const row of viaVolunteers.data ?? []) {
+    const raw = (row as unknown as { interactions: Parameters<typeof toInteractionWithNames>[0] }).interactions;
+    const interaction = toInteractionWithNames(raw);
+    byId.set(interaction.id, interaction);
+  }
+
+  return Array.from(byId.values())
+    .sort((a, b) => b.occurred_at.localeCompare(a.occurred_at))
+    .slice(0, RECENT_INTERACTIONS_LIMIT);
+}
+
+/** The volunteer contact_ids currently linked to an interaction, for
+ * pre-filling the edit form's checklist. */
+export async function getInteractionVolunteerIds(interactionId: string): Promise<string[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("interaction_volunteers")
+    .select("contact_id")
+    .eq("interaction_id", interactionId);
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => row.contact_id as string);
+}

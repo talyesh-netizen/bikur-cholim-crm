@@ -2,12 +2,19 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getDashboardSummary } from "@/lib/queries/dashboard";
-import { getImpactBreakdown, getStaffActivity, getVolunteerImpact, type ImpactPeriod } from "@/lib/queries/impact";
+import {
+  getImpactBreakdown,
+  getStaffActivity,
+  getVolunteerImpact,
+  getInteractionTrend,
+  type ImpactPeriod,
+} from "@/lib/queries/impact";
 import { createClient } from "@/lib/supabase/server";
 import { TaskCard } from "../tasks/task-card";
 import { DonutChart } from "@/components/donut-chart";
 import { ImpactLeaderboard } from "@/components/impact-leaderboard";
-import { HeartHandshake } from "lucide-react";
+import { TrendChart } from "@/components/trend-chart";
+import { HeartHandshake, TrendingUp } from "lucide-react";
 import { labelFor, INTERACTION_TYPES } from "@/lib/domain/interaction";
 import { ENGAGEMENT_STATUSES } from "@/lib/domain/facility";
 import { formatRelative, formatDateOnly } from "@/lib/format-date";
@@ -134,12 +141,13 @@ export default async function DashboardPage({
     params.impact === "quarter" || params.impact === "all" ? params.impact : "month";
 
   const supabase = await createClient();
-  const [{ data: { user } }, summary, impact, staffActivity, volunteerImpact] = await Promise.all([
+  const [{ data: { user } }, summary, impact, staffActivity, volunteerImpact, trend] = await Promise.all([
     supabase.auth.getUser(),
     getDashboardSummary(),
     getImpactBreakdown(impactPeriod),
     getStaffActivity(impactPeriod),
     getVolunteerImpact(impactPeriod),
+    getInteractionTrend(6),
   ]);
 
   let firstName = "";
@@ -196,6 +204,16 @@ export default async function DashboardPage({
         </CardHeader>
         <CardContent>
           <DonutChart segments={impact.buckets} title={`Interactions by type — ${IMPACT_PERIODS.find((p) => p.value === impactPeriod)?.label}`} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex-row items-center gap-2 space-y-0">
+          <TrendingUp className="size-4 text-muted-foreground" />
+          <CardTitle className="text-base">Activity over time</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <TrendChart data={trend} title="Interactions logged per month, last 6 months" />
         </CardContent>
       </Card>
 

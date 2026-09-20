@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getResident } from "@/lib/queries/residents";
 import { getFacility, listFacilities } from "@/lib/queries/facilities";
 import { listResidents } from "@/lib/queries/residents";
+import { listContactOptions } from "@/lib/queries/contacts";
 import { createInteraction } from "@/lib/actions/interactions";
 import { InteractionForm } from "../interaction-form";
 
@@ -13,12 +14,14 @@ export default async function NewInteractionPage({
 }) {
   const { resident: residentId, facility: facilityId } = await searchParams;
 
-  const [facilities, resident, residentsAtFacility] = await Promise.all([
+  const [facilities, resident, residentsAtFacility, contacts, volunteers] = await Promise.all([
     listFacilities(),
     residentId ? getResident(residentId) : Promise.resolve(null),
     !residentId && facilityId
       ? listResidents({ facilityId, showAllStatuses: true })
       : Promise.resolve([]),
+    listContactOptions(),
+    listContactOptions("volunteer"),
   ]);
 
   if (residentId && !resident) notFound();
@@ -64,6 +67,8 @@ export default async function NewInteractionPage({
               id: r.id,
               name: `${r.preferred_name ?? r.first_name} ${r.last_name}`,
             }))}
+            contacts={contacts}
+            volunteers={volunteers}
           />
         </CardContent>
       </Card>
