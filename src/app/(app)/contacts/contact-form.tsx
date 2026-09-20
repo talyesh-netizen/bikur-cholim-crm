@@ -12,7 +12,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CONTACT_TYPES, PREFERRED_COMMUNICATION_METHODS, PRIMARY_PROFILE_KINDS } from "@/lib/domain/contact";
+import {
+  CONTACT_TYPES,
+  PREFERRED_COMMUNICATION_METHODS,
+  PRIMARY_PROFILE_KINDS,
+  BACKGROUND_CHECK_STATUSES,
+} from "@/lib/domain/contact";
 import type { Contact } from "@/lib/domain/contact";
 import type { ContactFormState } from "@/lib/actions/contacts";
 import { capitalizeOnBlur } from "@/lib/format-text";
@@ -34,6 +39,9 @@ function contactToFormValues(contact?: Contact): Record<string, string> {
     preferred_communication_method: contact.preferred_communication_method ?? "",
     notes: contact.notes ?? "",
     primary_profile_kind: contact.primary_profile_kind,
+    background_check_status: contact.background_check_status,
+    background_check_date: contact.background_check_date ?? "",
+    availability_notes: contact.availability_notes ?? "",
   };
 }
 
@@ -58,6 +66,8 @@ export function ContactForm({
   const fieldErrors = state.fieldErrors ?? {};
   const values = state.values ?? contactToFormValues(contact);
   const formKey = JSON.stringify(values);
+  const [contactType, setContactType] = useState(values.contact_type);
+  const isVolunteer = contactType === "volunteer";
 
   const primaryProfileOptions = PRIMARY_PROFILE_KINDS.filter((o) => {
     if (o.value === "facility") return Boolean(primaryFacilityName);
@@ -84,7 +94,8 @@ export function ContactForm({
         <Field label="Contact type" htmlFor="contact_type" error={fieldErrors.contact_type} required>
           <SelectField
             name="contact_type"
-            defaultValue={values.contact_type}
+            value={contactType}
+            onValueChange={setContactType}
             options={CONTACT_TYPES}
             placeholder="Choose a type…"
           />
@@ -104,6 +115,51 @@ export function ContactForm({
           />
         </Field>
       ) : null}
+
+      {isVolunteer ? (
+        <div className="flex flex-col gap-4 rounded-md border border-border p-3">
+          <p className="text-sm font-medium">Volunteer info</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Background check" htmlFor="background_check_status">
+              <SelectField
+                name="background_check_status"
+                defaultValue={values.background_check_status || "not_started"}
+                options={BACKGROUND_CHECK_STATUSES}
+              />
+            </Field>
+            <Field label="Background check date" htmlFor="background_check_date">
+              <Input
+                id="background_check_date"
+                name="background_check_date"
+                type="date"
+                defaultValue={values.background_check_date}
+              />
+            </Field>
+          </div>
+          <Field label="Availability" htmlFor="availability_notes">
+            <Input
+              id="availability_notes"
+              name="availability_notes"
+              placeholder="e.g., Tuesdays and Thursdays, mornings"
+              defaultValue={values.availability_notes}
+            />
+          </Field>
+        </div>
+      ) : (
+        // Not shown for this type right now, but if this contact already
+        // has volunteer info saved, carry it through unchanged instead of
+        // wiping it out just because the type field was touched.
+        <>
+          <input
+            type="hidden"
+            name="background_check_status"
+            value={values.background_check_status || "not_started"}
+            readOnly
+          />
+          <input type="hidden" name="background_check_date" value={values.background_check_date ?? ""} readOnly />
+          <input type="hidden" name="availability_notes" value={values.availability_notes ?? ""} readOnly />
+        </>
+      )}
 
       <Field label="Organization" htmlFor="organization">
         <Input id="organization" name="organization" defaultValue={values.organization} />
@@ -185,17 +241,25 @@ function Field({
 function SelectField({
   name,
   defaultValue,
+  value: controlledValue,
+  onValueChange: controlledOnValueChange,
   options,
   placeholder,
   allowEmpty,
 }: {
   name: string;
   defaultValue?: string;
+  /** Pass value + onValueChange together to let a parent react to this
+   * field's selection instead of managing it internally. */
+  value?: string;
+  onValueChange?: (value: string) => void;
   options: readonly { value: string; label: string }[];
   placeholder?: string;
   allowEmpty?: boolean;
 }) {
-  const [value, setValue] = useState(defaultValue ?? "");
+  const [internalValue, setInternalValue] = useState(defaultValue ?? "");
+  const value = controlledValue ?? internalValue;
+  const setValue = controlledOnValueChange ?? setInternalValue;
 
   return (
     <>

@@ -4,7 +4,12 @@ import { z } from "zod";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { CONTACT_TYPES, PREFERRED_COMMUNICATION_METHODS, PRIMARY_PROFILE_KINDS } from "@/lib/domain/contact";
+import {
+  CONTACT_TYPES,
+  PREFERRED_COMMUNICATION_METHODS,
+  PRIMARY_PROFILE_KINDS,
+  BACKGROUND_CHECK_STATUSES,
+} from "@/lib/domain/contact";
 
 const contactTypeValues = CONTACT_TYPES.map((o) => o.value) as [string, ...string[]];
 const commMethodValues = PREFERRED_COMMUNICATION_METHODS.map((o) => o.value) as [
@@ -12,6 +17,7 @@ const commMethodValues = PREFERRED_COMMUNICATION_METHODS.map((o) => o.value) as 
   ...string[],
 ];
 const primaryProfileKindValues = PRIMARY_PROFILE_KINDS.map((o) => o.value) as [string, ...string[]];
+const backgroundCheckStatusValues = BACKGROUND_CHECK_STATUSES.map((o) => o.value) as [string, ...string[]];
 const emptyToUndefined = (val: unknown) => (val === "" ? undefined : val);
 const optionalText = () => z.preprocess(emptyToUndefined, z.string().trim().optional());
 
@@ -36,6 +42,13 @@ const contactSchema = z.object({
   preferred_communication_method: z.preprocess(emptyToUndefined, z.enum(commMethodValues).optional()),
   notes: optionalText(),
   primary_profile_kind: z.preprocess(emptyToUndefined, z.enum(primaryProfileKindValues).optional()).default("contact_type"),
+  // Only present in the form when contact_type is "volunteer" -- absent
+  // (not just empty) for every other type, so these all need defaults.
+  background_check_status: z
+    .preprocess(emptyToUndefined, z.enum(backgroundCheckStatusValues).optional())
+    .default("not_started"),
+  background_check_date: z.preprocess(emptyToUndefined, z.string().optional()),
+  availability_notes: optionalText(),
 });
 
 function parseContactForm(formData: FormData) {

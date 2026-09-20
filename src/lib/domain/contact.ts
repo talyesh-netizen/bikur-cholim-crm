@@ -29,6 +29,18 @@ export const PRIMARY_PROFILE_KINDS = [
 
 export type PrimaryProfileKind = (typeof PRIMARY_PROFILE_KINDS)[number]["value"];
 
+/** Volunteer-only profile fields -- meaningful only when
+ * contact_type = "volunteer", but stored on every contact (see the
+ * migration for why). */
+export const BACKGROUND_CHECK_STATUSES = [
+  { value: "not_started", label: "Not started" },
+  { value: "pending", label: "Pending" },
+  { value: "cleared", label: "Cleared" },
+  { value: "expired", label: "Expired" },
+] as const;
+
+export type BackgroundCheckStatus = (typeof BACKGROUND_CHECK_STATUSES)[number]["value"];
+
 /** Quick-filter groupings shown as tabs on the contacts list, so staff
  * can jump straight to "the volunteers" or "the shul contacts" instead
  * of always browsing one flat list. Purely a UI grouping over
@@ -80,6 +92,9 @@ export type Contact = {
   notes: string | null;
   active: boolean;
   primary_profile_kind: PrimaryProfileKind;
+  background_check_status: BackgroundCheckStatus;
+  background_check_date: string | null;
+  availability_notes: string | null;
   created_at: string;
   updated_at: string;
 };
