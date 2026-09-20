@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { getDashboardSummary } from "@/lib/queries/dashboard";
 import {
   getImpactBreakdown,
@@ -27,6 +28,7 @@ import {
   Activity,
   CheckCircle2,
   PieChart,
+  Download,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -180,26 +182,34 @@ export default async function DashboardPage({
       </div>
 
       <Card>
-        <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
+        <CardHeader className="flex-row flex-wrap items-center justify-between gap-2 space-y-0">
           <div className="flex items-center gap-2">
             <PieChart className="size-4 text-muted-foreground" />
             <CardTitle className="text-base">Impact</CardTitle>
           </div>
-          <div className="flex gap-1 rounded-md bg-muted p-1">
-            {IMPACT_PERIODS.map((p) => (
-              <Link
-                key={p.value}
-                href={p.value === "month" ? "/dashboard" : `/dashboard?impact=${p.value}`}
-                className={cn(
-                  "rounded px-2.5 py-1 text-xs font-medium transition-colors",
-                  impactPeriod === p.value
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {p.label}
-              </Link>
-            ))}
+          <div className="flex items-center gap-2">
+            <div className="flex gap-1 rounded-md bg-muted p-1">
+              {IMPACT_PERIODS.map((p) => (
+                <Link
+                  key={p.value}
+                  href={p.value === "month" ? "/dashboard" : `/dashboard?impact=${p.value}`}
+                  className={cn(
+                    "rounded px-2.5 py-1 text-xs font-medium transition-colors",
+                    impactPeriod === p.value
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {p.label}
+                </Link>
+              ))}
+            </div>
+            <Button variant="outline" size="sm" asChild>
+              <a href={`/api/impact-report?period=${impactPeriod}`}>
+                <Download className="size-4" />
+                Export
+              </a>
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
