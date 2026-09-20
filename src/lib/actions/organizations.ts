@@ -158,9 +158,18 @@ export async function addExistingOrganizationContact(
   redirect(`/organizations/${organizationId}`);
 }
 
-export async function removeOrganizationContact(organizationId: string, organizationContactId: string) {
+export async function setOrganizationContactActive(
+  organizationId: string,
+  organizationContactId: string,
+  active: boolean
+) {
   const supabase = await createClient();
-  await supabase.from("organization_contacts").delete().eq("id", organizationContactId);
+  // Deactivating clears "Primary" too -- an inactive link staying
+  // marked primary would be a confusing state to reactivate back into.
+  await supabase
+    .from("organization_contacts")
+    .update(active ? { active } : { active, is_primary_contact: false })
+    .eq("id", organizationContactId);
   revalidatePath(`/organizations/${organizationId}`);
 }
 

@@ -130,9 +130,14 @@ export async function addFamilyContact(
   redirect(`/residents/${residentId}`);
 }
 
-export async function removeResidentContact(residentId: string, residentContactId: string) {
+export async function setResidentContactActive(residentId: string, residentContactId: string, active: boolean) {
   const supabase = await createClient();
-  await supabase.from("resident_contacts").delete().eq("id", residentContactId);
+  // Deactivating clears "Primary" too -- an inactive link staying
+  // marked primary would be a confusing state to reactivate back into.
+  await supabase
+    .from("resident_contacts")
+    .update(active ? { active } : { active, is_primary_contact: false })
+    .eq("id", residentContactId);
   revalidatePath(`/residents/${residentId}`);
 }
 

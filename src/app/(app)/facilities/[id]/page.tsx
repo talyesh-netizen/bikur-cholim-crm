@@ -9,7 +9,7 @@ import { listResidents } from "@/lib/queries/residents";
 import { listInteractionsForFacility } from "@/lib/queries/interactions";
 import { listFacilityContacts } from "@/lib/queries/contacts";
 import { listTasks } from "@/lib/queries/tasks";
-import { removeFacilityContact, setPrimaryFacilityContact } from "@/lib/actions/facility-contacts";
+import { setFacilityContactActive, setPrimaryFacilityContact } from "@/lib/actions/facility-contacts";
 import {
   labelFor,
   FACILITY_TYPES,
@@ -25,7 +25,7 @@ import { telHref, websiteHref, mapsHref } from "@/lib/link-helpers";
 import { InteractionList } from "@/app/(app)/interactions/interaction-list";
 import { TaskList } from "@/app/(app)/tasks/task-list";
 import { InfoRow } from "@/components/info-row";
-import { Pencil, Plus, X, Star, User, Mail, Phone } from "lucide-react";
+import { Pencil, Plus, UserX, Undo2, Star, User, Mail, Phone } from "lucide-react";
 
 export default async function FacilityDetailPage({
   params,
@@ -224,10 +224,14 @@ export default async function FacilityDetailPage({
           ) : (
             <ul className="flex flex-col gap-3">
               {facilityContacts.map((fc) => {
-                const removeContact = removeFacilityContact.bind(null, facility.id, fc.id);
+                const deactivate = setFacilityContactActive.bind(null, facility.id, fc.id, false);
+                const reactivate = setFacilityContactActive.bind(null, facility.id, fc.id, true);
                 const makePrimary = setPrimaryFacilityContact.bind(null, facility.id, fc.id);
                 return (
-                  <li key={fc.id} className="flex items-start justify-between gap-4 text-sm">
+                  <li
+                    key={fc.id}
+                    className={`flex items-start justify-between gap-4 text-sm ${fc.active ? "" : "opacity-60"}`}
+                  >
                     <div>
                       <Link href={`/contacts/${fc.contact.id}`} className="font-medium hover:underline">
                         {fc.contact.name}
@@ -247,7 +251,9 @@ export default async function FacilityDetailPage({
                       </p>
                     </div>
                     <div className="flex items-center gap-1">
-                      {fc.is_primary_contact ? (
+                      {!fc.active ? (
+                        <Badge variant="outline">Inactive</Badge>
+                      ) : fc.is_primary_contact ? (
                         <Badge>Primary</Badge>
                       ) : (
                         <form action={makePrimary}>
@@ -256,11 +262,19 @@ export default async function FacilityDetailPage({
                           </Button>
                         </form>
                       )}
-                      <form action={removeContact}>
-                        <Button size="sm" variant="ghost" type="submit" title="Remove">
-                          <X className="size-4" />
-                        </Button>
-                      </form>
+                      {fc.active ? (
+                        <form action={deactivate}>
+                          <Button size="sm" variant="ghost" type="submit" title="Deactivate">
+                            <UserX className="size-4" />
+                          </Button>
+                        </form>
+                      ) : (
+                        <form action={reactivate}>
+                          <Button size="sm" variant="ghost" type="submit" title="Reactivate">
+                            <Undo2 className="size-4" />
+                          </Button>
+                        </form>
+                      )}
                     </div>
                   </li>
                 );

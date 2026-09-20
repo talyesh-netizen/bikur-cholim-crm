@@ -81,9 +81,10 @@ export async function listResidentContacts(residentId: string) {
   const { data, error } = await supabase
     .from("resident_contacts")
     .select(
-      "id, resident_id, contact_id, relationship_to_resident, relationship_other_description, is_primary_contact, relationship_notes, contacts(*)"
+      "id, resident_id, contact_id, relationship_to_resident, relationship_other_description, is_primary_contact, relationship_notes, active, contacts(*)"
     )
     .eq("resident_id", residentId)
+    .order("active", { ascending: false })
     .order("is_primary_contact", { ascending: false });
 
   if (error) throw new Error(error.message);
@@ -96,6 +97,7 @@ export async function listResidentContacts(residentId: string) {
     relationship_other_description: row.relationship_other_description,
     is_primary_contact: row.is_primary_contact,
     relationship_notes: row.relationship_notes,
+    active: row.active,
     contact: row.contacts as unknown as Contact,
   })) as ResidentContact[];
 }
@@ -104,8 +106,9 @@ export async function listFacilityContacts(facilityId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("facility_contacts")
-    .select("id, facility_id, contact_id, role_at_facility, is_primary_contact, contacts(*)")
+    .select("id, facility_id, contact_id, role_at_facility, is_primary_contact, active, contacts(*)")
     .eq("facility_id", facilityId)
+    .order("active", { ascending: false })
     .order("is_primary_contact", { ascending: false });
 
   if (error) throw new Error(error.message);
@@ -116,6 +119,7 @@ export async function listFacilityContacts(facilityId: string) {
     contact_id: row.contact_id,
     role_at_facility: row.role_at_facility,
     is_primary_contact: row.is_primary_contact,
+    active: row.active,
     contact: row.contacts as unknown as Contact,
   })) as FacilityContact[];
 }
@@ -128,7 +132,8 @@ export async function listFacilitiesForContact(contactId: string) {
   const { data, error } = await supabase
     .from("facility_contacts")
     .select("id, role_at_facility, is_primary_contact, facilities(id, name)")
-    .eq("contact_id", contactId);
+    .eq("contact_id", contactId)
+    .eq("active", true);
 
   if (error) throw new Error(error.message);
 
@@ -151,7 +156,8 @@ export async function listResidentsForContact(contactId: string) {
   const { data, error } = await supabase
     .from("resident_contacts")
     .select("id, relationship_to_resident, is_primary_contact, residents(id, first_name, last_name, preferred_name)")
-    .eq("contact_id", contactId);
+    .eq("contact_id", contactId)
+    .eq("active", true);
 
   if (error) throw new Error(error.message);
 

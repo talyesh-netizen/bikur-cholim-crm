@@ -83,6 +83,7 @@ export type ResidentContact = {
   relationship_other_description: string | null;
   is_primary_contact: boolean;
   relationship_notes: string | null;
+  active: boolean;
   contact: Contact;
 };
 
@@ -94,5 +95,6 @@ export type FacilityContact = {
   contact_id: string;
   role_at_facility: string | null;
   is_primary_contact: boolean;
+  active: boolean;
   contact: Contact;
 };

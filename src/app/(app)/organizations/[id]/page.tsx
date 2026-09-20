@@ -4,12 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getOrganization, listOrganizationContacts } from "@/lib/queries/organizations";
-import { setOrganizationActive, removeOrganizationContact, setPrimaryOrganizationContact } from "@/lib/actions/organizations";
+import { setOrganizationActive, setOrganizationContactActive, setPrimaryOrganizationContact } from "@/lib/actions/organizations";
 import { labelFor, ORGANIZATION_TYPES } from "@/lib/domain/organization";
 import { labelFor as labelForContact, CONTACT_TYPES } from "@/lib/domain/contact";
 import { InfoRow } from "@/components/info-row";
 import { telHref, websiteHref, mapsHref } from "@/lib/link-helpers";
-import { Pencil, Plus, X, Star } from "lucide-react";
+import { Pencil, Plus, UserX, Undo2, Star } from "lucide-react";
 
 export default async function OrganizationDetailPage({
   params,
@@ -100,10 +100,14 @@ export default async function OrganizationDetailPage({
           ) : (
             <ul className="flex flex-col gap-3">
               {contacts.map((oc) => {
-                const removeContact = removeOrganizationContact.bind(null, organization.id, oc.id);
+                const deactivate = setOrganizationContactActive.bind(null, organization.id, oc.id, false);
+                const reactivate = setOrganizationContactActive.bind(null, organization.id, oc.id, true);
                 const makePrimary = setPrimaryOrganizationContact.bind(null, organization.id, oc.id);
                 return (
-                  <li key={oc.id} className="flex items-start justify-between gap-4 text-sm">
+                  <li
+                    key={oc.id}
+                    className={`flex items-start justify-between gap-4 text-sm ${oc.active ? "" : "opacity-60"}`}
+                  >
                     <div>
                       <Link href={`/contacts/${oc.contact.id}`} className="font-medium hover:underline">
                         {oc.contact.name}
@@ -123,7 +127,9 @@ export default async function OrganizationDetailPage({
                       </p>
                     </div>
                     <div className="flex items-center gap-1">
-                      {oc.is_primary_contact ? (
+                      {!oc.active ? (
+                        <Badge variant="outline">Inactive</Badge>
+                      ) : oc.is_primary_contact ? (
                         <Badge>Primary</Badge>
                       ) : (
                         <form action={makePrimary}>
@@ -132,11 +138,19 @@ export default async function OrganizationDetailPage({
                           </Button>
                         </form>
                       )}
-                      <form action={removeContact}>
-                        <Button size="sm" variant="ghost" type="submit" title="Remove">
-                          <X className="size-4" />
-                        </Button>
-                      </form>
+                      {oc.active ? (
+                        <form action={deactivate}>
+                          <Button size="sm" variant="ghost" type="submit" title="Deactivate">
+                            <UserX className="size-4" />
+                          </Button>
+                        </form>
+                      ) : (
+                        <form action={reactivate}>
+                          <Button size="sm" variant="ghost" type="submit" title="Reactivate">
+                            <Undo2 className="size-4" />
+                          </Button>
+                        </form>
+                      )}
                     </div>
                   </li>
                 );

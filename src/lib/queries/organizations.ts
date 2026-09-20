@@ -52,8 +52,9 @@ export async function listOrganizationContacts(organizationId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("organization_contacts")
-    .select("id, organization_id, contact_id, role_at_organization, is_primary_contact, contacts(*)")
+    .select("id, organization_id, contact_id, role_at_organization, is_primary_contact, active, contacts(*)")
     .eq("organization_id", organizationId)
+    .order("active", { ascending: false })
     .order("is_primary_contact", { ascending: false });
 
   if (error) throw new Error(error.message);
@@ -64,6 +65,7 @@ export async function listOrganizationContacts(organizationId: string) {
     contact_id: row.contact_id,
     role_at_organization: row.role_at_organization,
     is_primary_contact: row.is_primary_contact,
+    active: row.active,
     contact: row.contacts as unknown as Contact,
   })) as OrganizationContact[];
 }
@@ -76,6 +78,7 @@ export async function getOrganizationForContact(contactId: string) {
     .from("organization_contacts")
     .select("id, role_at_organization, is_primary_contact, organizations(id, name)")
     .eq("contact_id", contactId)
+    .eq("active", true)
     .limit(1)
     .maybeSingle();
 
