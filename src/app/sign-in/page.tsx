@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import {
   Card,
   CardContent,
@@ -13,11 +13,31 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signIn, type SignInState } from "@/lib/actions/auth";
 import { APP_NAME } from "@/lib/config";
+import { createClient } from "@/lib/supabase/client";
+import { Eye, EyeOff } from "lucide-react";
 
 const initialState: SignInState = { error: null };
 
 export default function SignInPage() {
   const [state, formAction, isPending] = useActionState(signIn, initialState);
+  const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [resetState, setResetState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+
+  async function handleForgotPassword() {
+    if (!email) {
+      setResetState("error");
+      return;
+    }
+    setResetState("sending");
+    const supabase = createClient();
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/`,
+    });
+    // Same message either way -- confirming or denying that an email
+    // exists in the system is its own small privacy leak.
+    setResetState(error ? "error" : "sent");
+  }
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-background p-6">
@@ -37,17 +57,54 @@ export default function SignInPage() {
                 autoComplete="email"
                 required
                 placeholder="you@bikurcholimcleveland.org"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setResetState("idle");
+                }}
               />
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  required
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={resetState === "sending"}
+                className="self-start text-xs text-muted-foreground underline hover:text-foreground"
+              >
+                Forgot password?
+              </button>
+              {resetState === "sending" ? (
+                <p className="text-xs text-muted-foreground">Sending reset link…</p>
+              ) : null}
+              {resetState === "sent" ? (
+                <p className="text-xs text-success">
+                  If that email has an account, a reset link is on its way.
+                </p>
+              ) : null}
+              {resetState === "error" ? (
+                <p className="text-xs text-destructive">
+                  Enter your email above first, then tap &quot;Forgot password?&quot; again.
+                </p>
+              ) : null}
             </div>
 
             {state.error ? (

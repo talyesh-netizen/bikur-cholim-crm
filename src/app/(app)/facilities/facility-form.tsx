@@ -21,6 +21,7 @@ import {
 } from "@/lib/domain/facility";
 import type { Facility, GeographicCluster } from "@/lib/domain/facility";
 import type { FacilityFormState } from "@/lib/actions/facilities";
+import { capitalizeOnBlur } from "@/lib/format-text";
 
 type Action = (state: FacilityFormState, formData: FormData) => Promise<FacilityFormState>;
 
@@ -85,7 +86,7 @@ export function FacilityForm({
         <h2 className="text-sm font-semibold text-muted-foreground">Basic information</h2>
 
         <Field label="Facility name" htmlFor="name" error={fieldErrors.name} required>
-          <Input id="name" name="name" defaultValue={values.name} required />
+          <Input id="name" name="name" defaultValue={values.name} onBlur={capitalizeOnBlur} required />
         </Field>
 
         <Field label="Facility type" htmlFor="facility_type" error={fieldErrors.facility_type} required>
@@ -97,7 +98,7 @@ export function FacilityForm({
             <Input id="address" name="address" defaultValue={values.address} />
           </Field>
           <Field label="City" htmlFor="city">
-            <Input id="city" name="city" defaultValue={values.city} />
+            <Input id="city" name="city" defaultValue={values.city} onBlur={capitalizeOnBlur} />
           </Field>
           <Field label="ZIP code" htmlFor="zip">
             <Input id="zip" name="zip" defaultValue={values.zip} />

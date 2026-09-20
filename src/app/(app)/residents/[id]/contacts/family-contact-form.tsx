@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { PREFERRED_COMMUNICATION_METHODS, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
 import type { FamilyContactFormState } from "@/lib/actions/resident-contacts";
+import { capitalizeOnBlur } from "@/lib/format-text";
 
 type Action = (
   state: FamilyContactFormState,
@@ -40,7 +41,7 @@ export function FamilyContactForm({ action }: { action: Action }) {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Name" htmlFor="name" error={fieldErrors.name} required>
-          <Input id="name" name="name" defaultValue={values.name} required />
+          <Input id="name" name="name" defaultValue={values.name} onBlur={capitalizeOnBlur} required />
         </Field>
         <Field
           label="Relationship to resident"
