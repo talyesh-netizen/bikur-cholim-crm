@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CONTACT_TYPES, PREFERRED_COMMUNICATION_METHODS } from "@/lib/domain/contact";
+import { CONTACT_TYPES, PREFERRED_COMMUNICATION_METHODS, PRIMARY_PROFILE_KINDS } from "@/lib/domain/contact";
 import type { Contact } from "@/lib/domain/contact";
 import type { ContactFormState } from "@/lib/actions/contacts";
 
@@ -32,16 +32,41 @@ function contactToFormValues(contact?: Contact): Record<string, string> {
     zip: contact.zip ?? "",
     preferred_communication_method: contact.preferred_communication_method ?? "",
     notes: contact.notes ?? "",
+    primary_profile_kind: contact.primary_profile_kind,
   };
 }
 
-export function ContactForm({ action, contact }: { action: Action; contact?: Contact }) {
+export function ContactForm({
+  action,
+  contact,
+  primaryFacilityName,
+  primaryOrganizationName,
+}: {
+  action: Action;
+  contact?: Contact;
+  /** Only known once the contact exists and has an active primary
+   * facility/organization link -- shown as extra context in the
+   * "Primary profile" picker below, and used to hide options that
+   * wouldn't have anything to follow. */
+  primaryFacilityName?: string | null;
+  primaryOrganizationName?: string | null;
+}) {
   const [state, formAction, isPending] = useActionState<ContactFormState, FormData>(action, {
     error: null,
   });
   const fieldErrors = state.fieldErrors ?? {};
   const values = state.values ?? contactToFormValues(contact);
   const formKey = JSON.stringify(values);
+
+  const primaryProfileOptions = PRIMARY_PROFILE_KINDS.filter((o) => {
+    if (o.value === "facility") return Boolean(primaryFacilityName);
+    if (o.value === "organization") return Boolean(primaryOrganizationName);
+    return true;
+  }).map((o) => {
+    if (o.value === "facility") return { ...o, label: `Their facility (${primaryFacilityName})` };
+    if (o.value === "organization") return { ...o, label: `Their shul/school/partner (${primaryOrganizationName})` };
+    return o;
+  });
 
   return (
     <form key={formKey} action={formAction} className="flex flex-col gap-4">
@@ -64,6 +89,20 @@ export function ContactForm({ action, contact }: { action: Action; contact?: Con
           />
         </Field>
       </div>
+
+      {contact ? (
+        <Field
+          label="Main color / identity"
+          htmlFor="primary_profile_kind"
+          error={fieldErrors.primary_profile_kind}
+        >
+          <SelectField
+            name="primary_profile_kind"
+            defaultValue={values.primary_profile_kind}
+            options={primaryProfileOptions}
+          />
+        </Field>
+      ) : null}
 
       <Field label="Organization" htmlFor="organization">
         <Input id="organization" name="organization" defaultValue={values.organization} />

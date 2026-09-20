@@ -4,13 +4,14 @@ import { z } from "zod";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { CONTACT_TYPES, PREFERRED_COMMUNICATION_METHODS } from "@/lib/domain/contact";
+import { CONTACT_TYPES, PREFERRED_COMMUNICATION_METHODS, PRIMARY_PROFILE_KINDS } from "@/lib/domain/contact";
 
 const contactTypeValues = CONTACT_TYPES.map((o) => o.value) as [string, ...string[]];
 const commMethodValues = PREFERRED_COMMUNICATION_METHODS.map((o) => o.value) as [
   string,
   ...string[],
 ];
+const primaryProfileKindValues = PRIMARY_PROFILE_KINDS.map((o) => o.value) as [string, ...string[]];
 const emptyToUndefined = (val: unknown) => (val === "" ? undefined : val);
 const optionalText = () => z.preprocess(emptyToUndefined, z.string().trim().optional());
 
@@ -34,6 +35,7 @@ const contactSchema = z.object({
   zip: optionalText(),
   preferred_communication_method: z.preprocess(emptyToUndefined, z.enum(commMethodValues).optional()),
   notes: optionalText(),
+  primary_profile_kind: z.preprocess(emptyToUndefined, z.enum(primaryProfileKindValues).optional()).default("contact_type"),
 });
 
 function parseContactForm(formData: FormData) {

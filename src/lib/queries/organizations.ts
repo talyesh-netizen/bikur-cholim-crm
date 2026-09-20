@@ -76,21 +76,23 @@ export async function getOrganizationForContact(contactId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("organization_contacts")
-    .select("id, role_at_organization, is_primary_contact, organizations(id, name)")
+    .select("id, role_at_organization, is_primary_contact, organizations(id, name, organization_type)")
     .eq("contact_id", contactId)
     .eq("active", true)
+    .order("is_primary_contact", { ascending: false })
     .limit(1)
     .maybeSingle();
 
   if (error) throw new Error(error.message);
   if (!data) return null;
 
-  const organization = data.organizations as unknown as { id: string; name: string } | null;
+  const organization = data.organizations as unknown as { id: string; name: string; organization_type: string } | null;
   return {
     organization_contact_id: data.id,
     role_at_organization: data.role_at_organization,
     is_primary_contact: data.is_primary_contact,
     organization_id: organization?.id ?? null,
     organization_name: organization?.name ?? "Unknown organization",
+    organization_type: organization?.organization_type ?? null,
   };
 }

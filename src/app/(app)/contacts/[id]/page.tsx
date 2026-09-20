@@ -3,12 +3,13 @@ import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ContactTypeBadge } from "@/components/contact-type-badge";
+import { ColorBadge } from "@/components/color-badge";
+import { primaryProfileColor, primaryProfileLabel } from "@/lib/domain/primary-profile";
 import { getContact, listResidentsForContact, listFacilitiesForContact } from "@/lib/queries/contacts";
 import { getOrganizationForContact } from "@/lib/queries/organizations";
 import { listInteractionsForContact } from "@/lib/queries/interactions";
 import { setContactActive } from "@/lib/actions/contacts";
-import { labelFor, CONTACT_TYPES, PREFERRED_COMMUNICATION_METHODS, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
+import { labelFor, PREFERRED_COMMUNICATION_METHODS, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
 import { telHref, mailtoHref, mapsHref } from "@/lib/link-helpers";
 import { InfoRow } from "@/components/info-row";
 import { InteractionRow } from "../../interactions/interaction-row";
@@ -36,13 +37,22 @@ export default async function ContactDetailPage({
       .filter(Boolean)
       .join(", ") || undefined;
 
+  const primaryFacility = facilityLinks[0]
+    ? { name: facilityLinks[0].facility_name, clusterId: facilityLinks[0].facility_cluster_id }
+    : null;
+  const primaryOrganization = organizationLink
+    ? { name: organizationLink.organization_name, organizationType: organizationLink.organization_type }
+    : null;
+  const profileColor = primaryProfileColor(contact, primaryFacility, primaryOrganization);
+  const profileLabel = primaryProfileLabel(contact, primaryFacility, primaryOrganization);
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-semibold">{contact.name}</h1>
-            <ContactTypeBadge contactType={contact.contact_type} label={labelFor(CONTACT_TYPES, contact.contact_type)} />
+            <ColorBadge color={profileColor} label={profileLabel} />
             {!contact.active ? <Badge variant="outline">Inactive</Badge> : null}
           </div>
           {contact.organization ? (

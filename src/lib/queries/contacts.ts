@@ -11,10 +11,15 @@ export type ContactFilters = {
 
 /** A contact plus its role at the facility it's primarily linked to (if
  * any) — shown on the contacts list so "Facility staff" isn't the only
- * thing visible; e.g. "Activities Director at Sunrise Manor". */
+ * thing visible; e.g. "Activities Director at Sunrise Manor" — plus
+ * enough about its primary facility/organization link to resolve
+ * primaryProfileColor/primaryProfileLabel without another query. */
 export type ContactListItem = Contact & {
   role_at_facility: string | null;
   facility_name: string | null;
+  facility_cluster_id: string | null;
+  organization_name: string | null;
+  organization_type: string | null;
 };
 
 export async function listContacts(filters: ContactFilters = {}): Promise<ContactListItem[]> {
@@ -22,7 +27,9 @@ export async function listContacts(filters: ContactFilters = {}): Promise<Contac
 
   let query = supabase
     .from("contacts")
-    .select("*, facility_contacts(role_at_facility, is_primary_contact, facilities(name))")
+    .select(
+      "*, facility_contacts(role_at_facility, is_primary_contact, active, facilities(name, geographic_cluster_id)), organization_contacts(is_primary_contact, active, organizations(name, organization_type))"
+    )
     .order("name", { ascending: true });
 
   if (!filters.showInactive) {
@@ -42,15 +49,30 @@ export async function listContacts(filters: ContactFilters = {}): Promise<Contac
   if (error) throw new Error(error.message);
 
   return (data ?? []).map((row) => {
-    const { facility_contacts, ...contact } = row as Contact & {
-      facility_contacts: { role_at_facility: string | null; is_primary_contact: boolean; facilities: { name: string } | null }[];
+    const { facility_contacts, organization_contacts, ...contact } = row as Contact & {
+      facility_contacts: {
+        role_at_facility: string | null;
+        is_primary_contact: boolean;
+        active: boolean;
+        facilities: { name: string; geographic_cluster_id: string | null } | null;
+      }[];
+      organization_contacts: {
+        is_primary_contact: boolean;
+        active: boolean;
+        organizations: { name: string; organization_type: string } | null;
+      }[];
     };
-    const links = facility_contacts ?? [];
-    const primary = links.find((l) => l.is_primary_contact) ?? links[0] ?? null;
+    const facilityLinks = (facility_contacts ?? []).filter((l) => l.active);
+    const primaryFacility = facilityLinks.find((l) => l.is_primary_contact) ?? facilityLinks[0] ?? null;
+    const orgLinks = (organization_contacts ?? []).filter((l) => l.active);
+    const primaryOrg = orgLinks.find((l) => l.is_primary_contact) ?? orgLinks[0] ?? null;
     return {
       ...contact,
-      role_at_facility: primary?.role_at_facility ?? null,
-      facility_name: primary?.facilities?.name ?? null,
+      role_at_facility: primaryFacility?.role_at_facility ?? null,
+      facility_name: primaryFacility?.facilities?.name ?? null,
+      facility_cluster_id: primaryFacility?.facilities?.geographic_cluster_id ?? null,
+      organization_name: primaryOrg?.organizations?.name ?? null,
+      organization_type: primaryOrg?.organizations?.organization_type ?? null,
     };
   });
 }
@@ -131,20 +153,22 @@ export async function listFacilitiesForContact(contactId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("facility_contacts")
-    .select("id, role_at_facility, is_primary_contact, facilities(id, name)")
+    .select("id, role_at_facility, is_primary_contact, facilities(id, name, geographic_cluster_id)")
     .eq("contact_id", contactId)
-    .eq("active", true);
+    .eq("active", true)
+    .order("is_primary_contact", { ascending: false });
 
   if (error) throw new Error(error.message);
 
   return (data ?? []).map((row) => {
-    const facility = row.facilities as unknown as { id: string; name: string } | null;
+    const facility = row.facilities as unknown as { id: string; name: string; geographic_cluster_id: string | null } | null;
     return {
       facility_contact_id: row.id,
       role_at_facility: row.role_at_facility,
       is_primary_contact: row.is_primary_contact,
       facility_id: facility?.id ?? null,
       facility_name: facility?.name ?? "Unknown facility",
+      facility_cluster_id: facility?.geographic_cluster_id ?? null,
     };
   });
 }
