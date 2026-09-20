@@ -2,10 +2,12 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getDashboardSummary } from "@/lib/queries/dashboard";
-import { getImpactBreakdown, type ImpactPeriod } from "@/lib/queries/impact";
+import { getImpactBreakdown, getStaffActivity, getVolunteerImpact, type ImpactPeriod } from "@/lib/queries/impact";
 import { createClient } from "@/lib/supabase/server";
 import { TaskCard } from "../tasks/task-card";
 import { DonutChart } from "@/components/donut-chart";
+import { ImpactLeaderboard } from "@/components/impact-leaderboard";
+import { HeartHandshake } from "lucide-react";
 import { labelFor, INTERACTION_TYPES } from "@/lib/domain/interaction";
 import { ENGAGEMENT_STATUSES } from "@/lib/domain/facility";
 import { formatRelative, formatDateOnly } from "@/lib/format-date";
@@ -132,10 +134,12 @@ export default async function DashboardPage({
     params.impact === "quarter" || params.impact === "all" ? params.impact : "month";
 
   const supabase = await createClient();
-  const [{ data: { user } }, summary, impact] = await Promise.all([
+  const [{ data: { user } }, summary, impact, staffActivity, volunteerImpact] = await Promise.all([
     supabase.auth.getUser(),
     getDashboardSummary(),
     getImpactBreakdown(impactPeriod),
+    getStaffActivity(impactPeriod),
+    getVolunteerImpact(impactPeriod),
   ]);
 
   let firstName = "";
@@ -194,6 +198,36 @@ export default async function DashboardPage({
           <DonutChart segments={impact.buckets} title={`Interactions by type — ${IMPACT_PERIODS.find((p) => p.value === impactPeriod)?.label}`} />
         </CardContent>
       </Card>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="flex-row items-center gap-2 space-y-0">
+            <Users className="size-4 text-muted-foreground" />
+            <CardTitle className="text-base">Staff impact</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ImpactLeaderboard
+              rows={staffActivity}
+              barColor="#2a78d6"
+              emptyMessage="No interactions logged in this period yet."
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex-row items-center gap-2 space-y-0">
+            <HeartHandshake className="size-4 text-muted-foreground" />
+            <CardTitle className="text-base">Volunteer impact</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ImpactLeaderboard
+              rows={volunteerImpact}
+              barColor="#1baf7a"
+              emptyMessage="No volunteer visits logged in this period yet."
+            />
+          </CardContent>
+        </Card>
+      </div>
 
       <SectionCard
         title="Needs attention today"

@@ -19,6 +19,22 @@ export const CONTACT_TYPES = [
 
 export type ContactType = (typeof CONTACT_TYPES)[number]["value"];
 
+/** Quick-filter groupings shown as tabs on the contacts list, so staff
+ * can jump straight to "the volunteers" or "the shul contacts" instead
+ * of always browsing one flat list. Purely a UI grouping over
+ * contact_type — it doesn't change what's stored. */
+export const CONTACT_QUICK_FILTERS = [
+  { key: "facility_staff", label: "Facility staff", types: ["facility_staff"] as ContactType[] },
+  { key: "family", label: "Family", types: ["family_member"] as ContactType[] },
+  { key: "volunteers", label: "Volunteers", types: ["volunteer"] as ContactType[] },
+  {
+    key: "shul_community",
+    label: "Shul & community",
+    types: ["rabbi", "synagogue_contact", "community_partner"] as ContactType[],
+  },
+  { key: "other", label: "Other", types: ["other_referral_source"] as ContactType[] },
+] as const;
+
 export const PREFERRED_COMMUNICATION_METHODS = [
   { value: "phone", label: "Phone" },
   { value: "email", label: "Email" },

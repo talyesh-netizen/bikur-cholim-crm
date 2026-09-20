@@ -32,7 +32,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <p className="text-xs text-muted-foreground">{ORGANIZATION_NAME}</p>
         </div>
 
-        <SidebarNavLinks />
+        <SidebarNavLinks isAdmin={role === "admin"} />
 
         <div className="mt-auto flex flex-col gap-3 border-t border-border pt-4">
           <div className="px-2 text-sm">
@@ -71,7 +71,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
       {/* Mobile bottom nav */}
       <nav className="fixed inset-x-0 bottom-0 border-t border-border bg-card md:hidden">
-        <MobileBottomNavLinks />
+        <MobileBottomNavLinks isAdmin={role === "admin"} />
       </nav>
     </div>
   );

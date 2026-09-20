@@ -65,3 +65,49 @@ export async function createInteraction(
   revalidatePath(`/facilities/${parsed.data.facility_id}`);
   redirect(redirectTo);
 }
+
+export async function updateInteraction(
+  id: string,
+  redirectTo: string,
+  _prevState: InteractionFormState,
+  formData: FormData
+): Promise<InteractionFormState> {
+  const raw = Object.fromEntries(formData.entries()) as Record<string, string>;
+  const parsed = interactionSchema.safeParse(raw);
+  if (!parsed.success) {
+    const fieldErrors: Record<string, string> = {};
+    for (const issue of parsed.error.issues) {
+      const key = issue.path[0];
+      if (typeof key === "string" && !fieldErrors[key]) fieldErrors[key] = issue.message;
+    }
+    return { error: "Please fix the highlighted fields.", fieldErrors, values: raw };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Your session expired. Please sign in again.", values: raw };
+  }
+
+  const { occurred_at, ...rest } = parsed.data;
+  const { error } = await supabase
+    .from("interactions")
+    .update({
+      ...rest,
+      resident_id: rest.resident_id ?? null,
+      occurred_at: new Date(occurred_at).toISOString(),
+    })
+    .eq("id", id);
+
+  if (error) {
+    return { error: "Something went wrong saving this interaction. Please try again.", values: raw };
+  }
+
+  if (parsed.data.resident_id) revalidatePath(`/residents/${parsed.data.resident_id}`);
+  revalidatePath(`/facilities/${parsed.data.facility_id}`);
+  revalidatePath("/interactions");
+  redirect(redirectTo);
+}

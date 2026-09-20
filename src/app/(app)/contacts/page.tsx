@@ -2,8 +2,10 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { listContacts } from "@/lib/queries/contacts";
+import { CONTACT_QUICK_FILTERS } from "@/lib/domain/contact";
 import { ContactFilters } from "./contact-filters";
 import { ContactCard } from "./contact-card";
+import { cn } from "@/lib/utils";
 
 export default async function ContactsPage({
   searchParams,
@@ -33,6 +35,32 @@ export default async function ContactsPage({
             Add contact
           </Link>
         </Button>
+      </div>
+
+      <div className="flex flex-wrap gap-1 rounded-md bg-muted p-1">
+        <Link
+          href="/contacts"
+          className={cn(
+            "rounded px-2.5 py-1.5 text-sm font-medium transition-colors",
+            !params.type ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          All
+        </Link>
+        {CONTACT_QUICK_FILTERS.map((f) => (
+          <Link
+            key={f.key}
+            href={`/contacts?type=${f.key}`}
+            className={cn(
+              "rounded px-2.5 py-1.5 text-sm font-medium transition-colors",
+              params.type === f.key
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {f.label}
+          </Link>
+        ))}
       </div>
 
       <ContactFilters />

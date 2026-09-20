@@ -61,7 +61,7 @@ export function ContactFilters() {
       <div className="flex flex-col gap-1 sm:w-64">
         <Label className="text-xs text-muted-foreground">Contact type</Label>
         <Select
-          value={searchParams.get("type") ?? "all"}
+          value={CONTACT_TYPES.some((t) => t.value === searchParams.get("type")) ? searchParams.get("type")! : "all"}
           onValueChange={(v) => updateParam("type", v === "all" ? null : v)}
         >
           <SelectTrigger>
