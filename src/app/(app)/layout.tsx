@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
 import { SidebarNavLinks, MobileBottomNavLinks } from "@/components/nav-links";
+import { GlobalSearchBar } from "@/components/global-search-bar";
 import { APP_NAME, ORGANIZATION_NAME } from "@/lib/config";
 import { LogOut } from "lucide-react";
 
@@ -66,7 +67,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </header>
 
       <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
-        <div className="mx-auto max-w-5xl p-4 md:p-8">{children}</div>
+        <div className="mx-auto flex max-w-5xl flex-col gap-4 p-4 md:p-8">
+          <GlobalSearchBar />
+          {children}
+        </div>
       </main>
 
       {/* Mobile bottom nav */}
