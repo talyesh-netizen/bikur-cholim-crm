@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getContact, listResidentsForContact, listFacilitiesForContact } from "@/lib/queries/contacts";
+import { getOrganizationForContact } from "@/lib/queries/organizations";
 import { listInteractionsForContact } from "@/lib/queries/interactions";
 import { setContactActive } from "@/lib/actions/contacts";
 import { labelFor, CONTACT_TYPES, PREFERRED_COMMUNICATION_METHODS, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
@@ -18,11 +19,12 @@ export default async function ContactDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [contact, residentLinks, facilityLinks, interactions] = await Promise.all([
+  const [contact, residentLinks, facilityLinks, interactions, organizationLink] = await Promise.all([
     getContact(id),
     listResidentsForContact(id),
     listFacilitiesForContact(id),
     listInteractionsForContact(id),
+    getOrganizationForContact(id),
   ]);
 
   if (!contact) notFound();
@@ -79,6 +81,25 @@ export default async function ContactDetailPage({
           />
         </CardContent>
       </Card>
+
+      {organizationLink ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Organization</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Link
+              href={`/organizations/${organizationLink.organization_id}`}
+              className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+            >
+              <span>{organizationLink.organization_name}</span>
+              {organizationLink.role_at_organization ? (
+                <Badge variant="secondary">{organizationLink.role_at_organization}</Badge>
+              ) : null}
+            </Link>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>

@@ -10,6 +10,7 @@ import {
   ListChecks,
   History,
   Settings,
+  Landmark,
   MoreHorizontal,
   type LucideIcon,
 } from "lucide-react";
@@ -20,6 +21,7 @@ export const NAV_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/facilities", label: "Facilities", icon: Building2 },
   { href: "/residents", label: "Residents", icon: Users },
   { href: "/contacts", label: "Contacts", icon: Contact },
+  { href: "/organizations", label: "Shuls & Partners", icon: Landmark },
   { href: "/interactions", label: "Interactions", icon: History },
   { href: "/tasks", label: "Tasks", icon: ListChecks },
 ];
