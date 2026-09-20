@@ -11,6 +11,7 @@ import {
   History,
   Settings,
   Landmark,
+  ClipboardCheck,
   MoreHorizontal,
   type LucideIcon,
 } from "lucide-react";
@@ -24,6 +25,7 @@ export const NAV_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/organizations", label: "Shuls & Partners", icon: Landmark },
   { href: "/interactions", label: "Interactions", icon: History },
   { href: "/tasks", label: "Tasks", icon: ListChecks },
+  { href: "/data-quality", label: "Data Quality", icon: ClipboardCheck },
 ];
 
 const ADMIN_NAV_ITEM = { href: "/settings/staff", label: "Staff", icon: Settings };
