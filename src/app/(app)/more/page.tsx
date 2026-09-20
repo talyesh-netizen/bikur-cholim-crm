@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { getCurrentProfile } from "@/lib/get-current-profile";
-import { mobileMoreItems } from "@/components/nav-links";
+import { mobileMoreItems } from "@/lib/nav-items";
 import { ChevronRight } from "lucide-react";
 
 /** Overflow page for the mobile bottom nav, which only has room for a
