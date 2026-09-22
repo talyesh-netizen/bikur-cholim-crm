@@ -31,6 +31,12 @@ const facilityContactSchema = z.object({
   is_primary_contact: z.preprocess((val) => val === "on", z.boolean()),
 });
 
+const linkExistingSchema = z.object({
+  contact_id: z.string().uuid("Please choose a contact."),
+  role_at_facility: optionalText(),
+  is_primary_contact: z.preprocess((val) => val === "on", z.boolean()),
+});
+
 function flattenErrors(error: z.ZodError): Record<string, string> {
   const fieldErrors: Record<string, string> = {};
   for (const issue of error.issues) {
@@ -101,6 +107,54 @@ export async function addFacilityContact(
 
   revalidatePath(`/facilities/${facilityId}`);
   revalidatePath("/contacts");
+  redirect(`/facilities/${facilityId}`);
+}
+
+/** Links an existing contact to this facility -- for the common case of
+ * someone (e.g. a regional director) already on file, possibly already
+ * linked to other facilities, instead of typing in a duplicate. */
+export async function addExistingFacilityContact(
+  facilityId: string,
+  _prevState: FacilityContactFormState,
+  formData: FormData
+): Promise<FacilityContactFormState> {
+  const raw = Object.fromEntries(formData.entries()) as Record<string, string>;
+  const parsed = linkExistingSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { error: "Please fix the highlighted fields.", fieldErrors: flattenErrors(parsed.error), values: raw };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (parsed.data.is_primary_contact) {
+    await supabase
+      .from("facility_contacts")
+      .update({ is_primary_contact: false })
+      .eq("facility_id", facilityId)
+      .eq("is_primary_contact", true);
+  }
+
+  const { error } = await supabase.from("facility_contacts").insert({
+    facility_id: facilityId,
+    contact_id: parsed.data.contact_id,
+    role_at_facility: parsed.data.role_at_facility,
+    is_primary_contact: parsed.data.is_primary_contact,
+    created_by: user?.id,
+  });
+
+  if (error) {
+    return {
+      error: error.message.includes("duplicate key")
+        ? "That contact is already linked to this facility."
+        : "Something went wrong linking this contact. Please try again.",
+      values: raw,
+    };
+  }
+
+  revalidatePath(`/facilities/${facilityId}`);
   redirect(`/facilities/${facilityId}`);
 }
 

@@ -189,6 +189,11 @@ export default async function ResidentDetailPage({
                           </Button>
                         </form>
                       )}
+                      <Button size="sm" variant="ghost" asChild title="Edit relationship">
+                        <Link href={`/residents/${resident.id}/contacts/${rc.id}/edit`}>
+                          <Pencil className="size-4" />
+                        </Link>
+                      </Button>
                       {rc.active ? (
                         <form action={deactivate}>
                           <Button size="sm" variant="ghost" type="submit" title="Deactivate">
