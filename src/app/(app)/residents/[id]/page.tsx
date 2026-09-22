@@ -44,10 +44,12 @@ export default async function ResidentDetailPage({
         <div>
           <h1 className="text-2xl font-semibold">{displayName}</h1>
           <p className="mt-1 flex items-center gap-1.5">
-            <ClusterBadge
-              clusterId={resident.current_facility_cluster_id}
-              name={resident.current_facility_name ?? "Unknown facility"}
-            />
+            <Link href={`/facilities/${resident.current_facility_id}`} className="hover:opacity-80">
+              <ClusterBadge
+                clusterId={resident.current_facility_cluster_id}
+                name={resident.current_facility_name ?? "Unknown facility"}
+              />
+            </Link>
             {resident.room_number ? (
               <span className="text-sm text-muted-foreground">Room {resident.room_number}</span>
             ) : null}
@@ -115,9 +117,11 @@ export default async function ResidentDetailPage({
           ) : (
             <ol className="flex flex-col gap-3">
               {history.map((entry) => (
-                <li key={entry.id} className="flex items-start justify-between gap-4 text-sm">
+                <li key={entry.id} className="relative -mx-2 rounded-md px-2 py-1.5 transition-colors hover:bg-muted/60 flex items-start justify-between gap-4 text-sm">
                   <div>
-                    <p className="font-medium">{entry.facility_name}</p>
+                    <Link href={`/facilities/${entry.facility_id}`} className="stretched-link font-medium hover:underline">
+                      {entry.facility_name}
+                    </Link>
                     {entry.reason ? (
                       <p className="text-xs text-muted-foreground">{entry.reason}</p>
                     ) : null}
@@ -155,10 +159,10 @@ export default async function ResidentDetailPage({
                 return (
                   <li
                     key={rc.id}
-                    className={`flex items-start justify-between gap-4 text-sm ${rc.active ? "" : "opacity-60"}`}
+                    className={`relative -mx-2 rounded-md px-2 py-1.5 transition-colors hover:bg-muted/60 flex items-start justify-between gap-4 text-sm ${rc.active ? "" : "opacity-60"}`}
                   >
                     <div>
-                      <Link href={`/contacts/${rc.contact.id}`} className="font-medium hover:underline">
+                      <Link href={`/contacts/${rc.contact.id}`} className="stretched-link font-medium hover:underline">
                         {rc.contact.name}
                       </Link>
                       <p className="text-xs text-muted-foreground">
@@ -168,7 +172,7 @@ export default async function ResidentDetailPage({
                         {rc.contact.phone ? (
                           <>
                             {" · "}
-                            <a href={telHref(rc.contact.phone)} className="hover:underline">
+                            <a href={telHref(rc.contact.phone)} className="relative z-10 hover:underline">
                               {rc.contact.phone}
                             </a>
                           </>
@@ -177,7 +181,7 @@ export default async function ResidentDetailPage({
                         )}
                       </p>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="relative z-10 flex items-center gap-1">
                       {!rc.active ? (
                         <Badge variant="outline">Inactive</Badge>
                       ) : rc.is_primary_contact ? (

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { ORGANIZATION_TYPES } from "@/lib/domain/organization";
+import { capitalizeOptional, capitalizeWords } from "@/lib/format-text";
 
 const organizationTypeValues = ORGANIZATION_TYPES.map((o) => o.value) as [string, ...string[]];
 const emptyToUndefined = (val: unknown) => (val === "" ? undefined : val);
@@ -17,10 +18,10 @@ export type OrganizationFormState = {
 };
 
 const organizationSchema = z.object({
-  name: z.string().trim().min(1, "Organization name is required."),
+  name: z.string().trim().min(1, "Organization name is required.").transform(capitalizeWords),
   organization_type: z.enum(organizationTypeValues, { message: "Please choose a type." }),
   address: optionalText(),
-  city: optionalText(),
+  city: optionalText().transform(capitalizeOptional),
   state: optionalText(),
   zip: optionalText(),
   main_phone: optionalText(),

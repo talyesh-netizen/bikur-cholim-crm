@@ -18,3 +18,10 @@ export function capitalizeOnBlur(e: FocusEvent<HTMLInputElement>) {
   const capitalized = capitalizeWords(e.target.value);
   if (capitalized !== e.target.value) e.target.value = capitalized;
 }
+
+/** capitalizeWords for an optional field -- passes empty values
+ * through untouched. Used server-side so a name typed and submitted
+ * with Enter (which skips the blur) is still saved capitalized. */
+export function capitalizeOptional<T extends string | null | undefined>(value: T): T {
+  return (typeof value === "string" ? capitalizeWords(value) : value) as T;
+}

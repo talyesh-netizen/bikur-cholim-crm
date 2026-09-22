@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { PREFERRED_COMMUNICATION_METHODS, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
+import { capitalizeOptional, capitalizeWords } from "@/lib/format-text";
 
 const relationshipValues = RESIDENT_CONTACT_RELATIONSHIPS.map((o) => o.value) as [
   string,
@@ -25,13 +26,13 @@ export type FamilyContactFormState = {
 
 const familyContactSchema = z
   .object({
-    name: z.string().trim().min(1, "Name is required."),
+    name: z.string().trim().min(1, "Name is required.").transform(capitalizeWords),
     relationship_to_resident: z.enum(relationshipValues),
     relationship_other_description: optionalText(),
     phone: optionalText(),
     email: optionalText(),
     address: optionalText(),
-    city: optionalText(),
+    city: optionalText().transform(capitalizeOptional),
     state: optionalText(),
     zip: optionalText(),
     preferred_communication_method: z.preprocess(emptyToUndefined, z.enum(commMethodValues).optional()),

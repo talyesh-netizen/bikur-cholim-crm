@@ -238,10 +238,10 @@ export default async function FacilityDetailPage({
                 return (
                   <li
                     key={fc.id}
-                    className={`flex items-start justify-between gap-4 text-sm ${fc.active ? "" : "opacity-60"}`}
+                    className={`relative -mx-2 rounded-md px-2 py-1.5 transition-colors hover:bg-muted/60 flex items-start justify-between gap-4 text-sm ${fc.active ? "" : "opacity-60"}`}
                   >
                     <div>
-                      <Link href={`/contacts/${fc.contact.id}`} className="font-medium hover:underline">
+                      <Link href={`/contacts/${fc.contact.id}`} className="stretched-link font-medium hover:underline">
                         {fc.contact.name}
                       </Link>
                       <p className="text-xs text-muted-foreground">
@@ -249,7 +249,7 @@ export default async function FacilityDetailPage({
                         {fc.contact.phone ? (
                           <>
                             {" · "}
-                            <a href={telHref(fc.contact.phone)} className="hover:underline">
+                            <a href={telHref(fc.contact.phone)} className="relative z-10 hover:underline">
                               {fc.contact.phone}
                             </a>
                           </>
@@ -258,7 +258,7 @@ export default async function FacilityDetailPage({
                         )}
                       </p>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="relative z-10 flex items-center gap-1">
                       {!fc.active ? (
                         <Badge variant="outline">Inactive</Badge>
                       ) : fc.is_primary_contact ? (

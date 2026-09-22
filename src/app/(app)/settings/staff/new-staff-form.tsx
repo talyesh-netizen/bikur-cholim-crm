@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { createStaffAccount, type StaffFormState } from "@/lib/actions/staff";
 import { Copy } from "lucide-react";
+import { capitalizeOnBlur } from "@/lib/format-text";
 
 export function NewStaffForm({ facilities }: { facilities: { id: string; name: string }[] }) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -41,7 +42,7 @@ export function NewStaffForm({ facilities }: { facilities: { id: string; name: s
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="full_name">Full name</Label>
-            <Input id="full_name" name="full_name" required />
+            <Input id="full_name" name="full_name" onBlur={capitalizeOnBlur} required />
             {fieldErrors.full_name ? (
               <p className="text-xs text-destructive">{fieldErrors.full_name}</p>
             ) : null}

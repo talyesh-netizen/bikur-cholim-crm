@@ -30,8 +30,22 @@ export default async function TaskDetailPage({
           <h1 className="text-2xl font-semibold">{task.title}</h1>
           <p className="text-sm text-muted-foreground">
             {labelFor(TASK_CATEGORIES, task.task_category)}
-            {task.resident_name ? ` · ${task.resident_name}` : ""}
-            {task.facility_name ? ` · ${task.facility_name}` : ""}
+            {task.resident_id && task.resident_name ? (
+              <>
+                {" · "}
+                <Link href={`/residents/${task.resident_id}`} className="font-medium text-foreground hover:underline">
+                  {task.resident_name}
+                </Link>
+              </>
+            ) : null}
+            {task.facility_id && task.facility_name ? (
+              <>
+                {" · "}
+                <Link href={`/facilities/${task.facility_id}`} className="font-medium text-foreground hover:underline">
+                  {task.facility_name}
+                </Link>
+              </>
+            ) : null}
           </p>
         </div>
         <Button variant="outline" asChild>

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { CONTACT_TYPES, PREFERRED_COMMUNICATION_METHODS } from "@/lib/domain/contact";
+import { capitalizeWords } from "@/lib/format-text";
 
 const contactTypeValues = CONTACT_TYPES.map((o) => o.value) as [string, ...string[]];
 const commMethodValues = PREFERRED_COMMUNICATION_METHODS.map((o) => o.value) as [
@@ -21,7 +22,7 @@ export type FacilityContactFormState = {
 };
 
 const facilityContactSchema = z.object({
-  name: z.string().trim().min(1, "Name is required."),
+  name: z.string().trim().min(1, "Name is required.").transform(capitalizeWords),
   contact_type: z.enum(contactTypeValues),
   role_at_facility: optionalText(),
   phone: optionalText(),
