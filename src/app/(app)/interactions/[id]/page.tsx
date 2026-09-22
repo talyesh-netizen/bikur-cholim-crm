@@ -7,6 +7,7 @@ import { getInteraction, listInteractionsForResident, listInteractionsForFacilit
 import { labelFor, INTERACTION_TYPES } from "@/lib/domain/interaction";
 import { formatDateTime } from "@/lib/format-date";
 import { InteractionList } from "../interaction-list";
+import { ClusterBadge } from "@/components/cluster-badge";
 import { Pencil, ListPlus } from "lucide-react";
 
 export default async function InteractionDetailPage({
@@ -60,10 +61,10 @@ export default async function InteractionDetailPage({
         </CardHeader>
         <CardContent className="flex flex-col gap-2 text-sm">
           {interaction.facility_id && interaction.facility_name ? (
-            <p>
+            <p className="flex items-center gap-2">
               <span className="text-muted-foreground">Facility: </span>
-              <Link href={`/facilities/${interaction.facility_id}`} className="font-medium hover:underline">
-                {interaction.facility_name}
+              <Link href={`/facilities/${interaction.facility_id}`} className="hover:underline">
+                <ClusterBadge clusterId={interaction.facility_cluster_id} name={interaction.facility_name} />
               </Link>
             </p>
           ) : null}
@@ -75,7 +76,25 @@ export default async function InteractionDetailPage({
               </Link>
             </p>
           ) : null}
-          {interaction.contact_id && interaction.contact_name ? (
+          {interaction.interaction_type === "volunteer_visit" ? (
+            <p>
+              <span className="text-muted-foreground">
+                Volunteer{interaction.volunteers.length === 1 ? "" : "s"}:{" "}
+              </span>
+              {interaction.volunteers.length > 0 ? (
+                interaction.volunteers.map((v, i) => (
+                  <span key={v.id}>
+                    <Link href={`/contacts/${v.id}`} className="font-medium hover:underline">
+                      {v.name}
+                    </Link>
+                    {i < interaction.volunteers.length - 1 ? ", " : ""}
+                  </span>
+                ))
+              ) : (
+                <span className="font-medium text-warning">Not tagged yet</span>
+              )}
+            </p>
+          ) : interaction.contact_id && interaction.contact_name ? (
             <p>
               <span className="text-muted-foreground">Contact: </span>
               <Link href={`/contacts/${interaction.contact_id}`} className="font-medium hover:underline">

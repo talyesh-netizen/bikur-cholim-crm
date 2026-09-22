@@ -363,7 +363,11 @@ export default async function DashboardPage({
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
                   <p className="text-sm font-medium leading-tight">
                     {labelFor(INTERACTION_TYPES, interaction.interaction_type)}
-                    {interaction.resident_name ? ` · ${interaction.resident_name}` : ""}
+                    {interaction.interaction_type === "volunteer_visit"
+                      ? ` · ${interaction.volunteers.map((v) => v.name).join(", ") || "not tagged yet"}`
+                      : interaction.resident_name
+                        ? ` · ${interaction.resident_name}`
+                        : ""}
                     {interaction.facility_name ? ` · ${interaction.facility_name}` : ""}
                   </p>
                   <span className="whitespace-nowrap text-xs text-muted-foreground">

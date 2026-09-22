@@ -18,9 +18,10 @@ function toInteractionWithNames(row: {
   notes: string | null;
   created_at: string;
   residents: { first_name: string; last_name: string; preferred_name: string | null } | null;
-  facilities: { name: string } | null;
+  facilities: { name: string; geographic_cluster_id: string | null } | null;
   contacts: { name: string } | null;
   profiles: { full_name: string } | null;
+  interaction_volunteers: { contacts: { id: string; name: string } | null }[] | null;
 }): InteractionWithNames {
   const resident = row.residents;
   return {
@@ -37,8 +38,12 @@ function toInteractionWithNames(row: {
       ? `${resident.preferred_name ?? resident.first_name} ${resident.last_name}`
       : null,
     facility_name: row.facilities?.name ?? null,
+    facility_cluster_id: row.facilities?.geographic_cluster_id ?? null,
     contact_name: row.contacts?.name ?? null,
     staff_member_name: row.profiles?.full_name ?? null,
+    volunteers: (row.interaction_volunteers ?? [])
+      .map((iv) => iv.contacts)
+      .filter((c): c is { id: string; name: string } => c !== null),
   };
 }
 
@@ -46,8 +51,12 @@ function toInteractionWithNames(row: {
 // also links interactions to contacts (many-to-many), so PostgREST can't
 // infer which relationship "contacts(...)" means without the hint — it
 // returns an HTTP 300 "multiple relationships found" error otherwise.
+// interaction_volunteers(contacts(...)) is a separate, unambiguous path
+// (through the join table) that pulls in who's actually tagged as
+// having been on a volunteer_visit -- see the type comment on
+// InteractionWithNames for why this must stay distinct from contact_id.
 const SELECT_WITH_NAMES =
-  "id, occurred_at, interaction_type, facility_id, resident_id, contact_id, staff_member_id, notes, created_at, residents(first_name, last_name, preferred_name), facilities(name), contacts!interactions_contact_id_fkey(name), profiles(full_name)";
+  "id, occurred_at, interaction_type, facility_id, resident_id, contact_id, staff_member_id, notes, created_at, residents(first_name, last_name, preferred_name), facilities(name, geographic_cluster_id), contacts!interactions_contact_id_fkey(name), profiles(full_name), interaction_volunteers(contacts(id, name))";
 
 export async function listInteractionsForResident(residentId: string) {
   const supabase = await createClient();
