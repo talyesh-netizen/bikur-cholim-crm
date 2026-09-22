@@ -126,3 +126,14 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  /* Makes a whole box clickable from one link inside it: put
+     .stretched-link on the link and `relative` on the box. Any other
+     buttons/links in the box need `relative z-10` to stay on top. */
+  .stretched-link::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+  }
+}

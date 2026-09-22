@@ -257,6 +257,7 @@ export default async function DashboardPage({
           <CardContent>
             <ImpactLeaderboard
               rows={volunteerImpact}
+              hrefFor={(row) => `/contacts/${row.id}`}
               barColor="#1baf7a"
               emptyMessage="No volunteer visits logged in this period yet."
             />
@@ -355,7 +356,11 @@ export default async function DashboardPage({
       >
         <div className="flex flex-col divide-y divide-border">
           {summary.recentActivity.map((interaction) => (
-            <div key={interaction.id} className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0">
+            <Link
+              key={interaction.id}
+              href={`/interactions/${interaction.id}`}
+              className="-mx-2 flex items-start gap-3 rounded-md px-2 py-2.5 transition-colors hover:bg-muted/60"
+            >
               <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
                 {(interaction.staff_member_name ?? "?").charAt(0).toUpperCase()}
               </div>
@@ -378,7 +383,7 @@ export default async function DashboardPage({
                   Logged by {interaction.staff_member_name ?? "Unknown"}
                 </p>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </SectionCard>

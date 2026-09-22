@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { startTransition, useActionState, useState, type FormEvent } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,6 +37,17 @@ export function StaffRow({
     error: null,
   });
 
+  // Submitted by hand rather than via <form action>: React resets a form
+  // after its action runs, and Radix Select answers that reset by
+  // snapping back to the value it first rendered with -- so a just-saved
+  // "Active" would flip back to "Inactive" on screen, and the next Save
+  // would quietly deactivate the account again.
+  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    startTransition(() => formAction(formData));
+  }
+
   return (
     <div className="flex flex-col gap-3 border-b border-border py-4 last:border-0">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -55,7 +66,7 @@ export function StaffRow({
         </div>
       </div>
 
-      <form action={formAction} className="flex flex-col gap-3">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="flex flex-col gap-1.5">
             <span className="text-xs text-muted-foreground">Role</span>
@@ -118,6 +129,7 @@ export function StaffRow({
         ) : null}
 
         {state.error ? <p className="text-xs text-destructive">{state.error}</p> : null}
+        {state.saved ? <p className="text-xs text-success">Saved.</p> : null}
 
         <div className="flex items-center justify-between gap-2">
           <ResetPasswordButton email={account.email} />

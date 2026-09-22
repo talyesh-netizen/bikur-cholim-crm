@@ -84,7 +84,7 @@ export function FamilyContactForm({ action }: { action: Action }) {
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Field label="City" htmlFor="city">
-          <Input id="city" name="city" defaultValue={values.city} />
+          <Input id="city" name="city" defaultValue={values.city} onBlur={capitalizeOnBlur} />
         </Field>
         <Field label="State" htmlFor="state">
           <Input id="state" name="state" defaultValue={values.state} />

@@ -106,10 +106,10 @@ export default async function OrganizationDetailPage({
                 return (
                   <li
                     key={oc.id}
-                    className={`flex items-start justify-between gap-4 text-sm ${oc.active ? "" : "opacity-60"}`}
+                    className={`relative -mx-2 rounded-md px-2 py-1.5 transition-colors hover:bg-muted/60 flex items-start justify-between gap-4 text-sm ${oc.active ? "" : "opacity-60"}`}
                   >
                     <div>
-                      <Link href={`/contacts/${oc.contact.id}`} className="font-medium hover:underline">
+                      <Link href={`/contacts/${oc.contact.id}`} className="stretched-link font-medium hover:underline">
                         {oc.contact.name}
                       </Link>
                       <p className="text-xs text-muted-foreground">
@@ -117,7 +117,7 @@ export default async function OrganizationDetailPage({
                         {oc.contact.phone ? (
                           <>
                             {" · "}
-                            <a href={telHref(oc.contact.phone)} className="hover:underline">
+                            <a href={telHref(oc.contact.phone)} className="relative z-10 hover:underline">
                               {oc.contact.phone}
                             </a>
                           </>
@@ -126,7 +126,7 @@ export default async function OrganizationDetailPage({
                         )}
                       </p>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="relative z-10 flex items-center gap-1">
                       {!oc.active ? (
                         <Badge variant="outline">Inactive</Badge>
                       ) : oc.is_primary_contact ? (

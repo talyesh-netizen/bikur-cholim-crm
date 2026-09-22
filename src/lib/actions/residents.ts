@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { RESIDENT_STATUSES } from "@/lib/domain/resident";
+import { capitalizeOptional, capitalizeWords } from "@/lib/format-text";
 
 const statusValues = RESIDENT_STATUSES.map((o) => o.value) as [string, ...string[]];
 const emptyToUndefined = (val: unknown) => (val === "" ? undefined : val);
@@ -27,9 +28,9 @@ export type ResidentFormState = {
 // with its own history-preserving side effects, rather than something
 // that can happen as a side effect of an unrelated edit.
 const residentSchema = z.object({
-  first_name: z.string().trim().min(1, "First name is required."),
-  last_name: z.string().trim().min(1, "Last name is required."),
-  preferred_name: optionalText(),
+  first_name: z.string().trim().min(1, "First name is required.").transform(capitalizeWords),
+  last_name: z.string().trim().min(1, "Last name is required.").transform(capitalizeWords),
+  preferred_name: optionalText().transform(capitalizeOptional),
   room_number: optionalText(),
   phone_number: optionalText(),
   rabbi_synagogue_connection: optionalText(),

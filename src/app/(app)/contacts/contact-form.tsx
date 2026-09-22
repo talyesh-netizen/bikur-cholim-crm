@@ -180,7 +180,7 @@ export function ContactForm({
       )}
 
       <Field label="Organization (free text)" htmlFor="organization">
-        <Input id="organization" name="organization" defaultValue={values.organization} />
+        <Input id="organization" name="organization" defaultValue={values.organization} onBlur={capitalizeOnBlur} />
         <p className="text-xs text-muted-foreground">
           A note about where they work/belong — separate from linking this contact to an actual
           Organization record, which is done from that organization&apos;s own page.
@@ -202,7 +202,7 @@ export function ContactForm({
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Field label="City" htmlFor="city">
-          <Input id="city" name="city" defaultValue={values.city} />
+          <Input id="city" name="city" defaultValue={values.city} onBlur={capitalizeOnBlur} />
         </Field>
         <Field label="State" htmlFor="state">
           <Input id="state" name="state" defaultValue={values.state} />

@@ -10,6 +10,7 @@ import {
   PRIMARY_PROFILE_KINDS,
   BACKGROUND_CHECK_STATUSES,
 } from "@/lib/domain/contact";
+import { capitalizeOptional, capitalizeWords } from "@/lib/format-text";
 
 const contactTypeValues = CONTACT_TYPES.map((o) => o.value) as [string, ...string[]];
 const commMethodValues = PREFERRED_COMMUNICATION_METHODS.map((o) => o.value) as [
@@ -30,13 +31,13 @@ export type ContactFormState = {
 };
 
 const contactSchema = z.object({
-  name: z.string().trim().min(1, "Name is required."),
-  organization: optionalText(),
+  name: z.string().trim().min(1, "Name is required.").transform(capitalizeWords),
+  organization: optionalText().transform(capitalizeOptional),
   contact_type: z.enum(contactTypeValues, { message: "Please choose a type." }),
   phone: optionalText(),
   email: optionalText(),
   address: optionalText(),
-  city: optionalText(),
+  city: optionalText().transform(capitalizeOptional),
   state: optionalText(),
   zip: optionalText(),
   preferred_communication_method: z.preprocess(emptyToUndefined, z.enum(commMethodValues).optional()),

@@ -10,6 +10,7 @@ import {
   VISIT_PRIORITIES,
   KOSHER_FOOD_OPTIONS,
 } from "@/lib/domain/facility";
+import { capitalizeOptional, capitalizeWords } from "@/lib/format-text";
 
 const facilityTypeValues = FACILITY_TYPES.map((o) => o.value) as [string, ...string[]];
 const engagementStatusValues = ENGAGEMENT_STATUSES.map((o) => o.value) as [string, ...string[]];
@@ -21,10 +22,10 @@ const kosherFoodValues = KOSHER_FOOD_OPTIONS.map((o) => o.value) as [string, ...
 const emptyToUndefined = (val: unknown) => (val === "" ? undefined : val);
 
 const facilitySchema = z.object({
-  name: z.string().trim().min(1, "Facility name is required."),
+  name: z.string().trim().min(1, "Facility name is required.").transform(capitalizeWords),
   facility_type: z.enum(facilityTypeValues, { message: "Please choose a facility type." }),
   address: z.preprocess(emptyToUndefined, z.string().trim().optional()),
-  city: z.preprocess(emptyToUndefined, z.string().trim().optional()),
+  city: z.preprocess(emptyToUndefined, z.string().trim().optional()).transform(capitalizeOptional),
   zip: z.preprocess(emptyToUndefined, z.string().trim().optional()),
   main_phone: z.preprocess(emptyToUndefined, z.string().trim().optional()),
   website: z.preprocess(emptyToUndefined, z.string().trim().optional()),
