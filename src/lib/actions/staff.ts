@@ -215,3 +215,43 @@ export async function sendPasswordResetEmail(
   }
   return { error: null, sent: true };
 }
+
+export type DeleteStaffState = { error: string | null };
+
+/** Permanently removes a sign-in. Only allowed for accounts with no
+ * history -- anyone who has logged visits, created records, or been
+ * assigned tasks is protected by the database (their name is part of
+ * that history), so for them the answer is to mark them Inactive. */
+export async function deleteStaffAccount(
+  profileId: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _prevState: DeleteStaffState
+): Promise<DeleteStaffState> {
+  const profile = await getCurrentProfile();
+  if (profile?.role !== "admin") {
+    return { error: "Only an admin can delete staff accounts." };
+  }
+  if (profileId === profile.id) {
+    return { error: "You can't delete your own account." };
+  }
+
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Server isn't configured to delete accounts yet." };
+  }
+
+  // Deleting the sign-in removes the profile row with it; the database
+  // refuses if any record still points at this person.
+  const { error } = await admin.auth.admin.deleteUser(profileId);
+  if (error) {
+    return {
+      error:
+        "This account can't be deleted because it's linked to existing records (visits, tasks, residents, etc.). Set its status to Inactive instead -- that removes their access but keeps the history.",
+    };
+  }
+
+  revalidatePath("/settings/staff");
+  return { error: null };
+}
