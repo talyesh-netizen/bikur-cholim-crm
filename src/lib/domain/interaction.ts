@@ -36,11 +36,23 @@ export type Interaction = {
 };
 
 /** An interaction row plus the resident/facility/contact/staff names needed
- * to display it in a list — see lib/queries/interactions.ts. */
+ * to display it in a list — see lib/queries/interactions.ts.
+ *
+ * `contact_id`/`contact_name` and `volunteers` are two different things
+ * that must never be conflated in a display: `contact_id` is a single
+ * general-purpose "who this was with" reference (e.g. a family member
+ * for a family_communication, or facility staff for a
+ * facility_staff_communication); `volunteers` is who's actually tagged,
+ * via interaction_volunteers, as having been on a volunteer_visit. A
+ * volunteer_visit's contact_id is not meaningful (some historical rows
+ * even have it pointing at a resident's family contact) and should
+ * never be shown as if it were the volunteer. */
 export type InteractionWithNames = Interaction & {
   resident_name: string | null;
   facility_name: string | null;
+  facility_cluster_id: string | null;
   contact_id: string | null;
   contact_name: string | null;
   staff_member_name: string | null;
+  volunteers: { id: string; name: string }[];
 };

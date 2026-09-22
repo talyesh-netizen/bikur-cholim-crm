@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { labelFor, INTERACTION_TYPES } from "@/lib/domain/interaction";
 import type { InteractionWithNames } from "@/lib/domain/interaction";
+import { ClusterBadge } from "@/components/cluster-badge";
 import { ListPlus, Pencil } from "lucide-react";
 
 /** Recent-interactions list shown on both resident and facility pages —
@@ -22,8 +23,8 @@ export function InteractionList({
   return (
     <ol className="flex flex-col gap-3">
       {interactions.map((interaction) => {
-        const otherParty =
-          variant === "resident" ? interaction.facility_name : interaction.resident_name;
+        const isVolunteerVisit = interaction.interaction_type === "volunteer_visit";
+        const otherParty = variant === "facility" ? interaction.resident_name : null;
         return (
           <li key={interaction.id} className="relative flex flex-col gap-0.5 text-sm">
             <Link
@@ -44,6 +45,17 @@ export function InteractionList({
                   })}
                 </span>
               </div>
+              {variant === "resident" && interaction.facility_name ? (
+                <ClusterBadge clusterId={interaction.facility_cluster_id} name={interaction.facility_name} />
+              ) : null}
+              {isVolunteerVisit ? (
+                <p className="text-xs text-muted-foreground">
+                  Volunteer{interaction.volunteers.length === 1 ? "" : "s"}:{" "}
+                  {interaction.volunteers.length > 0
+                    ? interaction.volunteers.map((v) => v.name).join(", ")
+                    : "not tagged yet"}
+                </p>
+              ) : null}
               {otherParty || interaction.staff_member_name ? (
                 <p className="text-xs text-muted-foreground">
                   {[otherParty, interaction.staff_member_name && `logged by ${interaction.staff_member_name}`]
