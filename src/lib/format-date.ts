@@ -1,3 +1,22 @@
+import { ORGANIZATION_TIMEZONE } from "@/lib/config";
+
+/** "2026-09-22" for the org's own local calendar day, not the server's
+ * (Vercel runs in UTC) -- used anywhere "today" is compared against a
+ * plain due_date, so a task due "today" doesn't read as overdue for
+ * several hours of the local business day. */
+export function getLocalToday(): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: ORGANIZATION_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const year = parts.find((p) => p.type === "year")?.value;
+  const month = parts.find((p) => p.type === "month")?.value;
+  const day = parts.find((p) => p.type === "day")?.value;
+  return `${year}-${month}-${day}`;
+}
+
 /**
  * Two different-looking helpers for a reason: the database stores some
  * fields as a full timestamp ("2026-07-10T09:30:00Z" — an exact moment)

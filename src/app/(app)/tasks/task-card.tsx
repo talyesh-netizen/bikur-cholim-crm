@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { labelFor, TASK_CATEGORIES, TASK_STATUSES, OPEN_TASK_STATUSES } from "@/lib/domain/task";
 import type { TaskWithNames } from "@/lib/domain/task";
-import { formatDateOnly } from "@/lib/format-date";
+import { formatDateOnly, getLocalToday } from "@/lib/format-date";
 
 function priorityVariant(priority: string): "destructive" | "warning" | "secondary" {
   if (priority === "high") return "destructive";
@@ -14,7 +14,7 @@ function priorityVariant(priority: string): "destructive" | "warning" | "seconda
 function isOverdue(task: TaskWithNames): boolean {
   if (!task.due_date) return false;
   if (!(OPEN_TASK_STATUSES as readonly string[]).includes(task.status)) return false;
-  return task.due_date < new Date().toISOString().slice(0, 10);
+  return task.due_date < getLocalToday();
 }
 
 export function TaskCard({ task }: { task: TaskWithNames }) {

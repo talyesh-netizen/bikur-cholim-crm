@@ -3,12 +3,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ColorBadge } from "@/components/color-badge";
 import { primaryProfileColor, primaryProfileLabel } from "@/lib/domain/primary-profile";
+import { inactiveContactLabel } from "@/lib/domain/contact";
 import type { ContactListItem } from "@/lib/queries/contacts";
-
-// A contact who has left their role reads better as "Left role" than
-// the generic "Inactive" — it's the far more common reason a facility
-// staff or community contact gets deactivated here.
-const LEFT_ROLE_TYPES = new Set(["facility_staff", "community_partner", "rabbi", "synagogue_contact"]);
 
 export function ContactCard({ contact }: { contact: ContactListItem }) {
   const roleLine = contact.role_at_facility
@@ -42,9 +38,7 @@ export function ContactCard({ contact }: { contact: ContactListItem }) {
             <div className="flex flex-col items-end gap-1">
               <ColorBadge color={color} label={label} />
               {!contact.active ? (
-                <Badge variant="destructive">
-                  {LEFT_ROLE_TYPES.has(contact.contact_type) ? "Left role" : "Inactive"}
-                </Badge>
+                <Badge variant="destructive">{inactiveContactLabel(contact.contact_type)}</Badge>
               ) : null}
             </div>
           </div>

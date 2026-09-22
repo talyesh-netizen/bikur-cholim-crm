@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { escapeIlikeTerm, sanitizeForOrFilter } from "@/lib/supabase-filters";
 
 export type SearchResult = {
   id: string;
@@ -21,13 +22,14 @@ const RESULTS_PER_GROUP = 10;
  * list, just a fast "take me there" across the whole app. */
 export async function searchAll(query: string): Promise<SearchResults> {
   const supabase = await createClient();
-  const term = `%${query}%`;
+  const term = `%${escapeIlikeTerm(query)}%`;
+  const orTerm = `%${escapeIlikeTerm(sanitizeForOrFilter(query))}%`;
 
   const [residents, facilities, contacts, organizations] = await Promise.all([
     supabase
       .from("residents")
       .select("id, first_name, last_name, preferred_name, current_facility_id, facilities(name)")
-      .or(`first_name.ilike.${term},last_name.ilike.${term},preferred_name.ilike.${term}`)
+      .or(`first_name.ilike.${orTerm},last_name.ilike.${orTerm},preferred_name.ilike.${orTerm}`)
       .limit(RESULTS_PER_GROUP),
     supabase.from("facilities").select("id, name, city").ilike("name", term).limit(RESULTS_PER_GROUP),
     supabase

@@ -53,7 +53,7 @@ export default async function ResidentDetailPage({
             ) : null}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button asChild>
             <Link href={`/interactions/new?resident=${resident.id}`}>
               <Plus className="size-4" />

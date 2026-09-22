@@ -10,7 +10,13 @@ export default async function EditFacilityPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [facility, clusters] = await Promise.all([getFacility(id), listGeographicClusters()]);
+  // includeInactive: a facility already assigned to a retired cluster
+  // needs that cluster in the picker's options, or it would silently
+  // render as "No cluster assigned" even though one is still set (the
+  // active-only list is only meant to hide retired clusters when
+  // choosing a *new* one -- see the migration comment on the cluster's
+  // active column).
+  const [facility, clusters] = await Promise.all([getFacility(id), listGeographicClusters(true)]);
 
   if (!facility) notFound();
 

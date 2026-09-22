@@ -6,6 +6,7 @@ import { ACTIVE_RESIDENT_STATUSES } from "@/lib/domain/resident";
 import type { ResidentWithSummary } from "@/lib/domain/resident";
 import { listTasks } from "./tasks";
 import { listRecentInteractions } from "./interactions";
+import { getLocalToday } from "@/lib/format-date";
 
 // A resident with no logged visit in this many days shows up under
 // "residents without a recent visit." Phase One keeps this a single
@@ -39,7 +40,7 @@ export type DashboardSummary = {
 
 export async function getDashboardSummary(): Promise<DashboardSummary> {
   const supabase = await createClient();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getLocalToday();
   const staleResidentCutoff = daysAgoIso(STALE_RESIDENT_VISIT_DAYS);
   const staleFacilityCutoff = daysAgoIso(STALE_HIGH_PRIORITY_FACILITY_VISIT_DAYS);
 

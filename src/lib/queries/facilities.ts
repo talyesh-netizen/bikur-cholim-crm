@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { FacilityWithSummary, GeographicCluster } from "@/lib/domain/facility";
+import { escapeIlikeTerm, sanitizeForOrFilter } from "@/lib/supabase-filters";
 
 export type FacilityFilters = {
   search?: string;
@@ -22,7 +23,8 @@ export async function listFacilities(filters: FacilityFilters = {}) {
     query = query.eq("active", true);
   }
   if (filters.search) {
-    query = query.or(`name.ilike.%${filters.search}%,city.ilike.%${filters.search}%`);
+    const term = `%${escapeIlikeTerm(sanitizeForOrFilter(filters.search))}%`;
+    query = query.or(`name.ilike.${term},city.ilike.${term}`);
   }
   if (filters.clusterId) {
     query = query.eq("geographic_cluster_id", filters.clusterId);

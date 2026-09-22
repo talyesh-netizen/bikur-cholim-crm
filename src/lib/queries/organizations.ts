@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Organization, OrganizationContact } from "@/lib/domain/organization";
 import type { Contact } from "@/lib/domain/contact";
+import { escapeIlikeTerm } from "@/lib/supabase-filters";
 
 export type OrganizationFilters = {
   search?: string;
@@ -20,7 +21,7 @@ export async function listOrganizations(filters: OrganizationFilters = {}) {
     query = query.eq("organization_type", filters.organizationType);
   }
   if (filters.search) {
-    query = query.ilike("name", `%${filters.search}%`);
+    query = query.ilike("name", `%${escapeIlikeTerm(filters.search)}%`);
   }
 
   const { data, error } = await query;

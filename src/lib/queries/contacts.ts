@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { CONTACT_QUICK_FILTERS } from "@/lib/domain/contact";
 import type { Contact, ResidentContact, FacilityContact } from "@/lib/domain/contact";
+import { escapeIlikeTerm, sanitizeForOrFilter } from "@/lib/supabase-filters";
 
 export type ContactFilters = {
   search?: string;
@@ -42,7 +43,8 @@ export async function listContacts(filters: ContactFilters = {}): Promise<Contac
       : query.eq("contact_type", filters.contactType);
   }
   if (filters.search) {
-    query = query.or(`name.ilike.%${filters.search}%,organization.ilike.%${filters.search}%`);
+    const term = `%${escapeIlikeTerm(sanitizeForOrFilter(filters.search))}%`;
+    query = query.or(`name.ilike.${term},organization.ilike.${term}`);
   }
 
   const { data, error } = await query;
@@ -87,6 +89,18 @@ export async function listContactOptions(contactType?: string) {
     query = query.eq("contact_type", contactType);
   }
   const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data ?? []) as { id: string; name: string }[];
+}
+
+/** For filling in a checkbox list (like "volunteers involved" on an
+ * interaction) with anyone already linked, even if they've since gone
+ * inactive -- listContactOptions alone would silently drop them from
+ * the list, and re-saving the form would then unlink them. */
+export async function listContactsByIds(ids: string[]): Promise<{ id: string; name: string }[]> {
+  if (ids.length === 0) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("contacts").select("id, name").in("id", ids);
   if (error) throw new Error(error.message);
   return (data ?? []) as { id: string; name: string }[];
 }

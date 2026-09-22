@@ -15,6 +15,9 @@ export type InteractionFormState = {
   // Echoes back what was typed so a failed save never silently discards
   // it — same pattern as lib/actions/facilities.ts and residents.ts.
   values?: Record<string, string>;
+  // Same idea for the "Volunteers involved" checkboxes -- formData only
+  // keeps a single value per key, so this can't live in `values` above.
+  checkedVolunteerIds?: string[];
 };
 
 const interactionSchema = z.object({
@@ -62,7 +65,7 @@ export async function createInteraction(
       const key = issue.path[0];
       if (typeof key === "string" && !fieldErrors[key]) fieldErrors[key] = issue.message;
     }
-    return { error: "Please fix the highlighted fields.", fieldErrors, values: raw };
+    return { error: "Please fix the highlighted fields.", fieldErrors, values: raw, checkedVolunteerIds: volunteerIds };
   }
 
   const supabase = await createClient();
@@ -71,7 +74,7 @@ export async function createInteraction(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return { error: "Your session expired. Please sign in again.", values: raw };
+    return { error: "Your session expired. Please sign in again.", values: raw, checkedVolunteerIds: volunteerIds };
   }
 
   const { occurred_at, ...rest } = parsed.data;
@@ -86,16 +89,17 @@ export async function createInteraction(
     .single();
 
   if (error || !created) {
-    return { error: "Something went wrong saving this interaction. Please try again.", values: raw };
+    return { error: "Something went wrong saving this interaction. Please try again.", values: raw, checkedVolunteerIds: volunteerIds };
   }
 
   if (volunteerIds.length > 0) {
     const volunteerError = await saveInteractionVolunteers(supabase, created.id, volunteerIds);
     if (volunteerError) {
-      return {
-        error: "The interaction was saved, but the volunteers involved couldn't be recorded. Edit it to try again.",
-        values: raw,
-      };
+      // The interaction row itself is already saved at this point --
+      // re-showing the "create" form here (as the other error returns
+      // do) would let a retry create a second, duplicate interaction.
+      // Send them to edit the one that was actually created instead.
+      redirect(`/interactions/${created.id}/edit?volunteersError=1`);
     }
   }
 
@@ -119,7 +123,7 @@ export async function updateInteraction(
       const key = issue.path[0];
       if (typeof key === "string" && !fieldErrors[key]) fieldErrors[key] = issue.message;
     }
-    return { error: "Please fix the highlighted fields.", fieldErrors, values: raw };
+    return { error: "Please fix the highlighted fields.", fieldErrors, values: raw, checkedVolunteerIds: volunteerIds };
   }
 
   const supabase = await createClient();
@@ -128,7 +132,7 @@ export async function updateInteraction(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return { error: "Your session expired. Please sign in again.", values: raw };
+    return { error: "Your session expired. Please sign in again.", values: raw, checkedVolunteerIds: volunteerIds };
   }
 
   const { occurred_at, ...rest } = parsed.data;
@@ -143,7 +147,7 @@ export async function updateInteraction(
     .eq("id", id);
 
   if (error) {
-    return { error: "Something went wrong saving this interaction. Please try again.", values: raw };
+    return { error: "Something went wrong saving this interaction. Please try again.", values: raw, checkedVolunteerIds: volunteerIds };
   }
 
   const volunteerError = await saveInteractionVolunteers(supabase, id, volunteerIds);
@@ -151,6 +155,7 @@ export async function updateInteraction(
     return {
       error: "The interaction was saved, but the volunteers involved couldn't be updated. Please try again.",
       values: raw,
+      checkedVolunteerIds: volunteerIds,
     };
   }
 

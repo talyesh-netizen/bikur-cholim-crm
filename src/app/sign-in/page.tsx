@@ -22,11 +22,11 @@ export default function SignInPage() {
   const [state, formAction, isPending] = useActionState(signIn, initialState);
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
-  const [resetState, setResetState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [resetState, setResetState] = useState<"idle" | "sending" | "sent" | "error" | "missing_email">("idle");
 
   async function handleForgotPassword() {
     if (!email) {
-      setResetState("error");
+      setResetState("missing_email");
       return;
     }
     setResetState("sending");
@@ -100,9 +100,14 @@ export default function SignInPage() {
                   If that email has an account, a reset link is on its way.
                 </p>
               ) : null}
-              {resetState === "error" ? (
+              {resetState === "missing_email" ? (
                 <p className="text-xs text-destructive">
                   Enter your email above first, then tap &quot;Forgot password?&quot; again.
+                </p>
+              ) : null}
+              {resetState === "error" ? (
+                <p className="text-xs text-destructive">
+                  Something went wrong sending the reset link. Please try again in a moment.
                 </p>
               ) : null}
             </div>

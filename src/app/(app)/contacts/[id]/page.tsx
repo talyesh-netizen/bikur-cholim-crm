@@ -14,6 +14,7 @@ import {
   PREFERRED_COMMUNICATION_METHODS,
   RESIDENT_CONTACT_RELATIONSHIPS,
   BACKGROUND_CHECK_STATUSES,
+  inactiveContactLabel,
 } from "@/lib/domain/contact";
 import { telHref, mailtoHref, mapsHref } from "@/lib/link-helpers";
 import { formatDateOnly } from "@/lib/format-date";
@@ -66,13 +67,15 @@ export default async function ContactDetailPage({
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-semibold">{contact.name}</h1>
             <ColorBadge color={profileColor} label={profileLabel} />
-            {!contact.active ? <Badge variant="outline">Inactive</Badge> : null}
+            {!contact.active ? (
+              <Badge variant="outline">{inactiveContactLabel(contact.contact_type)}</Badge>
+            ) : null}
           </div>
           {contact.organization ? (
             <p className="text-sm text-muted-foreground">{contact.organization}</p>
           ) : null}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" asChild>
             <Link href={`/contacts/${contact.id}/edit`}>
               <Pencil className="size-4" />

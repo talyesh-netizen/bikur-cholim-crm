@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { ResidentWithSummary, ResidentFacilityHistoryEntry } from "@/lib/domain/resident";
+import { escapeIlikeTerm, sanitizeForOrFilter } from "@/lib/supabase-filters";
 
 // Hidden from the list by default (a "closed out" record), same idea as
 // facilities defaulting to active-only — staff can reveal them with the
@@ -28,9 +29,8 @@ export async function listResidents(filters: ResidentFilters = {}) {
   }
 
   if (filters.search) {
-    query = query.or(
-      `first_name.ilike.%${filters.search}%,last_name.ilike.%${filters.search}%,preferred_name.ilike.%${filters.search}%`
-    );
+    const term = `%${escapeIlikeTerm(sanitizeForOrFilter(filters.search))}%`;
+    query = query.or(`first_name.ilike.${term},last_name.ilike.${term},preferred_name.ilike.${term}`);
   }
   if (filters.facilityId) {
     query = query.eq("current_facility_id", filters.facilityId);
@@ -57,9 +57,16 @@ export async function getResidentFacilityHistory(residentId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("resident_facility_history")
-    .select("id, facility_id, start_date, end_date, reason, facilities(name)")
+    .select("id, facility_id, start_date, end_date, reason, created_at, facilities(name)")
     .eq("resident_id", residentId)
-    .order("start_date", { ascending: false });
+    // start_date is a plain date (no time of day), so two stays that
+    // began the same calendar day would otherwise sort in an
+    // unpredictable order -- created_at breaks the tie deterministically,
+    // which matters here since the transfer page picks history[1] as
+    // "the stay right before this one" for its one-click "Move back to"
+    // shortcut.
+    .order("start_date", { ascending: false })
+    .order("created_at", { ascending: false });
 
   if (error) throw new Error(error.message);
 
