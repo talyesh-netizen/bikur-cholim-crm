@@ -65,7 +65,7 @@ export default async function FacilityDetailPage({
             ) : null}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button asChild>
             <Link href={`/interactions/new?facility=${facility.id}`}>
               <Plus className="size-4" />
@@ -176,7 +176,7 @@ export default async function FacilityDetailPage({
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-base">Residents ({residents.length})</CardTitle>
+          <CardTitle className="text-base">Residents on file ({residents.length})</CardTitle>
           <Button size="sm" variant="outline" asChild>
             <Link href={`/residents/new?facility=${facility.id}`}>
               <Plus className="size-4" />

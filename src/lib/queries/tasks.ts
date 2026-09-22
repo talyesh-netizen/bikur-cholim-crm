@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { OPEN_TASK_STATUSES } from "@/lib/domain/task";
 import type { Task, TaskWithNames } from "@/lib/domain/task";
+import { getLocalToday } from "@/lib/format-date";
 
 const SELECT_WITH_NAMES =
   "*, residents(first_name, last_name, preferred_name), facilities(name), profiles!tasks_assigned_to_fkey(full_name)";
@@ -54,10 +55,16 @@ export async function listTasks(filters: TaskFilters = {}) {
     query = query.eq("facility_id", filters.facilityId);
   }
   if (filters.overdueOnly) {
-    const today = new Date().toISOString().slice(0, 10);
-    query = query
-      .lt("due_date", today)
-      .in("status", OPEN_TASK_STATUSES as unknown as string[]);
+    // Only re-apply the open-statuses constraint when no specific status
+    // was already chosen -- combining .eq("status", "completed") with
+    // .in("status", OPEN_TASK_STATUSES) would AND them together into a
+    // status that can never match anything, silently returning zero
+    // rows instead of "completed tasks that are overdue" (a nonsensical
+    // combination staff would otherwise get no explanation for).
+    query = query.lt("due_date", getLocalToday());
+    if (!filters.status) {
+      query = query.in("status", OPEN_TASK_STATUSES as unknown as string[]);
+    }
   }
 
   const { data, error } = await query;

@@ -92,7 +92,21 @@ export function InteractionForm({
 
   const [interactionType, setInteractionType] = useState(values.interaction_type);
   const isVolunteerVisit = interactionType === "volunteer_visit";
-  const [checkedVolunteerIds, setCheckedVolunteerIds] = useState<string[]>(initialVolunteerIds ?? []);
+  // On a failed submit (e.g. a missing Facility), state.checkedVolunteerIds
+  // carries back what was actually checked, so re-picking volunteers isn't
+  // lost along with the rest of the form -- only fall back to the
+  // originally-saved list (or none, for a new interaction) on first mount.
+  const [checkedVolunteerIds, setCheckedVolunteerIds] = useState<string[]>(
+    state.checkedVolunteerIds ?? initialVolunteerIds ?? []
+  );
+
+  function handleInteractionTypeChange(next: string) {
+    setInteractionType(next);
+    // The checklist is only meant to apply to volunteer visits -- if it
+    // stayed checked after switching away, saving would silently link
+    // those volunteers to an interaction that isn't a volunteer visit.
+    if (next !== "volunteer_visit") setCheckedVolunteerIds([]);
+  }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     // A volunteer visit with nobody checked off is exactly the gap
@@ -161,7 +175,7 @@ export function InteractionForm({
         <SelectField
           name="interaction_type"
           value={interactionType}
-          onValueChange={setInteractionType}
+          onValueChange={handleInteractionTypeChange}
           options={INTERACTION_TYPES}
           placeholder="Choose a type…"
         />
@@ -189,7 +203,7 @@ export function InteractionForm({
         >
           <Label>
             Volunteers involved
-            {isVolunteerVisit ? <span className="text-destructive"> *</span> : null}
+            {isVolunteerVisit ? <span className="text-muted-foreground"> (recommended)</span> : null}
           </Label>
           {isVolunteerVisit ? (
             <p className="text-xs text-muted-foreground">
@@ -203,7 +217,7 @@ export function InteractionForm({
                   type="checkbox"
                   name="volunteer_ids"
                   value={v.id}
-                  defaultChecked={initialVolunteerIds?.includes(v.id) ?? false}
+                  checked={checkedVolunteerIds.includes(v.id)}
                   onChange={(e) =>
                     setCheckedVolunteerIds((prev) =>
                       e.target.checked ? [...prev, v.id] : prev.filter((id) => id !== v.id)

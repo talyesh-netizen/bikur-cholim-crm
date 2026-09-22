@@ -40,7 +40,7 @@ export default async function OrganizationDetailPage({
             {organization.city ? ` · ${organization.city}` : ""}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" asChild>
             <Link href={`/organizations/${organization.id}/edit`}>
               <Pencil className="size-4" />
@@ -174,9 +174,15 @@ export default async function OrganizationDetailPage({
   );
 }
 
-function formatAddress(organization: { address: string | null; city: string | null; zip: string | null }) {
-  const parts = [organization.address, [organization.city, organization.zip].filter(Boolean).join(" ")].filter(
-    Boolean
-  );
+function formatAddress(organization: {
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+}) {
+  const parts = [
+    organization.address,
+    [organization.city, organization.state, organization.zip].filter(Boolean).join(" "),
+  ].filter(Boolean);
   return parts.length ? parts.join(", ") : undefined;
 }

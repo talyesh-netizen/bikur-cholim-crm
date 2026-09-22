@@ -13,7 +13,7 @@ export function InfoRow({
   return (
     <div className="flex justify-between gap-4">
       <span className="text-muted-foreground">{label}</span>
-      <span className="text-right">
+      <span className="break-words text-right">
         {value ? (
           href ? (
             <a href={href} target={href.startsWith("http") ? "_blank" : undefined} rel="noopener noreferrer" className="hover:underline">

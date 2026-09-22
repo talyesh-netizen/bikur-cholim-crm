@@ -122,7 +122,7 @@ export function FacilityForm({
           <SelectField
             name="geographic_cluster_id"
             defaultValue={values.geographic_cluster_id}
-            options={clusters.map((c) => ({ value: c.id, label: c.name }))}
+            options={clusters.map((c) => ({ value: c.id, label: c.active ? c.name : `${c.name} (retired)` }))}
             placeholder="No cluster assigned"
           />
         </Field>
@@ -184,7 +184,7 @@ export function FacilityForm({
               name="kosher_food_availability"
               defaultValue={values.kosher_food_availability}
               options={KOSHER_FOOD_OPTIONS}
-              placeholder="Unknown"
+              placeholder="Not noted yet"
             />
           </Field>
         </div>

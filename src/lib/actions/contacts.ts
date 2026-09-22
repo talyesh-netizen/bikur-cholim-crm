@@ -32,7 +32,7 @@ export type ContactFormState = {
 const contactSchema = z.object({
   name: z.string().trim().min(1, "Name is required."),
   organization: optionalText(),
-  contact_type: z.enum(contactTypeValues),
+  contact_type: z.enum(contactTypeValues, { message: "Please choose a type." }),
   phone: optionalText(),
   email: optionalText(),
   address: optionalText(),

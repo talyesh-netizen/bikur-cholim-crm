@@ -12,6 +12,12 @@ export function ClusterRow({ cluster }: { cluster: GeographicCluster }) {
     error: null,
   });
 
+  const toggleAction = setClusterActive.bind(null, cluster.id, !cluster.active);
+  const [toggleState, toggleFormAction, isTogglePending] = useActionState<ClusterFormState, FormData>(
+    toggleAction,
+    { error: null }
+  );
+
   return (
     <div className="flex flex-col gap-1 border-b border-border py-3 last:border-0">
       <div className="flex items-center gap-2">
@@ -26,12 +32,8 @@ export function ClusterRow({ cluster }: { cluster: GeographicCluster }) {
             Save
           </Button>
         </form>
-        <form
-          action={async () => {
-            await setClusterActive(cluster.id, !cluster.active);
-          }}
-        >
-          <Button type="submit" size="sm" variant="ghost">
+        <form action={toggleFormAction}>
+          <Button type="submit" size="sm" variant="ghost" disabled={isTogglePending}>
             {cluster.active ? "Retire" : "Reactivate"}
           </Button>
         </form>
@@ -42,6 +44,7 @@ export function ClusterRow({ cluster }: { cluster: GeographicCluster }) {
         </p>
       ) : null}
       {state.error ? <p className="text-xs text-destructive">{state.error}</p> : null}
+      {toggleState.error ? <p className="text-xs text-destructive">{toggleState.error}</p> : null}
     </div>
   );
 }

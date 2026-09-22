@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { InteractionWithNames } from "@/lib/domain/interaction";
+import { escapeIlikeTerm } from "@/lib/supabase-filters";
 
 // Recent-interactions lists on resident/facility pages show a short,
 // scannable history rather than the full log — see the interactions
@@ -114,10 +115,17 @@ export async function listInteractions(filters: InteractionListFilters = {}) {
     query = query.gte("occurred_at", filters.dateFrom);
   }
   if (filters.dateTo) {
-    query = query.lte("occurred_at", filters.dateTo);
+    // filters.dateTo is a plain date ("2026-09-22") from a date input,
+    // but occurred_at is a full timestamp -- comparing with .lte()
+    // directly would cast the date to midnight and exclude every
+    // interaction logged later that same day. Comparing "before the
+    // next calendar day" instead includes the whole day.
+    const [year, month, day] = filters.dateTo.split("-").map(Number);
+    const exclusiveEnd = new Date(Date.UTC(year, month - 1, day + 1)).toISOString().slice(0, 10);
+    query = query.lt("occurred_at", exclusiveEnd);
   }
   if (filters.search) {
-    query = query.ilike("notes", `%${filters.search}%`);
+    query = query.ilike("notes", `%${escapeIlikeTerm(filters.search)}%`);
   }
 
   const { data, error, count } = await query;

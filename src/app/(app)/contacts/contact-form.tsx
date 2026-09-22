@@ -69,6 +69,17 @@ export function ContactForm({
   const [contactType, setContactType] = useState(values.contact_type);
   const isVolunteer = contactType === "volunteer";
 
+  // Lifted out of the volunteer-info fields below (rather than left as
+  // defaultValue on uncontrolled inputs) so an edit survives toggling
+  // "Contact type" away from Volunteer and back before saving -- those
+  // fields unmount/remount with the toggle, which would otherwise reset
+  // them to their original saved value and silently drop the edit.
+  const [backgroundCheckStatus, setBackgroundCheckStatus] = useState(
+    values.background_check_status || "not_started"
+  );
+  const [backgroundCheckDate, setBackgroundCheckDate] = useState(values.background_check_date ?? "");
+  const [availabilityNotes, setAvailabilityNotes] = useState(values.availability_notes ?? "");
+
   const primaryProfileOptions = PRIMARY_PROFILE_KINDS.filter((o) => {
     if (o.value === "facility") return Boolean(primaryFacilityName);
     if (o.value === "organization") return Boolean(primaryOrganizationName);
@@ -78,6 +89,15 @@ export function ContactForm({
     if (o.value === "organization") return { ...o, label: `Their shul/school/partner (${primaryOrganizationName})` };
     return o;
   });
+  // A saved "facility"/"organization" kind whose link has since been
+  // deactivated has nothing to show here (it's filtered out above) --
+  // without this, the picker would render blank instead of showing what
+  // read-only views already fall back to displaying.
+  const primaryProfileValue =
+    (values.primary_profile_kind === "facility" && !primaryFacilityName) ||
+    (values.primary_profile_kind === "organization" && !primaryOrganizationName)
+      ? "contact_type"
+      : values.primary_profile_kind;
 
   return (
     <form key={formKey} action={formAction} className="flex flex-col gap-4">
@@ -110,7 +130,7 @@ export function ContactForm({
         >
           <SelectField
             name="primary_profile_kind"
-            defaultValue={values.primary_profile_kind}
+            defaultValue={primaryProfileValue}
             options={primaryProfileOptions}
           />
         </Field>
@@ -123,7 +143,8 @@ export function ContactForm({
             <Field label="Background check" htmlFor="background_check_status">
               <SelectField
                 name="background_check_status"
-                defaultValue={values.background_check_status || "not_started"}
+                value={backgroundCheckStatus}
+                onValueChange={setBackgroundCheckStatus}
                 options={BACKGROUND_CHECK_STATUSES}
               />
             </Field>
@@ -132,7 +153,8 @@ export function ContactForm({
                 id="background_check_date"
                 name="background_check_date"
                 type="date"
-                defaultValue={values.background_check_date}
+                value={backgroundCheckDate}
+                onChange={(e) => setBackgroundCheckDate(e.target.value)}
               />
             </Field>
           </div>
@@ -141,7 +163,8 @@ export function ContactForm({
               id="availability_notes"
               name="availability_notes"
               placeholder="e.g., Tuesdays and Thursdays, mornings"
-              defaultValue={values.availability_notes}
+              value={availabilityNotes}
+              onChange={(e) => setAvailabilityNotes(e.target.value)}
             />
           </Field>
         </div>
@@ -150,19 +173,18 @@ export function ContactForm({
         // has volunteer info saved, carry it through unchanged instead of
         // wiping it out just because the type field was touched.
         <>
-          <input
-            type="hidden"
-            name="background_check_status"
-            value={values.background_check_status || "not_started"}
-            readOnly
-          />
-          <input type="hidden" name="background_check_date" value={values.background_check_date ?? ""} readOnly />
-          <input type="hidden" name="availability_notes" value={values.availability_notes ?? ""} readOnly />
+          <input type="hidden" name="background_check_status" value={backgroundCheckStatus} readOnly />
+          <input type="hidden" name="background_check_date" value={backgroundCheckDate} readOnly />
+          <input type="hidden" name="availability_notes" value={availabilityNotes} readOnly />
         </>
       )}
 
-      <Field label="Organization" htmlFor="organization">
+      <Field label="Organization (free text)" htmlFor="organization">
         <Input id="organization" name="organization" defaultValue={values.organization} />
+        <p className="text-xs text-muted-foreground">
+          A note about where they work/belong — separate from linking this contact to an actual
+          Organization record, which is done from that organization&apos;s own page.
+        </p>
       </Field>
 
       <div className="grid gap-4 sm:grid-cols-2">

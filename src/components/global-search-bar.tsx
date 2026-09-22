@@ -11,7 +11,21 @@ import { Search } from "lucide-react";
 export function GlobalSearchBar() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [value, setValue] = useState(searchParams.get("q") ?? "");
+  const urlQuery = searchParams.get("q") ?? "";
+  const [value, setValue] = useState(urlQuery);
+
+  // This bar lives in the shared layout and isn't remounted between
+  // pages, so without this, navigating (e.g. browser back/forward)
+  // between two different searches would leave the box showing stale
+  // text that no longer matches the results below it. Adjusting state
+  // during render (React's recommended pattern for this, rather than an
+  // effect -- see https://react.dev/learn/you-might-not-need-an-effect)
+  // instead of useEffect avoids an extra render pass on every navigation.
+  const [prevUrlQuery, setPrevUrlQuery] = useState(urlQuery);
+  if (urlQuery !== prevUrlQuery) {
+    setPrevUrlQuery(urlQuery);
+    setValue(urlQuery);
+  }
 
   return (
     <form

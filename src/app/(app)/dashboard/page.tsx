@@ -32,6 +32,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ORGANIZATION_TIMEZONE } from "@/lib/config";
 
 const IMPACT_PERIODS: { value: ImpactPeriod; label: string }[] = [
   { value: "month", label: "This month" },
@@ -39,8 +40,13 @@ const IMPACT_PERIODS: { value: ImpactPeriod; label: string }[] = [
   { value: "all", label: "All time" },
 ];
 
+/** The server (Vercel) runs in UTC, not Cleveland time, so reading the
+ * hour/date directly off `new Date()` here could show "Good evening" at
+ * 9am or the wrong weekday -- read both in the org's own timezone instead. */
 function greeting(): string {
-  const hour = new Date().getHours();
+  const hour = Number(
+    new Date().toLocaleString("en-US", { timeZone: ORGANIZATION_TIMEZONE, hour: "numeric", hour12: false })
+  );
   if (hour < 12) return "Good morning";
   if (hour < 17) return "Good afternoon";
   return "Good evening";
@@ -160,6 +166,7 @@ export default async function DashboardPage({
 
   const attentionTasks = [...summary.overdueTasks, ...summary.dueTodayTasks].slice(0, 6);
   const today = new Date().toLocaleDateString("en-US", {
+    timeZone: ORGANIZATION_TIMEZONE,
     weekday: "long",
     month: "long",
     day: "numeric",
@@ -175,7 +182,7 @@ export default async function DashboardPage({
         <p className="text-sm text-muted-foreground">{today} &mdash; here&apos;s what needs attention.</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <StatCard label="Open tasks" value={summary.counts.openTasks} href="/tasks" icon={ListChecks} tone="warning" />
         <StatCard label="Active residents" value={summary.counts.activeResidents} href="/residents" icon={Users} tone="primary" />
         <StatCard label="Active facilities" value={summary.counts.activeFacilities} href="/facilities" icon={Building2} tone="success" />
@@ -260,7 +267,7 @@ export default async function DashboardPage({
       <SectionCard
         title="Needs attention today"
         icon={AlertCircle}
-        count={attentionTasks.length}
+        count={summary.overdueTasks.length + summary.dueTodayTasks.length}
         accent={summary.overdueTasks.length > 0 ? "destructive" : "warning"}
         emptyMessage="No overdue or due-today tasks — you're caught up."
       >

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { labelFor, TASK_STATUSES, OPEN_TASK_STATUSES } from "@/lib/domain/task";
 import type { TaskWithNames } from "@/lib/domain/task";
-import { formatDateOnly } from "@/lib/format-date";
+import { formatDateOnly, getLocalToday } from "@/lib/format-date";
 
 /** Compact task list shown on resident/facility pages — the full
  * details live on the task's own page (linked from each row). */
@@ -17,7 +17,7 @@ export function TaskList({ tasks }: { tasks: TaskWithNames[] }) {
         const overdue =
           task.due_date &&
           (OPEN_TASK_STATUSES as readonly string[]).includes(task.status) &&
-          task.due_date < new Date().toISOString().slice(0, 10);
+          task.due_date < getLocalToday();
         const dueDate = formatDateOnly(task.due_date);
         return (
           <li key={task.id}>

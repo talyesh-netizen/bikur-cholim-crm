@@ -23,21 +23,34 @@ export type FamilyContactFormState = {
   values?: Record<string, string>;
 };
 
-const familyContactSchema = z.object({
-  name: z.string().trim().min(1, "Name is required."),
-  relationship_to_resident: z.enum(relationshipValues),
-  relationship_other_description: optionalText(),
-  phone: optionalText(),
-  email: optionalText(),
-  address: optionalText(),
-  city: optionalText(),
-  state: optionalText(),
-  zip: optionalText(),
-  preferred_communication_method: z.preprocess(emptyToUndefined, z.enum(commMethodValues).optional()),
-  relationship_notes: optionalText(),
-  // Checkboxes only appear in form data when checked.
-  is_primary_contact: z.preprocess((val) => val === "on", z.boolean()),
-});
+const familyContactSchema = z
+  .object({
+    name: z.string().trim().min(1, "Name is required."),
+    relationship_to_resident: z.enum(relationshipValues),
+    relationship_other_description: optionalText(),
+    phone: optionalText(),
+    email: optionalText(),
+    address: optionalText(),
+    city: optionalText(),
+    state: optionalText(),
+    zip: optionalText(),
+    preferred_communication_method: z.preprocess(emptyToUndefined, z.enum(commMethodValues).optional()),
+    relationship_notes: optionalText(),
+    // Checkboxes only appear in form data when checked.
+    is_primary_contact: z.preprocess((val) => val === "on", z.boolean()),
+  })
+  .superRefine((data, ctx) => {
+    // "Other" on its own ("Other" with a blank description) shows up on
+    // the resident page as just the word "Other" with no way to tell
+    // who this person actually is.
+    if (data.relationship_to_resident === "other" && !data.relationship_other_description) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["relationship_other_description"],
+        message: "Please describe the relationship.",
+      });
+    }
+  });
 
 function flattenErrors(error: z.ZodError): Record<string, string> {
   const fieldErrors: Record<string, string> = {};

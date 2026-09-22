@@ -19,6 +19,15 @@ export const CONTACT_TYPES = [
 
 export type ContactType = (typeof CONTACT_TYPES)[number]["value"];
 
+// A contact who has left their role reads better as "Left role" than
+// the generic "Inactive" — it's the far more common reason a facility
+// staff or community contact gets deactivated here.
+const LEFT_ROLE_TYPES = new Set<ContactType>(["facility_staff", "community_partner", "rabbi", "synagogue_contact"]);
+
+export function inactiveContactLabel(contactType: ContactType): string {
+  return LEFT_ROLE_TYPES.has(contactType) ? "Left role" : "Inactive";
+}
+
 /** What decides a contact's main color/identity in the app -- see
  * primary_profile_kind on the contacts table. */
 export const PRIMARY_PROFILE_KINDS = [

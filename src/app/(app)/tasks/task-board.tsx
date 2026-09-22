@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { TASK_STATUSES, labelFor, TASK_CATEGORIES, OPEN_TASK_STATUSES } from "@/lib/domain/task";
 import type { TaskWithNames } from "@/lib/domain/task";
 import { TaskStatusSelect } from "./task-status-select";
-import { formatDateOnly } from "@/lib/format-date";
+import { formatDateOnly, getLocalToday } from "@/lib/format-date";
 
 // Cancelled tasks aren't actionable, so they don't get a column here --
 // same idea as hiding inactive facilities/contacts from the main list.
@@ -18,7 +18,7 @@ function priorityVariant(priority: string): "destructive" | "warning" | "seconda
 function isOverdue(task: TaskWithNames): boolean {
   if (!task.due_date) return false;
   if (!(OPEN_TASK_STATUSES as readonly string[]).includes(task.status)) return false;
-  return task.due_date < new Date().toISOString().slice(0, 10);
+  return task.due_date < getLocalToday();
 }
 
 /** A Trello-style status board -- no drag-and-drop, but each card's

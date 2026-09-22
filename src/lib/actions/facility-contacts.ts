@@ -108,23 +108,32 @@ export async function setFacilityContactActive(facilityId: string, facilityConta
   const supabase = await createClient();
   // Deactivating clears "Primary" too -- an inactive link staying
   // marked primary would be a confusing state to reactivate back into.
-  await supabase
+  const { error } = await supabase
     .from("facility_contacts")
     .update(active ? { active } : { active, is_primary_contact: false })
     .eq("id", facilityContactId);
+  if (error) {
+    throw new Error("Could not update this contact's status.");
+  }
   revalidatePath(`/facilities/${facilityId}`);
 }
 
 export async function setPrimaryFacilityContact(facilityId: string, facilityContactId: string) {
   const supabase = await createClient();
-  await supabase
+  const { error: clearError } = await supabase
     .from("facility_contacts")
     .update({ is_primary_contact: false })
     .eq("facility_id", facilityId)
     .eq("is_primary_contact", true);
-  await supabase
+  if (clearError) {
+    throw new Error("Could not update the primary contact.");
+  }
+  const { error: setError } = await supabase
     .from("facility_contacts")
     .update({ is_primary_contact: true })
     .eq("id", facilityContactId);
+  if (setError) {
+    throw new Error("Could not update the primary contact.");
+  }
   revalidatePath(`/facilities/${facilityId}`);
 }

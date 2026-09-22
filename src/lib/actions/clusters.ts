@@ -71,7 +71,16 @@ export async function renameCluster(
   return { error: null };
 }
 
-export async function setClusterActive(clusterId: string, active: boolean) {
+export async function setClusterActive(
+  clusterId: string,
+  active: boolean,
+  // Required so this fits useActionState's (prevState, formData) shape
+  // when bound with clusterId/active -- there's no form data to read here.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _prevState: ClusterFormState,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _formData: FormData
+): Promise<ClusterFormState> {
   const supabase = await createClient();
   const { error } = await supabase
     .from("geographic_clusters")
@@ -79,9 +88,10 @@ export async function setClusterActive(clusterId: string, active: boolean) {
     .eq("id", clusterId);
 
   if (error) {
-    throw new Error(friendlyClusterError(error.message));
+    return { error: friendlyClusterError(error.message) };
   }
 
   revalidatePath("/settings/clusters");
   revalidatePath("/facilities");
+  return { error: null };
 }
