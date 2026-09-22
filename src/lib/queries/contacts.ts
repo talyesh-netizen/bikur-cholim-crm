@@ -138,6 +138,35 @@ export async function listResidentContacts(residentId: string) {
   })) as ResidentContact[];
 }
 
+/** A single resident_contacts link, for the "edit this relationship"
+ * form -- listResidentContacts already returns everything needed, but
+ * fetching just one avoids re-fetching (and re-checking access to)
+ * every other family contact on the resident. */
+export async function getResidentContact(residentContactId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("resident_contacts")
+    .select(
+      "id, resident_id, contact_id, relationship_to_resident, relationship_other_description, is_primary_contact, relationship_notes, active, contacts(*)"
+    )
+    .eq("id", residentContactId)
+    .single();
+
+  if (error) return null;
+
+  return {
+    id: data.id,
+    resident_id: data.resident_id,
+    contact_id: data.contact_id,
+    relationship_to_resident: data.relationship_to_resident,
+    relationship_other_description: data.relationship_other_description,
+    is_primary_contact: data.is_primary_contact,
+    relationship_notes: data.relationship_notes,
+    active: data.active,
+    contact: data.contacts as unknown as Contact,
+  } as ResidentContact;
+}
+
 export async function listFacilityContacts(facilityId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase

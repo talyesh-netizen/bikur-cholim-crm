@@ -61,6 +61,22 @@ function flattenErrors(error: z.ZodError): Record<string, string> {
   return fieldErrors;
 }
 
+const relationshipSchema = z
+  .object({
+    relationship_to_resident: z.enum(relationshipValues),
+    relationship_other_description: optionalText(),
+    relationship_notes: optionalText(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.relationship_to_resident === "other" && !data.relationship_other_description) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["relationship_other_description"],
+        message: "Please describe the relationship.",
+      });
+    }
+  });
+
 export async function addFamilyContact(
   residentId: string,
   _prevState: FamilyContactFormState,
@@ -143,27 +159,73 @@ export async function addFamilyContact(
   redirect(`/residents/${residentId}`);
 }
 
+export type RelationshipFormState = {
+  error: string | null;
+  fieldErrors?: Record<string, string>;
+  values?: Record<string, string>;
+};
+
+/** Edits the resident-specific side of a family contact link (how
+ * they're related, and any notes about that relationship) -- the
+ * contact's own details (name/phone/email/address) are edited from
+ * their own contact page, since the same person can be linked to more
+ * than one resident. */
+export async function updateFamilyContactRelationship(
+  residentId: string,
+  residentContactId: string,
+  _prevState: RelationshipFormState,
+  formData: FormData
+): Promise<RelationshipFormState> {
+  const raw = Object.fromEntries(formData.entries()) as Record<string, string>;
+  const parsed = relationshipSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { error: "Please fix the highlighted fields.", fieldErrors: flattenErrors(parsed.error), values: raw };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("resident_contacts")
+    .update(parsed.data)
+    .eq("id", residentContactId);
+
+  if (error) {
+    return { error: "Something went wrong saving these changes. Please try again.", values: raw };
+  }
+
+  revalidatePath(`/residents/${residentId}`);
+  redirect(`/residents/${residentId}`);
+}
+
 export async function setResidentContactActive(residentId: string, residentContactId: string, active: boolean) {
   const supabase = await createClient();
   // Deactivating clears "Primary" too -- an inactive link staying
   // marked primary would be a confusing state to reactivate back into.
-  await supabase
+  const { error } = await supabase
     .from("resident_contacts")
     .update(active ? { active } : { active, is_primary_contact: false })
     .eq("id", residentContactId);
+  if (error) {
+    throw new Error("Could not update this contact's status.");
+  }
   revalidatePath(`/residents/${residentId}`);
 }
 
 export async function setPrimaryResidentContact(residentId: string, residentContactId: string) {
   const supabase = await createClient();
-  await supabase
+  const { error: clearError } = await supabase
     .from("resident_contacts")
     .update({ is_primary_contact: false })
     .eq("resident_id", residentId)
     .eq("is_primary_contact", true);
-  await supabase
+  if (clearError) {
+    throw new Error("Could not update the primary contact.");
+  }
+  const { error: setError } = await supabase
     .from("resident_contacts")
     .update({ is_primary_contact: true })
     .eq("id", residentContactId);
+  if (setError) {
+    throw new Error("Could not update the primary contact.");
+  }
   revalidatePath(`/residents/${residentId}`);
 }

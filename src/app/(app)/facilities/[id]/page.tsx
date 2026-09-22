@@ -209,14 +209,22 @@ export default async function FacilityDetailPage({
       </Card>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <CardHeader className="flex-row flex-wrap items-center justify-between gap-2 space-y-0">
           <CardTitle className="text-base">Facility contacts</CardTitle>
-          <Button size="sm" variant="outline" asChild>
-            <Link href={`/facilities/${facility.id}/contacts/new`}>
-              <Plus className="size-4" />
-              Add facility contact
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" asChild>
+              <Link href={`/facilities/${facility.id}/contacts/link`}>
+                <Plus className="size-4" />
+                Link existing contact
+              </Link>
+            </Button>
+            <Button size="sm" variant="outline" asChild>
+              <Link href={`/facilities/${facility.id}/contacts/new`}>
+                <Plus className="size-4" />
+                Add new contact
+              </Link>
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {facilityContacts.length === 0 ? (
