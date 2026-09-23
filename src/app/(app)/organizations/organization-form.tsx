@@ -15,7 +15,7 @@ import {
 import { ORGANIZATION_TYPES } from "@/lib/domain/organization";
 import type { Organization } from "@/lib/domain/organization";
 import type { OrganizationFormState } from "@/lib/actions/organizations";
-import { capitalizeOnBlur } from "@/lib/format-text";
+import { capitalizeAsYouType } from "@/lib/format-text";
 
 type Action = (state: OrganizationFormState, formData: FormData) => Promise<OrganizationFormState>;
 
@@ -57,7 +57,7 @@ export function OrganizationForm({
       ) : null}
 
       <Field label="Name" htmlFor="name" error={fieldErrors.name} required>
-        <Input id="name" name="name" defaultValue={values.name} onBlur={capitalizeOnBlur} required />
+        <Input id="name" name="name" defaultValue={values.name} autoCapitalize="words" onChange={capitalizeAsYouType} required />
       </Field>
 
       <Field label="Type" htmlFor="organization_type" error={fieldErrors.organization_type} required>
@@ -69,7 +69,7 @@ export function OrganizationForm({
           <Input id="address" name="address" defaultValue={values.address} />
         </Field>
         <Field label="City" htmlFor="city">
-          <Input id="city" name="city" defaultValue={values.city} onBlur={capitalizeOnBlur} />
+          <Input id="city" name="city" defaultValue={values.city} autoCapitalize="words" onChange={capitalizeAsYouType} />
         </Field>
         <Field label="State" htmlFor="state">
           <Input id="state" name="state" defaultValue={values.state} />

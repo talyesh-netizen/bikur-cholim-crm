@@ -5,7 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ClusterBadge } from "@/components/cluster-badge";
 import { getResident, getResidentFacilityHistory } from "@/lib/queries/residents";
-import { listInteractionsForResident } from "@/lib/queries/interactions";
+import { listInteractionsForResident, listVolunteersForResident } from "@/lib/queries/interactions";
+import { VisitPartnersCard } from "@/components/visit-partners-card";
 import { listResidentContacts } from "@/lib/queries/contacts";
 import { listTasks } from "@/lib/queries/tasks";
 import { setResidentContactActive, setPrimaryResidentContact } from "@/lib/actions/resident-contacts";
@@ -24,10 +25,11 @@ export default async function ResidentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [resident, history, interactions, familyContacts, tasks] = await Promise.all([
+  const [resident, history, interactions, volunteers, familyContacts, tasks] = await Promise.all([
     getResident(id),
     getResidentFacilityHistory(id),
     listInteractionsForResident(id),
+    listVolunteersForResident(id),
     listResidentContacts(id),
     listTasks({ residentId: id, showAllStatuses: true }),
   ]);
@@ -234,6 +236,13 @@ export default async function ResidentDetailPage({
           <TaskList tasks={tasks} />
         </CardContent>
       </Card>
+
+      <VisitPartnersCard
+        title="Volunteers who visit"
+        partners={volunteers}
+        hrefBase="/contacts"
+        emptyMessage="No volunteer visits logged yet."
+      />
 
       <Card>
         <CardHeader>
