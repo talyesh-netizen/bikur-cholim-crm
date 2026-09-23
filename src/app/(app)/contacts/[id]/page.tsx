@@ -7,7 +7,8 @@ import { ColorBadge } from "@/components/color-badge";
 import { primaryProfileColor, primaryProfileLabel } from "@/lib/domain/primary-profile";
 import { getContact, listResidentsForContact, listFacilitiesForContact } from "@/lib/queries/contacts";
 import { getOrganizationForContact } from "@/lib/queries/organizations";
-import { listInteractionsForContact } from "@/lib/queries/interactions";
+import { listInteractionsForContact, listResidentsVisitedByVolunteer } from "@/lib/queries/interactions";
+import { VisitPartnersCard } from "@/components/visit-partners-card";
 import { setContactActive } from "@/lib/actions/contacts";
 import {
   labelFor,
@@ -35,12 +36,13 @@ export default async function ContactDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [contact, residentLinks, facilityLinks, interactions, organizationLink] = await Promise.all([
+  const [contact, residentLinks, facilityLinks, interactions, organizationLink, residentsVisited] = await Promise.all([
     getContact(id),
     listResidentsForContact(id),
     listFacilitiesForContact(id),
     listInteractionsForContact(id),
     getOrganizationForContact(id),
+    listResidentsVisitedByVolunteer(id),
   ]);
 
   if (!contact) notFound();
@@ -211,6 +213,15 @@ export default async function ContactDetailPage({
           )}
         </CardContent>
       </Card>
+
+      {contact.contact_type === "volunteer" || residentsVisited.length > 0 ? (
+        <VisitPartnersCard
+          title="Residents visited"
+          partners={residentsVisited}
+          hrefBase="/residents"
+          emptyMessage="No one-on-one resident visits logged for this volunteer yet."
+        />
+      ) : null}
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">

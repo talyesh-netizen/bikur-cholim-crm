@@ -20,7 +20,7 @@ import {
 } from "@/lib/domain/contact";
 import type { Contact } from "@/lib/domain/contact";
 import type { ContactFormState } from "@/lib/actions/contacts";
-import { capitalizeOnBlur } from "@/lib/format-text";
+import { capitalizeAsYouType } from "@/lib/format-text";
 
 type Action = (state: ContactFormState, formData: FormData) => Promise<ContactFormState>;
 
@@ -109,7 +109,7 @@ export function ContactForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Name" htmlFor="name" error={fieldErrors.name} required>
-          <Input id="name" name="name" defaultValue={values.name} onBlur={capitalizeOnBlur} required />
+          <Input id="name" name="name" defaultValue={values.name} autoCapitalize="words" onChange={capitalizeAsYouType} required />
         </Field>
         <Field label="Contact type" htmlFor="contact_type" error={fieldErrors.contact_type} required>
           <SelectField
@@ -180,7 +180,7 @@ export function ContactForm({
       )}
 
       <Field label="Organization (free text)" htmlFor="organization">
-        <Input id="organization" name="organization" defaultValue={values.organization} onBlur={capitalizeOnBlur} />
+        <Input id="organization" name="organization" defaultValue={values.organization} autoCapitalize="words" onChange={capitalizeAsYouType} />
         <p className="text-xs text-muted-foreground">
           A note about where they work/belong — separate from linking this contact to an actual
           Organization record, which is done from that organization&apos;s own page.
@@ -202,7 +202,7 @@ export function ContactForm({
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Field label="City" htmlFor="city">
-          <Input id="city" name="city" defaultValue={values.city} onBlur={capitalizeOnBlur} />
+          <Input id="city" name="city" defaultValue={values.city} autoCapitalize="words" onChange={capitalizeAsYouType} />
         </Field>
         <Field label="State" htmlFor="state">
           <Input id="state" name="state" defaultValue={values.state} />

@@ -215,3 +215,73 @@ export async function getInteractionVolunteerIds(interactionId: string): Promise
   if (error) throw new Error(error.message);
   return (data ?? []).map((row) => row.contact_id as string);
 }
+
+export type VisitPartner = { id: string; name: string; visitCount: number; lastVisitAt: string };
+
+type VisitPairRow = {
+  contact_id: string;
+  contacts: { id: string; name: string } | null;
+  interactions: {
+    occurred_at: string;
+    resident_id: string | null;
+    residents: { first_name: string; last_name: string; preferred_name: string | null } | null;
+  } | null;
+};
+
+function summarizePartners(
+  rows: VisitPairRow[],
+  partnerOf: (row: VisitPairRow) => { id: string; name: string } | null
+): VisitPartner[] {
+  const byId = new Map<string, VisitPartner>();
+  for (const row of rows) {
+    const partner = partnerOf(row);
+    const occurredAt = row.interactions?.occurred_at;
+    if (!partner || !occurredAt) continue;
+    const existing = byId.get(partner.id);
+    if (existing) {
+      existing.visitCount += 1;
+      if (occurredAt > existing.lastVisitAt) existing.lastVisitAt = occurredAt;
+    } else {
+      byId.set(partner.id, { ...partner, visitCount: 1, lastVisitAt: occurredAt });
+    }
+  }
+  return [...byId.values()].sort((a, b) => b.lastVisitAt.localeCompare(a.lastVisitAt));
+}
+
+const VISIT_PAIR_SELECT =
+  "contact_id, contacts(id, name), interactions!inner(occurred_at, resident_id, interaction_type, residents(first_name, last_name, preferred_name))";
+
+/** Every volunteer who has visited this resident, with how many visits
+ * and when the last one was -- across all history, not just the recent
+ * interactions shown on the page. */
+export async function listVolunteersForResident(residentId: string): Promise<VisitPartner[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("interaction_volunteers")
+    .select(VISIT_PAIR_SELECT)
+    .eq("interactions.interaction_type", "volunteer_visit")
+    .eq("interactions.resident_id", residentId);
+
+  if (error) throw new Error(error.message);
+  return summarizePartners((data ?? []) as unknown as VisitPairRow[], (row) => row.contacts);
+}
+
+/** Every resident this volunteer has visited (one-on-one visits; group
+ * visits with no single resident aren't included), with counts. */
+export async function listResidentsVisitedByVolunteer(contactId: string): Promise<VisitPartner[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("interaction_volunteers")
+    .select(VISIT_PAIR_SELECT)
+    .eq("contact_id", contactId)
+    .eq("interactions.interaction_type", "volunteer_visit")
+    .not("interactions.resident_id", "is", null);
+
+  if (error) throw new Error(error.message);
+  return summarizePartners((data ?? []) as unknown as VisitPairRow[], (row) => {
+    const i = row.interactions;
+    if (!i?.resident_id || !i.residents) return null;
+    const r = i.residents;
+    return { id: i.resident_id, name: `${r.preferred_name || r.first_name} ${r.last_name}`.trim() };
+  });
+}
