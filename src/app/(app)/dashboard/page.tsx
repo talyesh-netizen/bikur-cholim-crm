@@ -83,7 +83,7 @@ function StatCard({
           </div>
           <div>
             <p className="text-2xl font-semibold leading-none">{value}</p>
-            <p className="text-sm text-muted-foreground">{label}</p>
+            <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
           </div>
         </CardContent>
       </Card>
@@ -120,7 +120,7 @@ function SectionCard({
     <Card className={cn(count > 0 ? ACCENT_BORDERS[accent] : "", "transition-shadow hover:shadow-md", className)}>
       <CardHeader className="flex-row items-center gap-2 space-y-0">
         <Icon className="size-4 text-muted-foreground" />
-        <CardTitle className="text-base">{title}</CardTitle>
+        <CardTitle className="text-base uppercase tracking-wide">{title}</CardTitle>
         {count > 0 ? (
           <Badge variant="secondary" className="ml-auto">
             {count}
@@ -178,7 +178,7 @@ export default async function DashboardPage({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">
+        <h1 className="text-2xl font-semibold uppercase tracking-wide">
           {greeting()}
           {firstName ? `, ${firstName}` : ""}
         </h1>
@@ -195,7 +195,7 @@ export default async function DashboardPage({
         <CardHeader className="flex-row flex-wrap items-center justify-between gap-2 space-y-0">
           <div className="flex items-center gap-2">
             <PieChart className="size-4 text-muted-foreground" />
-            <CardTitle className="text-base">Impact</CardTitle>
+            <CardTitle className="text-base uppercase tracking-wide">Impact</CardTitle>
           </div>
           <div className="flex items-center gap-2">
             <div className="flex gap-1 rounded-md bg-muted p-1">
@@ -204,7 +204,7 @@ export default async function DashboardPage({
                   key={p.value}
                   href={p.value === "quarter" ? "/dashboard" : `/dashboard?impact=${p.value}`}
                   className={cn(
-                    "rounded px-2.5 py-1 text-xs font-medium transition-colors",
+                    "rounded px-2.5 py-1 text-xs font-medium uppercase tracking-wide transition-colors",
                     impactPeriod === p.value
                       ? "bg-card text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
@@ -214,7 +214,7 @@ export default async function DashboardPage({
                 </Link>
               ))}
             </div>
-            <Button variant="outline" size="sm" asChild>
+            <Button variant="outline" size="sm" className="uppercase tracking-wide" asChild>
               <a href={`/api/impact-report?period=${impactPeriod}`}>
                 <Download className="size-4" />
                 Export
@@ -226,7 +226,7 @@ export default async function DashboardPage({
           <DonutChart segments={impact.buckets} title={`Interactions by type — ${IMPACT_PERIODS.find((p) => p.value === impactPeriod)?.label}`} />
           <div className="mt-6 flex flex-col gap-3 border-t border-border pt-4">
             <div>
-              <h2 className="text-sm font-semibold">
+              <h2 className="text-sm font-semibold uppercase tracking-wide">
                 Services delivered — {IMPACT_PERIODS.find((p) => p.value === impactPeriod)?.label.toLowerCase()}
               </h2>
               <p className="text-xs text-muted-foreground">
@@ -246,7 +246,7 @@ export default async function DashboardPage({
       <Card>
         <CardHeader className="flex-row items-center gap-2 space-y-0">
           <TrendingUp className="size-4 text-muted-foreground" />
-          <CardTitle className="text-base">Activity over time</CardTitle>
+          <CardTitle className="text-base uppercase tracking-wide">Activity over time</CardTitle>
         </CardHeader>
         <CardContent>
           <TrendChart data={trend} title="Interactions logged per month, last 6 months" />
@@ -257,7 +257,7 @@ export default async function DashboardPage({
         <Card>
           <CardHeader className="flex-row items-center gap-2 space-y-0">
             <Users className="size-4 text-muted-foreground" />
-            <CardTitle className="text-base">Staff impact</CardTitle>
+            <CardTitle className="text-base uppercase tracking-wide">Staff impact</CardTitle>
           </CardHeader>
           <CardContent>
             <ImpactLeaderboard
@@ -271,7 +271,7 @@ export default async function DashboardPage({
         <Card>
           <CardHeader className="flex-row items-center gap-2 space-y-0">
             <HeartHandshake className="size-4 text-muted-foreground" />
-            <CardTitle className="text-base">
+            <CardTitle className="text-base uppercase tracking-wide">
               Volunteer impact · {IMPACT_PERIODS.find((p) => p.value === impactPeriod)?.label}
             </CardTitle>
           </CardHeader>
