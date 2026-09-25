@@ -1,5 +1,6 @@
 "use client";
 
+import { BrandLogo } from "@/components/brand-mark";
 import { useActionState, useState } from "react";
 import {
   Card,
@@ -45,10 +46,11 @@ export default function SignInPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-background p-6">
+    <main className="flex min-h-dvh flex-col items-center justify-center bg-background p-6">
+      <BrandLogo className="mb-8 w-56" />
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="text-2xl">{APP_NAME}</CardTitle>
+          <CardTitle className="text-xl">{APP_NAME}</CardTitle>
           <CardDescription>Sign in with your staff account.</CardDescription>
         </CardHeader>
         <CardContent>

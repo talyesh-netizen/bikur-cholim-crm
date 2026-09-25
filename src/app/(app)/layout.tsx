@@ -7,7 +7,7 @@ import { SidebarNavLinks, MobileBottomNavLinks } from "@/components/nav-links";
 import { GlobalSearchBar } from "@/components/global-search-bar";
 import { QuickAddMenu } from "@/components/quick-add-menu";
 import { SaveToast } from "@/components/save-toast";
-import { BrandMark } from "@/components/brand-mark";
+import { BrandLogo, BrandMark } from "@/components/brand-mark";
 import { APP_NAME, ORGANIZATION_NAME } from "@/lib/config";
 import { LogOut } from "lucide-react";
 
@@ -33,12 +33,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="flex min-h-dvh flex-col bg-background md:flex-row">
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-border bg-card px-3 py-5 md:flex">
-        <Link href="/dashboard" className="mb-5 flex items-center gap-2.5 px-2">
-          <BrandMark className="size-9" />
-          <span className="min-w-0">
-            <span className="block text-sm font-semibold leading-tight">{APP_NAME}</span>
-            <span className="block text-xs text-muted-foreground">{ORGANIZATION_NAME}</span>
-          </span>
+        <Link href="/dashboard" className="mb-5 flex flex-col gap-2 px-2" aria-label={`${APP_NAME} — ${ORGANIZATION_NAME}`}>
+          <BrandLogo className="w-40" />
+          <span className="text-sm font-semibold leading-tight text-muted-foreground">{APP_NAME}</span>
         </Link>
 
         <QuickAddMenu className="mb-4 px-1" fullWidth />

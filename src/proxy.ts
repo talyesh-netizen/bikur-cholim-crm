@@ -59,6 +59,6 @@ export const config = {
   // installing the app to the home screen. If those were redirected to
   // /sign-in, "Add to Home Screen" would silently get a blank icon.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|favicon.svg|manifest.webmanifest|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };
