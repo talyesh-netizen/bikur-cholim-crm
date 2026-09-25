@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { passwordProblem, PASSWORD_RULES_TEXT } from "@/lib/password-rules";
 
 /**
  * The root path does two different jobs depending on how someone
@@ -63,8 +64,9 @@ export default function Home() {
     e.preventDefault();
     setError(null);
 
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+    const problem = passwordProblem(password);
+    if (problem) {
+      setError(problem);
       return;
     }
     if (password !== confirmPassword) {
@@ -78,7 +80,14 @@ export default function Home() {
     setIsPending(false);
 
     if (error) {
-      setError("Something went wrong. Please request a new reset link and try again.");
+      // A password Supabase still rejects (its rules may have been
+      // tightened since password-rules.ts was written) isn't a broken
+      // link -- say so, rather than sending them back for a new email.
+      setError(
+        error.code === "weak_password"
+          ? `That password isn't strong enough. ${PASSWORD_RULES_TEXT}`
+          : "Something went wrong. Please request a new reset link and try again."
+      );
       return;
     }
 
@@ -108,8 +117,12 @@ export default function Home() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="new-password"
+                aria-describedby="password-rules"
                 required
               />
+              <p id="password-rules" className="text-xs text-muted-foreground">
+                {PASSWORD_RULES_TEXT}
+              </p>
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="confirmPassword">Confirm password</Label>

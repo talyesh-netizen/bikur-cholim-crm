@@ -18,8 +18,12 @@ export type StaffFormState = {
   saved?: boolean;
 };
 
+/** Random, but always meets the Supabase password rules (see
+ * lib/password-rules.ts): the fixed "Bc-" and "-7k" parts guarantee a
+ * capital, a lowercase letter, a digit and a symbol whatever the random
+ * middle happens to contain. */
 function generateTemporaryPassword(): string {
-  return `Bc-${randomBytes(9).toString("base64url")}`;
+  return `Bc-${randomBytes(9).toString("base64url")}-7k`;
 }
 
 const facilityAccessSchema = z.object({
