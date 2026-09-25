@@ -8,6 +8,7 @@ import {
   getStaffActivity,
   getVolunteerImpact,
   getInteractionTrend,
+  getServicesDelivered,
   type ImpactPeriod,
 } from "@/lib/queries/impact";
 import { createClient } from "@/lib/supabase/server";
@@ -15,6 +16,7 @@ import { TaskCard } from "../tasks/task-card";
 import { DonutChart } from "@/components/donut-chart";
 import { ImpactLeaderboard } from "@/components/impact-leaderboard";
 import { TrendChart } from "@/components/trend-chart";
+import { ServicesDeliveredTiles } from "@/components/services-delivered";
 import { HeartHandshake, TrendingUp } from "lucide-react";
 import { labelFor, INTERACTION_TYPES } from "@/lib/domain/interaction";
 import { ENGAGEMENT_STATUSES } from "@/lib/domain/facility";
@@ -149,13 +151,14 @@ export default async function DashboardPage({
     params.impact === "quarter" || params.impact === "all" ? params.impact : "month";
 
   const supabase = await createClient();
-  const [{ data: { user } }, summary, impact, staffActivity, volunteerImpact, trend] = await Promise.all([
+  const [{ data: { user } }, summary, impact, staffActivity, volunteerImpact, trend, services] = await Promise.all([
     supabase.auth.getUser(),
     getDashboardSummary(),
     getImpactBreakdown(impactPeriod),
     getStaffActivity(impactPeriod),
     getVolunteerImpact(impactPeriod),
     getInteractionTrend(6),
+    getServicesDelivered(impactPeriod),
   ]);
 
   let firstName = "";
@@ -221,6 +224,19 @@ export default async function DashboardPage({
         </CardHeader>
         <CardContent>
           <DonutChart segments={impact.buckets} title={`Interactions by type — ${IMPACT_PERIODS.find((p) => p.value === impactPeriod)?.label}`} />
+          <div className="mt-6 flex flex-col gap-3 border-t border-border pt-4">
+            <div>
+              <h2 className="text-sm font-semibold">
+                Services delivered — {IMPACT_PERIODS.find((p) => p.value === impactPeriod)?.label.toLowerCase()}
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Beyond visits and facility programs. Included in the export.
+                {services.staffHours > 0 ? ` ${services.staffHours.toLocaleString("en-US")} staff hours logged.` : ""}
+                {services.funderStories > 0 ? ` ${services.funderStories} entries flagged as funder stories.` : ""}
+              </p>
+            </div>
+            <ServicesDeliveredTiles services={services} />
+          </div>
         </CardContent>
       </Card>
 

@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getDataQualityReport, getVolunteerVisitGapCount } from "@/lib/queries/data-quality";
+import {
+  getDataQualityReport,
+  getVolunteerVisitGapCount,
+  getUnreviewedCountsByType,
+} from "@/lib/queries/data-quality";
 import type { DataQualityRow } from "@/lib/queries/data-quality";
 import { CheckCircle2, ChevronRight } from "lucide-react";
 
@@ -36,10 +40,12 @@ function Section({ title, rows }: { title: string; rows: DataQualityRow[] }) {
 }
 
 export default async function DataQualityPage() {
-  const [report, volunteerVisitGapCount] = await Promise.all([
+  const [report, volunteerVisitGapCount, unreviewedCounts] = await Promise.all([
     getDataQualityReport(),
     getVolunteerVisitGapCount(),
+    getUnreviewedCountsByType(),
   ]);
+  const unreviewedTotal = unreviewedCounts.reduce((sum, c) => sum + c.count, 0);
   const totalGaps =
     report.contactsMissingPhone.length +
     report.contactsMissingEmail.length +
@@ -56,6 +62,31 @@ export default async function DataQualityPage() {
           {totalGaps} gap{totalGaps === 1 ? "" : "s"} across active records — tap a gap to fix it.
         </p>
       </div>
+
+      <Link href="/data-quality/review-entries">
+        <Card className="transition-colors hover:border-primary/50">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-base">Review past entries</CardTitle>
+            <div className="flex items-center gap-2">
+              {unreviewedTotal > 0 ? <Badge variant="warning">{unreviewedTotal}</Badge> : null}
+              <ChevronRight className="size-4 text-muted-foreground" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            {unreviewedTotal === 0 ? (
+              <div className="flex items-center gap-2 rounded-lg bg-success/10 px-3 py-2.5 text-sm text-success">
+                <CheckCircle2 className="size-4 shrink-0" />
+                <span>Every past entry has been reviewed.</span>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Entries logged before food deliveries, rides, medical referrals, care navigation and shul programs had
+                their own types — confirm or fix each one so they count in the funder report.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </Link>
 
       <Link href="/data-quality/volunteer-visits">
         <Card className="transition-colors hover:border-primary/50">
