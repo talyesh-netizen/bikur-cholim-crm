@@ -105,7 +105,9 @@ accounts) or point Preview at a separate test Supabase project.
       Variables, **Production only**, add `CRON_SECRET` (a long random
       string), `RESEND_API_KEY`, `TASK_REMINDER_FROM_EMAIL`; then redeploy.
       The email says only how many follow-ups are due/overdue — no names.
-      It runs daily at 12:00 UTC (8am EDT / 7am EST).
+      It runs Sunday–Friday at 12:00 UTC (8am EDT / 7am EST), never on Shabbos.
+      The same two Resend settings also turn on the instant "new task
+      assigned to you" email.
 
 ### Recommended soon
 - [ ] Make lowercase `main` the GitHub **default branch** (Settings →

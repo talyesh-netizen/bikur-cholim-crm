@@ -93,6 +93,10 @@ The rule is: **send the minimum, link back to the CRM for details.**
   titles, categories or notes — task titles are free text and often name
   a resident or relative. Anyone adding to this email should keep it
   that way.
+- **"New task assigned to you" email** (same Resend setup). Sent the
+  moment someone assigns a task to another staff member. It contains
+  only the recipient's first name, who assigned it, the due date and a
+  link to the task -- the same "no names, no titles, no notes" rule.
 - **CSV impact report** (for funders/board). Aggregate counts only — no
   resident names, notes or other identifying details.
 - **Full backup download** (admins only, More → Backup). This one is

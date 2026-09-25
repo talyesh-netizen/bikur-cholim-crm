@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { TASK_CATEGORIES, TASK_PRIORITIES, TASK_STATUSES } from "@/lib/domain/task";
+import { notifyTaskAssigned } from "@/lib/notify-task-assigned";
 
 const categoryValues = TASK_CATEGORIES.map((o) => o.value) as [string, ...string[]];
 const priorityValues = TASK_PRIORITIES.map((o) => o.value) as [string, ...string[]];
@@ -64,11 +65,17 @@ export async function createTask(
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { error } = await supabase.from("tasks").insert({ ...parsed.data, created_by: user?.id });
+  const { data: created, error } = await supabase
+    .from("tasks")
+    .insert({ ...parsed.data, created_by: user?.id })
+    .select("id")
+    .single();
 
   if (error) {
     return { error: "Something went wrong saving this task. Please try again.", values: raw };
   }
+
+  if (parsed.data.assigned_to) await notifyTaskAssigned(supabase, created.id, user?.id);
 
   revalidateTaskPaths(parsed.data);
   redirect(redirectTo);
@@ -87,6 +94,13 @@ export async function updateTask(
   }
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  // Only email when the task is being handed to someone new -- not on
+  // every edit of a task they already have.
+  const { data: before } = await supabase.from("tasks").select("assigned_to").eq("id", taskId).single();
+
   const { data: updated, error } = await supabase.from("tasks").update(parsed.data).eq("id", taskId).select("id");
 
   if (error) {
@@ -94,6 +108,10 @@ export async function updateTask(
   }
   if (!updated || updated.length === 0) {
     return { error: "Changes NOT saved: this record no longer exists or you don't have access to it.", values: raw };
+  }
+
+  if (parsed.data.assigned_to && parsed.data.assigned_to !== before?.assigned_to) {
+    await notifyTaskAssigned(supabase, taskId, user?.id);
   }
 
   revalidateTaskPaths(parsed.data);
