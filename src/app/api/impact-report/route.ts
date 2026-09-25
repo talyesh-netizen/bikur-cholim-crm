@@ -7,25 +7,15 @@ import {
   type ImpactPeriod,
 } from "@/lib/queries/impact";
 import { labelFor, UNMET_NEED_REASONS } from "@/lib/domain/interaction";
-import { ORGANIZATION_NAME, APP_NAME } from "@/lib/config";
+import { ORGANIZATION_NAME, APP_NAME, ORGANIZATION_TIMEZONE } from "@/lib/config";
+import { getLocalToday } from "@/lib/format-date";
+import { csvRow } from "@/lib/csv";
 
 const PERIOD_LABELS: Record<ImpactPeriod, string> = {
   month: "This month",
   quarter: "This quarter",
   all: "All time",
 };
-
-/** Wraps a value in quotes (doubling any inner quotes) only when it
- * actually needs it -- commas, quotes, or newlines -- so the common
- * case stays plain and readable if opened in a text editor. */
-function csvField(value: string | number): string {
-  const s = String(value);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-
-function csvRow(values: (string | number)[]): string {
-  return values.map(csvField).join(",") + "\r\n";
-}
 
 /**
  * A funder/board-ready export of the same aggregate numbers already
@@ -47,6 +37,7 @@ export async function GET(request: NextRequest) {
   const generatedAt = new Date().toLocaleString("en-US", {
     dateStyle: "long",
     timeStyle: "short",
+    timeZone: ORGANIZATION_TIMEZONE,
   });
 
   let csv = "";
@@ -117,7 +108,7 @@ export async function GET(request: NextRequest) {
     csv += csvRow([row.name, row.count]);
   }
 
-  const filename = `impact-report-${period}-${new Date().toISOString().slice(0, 10)}.csv`;
+  const filename = `impact-report-${period}-${getLocalToday()}.csv`;
 
   return new NextResponse(csv, {
     headers: {

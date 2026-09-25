@@ -1,11 +1,11 @@
 "use server";
 
-import { withSaved } from "@/lib/saved-flash";
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { ORGANIZATION_TYPES } from "@/lib/domain/organization";
+import { capitalizeOptional, capitalizeWords } from "@/lib/format-text";
 
 const organizationTypeValues = ORGANIZATION_TYPES.map((o) => o.value) as [string, ...string[]];
 const emptyToUndefined = (val: unknown) => (val === "" ? undefined : val);
@@ -18,10 +18,10 @@ export type OrganizationFormState = {
 };
 
 const organizationSchema = z.object({
-  name: z.string().trim().min(1, "Organization name is required."),
+  name: z.string().trim().min(1, "Organization name is required.").transform(capitalizeWords),
   organization_type: z.enum(organizationTypeValues, { message: "Please choose a type." }),
   address: optionalText(),
-  city: optionalText(),
+  city: optionalText().transform(capitalizeOptional),
   state: optionalText(),
   zip: optionalText(),
   main_phone: optionalText(),
@@ -64,7 +64,7 @@ export async function createOrganization(
   }
 
   revalidatePath("/organizations");
-  redirect(withSaved(`/organizations/${data.id}`, "organization-added"));
+  redirect(`/organizations/${data.id}`);
 }
 
 export async function updateOrganization(
@@ -79,15 +79,22 @@ export async function updateOrganization(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.from("organizations").update(parsed.data).eq("id", organizationId);
+  const { data: updated, error } = await supabase
+    .from("organizations")
+    .update(parsed.data)
+    .eq("id", organizationId)
+    .select("id");
 
   if (error) {
     return { error: "Something went wrong saving this organization. Please try again.", values: raw };
   }
+  if (!updated || updated.length === 0) {
+    return { error: "Changes NOT saved: this record no longer exists or you don't have access to it.", values: raw };
+  }
 
   revalidatePath("/organizations");
   revalidatePath(`/organizations/${organizationId}`);
-  redirect(withSaved(`/organizations/${organizationId}`, "organization-saved"));
+  redirect(`/organizations/${organizationId}`);
 }
 
 export async function setOrganizationActive(organizationId: string, active: boolean) {
@@ -156,7 +163,7 @@ export async function addExistingOrganizationContact(
   }
 
   revalidatePath(`/organizations/${organizationId}`);
-  redirect(withSaved(`/organizations/${organizationId}`, "organization-contact-linked"));
+  redirect(`/organizations/${organizationId}`);
 }
 
 export async function setOrganizationContactActive(

@@ -1,11 +1,11 @@
 "use server";
 
-import { withSaved } from "@/lib/saved-flash";
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { RESIDENT_STATUSES } from "@/lib/domain/resident";
+import { capitalizeOptional, capitalizeWords } from "@/lib/format-text";
 
 const statusValues = RESIDENT_STATUSES.map((o) => o.value) as [string, ...string[]];
 const emptyToUndefined = (val: unknown) => (val === "" ? undefined : val);
@@ -28,9 +28,9 @@ export type ResidentFormState = {
 // with its own history-preserving side effects, rather than something
 // that can happen as a side effect of an unrelated edit.
 const residentSchema = z.object({
-  first_name: z.string().trim().min(1, "First name is required."),
-  last_name: z.string().trim().min(1, "Last name is required."),
-  preferred_name: optionalText(),
+  first_name: z.string().trim().min(1, "First name is required.").transform(capitalizeWords),
+  last_name: z.string().trim().min(1, "Last name is required.").transform(capitalizeWords),
+  preferred_name: optionalText().transform(capitalizeOptional),
   room_number: optionalText(),
   phone_number: optionalText(),
   rabbi_synagogue_connection: optionalText(),
@@ -97,7 +97,7 @@ export async function createResident(
 
   revalidatePath("/residents");
   revalidatePath(`/facilities/${parsed.data.current_facility_id}`);
-  redirect(withSaved(`/residents/${data.id}`, "resident-added"));
+  redirect(`/residents/${data.id}`);
 }
 
 export async function updateResident(
@@ -115,13 +115,18 @@ export async function updateResident(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.from("residents").update(parsed.data).eq("id", residentId);
+  const { data: updated, error } = await supabase.from("residents").update(parsed.data).eq("id", residentId).select("id");
 
   if (error) {
     return { error: "Something went wrong saving this resident. Please try again.", values: raw };
   }
+  // Access rules turn a disallowed update into "0 rows changed", not an
+  // error -- never let that look like a successful save.
+  if (!updated || updated.length === 0) {
+    return { error: "Changes NOT saved: this record no longer exists or you don't have access to it.", values: raw };
+  }
 
   revalidatePath("/residents");
   revalidatePath(`/residents/${residentId}`);
-  redirect(withSaved(`/residents/${residentId}`, "resident-saved"));
+  redirect(`/residents/${residentId}`);
 }

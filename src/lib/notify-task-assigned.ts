@@ -1,83 +1,79 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { TASK_CATEGORIES, TASK_PRIORITIES, labelFor } from "@/lib/domain/task";
+import { APP_NAME, ORGANIZATION_NAME } from "@/lib/config";
 import { formatDateOnly } from "@/lib/format-date";
 import { getSiteUrl } from "@/lib/site-url";
-import { emailLayout, escapeHtml, isEmailConfigured, sendEmail } from "@/lib/email";
+import { escapeHtml, sendEmail } from "@/lib/email";
+
+const firstNameOf = (fullName: string) => fullName.trim().split(/\s+/)[0] || "there";
 
 /**
- * Instant "a task was just assigned to you" email, sent the moment a
- * task is created for someone or handed over to them -- so it lands in
- * their inbox right away rather than only once it's due (the daily
- * digest covers due/overdue). Skipped when you assign a task to
- * yourself, since you already know about it.
+ * Instant "a task was just assigned to you" email, sent the moment a task
+ * is created for someone or handed over to them -- so it reaches their
+ * inbox right away instead of only once it's due (the daily reminder in
+ * app/api/cron/task-reminders covers due/overdue). Nothing is sent when
+ * you assign a task to yourself.
  *
- * Never throws: a failed email must not undo or block saving the task.
+ * Privacy (see PRIVACY_AND_SECURITY.md): like the daily reminder, this
+ * says only WHO assigned it and WHEN it's due, with a link back into the
+ * CRM. No task title, notes, resident or facility -- titles are free
+ * text and often name a resident or relative.
+ *
+ * Never throws: a failed email must not block or undo saving the task.
  */
 export async function notifyTaskAssigned(
   supabase: SupabaseClient,
   taskId: string,
   assignedById: string | undefined
 ): Promise<void> {
-  if (!isEmailConfigured()) return;
+  if (!process.env.RESEND_API_KEY || !process.env.TASK_REMINDER_FROM_EMAIL) return;
 
   try {
     const { data } = await supabase
       .from("tasks")
-      .select(
-        "id, title, description, due_date, priority, task_category, assigned_to, residents(first_name, last_name, preferred_name), facilities(name), assignee:profiles!tasks_assigned_to_fkey(full_name, email, active)"
-      )
+      .select("id, due_date, assigned_to, assignee:profiles!tasks_assigned_to_fkey(full_name, email, active)")
       .eq("id", taskId)
       .single();
 
-    type Row = {
+    const task = data as unknown as {
       id: string;
-      title: string;
-      description: string | null;
       due_date: string | null;
-      priority: string;
-      task_category: string;
       assigned_to: string | null;
-      residents: { first_name: string; last_name: string; preferred_name: string | null } | null;
-      facilities: { name: string } | null;
       assignee: { full_name: string; email: string; active: boolean } | null;
-    };
-    const task = data as unknown as Row | null;
+    } | null;
     if (!task || !task.assigned_to || task.assigned_to === assignedById) return;
     if (!task.assignee?.email || !task.assignee.active) return;
 
-    let assignedByName: string | null = null;
+    let assignedBy: string | null = null;
     if (assignedById) {
       const { data: me } = await supabase.from("profiles").select("full_name").eq("id", assignedById).single();
-      assignedByName = me?.full_name ?? null;
+      assignedBy = me?.full_name ?? null;
     }
 
-    const residentName = task.residents
-      ? `${task.residents.preferred_name ?? task.residents.first_name} ${task.residents.last_name}`
-      : null;
+    const firstName = firstNameOf(task.assignee.full_name);
+    const who = assignedBy ? `${assignedBy} assigned you a new follow-up task` : "You've been assigned a new follow-up task";
+    const due = task.due_date ? `It's due ${formatDateOnly(task.due_date)}.` : "It has no due date.";
     const link = `${getSiteUrl()}/tasks/${task.id}`;
-    const detail = (label: string, value: string | null) =>
-      value ? `<tr><td style="padding:4px 12px 4px 0;color:#666;vertical-align:top;">${label}</td><td style="padding:4px 0;">${escapeHtml(value)}</td></tr>` : "";
 
-    const body = `
-        <p>Hi ${escapeHtml(task.assignee.full_name)},</p>
-        <p>${assignedByName ? `${escapeHtml(assignedByName)} assigned` : "You've been assigned"} a new task${assignedByName ? " to you" : ""}:</p>
-        <p style="font-size:18px;font-weight:600;margin:16px 0 8px;"><a href="${link}" style="color:#1a1a1a;text-decoration:none;">${escapeHtml(task.title)}</a></p>
-        <table cellpadding="0" cellspacing="0" style="font-size:14px;">
-          ${detail("Due", task.due_date ? formatDateOnly(task.due_date) : "No due date")}
-          ${detail("Priority", labelFor(TASK_PRIORITIES, task.priority))}
-          ${detail("Type", labelFor(TASK_CATEGORIES, task.task_category))}
-          ${detail("Resident", residentName)}
-          ${detail("Facility", task.facilities?.name ?? null)}
-        </table>
-        ${task.description ? `<p style="white-space:pre-wrap;background:#f6f6f6;padding:12px;border-radius:6px;">${escapeHtml(task.description)}</p>` : ""}
-        <p style="margin-top:24px;"><a href="${link}" style="display:inline-block;background:#1a1a1a;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;">Open this task &rarr;</a></p>`;
-
-    await sendEmail(
-      task.assignee.email,
-      `New task: ${task.title}`,
-      emailLayout(body, "You're receiving this because a task was assigned to you.")
-    );
-  } catch (err) {
-    console.error("Task-assigned email failed", err);
+    await sendEmail(task.assignee.email, {
+      subject: `${APP_NAME}: a new task was assigned to you`,
+      html: `
+      <div style="font-family:-apple-system,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;">
+        <p>Hi ${escapeHtml(firstName)},</p>
+        <p>${escapeHtml(who)} in the CRM. ${escapeHtml(due)}</p>
+        <p><a href="${link}" style="color:#1a1a1a;font-weight:600;">Open the task in the CRM &rarr;</a></p>
+        <p style="color:#666;font-size:13px;">For privacy, details stay in the CRM -- sign in to see them.</p>
+        <p style="color:#999;font-size:12px;margin-top:32px;">${escapeHtml(ORGANIZATION_NAME)} &middot; ${escapeHtml(APP_NAME)} &middot; You're receiving this because a task was assigned to you.</p>
+      </div>`,
+      text: [
+        `Hi ${firstName},`,
+        "",
+        `${who} in the CRM. ${due}`,
+        "",
+        `Open the task in the CRM: ${link}`,
+        "For privacy, details stay in the CRM -- sign in to see them.",
+      ].join("\n"),
+    });
+  } catch (e) {
+    console.error("[task-assigned] email failed:", e instanceof Error ? e.message : e);
   }
 }

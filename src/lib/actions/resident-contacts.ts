@@ -1,11 +1,11 @@
 "use server";
 
-import { withSaved } from "@/lib/saved-flash";
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { PREFERRED_COMMUNICATION_METHODS, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
+import { capitalizeOptional, capitalizeWords } from "@/lib/format-text";
 
 const relationshipValues = RESIDENT_CONTACT_RELATIONSHIPS.map((o) => o.value) as [
   string,
@@ -26,13 +26,13 @@ export type FamilyContactFormState = {
 
 const familyContactSchema = z
   .object({
-    name: z.string().trim().min(1, "Name is required."),
+    name: z.string().trim().min(1, "Name is required.").transform(capitalizeWords),
     relationship_to_resident: z.enum(relationshipValues),
     relationship_other_description: optionalText(),
     phone: optionalText(),
     email: optionalText(),
     address: optionalText(),
-    city: optionalText(),
+    city: optionalText().transform(capitalizeOptional),
     state: optionalText(),
     zip: optionalText(),
     preferred_communication_method: z.preprocess(emptyToUndefined, z.enum(commMethodValues).optional()),
@@ -157,7 +157,7 @@ export async function addFamilyContact(
 
   revalidatePath(`/residents/${residentId}`);
   revalidatePath("/contacts");
-  redirect(withSaved(`/residents/${residentId}`, "family-contact-added"));
+  redirect(`/residents/${residentId}`);
 }
 
 export type RelationshipFormState = {
@@ -184,17 +184,21 @@ export async function updateFamilyContactRelationship(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("resident_contacts")
     .update(parsed.data)
-    .eq("id", residentContactId);
+    .eq("id", residentContactId)
+    .select("id");
 
   if (error) {
     return { error: "Something went wrong saving these changes. Please try again.", values: raw };
   }
+  if (!updated || updated.length === 0) {
+    return { error: "Changes NOT saved: this record no longer exists or you don't have access to it.", values: raw };
+  }
 
   revalidatePath(`/residents/${residentId}`);
-  redirect(withSaved(`/residents/${residentId}`, "family-contact-saved"));
+  redirect(`/residents/${residentId}`);
 }
 
 export async function setResidentContactActive(residentId: string, residentContactId: string, active: boolean) {

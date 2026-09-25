@@ -1,6 +1,5 @@
 "use server";
 
-import { withSaved } from "@/lib/saved-flash";
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -11,6 +10,7 @@ import {
   PRIMARY_PROFILE_KINDS,
   BACKGROUND_CHECK_STATUSES,
 } from "@/lib/domain/contact";
+import { capitalizeOptional, capitalizeWords } from "@/lib/format-text";
 
 const contactTypeValues = CONTACT_TYPES.map((o) => o.value) as [string, ...string[]];
 const commMethodValues = PREFERRED_COMMUNICATION_METHODS.map((o) => o.value) as [
@@ -31,13 +31,13 @@ export type ContactFormState = {
 };
 
 const contactSchema = z.object({
-  name: z.string().trim().min(1, "Name is required."),
-  organization: optionalText(),
+  name: z.string().trim().min(1, "Name is required.").transform(capitalizeWords),
+  organization: optionalText().transform(capitalizeOptional),
   contact_type: z.enum(contactTypeValues, { message: "Please choose a type." }),
   phone: optionalText(),
   email: optionalText(),
   address: optionalText(),
-  city: optionalText(),
+  city: optionalText().transform(capitalizeOptional),
   state: optionalText(),
   zip: optionalText(),
   preferred_communication_method: z.preprocess(emptyToUndefined, z.enum(commMethodValues).optional()),
@@ -91,7 +91,7 @@ export async function createContact(
   }
 
   revalidatePath("/contacts");
-  redirect(withSaved(`/contacts/${data.id}`, "contact-added"));
+  redirect(`/contacts/${data.id}`);
 }
 
 export async function updateContact(
@@ -105,20 +105,26 @@ export async function updateContact(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.from("contacts").update(parsed.data).eq("id", contactId);
+  const { data: updated, error } = await supabase.from("contacts").update(parsed.data).eq("id", contactId).select("id");
 
   if (error) {
     return { error: "Something went wrong saving this contact. Please try again.", values: raw };
   }
+  if (!updated || updated.length === 0) {
+    return { error: "Changes NOT saved: this record no longer exists or you don't have access to it.", values: raw };
+  }
 
   revalidatePath("/contacts");
   revalidatePath(`/contacts/${contactId}`);
-  redirect(withSaved(`/contacts/${contactId}`, "contact-saved"));
+  redirect(`/contacts/${contactId}`);
 }
 
 export async function setContactActive(contactId: string, active: boolean) {
   const supabase = await createClient();
-  await supabase.from("contacts").update({ active }).eq("id", contactId);
+  const { data: updated, error } = await supabase.from("contacts").update({ active }).eq("id", contactId).select("id");
+  if (error || !updated || updated.length === 0) {
+    throw new Error("Could not update this contact's active status.");
+  }
   revalidatePath("/contacts");
   revalidatePath(`/contacts/${contactId}`);
 }

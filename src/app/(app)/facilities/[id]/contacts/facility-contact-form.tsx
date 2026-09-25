@@ -1,7 +1,7 @@
 "use client";
 
-import { FormActions, FormError } from "@/components/form-actions";
 import { useActionState, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { CONTACT_TYPES, PREFERRED_COMMUNICATION_METHODS } from "@/lib/domain/contact";
 import type { FacilityContactFormState } from "@/lib/actions/facility-contacts";
-import { capitalizeOnBlur } from "@/lib/format-text";
+import { capitalizeAsYouType } from "@/lib/format-text";
 
 type Action = (
   state: FacilityContactFormState,
@@ -32,11 +32,15 @@ export function FacilityContactForm({ action }: { action: Action }) {
 
   return (
     <form key={formKey} action={formAction} className="flex flex-col gap-4">
-      <FormError message={state.error} />
+      {state.error ? (
+        <p role="alert" className="text-sm text-destructive">
+          {state.error}
+        </p>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Name" htmlFor="name" error={fieldErrors.name} required>
-          <Input id="name" name="name" defaultValue={values.name} onBlur={capitalizeOnBlur} required />
+          <Input id="name" name="name" defaultValue={values.name} autoCapitalize="words" onChange={capitalizeAsYouType} required />
         </Field>
         <Field label="Contact type" htmlFor="contact_type" error={fieldErrors.contact_type} required>
           <SelectField
@@ -87,12 +91,11 @@ export function FacilityContactForm({ action }: { action: Action }) {
         </Label>
       </div>
 
-      <FormActions
-        isPending={isPending}
-        submitLabel={"Add facility contact"}
-        savingLabel={"Saving…"}
-        hasUnsavedError={!!state.error}
-      />
+      <div className="flex justify-end">
+        <Button type="submit" disabled={isPending}>
+          {isPending ? "Saving…" : "Add facility contact"}
+        </Button>
+      </div>
     </form>
   );
 }
@@ -117,7 +120,7 @@ function Field({
         {required ? <span className="text-destructive"> *</span> : null}
       </Label>
       {children}
-      {error ? <p className="text-sm font-medium text-destructive">{error}</p> : null}
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </div>
   );
 }

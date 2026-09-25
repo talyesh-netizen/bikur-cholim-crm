@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   NAV_ITEMS,
-  ADMIN_NAV_ITEM,
+  ADMIN_NAV_ITEMS,
   MOBILE_PRIMARY_HREFS,
   MOBILE_MORE_ITEM,
   isActive,
@@ -13,10 +13,10 @@ import {
 
 export function SidebarNavLinks({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
-  const items = isAdmin ? [...NAV_ITEMS, ADMIN_NAV_ITEM] : NAV_ITEMS;
+  const items = isAdmin ? [...NAV_ITEMS, ...ADMIN_NAV_ITEMS] : NAV_ITEMS;
 
   return (
-    <nav className="flex flex-col gap-0.5">
+    <nav className="flex flex-col gap-1">
       {items.map((item) => {
         const active = isActive(pathname, item.href);
         const Icon = item.icon;
@@ -24,15 +24,14 @@ export function SidebarNavLinks({ isAdmin = false }: { isAdmin?: boolean }) {
           <Link
             key={item.href}
             href={item.href}
-            aria-current={active ? "page" : undefined}
             className={cn(
               "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
               active
                 ? "bg-accent text-accent-foreground"
-                : "text-muted-foreground hover:bg-accent/60 hover:text-accent-foreground"
+                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
             )}
           >
-            <Icon className={cn("size-4", active ? "text-primary" : undefined)} />
+            <Icon className="size-4" />
             {item.label}
           </Link>
         );
@@ -48,7 +47,7 @@ export function MobileBottomNavLinks() {
   const items = [...primaryItems, MOBILE_MORE_ITEM];
 
   return (
-    <div className="flex items-stretch justify-between px-1">
+    <nav className="flex items-stretch justify-between">
       {items.map((item) => {
         const active = item.href === "/more" ? moreIsActive : isActive(pathname, item.href);
         const Icon = item.icon;
@@ -56,24 +55,16 @@ export function MobileBottomNavLinks() {
           <Link
             key={item.href}
             href={item.href}
-            aria-current={active ? "page" : undefined}
             className={cn(
-              "flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[0.6875rem] font-medium leading-tight",
+              "flex flex-1 flex-col items-center gap-1 py-2 text-xs font-medium",
               active ? "text-primary" : "text-muted-foreground"
             )}
           >
-            <span
-              className={cn(
-                "flex h-7 w-12 items-center justify-center rounded-full transition-colors",
-                active ? "bg-tone-brand-bg" : undefined
-              )}
-            >
-              <Icon className="size-5" />
-            </span>
+            <Icon className="size-5" />
             {item.label}
           </Link>
         );
       })}
-    </div>
+    </nav>
   );
 }

@@ -1,6 +1,5 @@
 "use server";
 
-import { withSaved } from "@/lib/saved-flash";
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -11,6 +10,7 @@ import {
   VISIT_PRIORITIES,
   KOSHER_FOOD_OPTIONS,
 } from "@/lib/domain/facility";
+import { capitalizeOptional, capitalizeWords } from "@/lib/format-text";
 
 const facilityTypeValues = FACILITY_TYPES.map((o) => o.value) as [string, ...string[]];
 const engagementStatusValues = ENGAGEMENT_STATUSES.map((o) => o.value) as [string, ...string[]];
@@ -22,10 +22,10 @@ const kosherFoodValues = KOSHER_FOOD_OPTIONS.map((o) => o.value) as [string, ...
 const emptyToUndefined = (val: unknown) => (val === "" ? undefined : val);
 
 const facilitySchema = z.object({
-  name: z.string().trim().min(1, "Facility name is required."),
+  name: z.string().trim().min(1, "Facility name is required.").transform(capitalizeWords),
   facility_type: z.enum(facilityTypeValues, { message: "Please choose a facility type." }),
   address: z.preprocess(emptyToUndefined, z.string().trim().optional()),
-  city: z.preprocess(emptyToUndefined, z.string().trim().optional()),
+  city: z.preprocess(emptyToUndefined, z.string().trim().optional()).transform(capitalizeOptional),
   zip: z.preprocess(emptyToUndefined, z.string().trim().optional()),
   main_phone: z.preprocess(emptyToUndefined, z.string().trim().optional()),
   website: z.preprocess(emptyToUndefined, z.string().trim().optional()),
@@ -96,7 +96,7 @@ export async function createFacility(
   }
 
   revalidatePath("/facilities");
-  redirect(withSaved(`/facilities/${data.id}`, "facility-added"));
+  redirect(`/facilities/${data.id}`);
 }
 
 export async function updateFacility(
@@ -114,10 +114,17 @@ export async function updateFacility(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("facilities")
     .update(parsed.data)
-    .eq("id", facilityId);
+    .eq("id", facilityId)
+    .select("id");
+
+  // Access rules turn a disallowed update into "0 rows changed", not an
+  // error -- never let that look like a successful save.
+  if (!error && (!updated || updated.length === 0)) {
+    return { error: "Changes NOT saved: this record no longer exists or you don't have access to it.", values: raw };
+  }
 
   if (error) {
     return {
@@ -128,13 +135,13 @@ export async function updateFacility(
 
   revalidatePath("/facilities");
   revalidatePath(`/facilities/${facilityId}`);
-  redirect(withSaved(`/facilities/${facilityId}`, "facility-saved"));
+  redirect(`/facilities/${facilityId}`);
 }
 
 export async function setFacilityActive(facilityId: string, active: boolean) {
   const supabase = await createClient();
-  const { error } = await supabase.from("facilities").update({ active }).eq("id", facilityId);
-  if (error) {
+  const { data: updated, error } = await supabase.from("facilities").update({ active }).eq("id", facilityId).select("id");
+  if (error || !updated || updated.length === 0) {
     throw new Error("Could not update this facility's active status.");
   }
   revalidatePath("/facilities");

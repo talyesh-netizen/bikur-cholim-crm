@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentProfile } from "@/lib/get-current-profile";
+import { capitalizeWords } from "@/lib/format-text";
 
 export type StaffFormState = {
   error: string | null;
@@ -14,6 +15,7 @@ export type StaffFormState = {
    * it along -- Supabase never lets us read a password back out again
    * after this point. */
   temporaryPassword?: string;
+  saved?: boolean;
 };
 
 function generateTemporaryPassword(): string {
@@ -36,7 +38,7 @@ function extractFieldErrors(error: z.ZodError): Record<string, string> {
 }
 
 const createStaffSchema = facilityAccessSchema.extend({
-  full_name: z.string().trim().min(1, "Please enter a name."),
+  full_name: z.string().trim().min(1, "Please enter a name.").transform(capitalizeWords),
   email: z.string().trim().toLowerCase().email("Please enter a valid email."),
 });
 
@@ -90,13 +92,14 @@ export async function createStaffAccount(
   }
 
   // The new profile row already exists (handle_new_user trigger), with
-  // role='staff'/facility_access_scope='all' defaults -- set what was
-  // actually chosen, through the signed-in admin's own session so it
+  // role='staff'/active=false/facility_access_scope='all' defaults -- set
+  // what was actually chosen, and activate it (an admin creating the
+  // account is the approval, so it shouldn't need a second step), through the signed-in admin's own session so it
   // goes through the normal audited RLS path.
   const supabase = await createClient();
   const { error: updateError } = await supabase
     .from("profiles")
-    .update({ role: parsed.data.role, facility_access_scope: parsed.data.facility_access_scope })
+    .update({ role: parsed.data.role, active: true, facility_access_scope: parsed.data.facility_access_scope })
     .eq("id", created.user.id);
 
   if (updateError) {
@@ -188,7 +191,7 @@ export async function updateStaffAccess(
   }
 
   revalidatePath("/settings/staff");
-  return { error: null };
+  return { error: null, saved: true };
 }
 
 export type ResetEmailState = { error: string | null; sent?: boolean };
@@ -211,4 +214,44 @@ export async function sendPasswordResetEmail(
     return { error: "Something went wrong sending the reset email. Please try again." };
   }
   return { error: null, sent: true };
+}
+
+export type DeleteStaffState = { error: string | null };
+
+/** Permanently removes a sign-in. Only allowed for accounts with no
+ * history -- anyone who has logged visits, created records, or been
+ * assigned tasks is protected by the database (their name is part of
+ * that history), so for them the answer is to mark them Inactive. */
+export async function deleteStaffAccount(
+  profileId: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _prevState: DeleteStaffState
+): Promise<DeleteStaffState> {
+  const profile = await getCurrentProfile();
+  if (profile?.role !== "admin") {
+    return { error: "Only an admin can delete staff accounts." };
+  }
+  if (profileId === profile.id) {
+    return { error: "You can't delete your own account." };
+  }
+
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Server isn't configured to delete accounts yet." };
+  }
+
+  // Deleting the sign-in removes the profile row with it; the database
+  // refuses if any record still points at this person.
+  const { error } = await admin.auth.admin.deleteUser(profileId);
+  if (error) {
+    return {
+      error:
+        "This account can't be deleted because it's linked to existing records (visits, tasks, residents, etc.). Set its status to Inactive instead -- that removes their access but keeps the history.",
+    };
+  }
+
+  revalidatePath("/settings/staff");
+  return { error: null };
 }

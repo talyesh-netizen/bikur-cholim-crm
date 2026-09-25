@@ -1,6 +1,5 @@
 "use server";
 
-import { withSaved } from "@/lib/saved-flash";
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -14,6 +13,7 @@ import {
   SERVICE_FIELDS_BY_TYPE,
   type InteractionType,
 } from "@/lib/domain/interaction";
+import { orgLocalToIso } from "@/lib/format-date";
 
 const typeValues = INTERACTION_TYPES.map((o) => o.value) as [string, ...string[]];
 const emptyToUndefined = (val: unknown) => (val === "" ? undefined : val);
@@ -40,7 +40,10 @@ const interactionSchema = z
     resident_id: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
     contact_id: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
     facility_id: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
-    occurred_at: z.string().min(1, "Please enter a date and time."),
+    occurred_at: z
+      .string()
+      .min(1, "Please enter a date and time.")
+      .refine((v) => orgLocalToIso(v) !== null, "Please enter a valid date and time."),
     interaction_type: z.enum(typeValues),
     notes: z.preprocess(emptyToUndefined, z.string().trim().optional()),
     occasion: z.preprocess(emptyToUndefined, z.enum(enumValues(OCCASIONS)).optional()),
@@ -70,7 +73,11 @@ function toInteractionRow(data: z.infer<typeof interactionSchema>) {
     resident_id: data.resident_id ?? null,
     contact_id: data.contact_id ?? null,
     facility_id: data.facility_id ?? null,
-    occurred_at: new Date(data.occurred_at).toISOString(),
+    // The form's date & time box has no timezone of its own -- what was
+    // typed is Cleveland time. Reading it with `new Date()` here would
+    // treat it as the server's timezone (UTC on Vercel) and shift every
+    // visit by 4-5 hours.
+    occurred_at: orgLocalToIso(data.occurred_at)!,
     interaction_type: data.interaction_type,
     notes: data.notes ?? null,
     occasion: pick("occasion"),
@@ -85,27 +92,26 @@ function toInteractionRow(data: z.infer<typeof interactionSchema>) {
   };
 }
 
-/** Replaces the set of volunteers linked to an interaction. Delete-then
- * -insert is simplest and safe here: interaction_volunteers has no
- * fields of its own worth preserving across an edit. */
+/** Replaces the set of volunteers linked to an interaction, as one
+ * all-or-nothing database call (set_interaction_volunteers) -- so a
+ * failure part-way can never leave the visit with its old volunteers
+ * removed and the new ones missing. */
 async function saveInteractionVolunteers(
   supabase: Awaited<ReturnType<typeof createClient>>,
   interactionId: string,
   volunteerIds: string[]
 ) {
-  const { error: deleteError } = await supabase
-    .from("interaction_volunteers")
-    .delete()
-    .eq("interaction_id", interactionId);
-  if (deleteError) return deleteError;
-
-  if (volunteerIds.length === 0) return null;
-
-  const { error: insertError } = await supabase
-    .from("interaction_volunteers")
-    .insert(volunteerIds.map((contact_id) => ({ interaction_id: interactionId, contact_id })));
-  return insertError;
+  const { error } = await supabase.rpc("set_interaction_volunteers", {
+    p_interaction_id: interactionId,
+    p_contact_ids: volunteerIds,
+  });
+  return error;
 }
+
+// A random ID the form sends with each save, so a double tap or a retry
+// after a dropped connection can't create the same visit twice -- see
+// the interaction_submission_id migration.
+const submissionIdSchema = z.string().uuid();
 
 export async function createInteraction(
   redirectTo: string,
@@ -133,17 +139,44 @@ export async function createInteraction(
     return { error: "Your session expired. Please sign in again.", values: raw, checkedVolunteerIds: volunteerIds };
   }
 
+  const submission = submissionIdSchema.safeParse(raw.client_submission_id);
+  const clientSubmissionId = submission.success ? submission.data : null;
+
   const { data: created, error } = await supabase
     .from("interactions")
     .insert({
       ...toInteractionRow(parsed.data),
       staff_member_id: user.id,
+      client_submission_id: clientSubmissionId,
     })
     .select("id")
     .single();
 
+  if (error?.code === "23505" && clientSubmissionId) {
+    // This exact form was already saved (a double tap, or a retry after
+    // the first save's reply got lost) -- the visit is in the database
+    // once, which is what matters. Carry on as if this save succeeded.
+    const { data: existing } = await supabase
+      .from("interactions")
+      .select("id")
+      .eq("client_submission_id", clientSubmissionId)
+      .maybeSingle();
+    if (existing) {
+      if (parsed.data.resident_id) revalidatePath(`/residents/${parsed.data.resident_id}`);
+      if (parsed.data.facility_id) revalidatePath(`/facilities/${parsed.data.facility_id}`);
+      redirect(redirectTo);
+    }
+  }
+
   if (error || !created) {
-    return { error: "Something went wrong saving this interaction. Please try again.", values: raw, checkedVolunteerIds: volunteerIds };
+    return {
+      error:
+        error?.code === "42501"
+          ? "This interaction was NOT saved: you don't have access to that facility or resident."
+          : "This interaction was NOT saved -- something went wrong. Your entry is still below; please try again.",
+      values: raw,
+      checkedVolunteerIds: volunteerIds,
+    };
   }
 
   if (volunteerIds.length > 0) {
@@ -159,8 +192,7 @@ export async function createInteraction(
 
   if (parsed.data.resident_id) revalidatePath(`/residents/${parsed.data.resident_id}`);
   if (parsed.data.facility_id) revalidatePath(`/facilities/${parsed.data.facility_id}`);
-  const isVisit = parsed.data.interaction_type === "resident_visit" || parsed.data.interaction_type === "volunteer_visit";
-  redirect(withSaved(redirectTo, isVisit ? "visit-logged" : "interaction-logged", created.id));
+  redirect(redirectTo);
 }
 
 export async function updateInteraction(
@@ -190,7 +222,7 @@ export async function updateInteraction(
     return { error: "Your session expired. Please sign in again.", values: raw, checkedVolunteerIds: volunteerIds };
   }
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("interactions")
     .update({
       ...toInteractionRow(parsed.data),
@@ -198,16 +230,28 @@ export async function updateInteraction(
       // the "Review past entries" list.
       service_reviewed_at: new Date().toISOString(),
     })
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
 
-  if (error) {
-    return { error: "Something went wrong saving this interaction. Please try again.", values: raw, checkedVolunteerIds: volunteerIds };
+  // An update the database's access rules don't allow comes back as "0
+  // rows changed" rather than an error -- check for that explicitly so
+  // it can never look like a successful save.
+  if (error || !updated || updated.length === 0) {
+    return {
+      error:
+        !error || error.code === "42501"
+          ? "Your changes were NOT saved: this interaction no longer exists or you don't have access to it (or to the facility/resident chosen)."
+          : "Your changes were NOT saved -- something went wrong. Your edits are still below; please try again.",
+      values: raw,
+      checkedVolunteerIds: volunteerIds,
+    };
   }
 
   const volunteerError = await saveInteractionVolunteers(supabase, id, volunteerIds);
   if (volunteerError) {
     return {
-      error: "The interaction was saved, but the volunteers involved couldn't be updated. Please try again.",
+      error:
+        "The interaction details were saved, but the volunteers involved were NOT updated (the previous list was kept). Please check them and save again.",
       values: raw,
       checkedVolunteerIds: volunteerIds,
     };
@@ -216,7 +260,7 @@ export async function updateInteraction(
   if (parsed.data.resident_id) revalidatePath(`/residents/${parsed.data.resident_id}`);
   if (parsed.data.facility_id) revalidatePath(`/facilities/${parsed.data.facility_id}`);
   revalidatePath("/interactions");
-  redirect(withSaved(redirectTo, "interaction-saved"));
+  redirect(redirectTo);
 }
 
 export type ReviewFormState = { error: string | null; saved?: boolean };
@@ -250,7 +294,7 @@ export async function saveInteractionReview(
   const pick = <K extends (typeof applies)[number]>(key: K) => (applies.includes(key) ? data[key] ?? null : null);
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("interactions")
     .update({
       interaction_type: data.interaction_type,
@@ -261,9 +305,10 @@ export async function saveInteractionReview(
       participants: pick("participants"),
       service_reviewed_at: new Date().toISOString(),
     })
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
 
-  if (error) return { error: "Couldn't save this one. Please try again." };
+  if (error || !updated || updated.length === 0) return { error: "Not saved. Please try again." };
 
   // Deliberately not revalidating the review page itself: that would pull
   // the row out from under the person mid-list. It shows "Saved" in

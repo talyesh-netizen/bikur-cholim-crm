@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { startTransition, useActionState, useState, type FormEvent } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,11 +13,13 @@ import {
 import {
   updateStaffAccess,
   sendPasswordResetEmail,
+  deleteStaffAccount,
   type StaffFormState,
   type ResetEmailState,
+  type DeleteStaffState,
 } from "@/lib/actions/staff";
 import type { StaffAccount } from "@/lib/queries/profiles";
-import { KeyRound } from "lucide-react";
+import { KeyRound, Trash2 } from "lucide-react";
 
 export function StaffRow({
   account,
@@ -37,6 +39,19 @@ export function StaffRow({
     error: null,
   });
 
+  // Submitted by hand rather than via <form action>: React resets a form
+  // after its action runs, and Radix Select answers that reset by
+  // snapping back to the value it first rendered with -- so a just-saved
+  // "Active" would flip back to "Inactive" on screen, and the next Save
+  // would quietly deactivate the account again.
+  const formId = `staff-row-${account.id}`;
+
+  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    startTransition(() => formAction(formData));
+  }
+
   return (
     <div className="flex flex-col gap-3 border-b border-border py-4 last:border-0">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -55,7 +70,7 @@ export function StaffRow({
         </div>
       </div>
 
-      <form action={formAction} className="flex flex-col gap-3">
+      <form id={formId} onSubmit={handleSubmit} className="flex flex-col gap-3">
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="flex flex-col gap-1.5">
             <span className="text-xs text-muted-foreground">Role</span>
@@ -118,14 +133,21 @@ export function StaffRow({
         ) : null}
 
         {state.error ? <p className="text-xs text-destructive">{state.error}</p> : null}
-
-        <div className="flex items-center justify-between gap-2">
-          <ResetPasswordButton email={account.email} />
-          <Button type="submit" size="sm" disabled={isPending}>
-            {isPending ? "Saving…" : "Save changes"}
-          </Button>
-        </div>
+        {state.saved ? <p className="text-xs text-success">Saved.</p> : null}
       </form>
+
+      {/* Outside the form above: the reset/delete buttons are forms of
+          their own, and forms can't be nested. Save reaches back into it
+          through the form attribute. */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-start gap-2">
+          <ResetPasswordButton email={account.email} />
+          {isSelf ? null : <DeleteAccountButton profileId={account.id} name={account.full_name} />}
+        </div>
+        <Button type="submit" form={formId} size="sm" disabled={isPending}>
+          {isPending ? "Saving…" : "Save changes"}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -143,6 +165,28 @@ function ResetPasswordButton({ email }: { email: string }) {
         {isPending ? "Sending…" : state.sent ? "Reset email sent" : "Send password reset"}
       </Button>
       {state.error ? <p className="mt-1 text-xs text-destructive">{state.error}</p> : null}
+    </form>
+  );
+}
+
+function DeleteAccountButton({ profileId, name }: { profileId: string; name: string }) {
+  const action = deleteStaffAccount.bind(null, profileId);
+  const [state, formAction, isPending] = useActionState<DeleteStaffState, FormData>(action, {
+    error: null,
+  });
+
+  return (
+    <form
+      action={formAction}
+      onSubmit={(e) => {
+        if (!window.confirm(`Permanently delete ${name}'s account? This can't be undone.`)) e.preventDefault();
+      }}
+    >
+      <Button type="submit" size="sm" variant="outline" disabled={isPending} className="text-destructive">
+        <Trash2 className="size-4" />
+        {isPending ? "Deleting…" : "Delete account"}
+      </Button>
+      {state.error ? <p className="mt-1 max-w-xs text-xs text-destructive">{state.error}</p> : null}
     </form>
   );
 }

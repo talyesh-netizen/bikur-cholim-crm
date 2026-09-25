@@ -1,7 +1,7 @@
 "use client";
 
-import { FormActions, FormError } from "@/components/form-actions";
 import { useActionState, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,7 +20,7 @@ import {
 } from "@/lib/domain/contact";
 import type { Contact } from "@/lib/domain/contact";
 import type { ContactFormState } from "@/lib/actions/contacts";
-import { capitalizeOnBlur } from "@/lib/format-text";
+import { capitalizeAsYouType } from "@/lib/format-text";
 
 type Action = (state: ContactFormState, formData: FormData) => Promise<ContactFormState>;
 
@@ -101,11 +101,15 @@ export function ContactForm({
 
   return (
     <form key={formKey} action={formAction} className="flex flex-col gap-4">
-      <FormError message={state.error} />
+      {state.error ? (
+        <p role="alert" className="text-sm text-destructive">
+          {state.error}
+        </p>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Name" htmlFor="name" error={fieldErrors.name} required>
-          <Input id="name" name="name" defaultValue={values.name} onBlur={capitalizeOnBlur} required />
+          <Input id="name" name="name" defaultValue={values.name} autoCapitalize="words" onChange={capitalizeAsYouType} required />
         </Field>
         <Field label="Contact type" htmlFor="contact_type" error={fieldErrors.contact_type} required>
           <SelectField
@@ -176,7 +180,7 @@ export function ContactForm({
       )}
 
       <Field label="Organization (free text)" htmlFor="organization">
-        <Input id="organization" name="organization" defaultValue={values.organization} />
+        <Input id="organization" name="organization" defaultValue={values.organization} autoCapitalize="words" onChange={capitalizeAsYouType} />
         <p className="text-xs text-muted-foreground">
           A note about where they work/belong — separate from linking this contact to an actual
           Organization record, which is done from that organization&apos;s own page.
@@ -198,7 +202,7 @@ export function ContactForm({
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Field label="City" htmlFor="city">
-          <Input id="city" name="city" defaultValue={values.city} />
+          <Input id="city" name="city" defaultValue={values.city} autoCapitalize="words" onChange={capitalizeAsYouType} />
         </Field>
         <Field label="State" htmlFor="state">
           <Input id="state" name="state" defaultValue={values.state} />
@@ -222,12 +226,11 @@ export function ContactForm({
         <Textarea id="notes" name="notes" rows={3} defaultValue={values.notes} />
       </Field>
 
-      <FormActions
-        isPending={isPending}
-        submitLabel={contact ? "Save changes" : "Add contact"}
-        savingLabel={"Saving…"}
-        hasUnsavedError={!!state.error}
-      />
+      <div className="flex justify-end">
+        <Button type="submit" disabled={isPending}>
+          {isPending ? "Saving…" : contact ? "Save changes" : "Add contact"}
+        </Button>
+      </div>
     </form>
   );
 }
@@ -252,7 +255,7 @@ function Field({
         {required ? <span className="text-destructive"> *</span> : null}
       </Label>
       {children}
-      {error ? <p className="text-sm font-medium text-destructive">{error}</p> : null}
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </div>
   );
 }

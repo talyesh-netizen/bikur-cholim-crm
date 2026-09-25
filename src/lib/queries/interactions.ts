@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import type { InteractionWithNames, ServiceDetails } from "@/lib/domain/interaction";
 import { escapeIlikeTerm } from "@/lib/supabase-filters";
+import { orgDayStartIso, nextDay } from "@/lib/format-date";
 
 // Recent-interactions lists on resident/facility pages show a short,
 // scannable history rather than the full log — see the interactions
@@ -130,18 +131,18 @@ export async function listInteractions(filters: InteractionListFilters = {}) {
   if (filters.facilityId) {
     query = query.eq("facility_id", filters.facilityId);
   }
-  if (filters.dateFrom) {
-    query = query.gte("occurred_at", filters.dateFrom);
+  // The date filters are plain Cleveland calendar days ("2026-09-22")
+  // from a date input, but occurred_at is an exact moment -- so "from the
+  // 22nd" means from midnight Cleveland time, and "to the 22nd" means
+  // before midnight Cleveland time at the start of the 23rd (the whole
+  // day included), not midnight UTC (which would drop evening visits).
+  const dateFrom = filters.dateFrom ? orgDayStartIso(filters.dateFrom) : null;
+  if (dateFrom) {
+    query = query.gte("occurred_at", dateFrom);
   }
-  if (filters.dateTo) {
-    // filters.dateTo is a plain date ("2026-09-22") from a date input,
-    // but occurred_at is a full timestamp -- comparing with .lte()
-    // directly would cast the date to midnight and exclude every
-    // interaction logged later that same day. Comparing "before the
-    // next calendar day" instead includes the whole day.
-    const [year, month, day] = filters.dateTo.split("-").map(Number);
-    const exclusiveEnd = new Date(Date.UTC(year, month - 1, day + 1)).toISOString().slice(0, 10);
-    query = query.lt("occurred_at", exclusiveEnd);
+  const dateToExclusive = filters.dateTo ? orgDayStartIso(nextDay(filters.dateTo)) : null;
+  if (dateToExclusive) {
+    query = query.lt("occurred_at", dateToExclusive);
   }
   if (filters.flag) {
     query = query.eq(filters.flag, true);
@@ -187,6 +188,10 @@ export async function listInteractionsForContact(contactId: string) {
       .from("interactions")
       .select(SELECT_WITH_NAMES)
       .eq("contact_id", contactId)
+      // For a volunteer visit, who took part is recorded ONLY in
+      // interaction_volunteers (the second query) -- contact_id on a
+      // volunteer_visit must never put it on someone's history.
+      .neq("interaction_type", "volunteer_visit")
       .order("occurred_at", { ascending: false })
       .limit(RECENT_INTERACTIONS_LIMIT),
     supabase
@@ -227,4 +232,74 @@ export async function getInteractionVolunteerIds(interactionId: string): Promise
 
   if (error) throw new Error(error.message);
   return (data ?? []).map((row) => row.contact_id as string);
+}
+
+export type VisitPartner = { id: string; name: string; visitCount: number; lastVisitAt: string };
+
+type VisitPairRow = {
+  contact_id: string;
+  contacts: { id: string; name: string } | null;
+  interactions: {
+    occurred_at: string;
+    resident_id: string | null;
+    residents: { first_name: string; last_name: string; preferred_name: string | null } | null;
+  } | null;
+};
+
+function summarizePartners(
+  rows: VisitPairRow[],
+  partnerOf: (row: VisitPairRow) => { id: string; name: string } | null
+): VisitPartner[] {
+  const byId = new Map<string, VisitPartner>();
+  for (const row of rows) {
+    const partner = partnerOf(row);
+    const occurredAt = row.interactions?.occurred_at;
+    if (!partner || !occurredAt) continue;
+    const existing = byId.get(partner.id);
+    if (existing) {
+      existing.visitCount += 1;
+      if (occurredAt > existing.lastVisitAt) existing.lastVisitAt = occurredAt;
+    } else {
+      byId.set(partner.id, { ...partner, visitCount: 1, lastVisitAt: occurredAt });
+    }
+  }
+  return [...byId.values()].sort((a, b) => b.lastVisitAt.localeCompare(a.lastVisitAt));
+}
+
+const VISIT_PAIR_SELECT =
+  "contact_id, contacts(id, name), interactions!inner(occurred_at, resident_id, interaction_type, residents(first_name, last_name, preferred_name))";
+
+/** Every volunteer who has visited this resident, with how many visits
+ * and when the last one was -- across all history, not just the recent
+ * interactions shown on the page. */
+export async function listVolunteersForResident(residentId: string): Promise<VisitPartner[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("interaction_volunteers")
+    .select(VISIT_PAIR_SELECT)
+    .eq("interactions.interaction_type", "volunteer_visit")
+    .eq("interactions.resident_id", residentId);
+
+  if (error) throw new Error(error.message);
+  return summarizePartners((data ?? []) as unknown as VisitPairRow[], (row) => row.contacts);
+}
+
+/** Every resident this volunteer has visited (one-on-one visits; group
+ * visits with no single resident aren't included), with counts. */
+export async function listResidentsVisitedByVolunteer(contactId: string): Promise<VisitPartner[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("interaction_volunteers")
+    .select(VISIT_PAIR_SELECT)
+    .eq("contact_id", contactId)
+    .eq("interactions.interaction_type", "volunteer_visit")
+    .not("interactions.resident_id", "is", null);
+
+  if (error) throw new Error(error.message);
+  return summarizePartners((data ?? []) as unknown as VisitPairRow[], (row) => {
+    const i = row.interactions;
+    if (!i?.resident_id || !i.residents) return null;
+    const r = i.residents;
+    return { id: i.resident_id, name: `${r.preferred_name || r.first_name} ${r.last_name}`.trim() };
+  });
 }

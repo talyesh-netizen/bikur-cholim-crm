@@ -1,7 +1,7 @@
 "use client";
 
-import { FormActions, FormError } from "@/components/form-actions";
 import { useActionState, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,7 +15,7 @@ import {
 import { ORGANIZATION_TYPES } from "@/lib/domain/organization";
 import type { Organization } from "@/lib/domain/organization";
 import type { OrganizationFormState } from "@/lib/actions/organizations";
-import { capitalizeOnBlur } from "@/lib/format-text";
+import { capitalizeAsYouType } from "@/lib/format-text";
 
 type Action = (state: OrganizationFormState, formData: FormData) => Promise<OrganizationFormState>;
 
@@ -50,10 +50,14 @@ export function OrganizationForm({
 
   return (
     <form key={formKey} action={formAction} className="flex flex-col gap-4">
-      <FormError message={state.error} />
+      {state.error ? (
+        <p role="alert" className="text-sm text-destructive">
+          {state.error}
+        </p>
+      ) : null}
 
       <Field label="Name" htmlFor="name" error={fieldErrors.name} required>
-        <Input id="name" name="name" defaultValue={values.name} onBlur={capitalizeOnBlur} required />
+        <Input id="name" name="name" defaultValue={values.name} autoCapitalize="words" onChange={capitalizeAsYouType} required />
       </Field>
 
       <Field label="Type" htmlFor="organization_type" error={fieldErrors.organization_type} required>
@@ -65,7 +69,7 @@ export function OrganizationForm({
           <Input id="address" name="address" defaultValue={values.address} />
         </Field>
         <Field label="City" htmlFor="city">
-          <Input id="city" name="city" defaultValue={values.city} onBlur={capitalizeOnBlur} />
+          <Input id="city" name="city" defaultValue={values.city} autoCapitalize="words" onChange={capitalizeAsYouType} />
         </Field>
         <Field label="State" htmlFor="state">
           <Input id="state" name="state" defaultValue={values.state} />
@@ -85,12 +89,11 @@ export function OrganizationForm({
         <Textarea id="notes" name="notes" rows={4} defaultValue={values.notes} />
       </Field>
 
-      <FormActions
-        isPending={isPending}
-        submitLabel={organization ? "Save changes" : "Add organization"}
-        savingLabel={"Saving…"}
-        hasUnsavedError={!!state.error}
-      />
+      <div className="flex justify-end">
+        <Button type="submit" disabled={isPending}>
+          {isPending ? "Saving…" : organization ? "Save changes" : "Add organization"}
+        </Button>
+      </div>
     </form>
   );
 }
@@ -115,7 +118,7 @@ function Field({
         {required ? <span className="text-destructive"> *</span> : null}
       </Label>
       {children}
-      {error ? <p className="text-sm font-medium text-destructive">{error}</p> : null}
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </div>
   );
 }

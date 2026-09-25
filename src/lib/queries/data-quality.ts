@@ -85,30 +85,21 @@ export async function getDataQualityReport(): Promise<DataQualityReport> {
   };
 }
 
-/** interaction_ids from every currently-tagged volunteer visit -- shared
- * by the count and the full list below so they can never disagree. */
-async function getUntaggedVolunteerVisitIds(): Promise<string[] | null> {
-  const supabase = await createClient();
-  const { data, error } = await supabase.from("interaction_volunteers").select("interaction_id");
-  if (error) throw new Error(error.message);
-  const taggedIds = Array.from(new Set((data ?? []).map((r) => r.interaction_id as string)));
-  return taggedIds.length > 0 ? taggedIds : null;
-}
-
 /** How many logged "Volunteer visit" interactions still have nobody
  * checked off in "Volunteers involved" -- shown as a count on the Data
- * Quality page, linking to the full list below. */
+ * Quality page, linking to the full list below.
+ *
+ * "Has no interaction_volunteers rows" is asked of the database directly
+ * (a left join filtered to "no match"), rather than by sending the list
+ * of every tagged visit's ID in the request -- that list grows with every
+ * tagged visit and would eventually be too long for a URL. */
 export async function getVolunteerVisitGapCount(): Promise<number> {
   const supabase = await createClient();
-  const taggedIds = await getUntaggedVolunteerVisitIds();
-
-  let query = supabase
+  const { count, error } = await supabase
     .from("interactions")
-    .select("id", { count: "exact", head: true })
-    .eq("interaction_type", "volunteer_visit");
-  if (taggedIds) query = query.not("id", "in", `(${taggedIds.join(",")})`);
-
-  const { count, error } = await query;
+    .select("id, interaction_volunteers!left(interaction_id)", { count: "exact", head: true })
+    .eq("interaction_type", "volunteer_visit")
+    .is("interaction_volunteers", null);
   if (error) throw new Error(error.message);
   return count ?? 0;
 }
@@ -126,16 +117,14 @@ export type VolunteerVisitGap = {
  * "Volunteers involved" checklist is now front and center. */
 export async function getVolunteerVisitGaps(): Promise<VolunteerVisitGap[]> {
   const supabase = await createClient();
-  const taggedIds = await getUntaggedVolunteerVisitIds();
-
-  let query = supabase
+  const { data, error } = await supabase
     .from("interactions")
-    .select("id, occurred_at, facilities(name), residents(first_name, last_name, preferred_name)")
+    .select(
+      "id, occurred_at, facilities(name), residents(first_name, last_name, preferred_name), interaction_volunteers!left(interaction_id)"
+    )
     .eq("interaction_type", "volunteer_visit")
+    .is("interaction_volunteers", null)
     .order("occurred_at", { ascending: false });
-  if (taggedIds) query = query.not("id", "in", `(${taggedIds.join(",")})`);
-
-  const { data, error } = await query;
   if (error) throw new Error(error.message);
 
   return (data ?? []).map((row) => {

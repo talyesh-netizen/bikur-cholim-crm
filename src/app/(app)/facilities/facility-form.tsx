@@ -1,7 +1,7 @@
 "use client";
 
-import { FormActions, FormError } from "@/components/form-actions";
 import { useActionState, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,7 +21,7 @@ import {
 } from "@/lib/domain/facility";
 import type { Facility, GeographicCluster } from "@/lib/domain/facility";
 import type { FacilityFormState } from "@/lib/actions/facilities";
-import { capitalizeOnBlur } from "@/lib/format-text";
+import { capitalizeAsYouType } from "@/lib/format-text";
 
 type Action = (state: FacilityFormState, formData: FormData) => Promise<FacilityFormState>;
 
@@ -76,13 +76,17 @@ export function FacilityForm({
 
   return (
     <form key={formKey} action={formAction} className="flex flex-col gap-6">
-      <FormError message={state.error} />
+      {state.error ? (
+        <p role="alert" className="text-sm text-destructive">
+          {state.error}
+        </p>
+      ) : null}
 
-      <section className="flex flex-col gap-5">
-        <h2 className="border-b border-border pb-2 text-base font-semibold">Basic information</h2>
+      <section className="flex flex-col gap-4">
+        <h2 className="text-sm font-semibold text-muted-foreground">Basic information</h2>
 
         <Field label="Facility name" htmlFor="name" error={fieldErrors.name} required>
-          <Input id="name" name="name" defaultValue={values.name} onBlur={capitalizeOnBlur} required />
+          <Input id="name" name="name" defaultValue={values.name} autoCapitalize="words" onChange={capitalizeAsYouType} required />
         </Field>
 
         <Field label="Facility type" htmlFor="facility_type" error={fieldErrors.facility_type} required>
@@ -94,7 +98,7 @@ export function FacilityForm({
             <Input id="address" name="address" defaultValue={values.address} />
           </Field>
           <Field label="City" htmlFor="city">
-            <Input id="city" name="city" defaultValue={values.city} onBlur={capitalizeOnBlur} />
+            <Input id="city" name="city" defaultValue={values.city} autoCapitalize="words" onChange={capitalizeAsYouType} />
           </Field>
           <Field label="ZIP code" htmlFor="zip">
             <Input id="zip" name="zip" defaultValue={values.zip} />
@@ -124,8 +128,8 @@ export function FacilityForm({
         </Field>
       </section>
 
-      <section className="flex flex-col gap-5">
-        <h2 className="border-b border-border pb-2 text-base font-semibold">Jewish resident engagement</h2>
+      <section className="flex flex-col gap-4">
+        <h2 className="text-sm font-semibold text-muted-foreground">Jewish resident engagement</h2>
 
         <div className="flex items-center gap-2">
           <Checkbox
@@ -186,17 +190,16 @@ export function FacilityForm({
         </div>
       </section>
 
-      <section className="flex flex-col gap-5">
-        <h2 className="border-b border-border pb-2 text-base font-semibold">Notes</h2>
+      <section className="flex flex-col gap-4">
+        <h2 className="text-sm font-semibold text-muted-foreground">Notes</h2>
         <Textarea id="notes" name="notes" rows={4} defaultValue={values.notes} />
       </section>
 
-      <FormActions
-        isPending={isPending}
-        submitLabel={facility ? "Save changes" : "Add facility"}
-        savingLabel={"Saving…"}
-        hasUnsavedError={!!state.error}
-      />
+      <div className="flex justify-end gap-2">
+        <Button type="submit" disabled={isPending}>
+          {isPending ? "Saving…" : facility ? "Save changes" : "Add facility"}
+        </Button>
+      </div>
     </form>
   );
 }
@@ -221,7 +224,7 @@ function Field({
         {required ? <span className="text-destructive"> *</span> : null}
       </Label>
       {children}
-      {error ? <p className="text-sm font-medium text-destructive">{error}</p> : null}
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </div>
   );
 }
