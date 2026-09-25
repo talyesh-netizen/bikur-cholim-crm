@@ -36,7 +36,7 @@ function Tile({
         tone === "warning" ? "border-warning/40 bg-warning/5" : "border-border"
       )}
     >
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      <div className="flex items-center gap-2 text-sm font-medium uppercase tracking-wide text-muted-foreground">
         <Icon className="size-4" />
         {title}
       </div>
