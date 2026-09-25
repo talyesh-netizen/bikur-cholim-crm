@@ -1,16 +1,32 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ClipboardCheck, HeartHandshake, ListChecks, MapPin, UserRoundX } from "lucide-react";
+import { ArrowLeft, Building2, ClipboardCheck, HeartHandshake, ListChecks, UserRoundX } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getFacility } from "@/lib/queries/facilities";
 import { listResidents } from "@/lib/queries/residents";
-import { listTasks } from "@/lib/queries/tasks";
+import { listOpenTasksForFacility } from "@/lib/queries/tasks";
+import { SectionIcon } from "@/components/section-icon";
+import { StatusBadge } from "@/components/status-badge";
+import { sectionVars, type Section } from "@/lib/sections";
 import { ACTIVE_RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { formatDateOnly, formatRelative, getLocalToday } from "@/lib/format-date";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** One of the three counts at the top, striped in its section's color
+ * like the dashboard tiles. */
+function CountTile({ value, label, section }: { value: number; label: string; section: Section }) {
+  return (
+    <Card className="border-t-4" style={{ borderTopColor: sectionVars(section).accent }}>
+      <CardContent className="p-3 text-center sm:p-3">
+        <p className="text-xl font-semibold tabular-nums">{value}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{label}</p>
+      </CardContent>
+    </Card>
+  );
+}
 
 function needsVisit(lastVisitAt: string | null) {
   if (!lastVisitAt) return true;
@@ -24,13 +40,17 @@ export default async function FacilityOnsitePage({
 }) {
   const { id } = await params;
 
-  const [facility, residents, tasks] = await Promise.all([
+  const [facility, residents] = await Promise.all([
     getFacility(id),
     listResidents({ facilityId: id, showAllStatuses: true }),
-    listTasks({ facilityId: id }),
   ]);
 
   if (!facility) notFound();
+
+  const tasks = await listOpenTasksForFacility(
+    id,
+    residents.map((resident) => resident.id)
+  );
 
   const currentResidents = residents
     .filter((resident) => ACTIVE_RESIDENT_STATUSES.includes(resident.status))
@@ -42,8 +62,7 @@ export default async function FacilityOnsitePage({
     });
 
   const today = getLocalToday();
-  const overdueTasks = tasks.filter((task) => task.due_date && task.due_date < today);
-  const dueTodayTasks = tasks.filter((task) => task.due_date === today);
+  const urgentTasks = tasks.filter((task) => task.due_date && task.due_date <= today);
   const residentsNeedingVisit = currentResidents.filter((resident) => needsVisit(resident.last_visit_at));
   const residentsMissingRoom = currentResidents.filter((resident) => !resident.room_number);
 
@@ -69,7 +88,7 @@ export default async function FacilityOnsitePage({
 
       <div>
         <div className="flex items-start gap-2">
-          <MapPin className="mt-1 size-5 shrink-0 text-muted-foreground" />
+          <SectionIcon section="facilities" icon={Building2} className="mt-0.5" />
           <div>
             <h1 className="text-2xl font-semibold leading-tight">{facility.name}</h1>
             <p className="text-sm text-muted-foreground">
@@ -80,27 +99,12 @@ export default async function FacilityOnsitePage({
       </div>
 
       <div className="grid grid-cols-3 gap-2">
-        <Card>
-          <CardContent className="p-3 text-center">
-            <p className="text-xl font-semibold tabular-nums">{residentsNeedingVisit.length}</p>
-            <p className="mt-1 text-xs text-muted-foreground">Need a visit</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3 text-center">
-            <p className="text-xl font-semibold tabular-nums">{tasks.length}</p>
-            <p className="mt-1 text-xs text-muted-foreground">Open follow ups</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3 text-center">
-            <p className="text-xl font-semibold tabular-nums">{residentsMissingRoom.length}</p>
-            <p className="mt-1 text-xs text-muted-foreground">Rooms to confirm</p>
-          </CardContent>
-        </Card>
+        <CountTile value={residentsNeedingVisit.length} label="Need a visit" section="residents" />
+        <CountTile value={tasks.length} label="Open follow ups" section="tasks" />
+        <CountTile value={residentsMissingRoom.length} label="Rooms to confirm" section="facilities" />
       </div>
 
-      {(overdueTasks.length > 0 || dueTodayTasks.length > 0 || residentsMissingRoom.length > 0) ? (
+      {(urgentTasks.length > 0 || residentsMissingRoom.length > 0) ? (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
@@ -109,16 +113,25 @@ export default async function FacilityOnsitePage({
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-2 text-sm">
-            {overdueTasks.length > 0 ? (
-              <Link href={`/tasks?facility=${facility.id}`} className="rounded-md border px-3 py-2 hover:bg-accent">
-                <span className="font-medium">{overdueTasks.length} overdue follow up{overdueTasks.length === 1 ? "" : "s"}</span>
+            {urgentTasks.map((task) => (
+              <Link
+                key={task.id}
+                href={`/tasks/${task.id}`}
+                className="flex items-center justify-between gap-3 rounded-md border px-3 py-2 hover:bg-accent"
+              >
+                <span className="min-w-0">
+                  <span className="font-medium">{task.title}</span>
+                  {task.resident_name ? (
+                    <span className="block text-xs text-muted-foreground">{task.resident_name}</span>
+                  ) : null}
+                </span>
+                {task.due_date === today ? (
+                  <StatusBadge tone="attention">Due today</StatusBadge>
+                ) : (
+                  <StatusBadge tone="urgent">Overdue</StatusBadge>
+                )}
               </Link>
-            ) : null}
-            {dueTodayTasks.length > 0 ? (
-              <Link href={`/tasks?facility=${facility.id}`} className="rounded-md border px-3 py-2 hover:bg-accent">
-                <span className="font-medium">{dueTodayTasks.length} follow up{dueTodayTasks.length === 1 ? "" : "s"} due today</span>
-              </Link>
-            ) : null}
+            ))}
             {residentsMissingRoom.map((resident) => (
               <Link
                 key={resident.id}

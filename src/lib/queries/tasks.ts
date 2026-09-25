@@ -72,6 +72,28 @@ export async function listTasks(filters: TaskFilters = {}) {
   return (data ?? []).map((row) => toTaskWithNames(row as unknown as Parameters<typeof toTaskWithNames>[0]));
 }
 
+/** Open tasks for a facility as staff see it on site: ones filed
+ * against the facility itself AND ones filed against any of its
+ * residents. A task added from a resident's page is saved with only
+ * the resident, so filtering on facility_id alone would miss most
+ * resident follow-ups. `residentIds` are database UUIDs (never user
+ * input), so they're safe to put in the filter string. */
+export async function listOpenTasksForFacility(facilityId: string, residentIds: string[]) {
+  const supabase = await createClient();
+  const who = [`facility_id.eq.${facilityId}`];
+  if (residentIds.length > 0) who.push(`resident_id.in.(${residentIds.join(",")})`);
+
+  const { data, error } = await supabase
+    .from("tasks")
+    .select(SELECT_WITH_NAMES)
+    .in("status", OPEN_TASK_STATUSES as unknown as string[])
+    .or(who.join(","))
+    .order("due_date", { ascending: true, nullsFirst: false });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => toTaskWithNames(row as unknown as Parameters<typeof toTaskWithNames>[0]));
+}
+
 export async function getTask(id: string) {
   const supabase = await createClient();
   const { data, error } = await supabase.from("tasks").select(SELECT_WITH_NAMES).eq("id", id).single();
