@@ -1,128 +1,146 @@
 # Privacy, Security, and Architectural Concerns
 
-_Last updated: 2026-07-27_
+_Last updated: 2026-09-25 (launch review)_
 
-This document does two things: (1) explains the protections being built
-into the foundation from day one, and (2) is honest about what this
-codebase **cannot**, by itself, guarantee. Please read the second part
-before anyone enters real resident information.
+This document explains (1) what protects the information in this CRM
+today, and (2) what the software **cannot** guarantee by itself. It is
+written for the department's leadership, not only for developers.
 
-## What is built in from the start
+## Where things stand
+
+- The CRM is **in production use**. It is connected to the department's
+  production Supabase project and holds **real operational data** about
+  facilities, residents, family members, volunteers, staff contacts,
+  visits and follow-up tasks.
+- Sign-in and database row-level security are implemented and were
+  tested before launch, including accounts limited to specific
+  facilities (see "What was tested" below).
+- **This is not a legal or compliance certification.** Nothing here
+  claims compliance with HIPAA, Ohio privacy law, or any other standard.
+  The organization still needs its own written privacy, access and
+  incident policies, and an independent security/compliance review may
+  still be appropriate — see the last section.
+
+## What protects the information
 
 ### 1. Nobody gets in without signing in
-Every page that shows real data requires a signed-in session, handled by
-Supabase Auth (an established, widely-used authentication service — we
-are not writing our own password-handling code, which is exactly the kind
-of thing that's easy to get subtly wrong if built from scratch).
+Every page and data request requires a signed-in session through
+Supabase Auth. Accounts are created by an admin; new sign-ins start
+inactive until an admin activates them. There is no public, family or
+self-registration access.
 
-### 2. The database itself enforces access rules, not just the app
-We are using PostgreSQL's **row-level security** (RLS). In plain terms:
-even if there were ever a mistake in the app's own code, the *database*
-independently double-checks "is this specific person, right now, actually
-allowed to see this specific row?" before handing back any data. This is
-a stronger, second layer of protection — not just a single point of
-failure in the website's code.
+### 2. The database enforces access, not just the screens
+Every table has PostgreSQL **row-level security** (RLS). Even a mistake
+in the app's code, a hand-typed URL, or someone calling the database API
+directly cannot return rows the database's rules don't allow:
 
-### 3. Two simple roles to start
-- **Staff**: can view and edit day-to-day records.
-- **Admin**: same as Staff, plus managing who has an account.
+- Signed-out visitors (the public "anon" key) can read nothing.
+- An inactive account can read nothing.
+- **Facility-restricted accounts** (an admin sets a staff member to
+  "restricted" and chooses their facilities) can only see and change:
+  those facilities; residents currently at them; interactions, tasks
+  and facility history for those residents/facilities; and contacts
+  linked to them. Org-wide contacts that aren't tied to any resident or
+  facility (volunteers, community partners) stay visible to everyone.
+  A restricted account also cannot add new facilities, move a resident
+  into or out of a facility it can't access, or give itself more access.
+- The two summary views (`facility_summary`, `resident_summary`) run
+  with the viewer's own permissions (`security_invoker`), so they can't
+  bypass these rules.
 
-This is intentionally simple for Phase One. It is *not* yet a fine-grained
-system (e.g., "only this person's assigned facilities"). If that level of
-control turns out to matter, it's a natural Phase Two addition on top of
-this foundation, not a rebuild.
+### 3. The all-powerful "service role" key stays on the server
+The Supabase service-role key bypasses RLS, so it is used in exactly two
+server-only places: an admin creating/removing a staff sign-in, and the
+daily reminder job (which has no signed-in user and is protected by its
+own secret — see below). It is never given a `NEXT_PUBLIC_` name, so it
+is never sent to anyone's browser. Other secrets (`CRON_SECRET`,
+`RESEND_API_KEY`) are handled the same way.
 
-### 4. A path toward separating "sensitive" notes from general notes
-Some fields (like a resident's private internal notes) are treated in the
-database as distinct from general/operational fields, so that in a future
-phase we could restrict who can read them (e.g., "only Admins can view
-private clinical-style notes") without restructuring the whole database.
-In Phase One, both roles can see these fields — but the separation exists
-so that tightening it later is a small change.
+### 4. Database helper functions are locked down
+The functions the access rules rely on (`crm_private.*`) live in a schema
+the public API does not expose, run with a fixed `search_path`, and can
+only be executed by signed-in users. The resident-transfer and
+save-volunteers functions run with the *caller's* permissions, so they
+are subject to the same facility rules as everything else.
 
-### 5. Data validation
-Forms will check that required information is present and reasonably
-formatted (e.g., a date field actually contains a date) before saving,
-both in the browser and, more importantly, again on the server — because
-browser-only checks can be bypassed, so we never rely on them alone.
+### 5. History is preserved, not deleted
+Records are deactivated, completed, cancelled or retired rather than
+deleted. Moving a resident keeps their full facility history and visit
+log. (The only hard delete in the app is an admin removing a staff
+sign-in that has never been used; the database refuses it for anyone
+linked to existing records.)
 
-### 6. Audit-friendly by default
-Every record tracks who created it, who last changed it, and when. This
-is standard practice for any system handling information about real
-people, and it costs nothing to build in from the start versus adding
-later.
+### 6. Saves never fail silently
+If a visit or edit can't be saved — lost connection, access denied, a
+record that no longer exists — the app says so plainly and keeps what
+was typed. Double taps and retries can't create duplicate visits. Times
+are entered and shown in Cleveland time (America/New_York).
 
 ### 7. Secrets are never stored in the code
-Database connection details and any private keys live in environment
-variables (a separate configuration mechanism), and are excluded from
-Git via `.gitignore`. Nothing sensitive is ever typed directly into a
-source code file that gets committed to version control.
+Connection details and keys live in environment variables (Vercel
+project settings, or a local `.env.local` that Git ignores).
 
-### 8. No public access to resident records
-There is no "public" or "family login" surface in Phase One at all. The
-only way to reach any resident data is to be a signed-in staff/admin
-account.
+## Information that leaves the CRM
 
-### 9. Only fictional data during development
-The demonstration data shipped with Phase One is entirely invented. This
-is both a privacy precaution and a practical one — it means the app can
-be shown, tested, and even temporarily deployed for review without any
-real person's information ever being at risk.
+Anything sent outside the CRM is out of our control once sent (other
+people's inboxes, phones, email providers' servers, downloaded files).
+The rule is: **send the minimum, link back to the CRM for details.**
 
-## What this foundation does *not* do — and what to do about it
+- **Daily task-reminder email** (optional; sent through Resend when
+  configured). It contains only the staff member's first name and *how
+  many* follow-ups are overdue or due today, with a link to their task
+  list. It does **not** include resident names, facility names, task
+  titles, categories or notes — task titles are free text and often name
+  a resident or relative. Anyone adding to this email should keep it
+  that way.
+- **CSV impact report** (for funders/board). Aggregate counts only — no
+  resident names, notes or other identifying details.
+- **Password-reset and sign-in emails** come from Supabase Auth and
+  contain no resident information.
 
-I want to be direct about this rather than vague: **I am not a lawyer or a
-compliance officer, and this codebase is not a certification of legal
-compliance with any law** (HIPAA, Ohio state privacy law, or otherwise).
-Several things commonly required for handling real health/social-services
-information about identifiable people are **not** part of Phase One and
-should be addressed before real resident data is entered:
+Before adding any other integration (text messages, calendar sync,
+AI tools, a new email type), decide explicitly what information it
+would carry and whether it needs to.
 
-- **A real compliance review.** Depending on exactly what information is
-  stored and how the department operates (e.g., whether this counts as
-  "protected health information" under HIPAA in your specific
-  organizational context), you may need a formal HIPAA risk assessment,
-  a Business Associate Agreement with Supabase (or whichever hosting
-  provider is ultimately used), and a written data handling policy. This
-  requires a professional familiar with healthcare/social-services
-  privacy law — not a default we can bake into the code.
-- **Encryption and backup policy review.** Supabase encrypts data at rest
-  and in transit by default, but *retention*, *backup*, and *breach
-  notification* policies need to be deliberately reviewed and documented
-  by someone responsible for compliance, not assumed.
-- **A real access policy, in writing.** Who, specifically, should have
-  Admin vs. Staff access; what happens when someone leaves the
-  organization; how often access is reviewed. The software can enforce
-  whatever policy you set — but the policy itself needs to be decided by
-  the department, not invented by the software.
-- **Logging and monitoring for a production system.** Phase One tracks
-  who changed what record in the *data itself* (audit timestamps), but a
-  production deployment handling real sensitive data would benefit from
-  additional infrastructure-level monitoring (e.g., alerting on unusual
-  access patterns) that is beyond a Phase One CRM foundation.
-- **A real incident response plan.** What the department would actually
-  do if a laptop were lost, a password compromised, or an account
-  misused — this is an organizational policy question, not something the
-  code can supply.
-- **Penetration testing / independent security review** before real
-  sensitive data goes in, especially once the app is deployed somewhere
-  publicly reachable (even behind a login).
+## What was tested before launch (2026-09-25)
 
-**Bottom line:** this foundation is built the *right way* — secure
-authentication, database-enforced access rules, no secrets in code, audit
-trails, and no public access — but "built the right way" is not the same
-as "reviewed and approved by a compliance professional for real resident
-data." Please treat the fictional-data-only state of this app as the
-default until that review happens, and loop in whoever handles
-compliance/IT policy for the organization before that changes.
+- A temporary restricted account (one facility), run against the real
+  production rules inside a transaction that was rolled back, could not
+  read, create, edit, move or re-link anything at another facility —
+  43 checks, all passing. The script is kept at
+  `supabase/checks/restricted_facility_access_check.sql` and is safe to
+  re-run after any security change.
+- Browser tests on a local copy with fictional data: every main workflow
+  as admin and as staff, restricted-account URL guessing/search/dashboard/
+  export, and every screen at 360/390/430 px phone widths.
+
+## What still needs a person or a policy (not code)
+
+- **Supabase dashboard settings** that can't be set from this code —
+  notably **Leaked Password Protection** (Authentication → Attack
+  Protection). See `LAUNCH_READINESS.md` for the exact list.
+- **A written access policy.** Who is Admin vs. Staff; who should be
+  facility-restricted; what happens the day someone leaves (set them to
+  Inactive immediately); how often access is reviewed.
+- **Compliance determination.** Whether any of this is "protected health
+  information" in the organization's context, and whether a Business
+  Associate Agreement with Supabase (and Vercel/Resend) is needed, is a
+  question for someone qualified in healthcare/social-services privacy.
+- **Retention and backup policy.** Supabase keeps automatic backups per
+  its plan; the organization should decide and write down how long
+  records and backup copies are kept. (There are also point-in-time
+  repair snapshots in the database's `crm_backup` schema from a
+  September 2026 data fix; they are not reachable by app users, but
+  their retention should be decided — see `LAUNCH_READINESS.md`.)
+- **Incident response.** What to do if a phone or laptop with a signed-in
+  session is lost, a password is compromised, or an account is misused.
+- **Independent security review / penetration test**, if the
+  organization's risk tolerance or funders call for one.
 
 ## A note on architecture-level concerns (non-privacy)
 
-- **Single Supabase project for now.** Phase One assumes one database
-  environment. As the app matures, a separate "test" vs. "real" database
-  environment is worth setting up so that new features can be tried
-  safely without any risk to real data — another natural Phase Two step.
-- **No offline support.** Phase One assumes staff have an internet
-  connection while using the app (normal for a phone/laptop web app).
-  Offline visit-logging (e.g., in a facility with poor signal) is not
-  in scope for Phase One but is worth knowing about if it comes up.
+- **Single production database.** New features should be tried against
+  a separate development/test Supabase project, never production.
+- **No offline support.** Staff need a connection while logging a visit.
+  If a save fails, the form keeps the entry and says it was not saved —
+  but it can't queue it for later.
