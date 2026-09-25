@@ -1,56 +1,44 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { ClusterBadge } from "@/components/cluster-badge";
-import { labelFor, RESIDENT_STATUSES } from "@/lib/domain/resident";
+import { ResidentStatusBadge } from "@/components/status-badge";
 import type { ResidentWithSummary } from "@/lib/domain/resident";
 import { clusterColor } from "@/lib/domain/cluster-colors";
-import { formatDateOnly, formatDateTime } from "@/lib/format-date";
-
-function statusVariant(status: string): "success" | "warning" | "destructive" | "secondary" {
-  if (status === "active") return "success";
-  if (status === "temporarily_hospitalized" || status === "unable_to_reach") return "warning";
-  if (status === "deceased") return "secondary";
-  if (status === "no_longer_receiving_services") return "destructive";
-  return "secondary";
-}
+import { formatDateOnly, formatRelative } from "@/lib/format-date";
+import { ChevronRight } from "lucide-react";
 
 export function ResidentCard({ resident }: { resident: ResidentWithSummary }) {
   const displayName = resident.preferred_name
     ? `${resident.preferred_name} ${resident.last_name}`
     : `${resident.first_name} ${resident.last_name}`;
-  const lastVisit = formatDateTime(resident.last_visit_at);
+  const lastVisit = formatRelative(resident.last_visit_at);
   const nextFollowUp = formatDateOnly(resident.next_follow_up_date);
 
   return (
-    <Link href={`/residents/${resident.id}`}>
+    <Link href={`/residents/${resident.id}`} className="group block">
       <Card
-        className="border-l-4 transition-colors hover:border-primary/50"
+        className="border-l-4 transition-colors group-hover:border-primary/50"
         style={{ borderLeftColor: clusterColor(resident.current_facility_cluster_id) }}
       >
-        <CardContent className="flex flex-col gap-2 p-4">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex flex-col gap-1">
-              <p className="font-semibold leading-tight">{displayName}</p>
-              <span className="flex items-center gap-1.5">
-                <ClusterBadge
-                  clusterId={resident.current_facility_cluster_id}
-                  name={resident.current_facility_name ?? "Unknown facility"}
-                />
-                {resident.room_number ? (
-                  <span className="text-sm text-muted-foreground">Room {resident.room_number}</span>
-                ) : null}
-              </span>
+        <CardContent className="flex items-center gap-3 p-4 sm:p-4">
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <p className="text-base font-semibold leading-tight">{displayName}</p>
+              {resident.status !== "active" ? <ResidentStatusBadge status={resident.status} /> : null}
             </div>
-            <Badge variant={statusVariant(resident.status)}>
-              {labelFor(RESIDENT_STATUSES, resident.status)}
-            </Badge>
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+              <ClusterBadge
+                clusterId={resident.current_facility_cluster_id}
+                name={resident.current_facility_name ?? "Unknown facility"}
+              />
+              {resident.room_number ? <span>Room {resident.room_number}</span> : null}
+            </p>
+            <p className="flex flex-wrap gap-x-3 gap-y-0.5 text-sm text-muted-foreground">
+              <span>{lastVisit ? `Last visit: ${lastVisit}` : "No visits logged yet"}</span>
+              {nextFollowUp ? <span>Follow-up: {nextFollowUp}</span> : null}
+            </p>
           </div>
-
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-            <span>{lastVisit ? `Last visit ${lastVisit}` : "No visits logged yet"}</span>
-            {nextFollowUp ? <span>Next follow-up {nextFollowUp}</span> : null}
-          </div>
+          <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
         </CardContent>
       </Card>
     </Link>

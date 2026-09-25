@@ -44,8 +44,21 @@
   --warning-foreground: #fff8f2;
 
   --border: #e4d9c8;
-  --input: #e4d9c8;
+  --input: #d9ccb8;
   --ring: #b5592f;
+
+  /* Soft badge tones (see src/components/status-badge.tsx). Every
+     foreground/background pair here is at least 4.5:1 contrast. */
+  --tone-neutral-bg: #efe8dd;
+  --tone-neutral-fg: #4a3f33;
+  --tone-good-bg: #e3eee5;
+  --tone-good-fg: #2f5a3c;
+  --tone-attention-bg: #f7ecd2;
+  --tone-attention-fg: #6f4c05;
+  --tone-urgent-bg: #f8e1dd;
+  --tone-urgent-fg: #8f1f17;
+  --tone-brand-bg: #f6e4d9;
+  --tone-brand-fg: #8a3f1c;
 }
 
 .dark {
@@ -80,8 +93,19 @@
   --warning-foreground: #201a15;
 
   --border: #3f362c;
-  --input: #3f362c;
+  --input: #4a4034;
   --ring: #e08a56;
+
+  --tone-neutral-bg: #3a3129;
+  --tone-neutral-fg: #eadfce;
+  --tone-good-bg: #26372b;
+  --tone-good-fg: #a9d2b3;
+  --tone-attention-bg: #3d3018;
+  --tone-attention-fg: #ecc57a;
+  --tone-urgent-bg: #43221e;
+  --tone-urgent-fg: #f3a79d;
+  --tone-brand-bg: #432b1e;
+  --tone-brand-fg: #f0b48e;
 }
 
 @theme inline {
@@ -113,6 +137,16 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-tone-neutral-bg: var(--tone-neutral-bg);
+  --color-tone-neutral-fg: var(--tone-neutral-fg);
+  --color-tone-good-bg: var(--tone-good-bg);
+  --color-tone-good-fg: var(--tone-good-fg);
+  --color-tone-attention-bg: var(--tone-attention-bg);
+  --color-tone-attention-fg: var(--tone-attention-fg);
+  --color-tone-urgent-bg: var(--tone-urgent-bg);
+  --color-tone-urgent-fg: var(--tone-urgent-fg);
+  --color-tone-brand-bg: var(--tone-brand-bg);
+  --color-tone-brand-fg: var(--tone-brand-fg);
 
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -122,18 +156,49 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    /* Stops iOS from inflating text sizes on rotate, and keeps taps from
+       flashing a grey box -- small things that make it feel like an app. */
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
   body {
     @apply bg-background text-foreground;
+    line-height: 1.55;
+    font-feature-settings: "cv11", "ss01";
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+  /* Tappable things shouldn't select text on a long-press. */
+  a,
+  button {
+    -webkit-touch-callout: none;
   }
 }
 
-@layer components {
-  /* Makes a whole box clickable from one link inside it: put
-     .stretched-link on the link and `relative` on the box. Any other
-     buttons/links in the box need `relative z-10` to stay on top. */
-  .stretched-link::after {
-    content: "";
-    position: absolute;
-    inset: 0;
+/* A gentle shimmer for loading placeholders (see (app)/loading.tsx). */
+@utility skeleton {
+  border-radius: var(--radius-md);
+  background: linear-gradient(90deg, var(--muted) 0%, var(--accent) 50%, var(--muted) 100%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
   }
 }

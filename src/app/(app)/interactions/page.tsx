@@ -1,3 +1,5 @@
+import { History } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -46,9 +48,12 @@ export default async function InteractionsPage({
       <InteractionFilters facilities={facilities} />
 
       {interactions.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          No interactions match your search. Try adjusting the filters above.
-        </p>
+        <EmptyState
+          icon={History}
+          title="No interactions found"
+          description="Try a different type, facility, or date range, or clear the filters above."
+          action={{ href: "/interactions/new?type=resident_visit", label: "Log a visit" }}
+        />
       ) : (
         <ol className="flex flex-col gap-3">
           {interactions.map((interaction) => (

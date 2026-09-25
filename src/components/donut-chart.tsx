@@ -69,9 +69,8 @@ export function DonutChart({ segments, title }: { segments: DonutSegment[]; titl
                 onMouseEnter={() => setHovered(arc.key)}
                 onMouseLeave={() => setHovered((h) => (h === arc.key ? null : h))}
               >
-                {/* One plain string: React 19 treats <title> specially and
-                    renders several text pieces as empty on the server,
-                    which caused a hydration mismatch on the dashboard. */}
+                {/* One string, not several text nodes -- React can't match up
+                    split text inside an SVG <title> when hydrating. */}
                 <title>{`${arc.label}: ${arc.count} (${Math.round(arc.fraction * 100)}%)`}</title>
               </circle>
             ))}

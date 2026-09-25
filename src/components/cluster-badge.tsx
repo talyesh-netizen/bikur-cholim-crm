@@ -1,21 +1,22 @@
 import { clusterColor } from "@/lib/domain/cluster-colors";
+import { StatusBadge } from "@/components/status-badge";
 
-/** Bolder, filled color chip for a facility's geographic cluster — used
- * anywhere a facility is listed so clusters are visually scannable at a
- * glance, not just readable as text. */
+/** A facility's geographic cluster (or a facility name tinted by its
+ * cluster) -- a calm neutral chip with a small color dot, so clusters
+ * stay scannable at a glance without every list turning into a rainbow.
+ * The name is always shown as text; the color is only a hint. */
 export function ClusterBadge({
   clusterId,
   name,
+  className,
 }: {
   clusterId: string | null | undefined;
   name: string;
+  className?: string;
 }) {
   return (
-    <span
-      className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium text-white"
-      style={{ backgroundColor: clusterColor(clusterId) }}
-    >
+    <StatusBadge tone="neutral" dot={clusterColor(clusterId)} className={className}>
       {name}
-    </span>
+    </StatusBadge>
   );
 }

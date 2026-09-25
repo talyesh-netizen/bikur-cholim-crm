@@ -1,7 +1,7 @@
 "use client";
 
+import { FormActions, FormError } from "@/components/form-actions";
 import { useActionState, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -62,11 +62,7 @@ export function TaskForm({
 
   return (
     <form key={formKey} action={formAction} className="flex flex-col gap-4">
-      {state.error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {state.error}
-        </p>
-      ) : null}
+      <FormError message={state.error} />
 
       {fixedContext ? (
         <div className="flex flex-col gap-1.5">
@@ -133,11 +129,12 @@ export function TaskForm({
         </Field>
       ) : null}
 
-      <div className="flex justify-end">
-        <Button type="submit" disabled={isPending}>
-          {isPending ? "Saving…" : task ? "Save changes" : "Add task"}
-        </Button>
-      </div>
+      <FormActions
+        isPending={isPending}
+        submitLabel={task ? "Save changes" : "Add task"}
+        savingLabel={"Saving…"}
+        hasUnsavedError={!!state.error}
+      />
     </form>
   );
 }
@@ -162,7 +159,7 @@ function Field({
         {required ? <span className="text-destructive"> *</span> : null}
       </Label>
       {children}
-      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      {error ? <p className="text-sm font-medium text-destructive">{error}</p> : null}
     </div>
   );
 }

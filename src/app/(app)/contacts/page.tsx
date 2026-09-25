@@ -1,3 +1,5 @@
+import { Contact } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -71,9 +73,12 @@ export default async function ContactsPage({
       <ContactFilters />
 
       {contacts.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          No contacts match your search. Try adjusting the filters above.
-        </p>
+        <EmptyState
+          icon={Contact}
+          title="No contacts found"
+          description="Try a shorter search or clear the filters. Family members, volunteers, and facility staff all live here."
+          action={{ href: "/contacts/new", label: "Add a contact" }}
+        />
       ) : (
         <div className="flex flex-col gap-3">
           {contacts.map((contact) => (

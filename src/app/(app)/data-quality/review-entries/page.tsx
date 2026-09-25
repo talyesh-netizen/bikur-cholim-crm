@@ -56,7 +56,7 @@ export default async function ReviewEntriesPage({
 
       {entries.length === 0 ? (
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-4 sm:p-4">
             <div className="flex items-center gap-2 rounded-lg bg-success/10 px-3 py-2.5 text-sm text-success">
               <CheckCircle2 className="size-4 shrink-0" />
               <span>Nothing left to review here.</span>

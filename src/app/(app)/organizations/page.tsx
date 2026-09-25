@@ -1,3 +1,5 @@
+import { Landmark } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -38,9 +40,12 @@ export default async function OrganizationsPage({
       <OrganizationFilters />
 
       {organizations.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          No organizations match your search. Try adjusting the filters above.
-        </p>
+        <EmptyState
+          icon={Landmark}
+          title="No organizations found"
+          description="Try a shorter search or clear the filters above."
+          action={{ href: "/organizations/new", label: "Add an organization" }}
+        />
       ) : (
         <div className="flex flex-col gap-3">
           {organizations.map((organization) => (

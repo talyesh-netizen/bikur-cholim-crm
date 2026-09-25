@@ -1,8 +1,8 @@
 "use client";
 
+import { FormActions, FormError } from "@/components/form-actions";
 import { useActionState, useState } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -35,11 +35,7 @@ export function OrganizationContactForm({
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
-      {state.error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {state.error}
-        </p>
-      ) : null}
+      <FormError message={state.error} />
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="contact_id">
@@ -81,11 +77,12 @@ export function OrganizationContactForm({
         </Label>
       </div>
 
-      <div className="flex justify-end">
-        <Button type="submit" disabled={isPending || !contactId}>
-          {isPending ? "Linking…" : "Link contact"}
-        </Button>
-      </div>
+      <FormActions
+        isPending={isPending} disabled={!contactId}
+        submitLabel={"Link contact"}
+        savingLabel={"Linking…"}
+        hasUnsavedError={!!state.error}
+      />
     </form>
   );
 }

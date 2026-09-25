@@ -6,13 +6,15 @@ import { listResidents } from "@/lib/queries/residents";
 import { listContactOptions } from "@/lib/queries/contacts";
 import { createInteraction } from "@/lib/actions/interactions";
 import { InteractionForm } from "../interaction-form";
+import { INTERACTION_TYPES, labelFor } from "@/lib/domain/interaction";
 
 export default async function NewInteractionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ resident?: string; facility?: string }>;
+  searchParams: Promise<{ resident?: string; facility?: string; type?: string }>;
 }) {
-  const { resident: residentId, facility: facilityId } = await searchParams;
+  const { resident: residentId, facility: facilityId, type } = await searchParams;
+  const defaultType = INTERACTION_TYPES.some((t) => t.value === type) ? type : undefined;
 
   const [facilities, resident, residentsAtFacility, contacts, volunteers] = await Promise.all([
     listFacilities(),
@@ -44,24 +46,30 @@ export default async function NewInteractionPage({
       }
     : undefined;
 
+  const isVisit = defaultType === "resident_visit";
+  const heading = isVisit ? "Log a visit" : defaultType ? `Log: ${labelFor(INTERACTION_TYPES, defaultType)}` : "Log an interaction";
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       <div>
-        <h1 className="text-2xl font-semibold">Log an interaction</h1>
-        <p className="text-sm text-muted-foreground">
-          Quickly record a visit, call, or other activity.
+        <h1 className="text-2xl font-semibold">{heading}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {fixedResident
+            ? `For ${fixedResident.name}. Date and time are filled in for right now.`
+            : "Record a visit, call, or other activity. Date and time are filled in for right now."}
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Interaction details</CardTitle>
+          <CardTitle className="text-base">Details</CardTitle>
         </CardHeader>
         <CardContent>
           <InteractionForm
             action={action}
             facilities={facilities}
             defaultFacilityId={facilityId ?? resident?.current_facility_id}
+            defaultInteractionType={defaultType}
             fixedResident={fixedResident}
             residents={residentsAtFacility.map((r) => ({
               id: r.id,
@@ -69,6 +77,7 @@ export default async function NewInteractionPage({
             }))}
             contacts={contacts}
             volunteers={volunteers}
+            submitLabel={isVisit ? "Save visit" : "Save interaction"}
           />
         </CardContent>
       </Card>
