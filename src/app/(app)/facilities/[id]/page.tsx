@@ -8,7 +8,7 @@ import { setFacilityActive } from "@/lib/actions/facilities";
 import { listResidents } from "@/lib/queries/residents";
 import { listInteractionsForFacility } from "@/lib/queries/interactions";
 import { listFacilityContacts } from "@/lib/queries/contacts";
-import { listTasks } from "@/lib/queries/tasks";
+import { listTasksForFacility } from "@/lib/queries/tasks";
 import { setFacilityContactActive, setPrimaryFacilityContact } from "@/lib/actions/facility-contacts";
 import {
   labelFor,
@@ -33,15 +33,22 @@ export default async function FacilityDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [facility, residents, interactions, facilityContacts, tasks] = await Promise.all([
+  const [facility, residents, interactions, facilityContacts] = await Promise.all([
     getFacility(id),
     listResidents({ facilityId: id, showAllStatuses: true }),
     listInteractionsForFacility(id),
     listFacilityContacts(id),
-    listTasks({ facilityId: id, showAllStatuses: true }),
   ]);
 
   if (!facility) notFound();
+
+  // Includes follow-ups filed against this facility's residents, not
+  // just ones filed against the facility itself.
+  const tasks = await listTasksForFacility(
+    id,
+    residents.map((resident) => resident.id),
+    { includeClosed: true }
+  );
 
   const toggleActive = setFacilityActive.bind(null, facility.id, !facility.active);
   const mainContact = facilityContacts.find((fc) => fc.is_primary_contact) ?? null;
