@@ -184,13 +184,17 @@ export async function updateFamilyContactRelationship(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("resident_contacts")
     .update(parsed.data)
-    .eq("id", residentContactId);
+    .eq("id", residentContactId)
+    .select("id");
 
   if (error) {
     return { error: "Something went wrong saving these changes. Please try again.", values: raw };
+  }
+  if (!updated || updated.length === 0) {
+    return { error: "Changes NOT saved: this record no longer exists or you don't have access to it.", values: raw };
   }
 
   revalidatePath(`/residents/${residentId}`);

@@ -1,12 +1,16 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 /**
- * Service-role Supabase client for the one thing the normal RLS-governed
- * clients can't do: creating a brand-new sign-in (an auth.users row) for
- * a new staff member. Never import this outside src/lib/actions, and
- * never use it for anything a signed-in admin's own session could do
- * instead -- it bypasses row-level security entirely.
+ * Service-role Supabase client for the few things the normal RLS-governed
+ * clients can't do: creating or removing a sign-in (an auth.users row)
+ * for a staff member (src/lib/actions/staff.ts, admin-only), and the
+ * daily reminder cron job, which has no signed-in user
+ * (src/app/api/cron/task-reminders/route.ts, protected by CRON_SECRET).
+ * Server-only: never import this into a client component, and never use
+ * it for anything a signed-in person's own session could do instead --
+ * it bypasses row-level security entirely.
  */
+
 export function createAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

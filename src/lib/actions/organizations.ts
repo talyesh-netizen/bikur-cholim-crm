@@ -79,10 +79,17 @@ export async function updateOrganization(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.from("organizations").update(parsed.data).eq("id", organizationId);
+  const { data: updated, error } = await supabase
+    .from("organizations")
+    .update(parsed.data)
+    .eq("id", organizationId)
+    .select("id");
 
   if (error) {
     return { error: "Something went wrong saving this organization. Please try again.", values: raw };
+  }
+  if (!updated || updated.length === 0) {
+    return { error: "Changes NOT saved: this record no longer exists or you don't have access to it.", values: raw };
   }
 
   revalidatePath("/organizations");

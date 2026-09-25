@@ -27,9 +27,8 @@ export function TrendChart({ data, title }: { data: MonthlyCount[]; title: strin
         return (
           <g key={d.key}>
             <rect x={x} y={y} width={barWidth} height={Math.max(barHeight, 1)} rx={4} className="fill-primary">
-              <title>
-                {d.label}: {d.count} interaction{d.count === 1 ? "" : "s"}
-              </title>
+              {/* One plain string -- see the note in donut-chart.tsx. */}
+              <title>{`${d.label}: ${d.count} interaction${d.count === 1 ? "" : "s"}`}</title>
             </rect>
             {d.count > 0 ? (
               <text

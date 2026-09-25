@@ -7,7 +7,8 @@ import {
   type ImpactPeriod,
 } from "@/lib/queries/impact";
 import { labelFor, UNMET_NEED_REASONS } from "@/lib/domain/interaction";
-import { ORGANIZATION_NAME, APP_NAME } from "@/lib/config";
+import { ORGANIZATION_NAME, APP_NAME, ORGANIZATION_TIMEZONE } from "@/lib/config";
+import { getLocalToday } from "@/lib/format-date";
 
 const PERIOD_LABELS: Record<ImpactPeriod, string> = {
   month: "This month",
@@ -47,6 +48,7 @@ export async function GET(request: NextRequest) {
   const generatedAt = new Date().toLocaleString("en-US", {
     dateStyle: "long",
     timeStyle: "short",
+    timeZone: ORGANIZATION_TIMEZONE,
   });
 
   let csv = "";
@@ -117,7 +119,7 @@ export async function GET(request: NextRequest) {
     csv += csvRow([row.name, row.count]);
   }
 
-  const filename = `impact-report-${period}-${new Date().toISOString().slice(0, 10)}.csv`;
+  const filename = `impact-report-${period}-${getLocalToday()}.csv`;
 
   return new NextResponse(csv, {
     headers: {

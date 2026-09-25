@@ -87,10 +87,13 @@ export async function updateTask(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.from("tasks").update(parsed.data).eq("id", taskId);
+  const { data: updated, error } = await supabase.from("tasks").update(parsed.data).eq("id", taskId).select("id");
 
   if (error) {
     return { error: "Something went wrong saving this task. Please try again.", values: raw };
+  }
+  if (!updated || updated.length === 0) {
+    return { error: "Changes NOT saved: this record no longer exists or you don't have access to it.", values: raw };
   }
 
   revalidateTaskPaths(parsed.data);
@@ -103,10 +106,10 @@ const statusChangeSchema = z.object({ status: z.enum(statusValues), completion_n
 export async function setTaskStatus(taskId: string, formData: FormData) {
   const raw = Object.fromEntries(formData.entries()) as Record<string, string>;
   const parsed = statusChangeSchema.safeParse(raw);
-  if (!parsed.success) return;
+  if (!parsed.success) throw new Error("That task status isn't valid.");
 
   const supabase = await createClient();
-  const { data: task } = await supabase
+  const { data: task, error } = await supabase
     .from("tasks")
     .update({
       status: parsed.data.status,
@@ -114,7 +117,13 @@ export async function setTaskStatus(taskId: string, formData: FormData) {
     })
     .eq("id", taskId)
     .select("resident_id, facility_id")
-    .single();
+    .maybeSingle();
+
+  // Shown on the app's error screen rather than silently leaving the
+  // task as it was -- a "completed" click that didn't stick must be obvious.
+  if (error || !task) {
+    throw new Error("This task's status was NOT changed. Please reload the page and try again.");
+  }
 
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${taskId}`);

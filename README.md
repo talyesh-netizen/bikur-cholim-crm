@@ -8,10 +8,13 @@ and follow-up tasks — in one place, instead of spreadsheets and memory.
 This is **not** a public website. It is only for department staff, and it
 requires signing in.
 
-> **Phase One, in progress.** This application is being built in stages.
-> See `PLAN.md` for the full build plan and `DATABASE.md` for how
-> information is organized. See `PRIVACY_AND_SECURITY.md` before ever
-> entering real resident information.
+> **In production use (September 2026).** The app is live, connected to
+> the department's production Supabase database, and holds real
+> operational information about facilities, residents, families,
+> volunteers and visits. See `PRIVACY_AND_SECURITY.md` for how that
+> information is protected and what still depends on organizational
+> policy, and `LAUNCH_READINESS.md` for the launch checklist and the
+> manual settings that live outside this code.
 
 ## What this application does (Phase One)
 
@@ -36,11 +39,12 @@ requires signing in.
 
 ## What this is not (yet)
 
-On purpose, Phase One does **not** include text messaging, a portal for
+On purpose, this does **not** include text messaging, a portal for
 families to log in themselves, maps, automatic volunteer reminders,
-calendar syncing, automated reports, or a knowledge base. Those are
-reasonable future additions, but they are not part of this first
-foundation. See `PLAN.md` for the reasoning.
+calendar syncing, or a knowledge base. (It does have a CSV impact
+report for funders — aggregate numbers only — and an optional daily
+email to staff saying how many follow-ups are due.) See `PLAN.md` for
+the reasoning.
 
 ## Who can use it
 
@@ -52,17 +56,34 @@ for them. There are two roles to start:
 - **Admin** — everything Staff can do, plus the ability to manage which
   staff have accounts.
 
-There is no public or family-facing access in Phase One.
+Separately from role, an admin can limit any staff account to a chosen
+list of facilities ("restricted" access). A restricted account only sees
+those facilities and the residents, visits, tasks and contacts connected
+to them. This is enforced by the database itself, not just the screens.
 
-## Important: no real resident information yet
+There is no public or family-facing access.
 
-This application currently contains **only fictional, made-up demonstration
-data** — invented facility names, invented residents, invented contacts.
-Do not enter real residents' names or details until the steps described in
-`PRIVACY_AND_SECURITY.md` (a professional security and compliance review)
-have actually happened. This codebase gives you a strong *foundation* for
-handling sensitive information responsibly, but a foundation is not the
-same as a completed compliance review.
+## Real information is in this system
+
+The production database contains **real operational data** (at launch:
+about 126 facilities, 178 residents, 280 contacts and 1,351 logged
+interactions). Treat every screen, export and screenshot accordingly.
+
+- Sign-in (Supabase Auth) and database row-level security are in place
+  and have been tested, including facility-restricted accounts.
+- That is technical protection, not a compliance certification. The
+  department still needs its own written privacy and access policies,
+  and an independent security/compliance review may still be
+  appropriate. See `PRIVACY_AND_SECURITY.md`.
+- Anything that leaves the CRM (email reminders, CSV exports) should
+  carry as little personal information as possible — see the email
+  section of `PRIVACY_AND_SECURITY.md`.
+- Records are deactivated, completed or retired rather than deleted:
+  history matters for this program.
+
+Fictional demonstration data (`supabase/seed.sql`,
+`supabase/local-test/`) is only for local development. Never load it into
+the production project.
 
 ## The technology, briefly
 
@@ -97,10 +118,10 @@ See `PLAN.md` for why these were chosen and how the pieces fit together.
    to do this once (and again any time those dependencies change).
 4. Copy `.env.example` to a new file named `.env.local`, and fill in the
    Supabase connection details (see the comments inside that file for
-   where to find them — this step isn't needed yet if you're just looking
-   at the visual scaffold, since sign-in and the database aren't wired up
-   yet). `.env.local` is automatically excluded from Git, so your
-   credentials never get committed.
+   where to find them). **Use a development/test Supabase project for
+   local work, not the production one** — the production database holds
+   real resident information. `.env.local` is automatically excluded
+   from Git, so your credentials never get committed.
 5. Start the app:
    ```
    npm run dev
@@ -112,28 +133,33 @@ Other useful commands:
   for deployment, or to double check nothing is broken).
 - `npm run lint` — checks the code for common mistakes.
 
-### Current status
+### Where it runs (production)
 
-- **Stage 1 (done):** the visual scaffold — color palette, fonts, and a
-  handful of reusable interface pieces (buttons, cards, inputs).
-- **Stage 2 (done):** the real database structure exists as migration
-  files in `supabase/migrations/`, with security rules tested and
-  fictional demo data ready to load. See `DATABASE.md`.
-- **Not yet connected:** the running app doesn't talk to a database yet
-  — there is no real Supabase project behind it, so sign-in and every
-  data screen are still ahead. That's next, per `PLAN.md`.
+- **Database & sign-in:** Supabase project "Bikur Cholim CRM".
+- **Web app:** Vercel team `bikur-cholim-cleveland`, project
+  `bikur-cholim-crm`, served at `bikur-cholim-crm-eight.vercel.app`.
+  See `LAUNCH_READINESS.md` for the two duplicate Vercel projects that
+  should be retired.
+- **Production branch:** Vercel deploys the lowercase **`main`** branch.
+  (The repository also has a capital-M `Main` branch, which GitHub
+  currently treats as its default; changes merged only there do **not**
+  reach production. Open pull requests against `main`.)
+- **Daily task reminders:** a Vercel Cron job (see `vercel.json`) calls
+  `/api/cron/task-reminders` once a day. It only runs when `CRON_SECRET`,
+  `RESEND_API_KEY` and `TASK_REMINDER_FROM_EMAIL` are set on the
+  production project (see `.env.example`).
 
-### Setting up the database (once a Supabase project exists)
+### Changing the database
 
-1. Create a free Supabase project at [supabase.com](https://supabase.com).
-2. Fill in `.env.local` with that project's URL, anon key, and service
-   role key (see `.env.example` for where to find each one).
-3. Apply the migrations in `supabase/migrations/` to that project, in
-   filename order (e.g., via the Supabase CLI's `supabase db push`, or
-   by pasting each file into the Supabase SQL Editor in order).
-4. Run `npm run seed:users` to create three fictional demo staff
-   accounts, then run the contents of `supabase/seed.sql` against the
-   project to load the rest of the fictional demo data.
+Database changes are written as migration files in
+`supabase/migrations/` and applied to the production project (in
+filename order) once reviewed. Never "reset" the production database or
+run seed files against it.
 
-To instead verify the database design itself on this machine, without a
-real Supabase project, see `supabase/local-test/README.md`.
+`supabase/checks/restricted_facility_access_check.sql` is a
+self-rolling-back test of the facility access rules that is safe to run
+against production after any security-related change.
+
+The older `supabase/local-test/` harness predates several changes made
+directly to the live project and is out of date; treat it as a starting
+point for local experiments only.

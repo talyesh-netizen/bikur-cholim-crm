@@ -7,17 +7,7 @@ import { listResidents } from "@/lib/queries/residents";
 import { listContactOptions, listContactsByIds } from "@/lib/queries/contacts";
 import { updateInteraction } from "@/lib/actions/interactions";
 import { InteractionForm } from "../../interaction-form";
-
-/** "2026-07-28T14:30" from an ISO timestamp, for the datetime-local
- * input — see the same helper in interaction-form.tsx for why this
- * can't just be toISOString().slice(0, 16) (that would shift to UTC). */
-function toDatetimeLocalValue(iso: string): string {
-  const date = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
-    date.getHours()
-  )}:${pad(date.getMinutes())}`;
-}
+import { toOrgDatetimeLocalValue } from "@/lib/format-date";
 
 export default async function EditInteractionPage({
   params,
@@ -97,7 +87,7 @@ export default async function EditInteractionPage({
               facility_id: interaction.facility_id ?? "",
               resident_id: interaction.resident_id ?? "",
               contact_id: interaction.contact_id ?? "",
-              occurred_at: toDatetimeLocalValue(interaction.occurred_at),
+              occurred_at: toOrgDatetimeLocalValue(interaction.occurred_at),
               interaction_type: interaction.interaction_type,
               notes: interaction.notes ?? "",
               occasion: interaction.occasion ?? "",

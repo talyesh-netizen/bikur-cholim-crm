@@ -105,10 +105,13 @@ export async function updateContact(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.from("contacts").update(parsed.data).eq("id", contactId);
+  const { data: updated, error } = await supabase.from("contacts").update(parsed.data).eq("id", contactId).select("id");
 
   if (error) {
     return { error: "Something went wrong saving this contact. Please try again.", values: raw };
+  }
+  if (!updated || updated.length === 0) {
+    return { error: "Changes NOT saved: this record no longer exists or you don't have access to it.", values: raw };
   }
 
   revalidatePath("/contacts");
@@ -118,7 +121,10 @@ export async function updateContact(
 
 export async function setContactActive(contactId: string, active: boolean) {
   const supabase = await createClient();
-  await supabase.from("contacts").update({ active }).eq("id", contactId);
+  const { data: updated, error } = await supabase.from("contacts").update({ active }).eq("id", contactId).select("id");
+  if (error || !updated || updated.length === 0) {
+    throw new Error("Could not update this contact's active status.");
+  }
   revalidatePath("/contacts");
   revalidatePath(`/contacts/${contactId}`);
 }

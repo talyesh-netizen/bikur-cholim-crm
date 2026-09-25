@@ -4,6 +4,13 @@ import { NextResponse, type NextRequest } from "next/server";
 // Paths anyone can reach without being signed in.
 const PUBLIC_PATHS = ["/sign-in"];
 
+// Server-to-server endpoints that authenticate themselves instead of with
+// a sign-in cookie. /api/cron/* is called by Vercel Cron, which has no
+// session -- redirecting it to /sign-in (as for a person) meant the daily
+// reminder job could never run. Each route under here MUST check its own
+// secret and fail closed (see src/app/api/cron/task-reminders/route.ts).
+const SELF_AUTHENTICATING_PREFIXES = ["/api/cron/"];
+
 /**
  * Runs on every request (see middleware.ts at the project root).
  * Refreshes the signed-in session and, importantly, is the one place
@@ -46,6 +53,9 @@ export async function updateSession(request: NextRequest) {
   }
 
   const pathname = request.nextUrl.pathname;
+  if (SELF_AUTHENTICATING_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
+    return NextResponse.next({ request });
+  }
   // The root path is a special case: it's where Supabase sends people
   // after they click a "reset your password" or magic-link email, with
   // the actual proof-of-identity token attached as a URL fragment

@@ -114,10 +114,17 @@ export async function updateFacility(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("facilities")
     .update(parsed.data)
-    .eq("id", facilityId);
+    .eq("id", facilityId)
+    .select("id");
+
+  // Access rules turn a disallowed update into "0 rows changed", not an
+  // error -- never let that look like a successful save.
+  if (!error && (!updated || updated.length === 0)) {
+    return { error: "Changes NOT saved: this record no longer exists or you don't have access to it.", values: raw };
+  }
 
   if (error) {
     return {
@@ -133,8 +140,8 @@ export async function updateFacility(
 
 export async function setFacilityActive(facilityId: string, active: boolean) {
   const supabase = await createClient();
-  const { error } = await supabase.from("facilities").update({ active }).eq("id", facilityId);
-  if (error) {
+  const { data: updated, error } = await supabase.from("facilities").update({ active }).eq("id", facilityId).select("id");
+  if (error || !updated || updated.length === 0) {
     throw new Error("Could not update this facility's active status.");
   }
   revalidatePath("/facilities");
