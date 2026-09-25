@@ -13,7 +13,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
     name: APP_NAME,
-    short_name: "Resident Support",
+    short_name: APP_NAME,
     description: `${ORGANIZATION_NAME} — ${APP_NAME}`,
     start_url: "/dashboard",
     scope: "/",
