@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, Check, ClipboardCheck, MapPin, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,24 @@ export function DashboardOnsiteLauncher({
   const [query, setQuery] = useState("");
   const [facilityId, setFacilityId] = useState("");
   const [showResults, setShowResults] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handlePointerDown(event: MouseEvent | TouchEvent) {
+      const target = event.target as Node | null;
+      if (target && !pickerRef.current?.contains(target)) {
+        setShowResults(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+    };
+  }, []);
 
   const selectedFacility = facilities.find((facility) => facility.id === facilityId) ?? null;
 
@@ -88,7 +106,7 @@ export function DashboardOnsiteLauncher({
       </CardHeader>
 
       <CardContent className="flex flex-col gap-3">
-        <div className="relative">
+        <div ref={pickerRef} className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <input
             value={query}
