@@ -58,7 +58,13 @@ function Tile({
  * dashboard -- the same numbers the impact export's "Services
  * delivered" section carries. Detail lines only appear once there's
  * something to say, so an empty month doesn't read as a wall of zeros. */
-export function ServicesDeliveredTiles({ services }: { services: ServicesDelivered }) {
+export function ServicesDeliveredTiles({
+  services,
+  periodLabel,
+}: {
+  services: ServicesDelivered;
+  periodLabel: string;
+}) {
   const { food, volunteers, schoolShul, careNavigation, unmetNeed } = services;
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -77,7 +83,7 @@ export function ServicesDeliveredTiles({ services }: { services: ServicesDeliver
       />
       <Tile
         icon={HeartHandshake}
-        title="Volunteer impact"
+        title={`Volunteer impact · ${periodLabel}`}
         value={volunteers.visits}
         unit={volunteers.visits === 1 ? "visit" : "visits"}
         details={[
