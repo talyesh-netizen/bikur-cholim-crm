@@ -1,5 +1,6 @@
 "use client";
 
+import { FormActions, FormError } from "@/components/form-actions";
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -34,11 +35,7 @@ export function TransferForm({
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
-      {state.error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {state.error}
-        </p>
-      ) : null}
+      <FormError message={state.error} />
 
       {previousFacility ? (
         <Button
@@ -92,11 +89,12 @@ export function TransferForm({
         appear in their timeline.
       </p>
 
-      <div className="flex justify-end">
-        <Button type="submit" disabled={isPending || !facilityId}>
-          {isPending ? "Moving…" : "Confirm move"}
-        </Button>
-      </div>
+      <FormActions
+        isPending={isPending} disabled={!facilityId}
+        submitLabel={"Confirm move"}
+        savingLabel={"Moving…"}
+        hasUnsavedError={!!state.error}
+      />
     </form>
   );
 }

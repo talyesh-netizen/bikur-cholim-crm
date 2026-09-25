@@ -1,5 +1,6 @@
 "use server";
 
+import { withSaved } from "@/lib/saved-flash";
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -156,7 +157,7 @@ export async function addFamilyContact(
 
   revalidatePath(`/residents/${residentId}`);
   revalidatePath("/contacts");
-  redirect(`/residents/${residentId}`);
+  redirect(withSaved(`/residents/${residentId}`, "family-contact-added"));
 }
 
 export type RelationshipFormState = {
@@ -193,7 +194,7 @@ export async function updateFamilyContactRelationship(
   }
 
   revalidatePath(`/residents/${residentId}`);
-  redirect(`/residents/${residentId}`);
+  redirect(withSaved(`/residents/${residentId}`, "family-contact-saved"));
 }
 
 export async function setResidentContactActive(residentId: string, residentContactId: string, active: boolean) {

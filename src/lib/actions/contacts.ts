@@ -1,5 +1,6 @@
 "use server";
 
+import { withSaved } from "@/lib/saved-flash";
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -90,7 +91,7 @@ export async function createContact(
   }
 
   revalidatePath("/contacts");
-  redirect(`/contacts/${data.id}`);
+  redirect(withSaved(`/contacts/${data.id}`, "contact-added"));
 }
 
 export async function updateContact(
@@ -112,7 +113,7 @@ export async function updateContact(
 
   revalidatePath("/contacts");
   revalidatePath(`/contacts/${contactId}`);
-  redirect(`/contacts/${contactId}`);
+  redirect(withSaved(`/contacts/${contactId}`, "contact-saved"));
 }
 
 export async function setContactActive(contactId: string, active: boolean) {

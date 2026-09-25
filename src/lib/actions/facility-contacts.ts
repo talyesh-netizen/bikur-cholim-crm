@@ -1,5 +1,6 @@
 "use server";
 
+import { withSaved } from "@/lib/saved-flash";
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -107,7 +108,7 @@ export async function addFacilityContact(
 
   revalidatePath(`/facilities/${facilityId}`);
   revalidatePath("/contacts");
-  redirect(`/facilities/${facilityId}`);
+  redirect(withSaved(`/facilities/${facilityId}`, "facility-contact-added"));
 }
 
 /** Links an existing contact to this facility -- for the common case of
@@ -155,7 +156,7 @@ export async function addExistingFacilityContact(
   }
 
   revalidatePath(`/facilities/${facilityId}`);
-  redirect(`/facilities/${facilityId}`);
+  redirect(withSaved(`/facilities/${facilityId}`, "facility-contact-linked"));
 }
 
 export async function setFacilityContactActive(facilityId: string, facilityContactId: string, active: boolean) {

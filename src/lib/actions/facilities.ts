@@ -1,5 +1,6 @@
 "use server";
 
+import { withSaved } from "@/lib/saved-flash";
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -95,7 +96,7 @@ export async function createFacility(
   }
 
   revalidatePath("/facilities");
-  redirect(`/facilities/${data.id}`);
+  redirect(withSaved(`/facilities/${data.id}`, "facility-added"));
 }
 
 export async function updateFacility(
@@ -127,7 +128,7 @@ export async function updateFacility(
 
   revalidatePath("/facilities");
   revalidatePath(`/facilities/${facilityId}`);
-  redirect(`/facilities/${facilityId}`);
+  redirect(withSaved(`/facilities/${facilityId}`, "facility-saved"));
 }
 
 export async function setFacilityActive(facilityId: string, active: boolean) {

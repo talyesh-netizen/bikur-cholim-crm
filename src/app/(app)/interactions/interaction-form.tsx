@@ -1,7 +1,7 @@
 "use client";
 
+import { FormActions, FormError } from "@/components/form-actions";
 import { useActionState, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -43,6 +43,7 @@ export function InteractionForm({
   action,
   facilities,
   defaultFacilityId,
+  defaultInteractionType,
   fixedResident,
   residents,
   contacts,
@@ -55,6 +56,9 @@ export function InteractionForm({
   action: Action;
   facilities: { id: string; name: string }[];
   defaultFacilityId?: string;
+  /** Pre-selects the type for a new entry -- e.g. "Log a visit" opens
+   * with "Resident visit" already chosen. */
+  defaultInteractionType?: string;
   /** Set when logging from a resident's page — the resident is fixed
    * and shown as plain text rather than a picker. */
   fixedResident?: { id: string; name: string };
@@ -94,7 +98,7 @@ export function InteractionForm({
       resident_id: fixedResident?.id ?? "",
       contact_id: "",
       occurred_at: defaultOccurredAt,
-      interaction_type: "",
+      interaction_type: defaultInteractionType ?? "",
       notes: "",
     };
   const formKey = JSON.stringify(values);
@@ -136,16 +140,12 @@ export function InteractionForm({
 
   return (
     <form key={formKey} action={formAction} onSubmit={handleSubmit} className="flex flex-col gap-4">
-      {state.error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {state.error}
-        </p>
-      ) : null}
+      <FormError message={state.error} />
 
       {fixedResident ? (
         <div className="flex flex-col gap-1.5">
           <Label>Resident</Label>
-          <p className="text-sm">{fixedResident.name}</p>
+          <p className="rounded-md bg-muted px-3 py-2.5 text-base font-medium md:text-sm">{fixedResident.name}</p>
           <input type="hidden" name="resident_id" value={fixedResident.id} />
         </div>
       ) : residents && residents.length > 0 ? (
@@ -348,11 +348,12 @@ export function InteractionForm({
         </label>
       </div>
 
-      <div className="flex justify-end">
-        <Button type="submit" disabled={isPending}>
-          {isPending ? savingLabel : submitLabel}
-        </Button>
-      </div>
+      <FormActions
+        isPending={isPending}
+        submitLabel={submitLabel}
+        savingLabel={savingLabel}
+        hasUnsavedError={!!state.error}
+      />
     </form>
   );
 }
@@ -432,7 +433,7 @@ function Field({
         {required ? <span className="text-destructive"> *</span> : null}
       </Label>
       {children}
-      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      {error ? <p className="text-sm font-medium text-destructive">{error}</p> : null}
     </div>
   );
 }

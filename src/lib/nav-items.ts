@@ -21,10 +21,10 @@ export const NAV_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/facilities", label: "Facilities", icon: Building2 },
   { href: "/residents", label: "Residents", icon: Users },
+  { href: "/interactions", label: "Interactions", icon: History },
+  { href: "/tasks", label: "Follow-up tasks", icon: ListChecks },
   { href: "/contacts", label: "Contacts", icon: Contact },
   { href: "/organizations", label: "Shuls & Partners", icon: Landmark },
-  { href: "/interactions", label: "Interactions", icon: History },
-  { href: "/tasks", label: "Tasks", icon: ListChecks },
   { href: "/data-quality", label: "Data Quality", icon: ClipboardCheck },
 ];
 
@@ -32,9 +32,11 @@ export const ADMIN_NAV_ITEM = { href: "/settings/staff", label: "Staff", icon: S
 
 // The sidebar has room for every item, but a phone's bottom bar gets
 // cramped past ~5 icons (see the "cluttered on the bottom" feedback) --
-// these are the ones worth a full-time slot there; everything else
-// (Contacts, and Staff for admins) lives under "More" instead.
-export const MOBILE_PRIMARY_HREFS = ["/dashboard", "/facilities", "/residents", "/interactions", "/tasks"];
+// these four are the onsite workflow (find a facility or resident,
+// review history); everything else (Tasks, Contacts, Staff for admins)
+// lives under "More", and open tasks are front and center on the
+// Dashboard anyway. Creating things lives in the header's "New" button.
+export const MOBILE_PRIMARY_HREFS = ["/dashboard", "/facilities", "/residents", "/interactions"];
 export const MOBILE_MORE_ITEM = { href: "/more", label: "More", icon: MoreHorizontal };
 
 export function isActive(pathname: string, href: string) {

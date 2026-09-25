@@ -1,7 +1,7 @@
 "use client";
 
+import { FormActions, FormError } from "@/components/form-actions";
 import { useActionState, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -101,11 +101,7 @@ export function ContactForm({
 
   return (
     <form key={formKey} action={formAction} className="flex flex-col gap-4">
-      {state.error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {state.error}
-        </p>
-      ) : null}
+      <FormError message={state.error} />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Name" htmlFor="name" error={fieldErrors.name} required>
@@ -226,11 +222,12 @@ export function ContactForm({
         <Textarea id="notes" name="notes" rows={3} defaultValue={values.notes} />
       </Field>
 
-      <div className="flex justify-end">
-        <Button type="submit" disabled={isPending}>
-          {isPending ? "Saving…" : contact ? "Save changes" : "Add contact"}
-        </Button>
-      </div>
+      <FormActions
+        isPending={isPending}
+        submitLabel={contact ? "Save changes" : "Add contact"}
+        savingLabel={"Saving…"}
+        hasUnsavedError={!!state.error}
+      />
     </form>
   );
 }
@@ -255,7 +252,7 @@ function Field({
         {required ? <span className="text-destructive"> *</span> : null}
       </Label>
       {children}
-      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      {error ? <p className="text-sm font-medium text-destructive">{error}</p> : null}
     </div>
   );
 }

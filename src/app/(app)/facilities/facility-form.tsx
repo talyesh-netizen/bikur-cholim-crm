@@ -1,7 +1,7 @@
 "use client";
 
+import { FormActions, FormError } from "@/components/form-actions";
 import { useActionState, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -76,14 +76,10 @@ export function FacilityForm({
 
   return (
     <form key={formKey} action={formAction} className="flex flex-col gap-6">
-      {state.error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {state.error}
-        </p>
-      ) : null}
+      <FormError message={state.error} />
 
-      <section className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold text-muted-foreground">Basic information</h2>
+      <section className="flex flex-col gap-5">
+        <h2 className="border-b border-border pb-2 text-base font-semibold">Basic information</h2>
 
         <Field label="Facility name" htmlFor="name" error={fieldErrors.name} required>
           <Input id="name" name="name" defaultValue={values.name} onBlur={capitalizeOnBlur} required />
@@ -128,8 +124,8 @@ export function FacilityForm({
         </Field>
       </section>
 
-      <section className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold text-muted-foreground">Jewish resident engagement</h2>
+      <section className="flex flex-col gap-5">
+        <h2 className="border-b border-border pb-2 text-base font-semibold">Jewish resident engagement</h2>
 
         <div className="flex items-center gap-2">
           <Checkbox
@@ -190,16 +186,17 @@ export function FacilityForm({
         </div>
       </section>
 
-      <section className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold text-muted-foreground">Notes</h2>
+      <section className="flex flex-col gap-5">
+        <h2 className="border-b border-border pb-2 text-base font-semibold">Notes</h2>
         <Textarea id="notes" name="notes" rows={4} defaultValue={values.notes} />
       </section>
 
-      <div className="flex justify-end gap-2">
-        <Button type="submit" disabled={isPending}>
-          {isPending ? "Saving…" : facility ? "Save changes" : "Add facility"}
-        </Button>
-      </div>
+      <FormActions
+        isPending={isPending}
+        submitLabel={facility ? "Save changes" : "Add facility"}
+        savingLabel={"Saving…"}
+        hasUnsavedError={!!state.error}
+      />
     </form>
   );
 }
@@ -224,7 +221,7 @@ function Field({
         {required ? <span className="text-destructive"> *</span> : null}
       </Label>
       {children}
-      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      {error ? <p className="text-sm font-medium text-destructive">{error}</p> : null}
     </div>
   );
 }

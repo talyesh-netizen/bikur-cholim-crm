@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { OPEN_TASK_STATUSES, TASK_CATEGORIES, labelFor } from "@/lib/domain/task";
 import { getLocalToday, formatDateOnly } from "@/lib/format-date";
 import { APP_NAME, ORGANIZATION_NAME } from "@/lib/config";
+import { getSiteUrl } from "@/lib/site-url";
 
 export const dynamic = "force-dynamic";
 
@@ -17,17 +18,12 @@ type ReminderTask = {
   facility_name: string | null;
 };
 
-function siteUrl(): string {
-  const host = process.env.VERCEL_PROJECT_PRODUCTION_URL ?? process.env.VERCEL_URL;
-  return host ? `https://${host}` : "http://localhost:3000";
-}
-
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 }
 
 function renderEmail(staffName: string, overdue: ReminderTask[], dueToday: ReminderTask[]): { subject: string; html: string } {
-  const base = siteUrl();
+  const base = getSiteUrl();
   const row = (t: ReminderTask, isOverdue: boolean) => `
     <tr>
       <td style="padding:8px 0;border-bottom:1px solid #eee;">
