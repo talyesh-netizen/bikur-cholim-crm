@@ -95,6 +95,12 @@ The rule is: **send the minimum, link back to the CRM for details.**
   that way.
 - **CSV impact report** (for funders/board). Aggregate counts only — no
   resident names, notes or other identifying details.
+- **Full backup download** (admins only, More → Backup). This one is
+  deliberately complete — every record, including resident details — so
+  it must be stored only on the organization's private, access-controlled
+  drive, never emailed, and old copies deleted. It is read through the
+  admin's own sign-in (database access rules still apply) and is not
+  cached by the browser.
 - **Password-reset and sign-in emails** come from Supabase Auth and
   contain no resident information.
 

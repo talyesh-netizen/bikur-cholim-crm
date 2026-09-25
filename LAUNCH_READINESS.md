@@ -86,8 +86,9 @@ accounts) or point Preview at a separate test Supabase project.
       - **Leaked Password Protection is not available** (Pro plan
         feature).
       Upgrading to **Pro** removes all three. If staying on Free for now,
-      someone must take and store regular backups (e.g. `supabase db
-      dump`) and watch for the pause-warning email.
+      an admin should download a backup weekly from **More → Backup**
+      in the CRM (one .zip of every table) and store it on the
+      organization's private drive, and watch for the pause-warning email.
 - [ ] **Supabase → Authentication → Attack Protection (or Providers →
       Email) → turn on "Prevent use of leaked passwords"** (requires Pro).
       While there: set minimum password length to at least 10–12
