@@ -148,7 +148,7 @@ export default async function DashboardPage({
 }) {
   const params = await searchParams;
   const impactPeriod: ImpactPeriod =
-    params.impact === "quarter" || params.impact === "all" ? params.impact : "month";
+    params.impact === "month" || params.impact === "all" ? params.impact : "quarter";
 
   const supabase = await createClient();
   const [{ data: { user } }, summary, impact, staffActivity, volunteerImpact, trend, services] = await Promise.all([
@@ -202,7 +202,7 @@ export default async function DashboardPage({
               {IMPACT_PERIODS.map((p) => (
                 <Link
                   key={p.value}
-                  href={p.value === "month" ? "/dashboard" : `/dashboard?impact=${p.value}`}
+                  href={p.value === "quarter" ? "/dashboard" : `/dashboard?impact=${p.value}`}
                   className={cn(
                     "rounded px-2.5 py-1 text-xs font-medium transition-colors",
                     impactPeriod === p.value
@@ -235,7 +235,10 @@ export default async function DashboardPage({
                 {services.funderStories > 0 ? ` ${services.funderStories} entries flagged as funder stories.` : ""}
               </p>
             </div>
-            <ServicesDeliveredTiles services={services} />
+            <ServicesDeliveredTiles
+              services={services}
+              periodLabel={IMPACT_PERIODS.find((p) => p.value === impactPeriod)?.label ?? "This quarter"}
+            />
           </div>
         </CardContent>
       </Card>
@@ -268,7 +271,9 @@ export default async function DashboardPage({
         <Card>
           <CardHeader className="flex-row items-center gap-2 space-y-0">
             <HeartHandshake className="size-4 text-muted-foreground" />
-            <CardTitle className="text-base">Volunteer impact</CardTitle>
+            <CardTitle className="text-base">
+              Volunteer impact · {IMPACT_PERIODS.find((p) => p.value === impactPeriod)?.label}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <ImpactLeaderboard
