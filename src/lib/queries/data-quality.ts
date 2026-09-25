@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { INTERACTION_TYPES, type Interaction } from "@/lib/domain/interaction";
 
 export type DataQualityRow = { id: string; label: string; href: string; missing: string };
 
@@ -148,6 +149,76 @@ export async function getVolunteerVisitGaps(): Promise<VolunteerVisitGap[]> {
       facility_name: facility?.name ?? null,
       resident_name: resident ? `${resident.preferred_name ?? resident.first_name} ${resident.last_name}` : null,
       href: `/interactions/${row.id}/edit`,
+    };
+  });
+}
+
+/** How many older entries per activity type still haven't been looked at
+ * on the "Review past entries" screen (service_reviewed_at is null) --
+ * the migration that added the new service types left every existing
+ * row unreviewed, and anything logged or edited since is stamped. */
+export async function getUnreviewedCountsByType(): Promise<{ type: string; count: number }[]> {
+  const supabase = await createClient();
+  const results = await Promise.all(
+    INTERACTION_TYPES.map(async (t) => {
+      const { count, error } = await supabase
+        .from("interactions")
+        .select("id", { count: "exact", head: true })
+        .eq("interaction_type", t.value)
+        .is("service_reviewed_at", null);
+      if (error) throw new Error(error.message);
+      return { type: t.value as string, count: count ?? 0 };
+    })
+  );
+  return results.filter((r) => r.count > 0);
+}
+
+export type UnreviewedEntry = Pick<
+  Interaction,
+  "id" | "occurred_at" | "interaction_type" | "notes" | "occasion" | "program_partner" | "quantity" | "people_reached" | "participants"
+> & {
+  facility_name: string | null;
+  resident_name: string | null;
+  staff_member_name: string | null;
+};
+
+export const REVIEW_PAGE_SIZE = 50;
+
+/** One screenful of not-yet-reviewed entries, most recent first. */
+export async function listUnreviewedEntries(interactionType?: string): Promise<UnreviewedEntry[]> {
+  const supabase = await createClient();
+  let query = supabase
+    .from("interactions")
+    .select(
+      "id, occurred_at, interaction_type, notes, occasion, program_partner, quantity, people_reached, participants, facilities(name), residents(first_name, last_name, preferred_name), profiles(full_name)"
+    )
+    .is("service_reviewed_at", null)
+    .order("occurred_at", { ascending: false })
+    .limit(REVIEW_PAGE_SIZE);
+  if (interactionType) query = query.eq("interaction_type", interactionType);
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+
+  return (data ?? []).map((row) => {
+    const facility = row.facilities as unknown as { name: string } | null;
+    const resident = row.residents as unknown as
+      | { first_name: string; last_name: string; preferred_name: string | null }
+      | null;
+    const staff = row.profiles as unknown as { full_name: string } | null;
+    return {
+      id: row.id,
+      occurred_at: row.occurred_at,
+      interaction_type: row.interaction_type,
+      notes: row.notes,
+      occasion: row.occasion,
+      program_partner: row.program_partner,
+      quantity: row.quantity,
+      people_reached: row.people_reached,
+      participants: row.participants,
+      facility_name: facility?.name ?? null,
+      resident_name: resident ? `${resident.preferred_name ?? resident.first_name} ${resident.last_name}` : null,
+      staff_member_name: staff?.full_name ?? null,
     };
   });
 }

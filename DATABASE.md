@@ -240,8 +240,8 @@ One row per visit, call, program, or other logged activity.
 | Field | Purpose |
 |---|---|
 | Date and time | |
-| Interaction type | Resident visit / Resident phone call / Family communication / Facility staff communication / Facility discovery visit / Volunteer visit / Program / Kosher food coordination / Hospital related communication / Referral / Email / Other |
-| Facility | Link to `facilities` |
+| Interaction type | Resident visit / Volunteer visit / Resident phone call / Family communication / Care navigation / Food delivery / Kosher food coordination / Program at a facility / School & shul program / Medical referral (to Bikur Cholim) / Ride arranged (through Bikur Cholim) / Referral (other) / Facility staff communication / Facility discovery visit / Hospital related communication / Email / Other |
+| Facility | Link to `facilities` (optional only for Care navigation, where the family hasn't chosen a facility yet) |
 | Resident | Optional link to `residents` (some interactions, like a facility discovery visit, aren't about one resident) |
 | Contact | Optional link to `contacts` |
 | Staff member | Who completed it (link to `profiles`) |
@@ -250,6 +250,20 @@ One row per visit, call, program, or other logged activity.
 | Outcome | Short free-text summary of what happened |
 | Follow-up needed | Yes/No |
 | Follow-up date | If follow-up is needed |
+| Occasion | Food deliveries & programs: Regular / Shabbos / Yom Tov / Other |
+| School or shul | School & shul programs only |
+| Quantity | Food deliveries: how many items (what they were goes in Notes) |
+| Residents reached | Food deliveries & programs: a rough count |
+| Participants | School & shul programs: students / shul members who took part |
+| Time spent | Any activity (minutes) — becomes staff and volunteer hours |
+| Couldn't fully meet this request | Yes/No, plus a reason — the "unmet need" funders ask about |
+| Good story for funders | Yes/No — flags notes worth sharing (without names) |
+| Reviewed | When an entry's type was last confirmed; entries from before these fields existed start unreviewed and are worked through on Data Quality → Review past entries |
+
+**Rule of thumb for new fields:** if we'd put it in a grant report or want
+to count it, it gets a field; if we'd only want to remember it, it goes in
+the notes. That's why "challah" is not a menu option — a challah drop-off
+is a Food delivery · Shabbos · Quantity 12, with "challah" in the notes.
 
 This one table is what powers both the facility page's "past interactions"
 list and the resident page's "past interactions" list — it's the same

@@ -12,7 +12,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { INTERACTION_TYPES } from "@/lib/domain/interaction";
+import {
+  INTERACTION_TYPES,
+  FACILITY_OPTIONAL_TYPES,
+  OCCASIONS,
+  PROGRAM_PARTNERS,
+  UNMET_NEED_REASONS,
+  TIME_SPENT_OPTIONS,
+  SERVICE_FIELDS_BY_TYPE,
+  type InteractionType,
+} from "@/lib/domain/interaction";
 import type { InteractionFormState } from "@/lib/actions/interactions";
 
 type Action = (
@@ -69,7 +78,7 @@ export function InteractionForm({
     occurred_at: string;
     interaction_type: string;
     notes: string;
-  };
+  } & Partial<ServiceFormValues>;
   initialVolunteerIds?: string[];
   submitLabel?: string;
   savingLabel?: string;
@@ -92,6 +101,10 @@ export function InteractionForm({
 
   const [interactionType, setInteractionType] = useState(values.interaction_type);
   const isVolunteerVisit = interactionType === "volunteer_visit";
+  const facilityRequired = !FACILITY_OPTIONAL_TYPES.includes(interactionType);
+  const serviceFields = SERVICE_FIELDS_BY_TYPE[interactionType as InteractionType] ?? [];
+  const service: ServiceFormValues = { ...EMPTY_SERVICE_VALUES, ...values };
+  const [unmetNeed, setUnmetNeed] = useState(service.unmet_need === "on");
   // On a failed submit (e.g. a missing Facility), state.checkedVolunteerIds
   // carries back what was actually checked, so re-picking volunteers isn't
   // lost along with the rest of the form -- only fall back to the
@@ -147,12 +160,13 @@ export function InteractionForm({
         </Field>
       ) : null}
 
-      <Field label="Facility" htmlFor="facility_id" error={fieldErrors.facility_id} required>
+      <Field label="Facility" htmlFor="facility_id" error={fieldErrors.facility_id} required={facilityRequired}>
         <SelectField
           name="facility_id"
           defaultValue={values.facility_id}
           options={facilities.map((f) => ({ value: f.id, label: f.name }))}
-          placeholder="Choose a facility…"
+          placeholder={facilityRequired ? "Choose a facility…" : "No facility yet"}
+          allowEmpty={!facilityRequired}
         />
       </Field>
 
@@ -180,6 +194,52 @@ export function InteractionForm({
           placeholder="Choose a type…"
         />
       </Field>
+
+      {serviceFields.length > 0 ? (
+        <div className="grid grid-cols-1 gap-4 rounded-md border border-border bg-muted/40 p-3 sm:grid-cols-2">
+          {serviceFields.includes("program_partner") ? (
+            <Field label="School or shul?" htmlFor="program_partner" error={fieldErrors.program_partner}>
+              <SelectField
+                name="program_partner"
+                defaultValue={service.program_partner}
+                options={PROGRAM_PARTNERS}
+                placeholder="Choose…"
+              />
+            </Field>
+          ) : null}
+          {serviceFields.includes("occasion") ? (
+            <Field label="Occasion" htmlFor="occasion" error={fieldErrors.occasion}>
+              <SelectField name="occasion" defaultValue={service.occasion} options={OCCASIONS} placeholder="Choose…" />
+            </Field>
+          ) : null}
+          {serviceFields.includes("quantity") ? (
+            <NumberField
+              name="quantity"
+              label="How many items?"
+              hint="e.g. 12 challahs, 30 meals — what they were goes in the notes"
+              defaultValue={service.quantity}
+              error={fieldErrors.quantity}
+            />
+          ) : null}
+          {serviceFields.includes("participants") ? (
+            <NumberField
+              name="participants"
+              label="Students / shul members who took part"
+              defaultValue={service.participants}
+              error={fieldErrors.participants}
+            />
+          ) : null}
+          {serviceFields.includes("people_reached") ? (
+            <NumberField
+              name="people_reached"
+              label="Residents reached (about)"
+              hint="A rough count is fine"
+              defaultValue={service.people_reached}
+              error={fieldErrors.people_reached}
+            />
+          ) : null}
+        </div>
+      ) : null}
 
       {contacts && contacts.length > 0 ? (
         <Field label="Contact" htmlFor="contact_id" error={fieldErrors.contact_id}>
@@ -236,12 +296,119 @@ export function InteractionForm({
         <Textarea id="notes" name="notes" rows={4} defaultValue={values.notes} />
       </Field>
 
+      <Field label="Time spent" htmlFor="minutes_spent" error={fieldErrors.minutes_spent}>
+        <SelectField
+          name="minutes_spent"
+          defaultValue={service.minutes_spent}
+          options={withCurrentOption(TIME_SPENT_OPTIONS, service.minutes_spent)}
+          placeholder="Not recorded"
+          allowEmpty
+        />
+      </Field>
+
+      <div className="flex flex-col gap-3 rounded-md border border-border p-3">
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="unmet_need"
+            checked={unmetNeed}
+            onChange={(e) => setUnmetNeed(e.target.checked)}
+            className="mt-0.5 accent-primary"
+          />
+          <span>
+            <span className="font-medium">We couldn&apos;t fully meet this request</span>
+            <span className="block text-xs text-muted-foreground">
+              Counted in the funder report as need we had to turn away.
+            </span>
+          </span>
+        </label>
+        {unmetNeed ? (
+          <Field label="Why not?" htmlFor="unmet_need_reason" error={fieldErrors.unmet_need_reason}>
+            <SelectField
+              name="unmet_need_reason"
+              defaultValue={service.unmet_need_reason}
+              options={UNMET_NEED_REASONS}
+              placeholder="Choose a reason…"
+            />
+          </Field>
+        ) : null}
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="funder_story"
+            defaultChecked={service.funder_story === "on"}
+            className="mt-0.5 accent-primary"
+          />
+          <span>
+            <span className="font-medium">Good story for funders</span>
+            <span className="block text-xs text-muted-foreground">
+              Flags these notes to share (without names) at report time.
+            </span>
+          </span>
+        </label>
+      </div>
+
       <div className="flex justify-end">
         <Button type="submit" disabled={isPending}>
           {isPending ? savingLabel : submitLabel}
         </Button>
       </div>
     </form>
+  );
+}
+
+/** The service-field values as the form handles them: strings, with
+ * checkboxes as "on" or "" -- the same shape a submitted FormData echoes
+ * back on a failed save. */
+export type ServiceFormValues = {
+  occasion: string;
+  program_partner: string;
+  quantity: string;
+  people_reached: string;
+  participants: string;
+  minutes_spent: string;
+  unmet_need: string;
+  unmet_need_reason: string;
+  funder_story: string;
+};
+
+const EMPTY_SERVICE_VALUES: ServiceFormValues = {
+  occasion: "",
+  program_partner: "",
+  quantity: "",
+  people_reached: "",
+  participants: "",
+  minutes_spent: "",
+  unmet_need: "",
+  unmet_need_reason: "",
+  funder_story: "",
+};
+
+/** Keeps a saved value selectable even if it isn't one of the standard
+ * dropdown choices, so re-saving an entry never silently drops it. */
+function withCurrentOption(options: readonly { value: string; label: string }[], current: string) {
+  if (!current || options.some((o) => o.value === current)) return options;
+  return [...options, { value: current, label: `${current} minutes` }];
+}
+
+function NumberField({
+  name,
+  label,
+  hint,
+  defaultValue,
+  error,
+}: {
+  name: string;
+  label: string;
+  hint?: string;
+  defaultValue: string;
+  error?: string;
+}) {
+  return (
+    <Field label={label} htmlFor={name} error={error}>
+      <Input id={name} name={name} type="number" inputMode="numeric" min={0} step={1} defaultValue={defaultValue} />
+      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+    </Field>
   );
 }
 

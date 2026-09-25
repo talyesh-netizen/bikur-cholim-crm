@@ -8,16 +8,20 @@ export { labelFor } from "./options";
 
 export const INTERACTION_TYPES = [
   { value: "resident_visit", label: "Resident visit" },
+  { value: "volunteer_visit", label: "Volunteer visit" },
   { value: "resident_phone_call", label: "Phone call with resident" },
   { value: "family_communication", label: "Family communication" },
+  { value: "care_navigation", label: "Care navigation (helping a family find care)" },
+  { value: "food_delivery", label: "Food delivery" },
+  { value: "kosher_food_coordination", label: "Kosher food coordination" },
+  { value: "program", label: "Program at a facility" },
+  { value: "school_engagement", label: "School & shul program" },
+  { value: "medical_referral", label: "Medical referral (to Bikur Cholim)" },
+  { value: "ride_arranged", label: "Ride arranged (through Bikur Cholim)" },
+  { value: "referral", label: "Referral (other)" },
   { value: "facility_staff_communication", label: "Facility staff communication" },
   { value: "facility_discovery_visit", label: "Facility discovery visit" },
-  { value: "volunteer_visit", label: "Volunteer visit" },
-  { value: "program", label: "Program" },
-  { value: "school_engagement", label: "School engagement" },
-  { value: "kosher_food_coordination", label: "Kosher food coordination" },
   { value: "hospital_related_communication", label: "Hospital-related communication" },
-  { value: "referral", label: "Referral" },
   { value: "email", label: "Email" },
   { value: "other", label: "Other" },
 ] as const;
@@ -33,7 +37,7 @@ export type Interaction = {
   staff_member_id: string;
   notes: string | null;
   created_at: string;
-};
+} & ServiceDetails;
 
 /** An interaction row plus the resident/facility/contact/staff names needed
  * to display it in a list — see lib/queries/interactions.ts.
@@ -56,3 +60,74 @@ export type InteractionWithNames = Interaction & {
   staff_member_name: string | null;
   volunteers: { id: string; name: string }[];
 };
+
+/** Types where the facility can be left blank -- e.g. a family calling
+ * for help finding a facility for their father doesn't have one yet. */
+export const FACILITY_OPTIONAL_TYPES: readonly string[] = ["care_navigation"];
+
+export const OCCASIONS = [
+  { value: "regular", label: "Regular / weekday" },
+  { value: "shabbos", label: "Shabbos" },
+  { value: "yom_tov", label: "Yom Tov / holiday" },
+  { value: "other", label: "Other occasion" },
+] as const;
+
+export const PROGRAM_PARTNERS = [
+  { value: "school", label: "School" },
+  { value: "shul", label: "Shul" },
+] as const;
+
+export const UNMET_NEED_REASONS = [
+  { value: "no_volunteer", label: "No volunteer available" },
+  { value: "not_enough_supplies", label: "Not enough food or supplies" },
+  { value: "no_staff_time", label: "Not enough staff time" },
+  { value: "outside_our_area", label: "Outside our area / what we offer" },
+  { value: "other", label: "Other" },
+] as const;
+
+/** Time-spent choices, in minutes -- a dropdown rather than a free
+ * number so logging stays one tap on a phone. */
+export const TIME_SPENT_OPTIONS = [
+  { value: "15", label: "15 minutes" },
+  { value: "30", label: "30 minutes" },
+  { value: "45", label: "45 minutes" },
+  { value: "60", label: "1 hour" },
+  { value: "90", label: "1½ hours" },
+  { value: "120", label: "2 hours" },
+  { value: "180", label: "3 hours" },
+  { value: "240", label: "4 hours" },
+  { value: "360", label: "6 hours" },
+  { value: "480", label: "A full day" },
+] as const;
+
+/** Which optional service fields each activity type asks about. Time
+ * spent, "couldn't fully meet this request", and "good story for
+ * funders" apply to every type, so they aren't listed here. Anything a
+ * type doesn't ask about is cleared on save (see lib/actions/interactions.ts),
+ * so switching an entry's type can't leave stale numbers behind that
+ * would still be counted in the impact report. */
+export const SERVICE_FIELDS_BY_TYPE: Partial<
+  Record<InteractionType, readonly ("occasion" | "program_partner" | "quantity" | "people_reached" | "participants")[]>
+> = {
+  food_delivery: ["occasion", "quantity", "people_reached"],
+  program: ["occasion", "people_reached"],
+  school_engagement: ["program_partner", "occasion", "participants", "people_reached"],
+};
+
+export type ServiceDetails = {
+  occasion: string | null;
+  program_partner: string | null;
+  quantity: number | null;
+  people_reached: number | null;
+  participants: number | null;
+  minutes_spent: number | null;
+  unmet_need: boolean;
+  unmet_need_reason: string | null;
+  funder_story: boolean;
+};
+
+export function formatMinutes(minutes: number): string {
+  if (minutes < 60) return `${minutes} min`;
+  const hours = minutes / 60;
+  return `${Number.isInteger(hours) ? hours : hours.toFixed(1)} hr${hours === 1 ? "" : "s"}`;
+}
