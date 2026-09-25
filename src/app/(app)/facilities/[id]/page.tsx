@@ -25,7 +25,7 @@ import { telHref, websiteHref, mapsHref } from "@/lib/link-helpers";
 import { InteractionList } from "@/app/(app)/interactions/interaction-list";
 import { TaskList } from "@/app/(app)/tasks/task-list";
 import { InfoRow } from "@/components/info-row";
-import { Pencil, Plus, UserX, Undo2, Star, User, Mail, Phone } from "lucide-react";
+import { ClipboardCheck, Pencil, Plus, UserX, Undo2, Star, User, Mail, Phone } from "lucide-react";
 
 export default async function FacilityDetailPage({
   params,
@@ -66,6 +66,12 @@ export default async function FacilityDetailPage({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" asChild>
+            <Link href={`/facilities/${facility.id}/onsite`}>
+              <ClipboardCheck className="size-4" />
+              Onsite mode
+            </Link>
+          </Button>
           <Button asChild>
             <Link href={`/interactions/new?facility=${facility.id}`}>
               <Plus className="size-4" />
