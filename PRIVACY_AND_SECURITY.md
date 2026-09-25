@@ -107,6 +107,17 @@ The rule is: **send the minimum, link back to the CRM for details.**
   cached by the browser.
 - **Password-reset and sign-in emails** come from Supabase Auth and
   contain no resident information.
+- **Quick Log (AI assistant)** -- approved by the department director,
+  September 2026. When a staff member taps "Read my note", the note and
+  a directory of the records *they* can see (names, facility, room,
+  status, family/staff relationships -- no phone numbers, emails, notes
+  or visit history) are sent to Anthropic's Claude API so it can work
+  out what the note is about. Nothing is saved until the staff member
+  reviews the proposal and taps Save, and saving runs under their own
+  sign-in, so facility restrictions still apply. Under Anthropic's
+  commercial API terms, API inputs are not used to train models by
+  default; confirm the retention terms on the organization's Anthropic
+  account. Turned off entirely until `ANTHROPIC_API_KEY` is set.
 
 Before adding any other integration (text messages, calendar sync,
 AI tools, a new email type), decide explicitly what information it

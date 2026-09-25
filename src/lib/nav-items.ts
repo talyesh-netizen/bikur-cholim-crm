@@ -10,6 +10,7 @@ import {
   ClipboardCheck,
   MoreHorizontal,
   DatabaseBackup,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 
@@ -20,6 +21,7 @@ import {
 
 export const NAV_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/quick-log", label: "Quick Log", icon: Sparkles },
   { href: "/facilities", label: "Facilities", icon: Building2 },
   { href: "/residents", label: "Residents", icon: Users },
   { href: "/contacts", label: "Contacts", icon: Contact },

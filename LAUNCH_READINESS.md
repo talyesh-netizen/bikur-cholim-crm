@@ -109,6 +109,12 @@ accounts) or point Preview at a separate test Supabase project.
       The same two Resend settings also turn on the instant "new task
       assigned to you" email.
 
+### Only if you want Quick Log (the AI assistant)
+- [ ] Create an organization account at console.anthropic.com, add a
+      payment method and a monthly spend limit, and create an API key.
+- [ ] On Vercel project `bikur-cholim-crm` → Settings → Environment
+      Variables, **Production only**, add `ANTHROPIC_API_KEY`; redeploy.
+
 ### Recommended soon
 - [ ] Make lowercase `main` the GitHub **default branch** (Settings →
       Branches) and retire capital-M `Main` after confirming nothing on it
