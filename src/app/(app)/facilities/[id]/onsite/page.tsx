@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getFacility } from "@/lib/queries/facilities";
 import { listResidents } from "@/lib/queries/residents";
-import { listOpenTasksForFacility } from "@/lib/queries/tasks";
+import { listTasksForFacility } from "@/lib/queries/tasks";
 import { SectionIcon } from "@/components/section-icon";
 import { StatusBadge } from "@/components/status-badge";
 import { sectionVars, type Section } from "@/lib/sections";
@@ -47,7 +47,7 @@ export default async function FacilityOnsitePage({
 
   if (!facility) notFound();
 
-  const tasks = await listOpenTasksForFacility(
+  const tasks = await listTasksForFacility(
     id,
     residents.map((resident) => resident.id)
   );
