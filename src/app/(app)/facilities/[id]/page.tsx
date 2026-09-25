@@ -316,7 +316,7 @@ export default async function FacilityDetailPage({
           </Button>
         </CardHeader>
         <CardContent>
-          <TaskList tasks={tasks} />
+          <TaskList tasks={tasks} showResident />
         </CardContent>
       </Card>
 

@@ -14,8 +14,11 @@ import { ListChecks, ChevronRight } from "lucide-react";
 export function TaskList({
   tasks,
   emptyAction,
+  showResident = false,
 }: {
   tasks: TaskWithNames[];
+  /** On a facility page, say which resident each follow-up is for. */
+  showResident?: boolean;
   /** Where "add one" should go when there are no open tasks. */
   emptyAction?: { href: string; label: string };
 }) {
@@ -36,7 +39,7 @@ export function TaskList({
           action={emptyAction}
         />
       ) : (
-        <TaskRows tasks={open} />
+        <TaskRows tasks={open} showResident={showResident} />
       )}
 
       {closed.length > 0 ? (
@@ -46,7 +49,7 @@ export function TaskList({
             <span className="hidden group-open:inline">Hide completed or cancelled</span>
           </summary>
           <div className="mt-2 opacity-80">
-            <TaskRows tasks={closed} />
+            <TaskRows tasks={closed} showResident={showResident} />
           </div>
         </details>
       ) : null}
@@ -54,7 +57,7 @@ export function TaskList({
   );
 }
 
-function TaskRows({ tasks }: { tasks: TaskWithNames[] }) {
+function TaskRows({ tasks, showResident }: { tasks: TaskWithNames[]; showResident: boolean }) {
   const today = getLocalToday();
   return (
     <ul className="-mx-2 flex flex-col">
@@ -68,7 +71,12 @@ function TaskRows({ tasks }: { tasks: TaskWithNames[] }) {
               className="flex min-h-12 items-center justify-between gap-3 rounded-md px-2 py-2 hover:bg-accent/60"
             >
               <div className="min-w-0">
-                <p className="font-medium leading-snug">{task.title}</p>
+                <p className="font-medium leading-snug">
+                  {task.title}
+                  {showResident && task.resident_name ? (
+                    <span className="font-normal text-muted-foreground"> · {task.resident_name}</span>
+                  ) : null}
+                </p>
                 <p className={overdue ? "text-sm font-medium text-destructive" : "text-sm text-muted-foreground"}>
                   {dueDate
                     ? overdue
