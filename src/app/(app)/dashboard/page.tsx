@@ -193,7 +193,13 @@ export default async function DashboardPage({
       </div>
 
       <DashboardOnsiteLauncher
-        facilities={facilities.map((facility) => ({ id: facility.id, name: facility.name }))}
+        facilities={facilities.map((facility) => ({
+          id: facility.id,
+          name: facility.name,
+          address: facility.address,
+          city: facility.city,
+          zip: facility.zip,
+        }))}
       />
 
       <Card>
