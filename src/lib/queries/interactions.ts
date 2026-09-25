@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import type { InteractionWithNames } from "@/lib/domain/interaction";
+import type { InteractionWithNames, ServiceDetails } from "@/lib/domain/interaction";
 import { escapeIlikeTerm } from "@/lib/supabase-filters";
 
 // Recent-interactions lists on resident/facility pages show a short,
@@ -7,7 +7,7 @@ import { escapeIlikeTerm } from "@/lib/supabase-filters";
 // table comment in the migration for why one table backs both lists.
 const RECENT_INTERACTIONS_LIMIT = 10;
 
-function toInteractionWithNames(row: {
+function toInteractionWithNames(row: ServiceDetails & {
   id: string;
   occurred_at: string;
   interaction_type: string;
@@ -34,6 +34,15 @@ function toInteractionWithNames(row: {
     staff_member_id: row.staff_member_id,
     notes: row.notes,
     created_at: row.created_at,
+    occasion: row.occasion,
+    program_partner: row.program_partner,
+    quantity: row.quantity,
+    people_reached: row.people_reached,
+    participants: row.participants,
+    minutes_spent: row.minutes_spent,
+    unmet_need: row.unmet_need,
+    unmet_need_reason: row.unmet_need_reason,
+    funder_story: row.funder_story,
     resident_name: resident
       ? `${resident.preferred_name ?? resident.first_name} ${resident.last_name}`
       : null,
@@ -56,7 +65,7 @@ function toInteractionWithNames(row: {
 // having been on a volunteer_visit -- see the type comment on
 // InteractionWithNames for why this must stay distinct from contact_id.
 const SELECT_WITH_NAMES =
-  "id, occurred_at, interaction_type, facility_id, resident_id, contact_id, staff_member_id, notes, created_at, residents(first_name, last_name, preferred_name), facilities(name, geographic_cluster_id), contacts!interactions_contact_id_fkey(name), profiles(full_name), interaction_volunteers(contacts(id, name))";
+  "id, occurred_at, interaction_type, facility_id, resident_id, contact_id, staff_member_id, notes, created_at, occasion, program_partner, quantity, people_reached, participants, minutes_spent, unmet_need, unmet_need_reason, funder_story, residents(first_name, last_name, preferred_name), facilities(name, geographic_cluster_id), contacts!interactions_contact_id_fkey(name), profiles(full_name), interaction_volunteers(contacts(id, name))";
 
 export async function listInteractionsForResident(residentId: string) {
   const supabase = await createClient();
@@ -103,6 +112,7 @@ export type InteractionListFilters = {
   dateFrom?: string;
   dateTo?: string;
   search?: string;
+  flag?: "funder_story" | "unmet_need";
 };
 
 export async function listInteractions(filters: InteractionListFilters = {}) {
@@ -132,6 +142,9 @@ export async function listInteractions(filters: InteractionListFilters = {}) {
     const [year, month, day] = filters.dateTo.split("-").map(Number);
     const exclusiveEnd = new Date(Date.UTC(year, month - 1, day + 1)).toISOString().slice(0, 10);
     query = query.lt("occurred_at", exclusiveEnd);
+  }
+  if (filters.flag) {
+    query = query.eq(filters.flag, true);
   }
   if (filters.search) {
     query = query.ilike("notes", `%${escapeIlikeTerm(filters.search)}%`);

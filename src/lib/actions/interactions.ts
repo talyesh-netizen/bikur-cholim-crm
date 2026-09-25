@@ -4,10 +4,24 @@ import { z } from "zod";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { INTERACTION_TYPES } from "@/lib/domain/interaction";
+import {
+  INTERACTION_TYPES,
+  FACILITY_OPTIONAL_TYPES,
+  OCCASIONS,
+  PROGRAM_PARTNERS,
+  UNMET_NEED_REASONS,
+  SERVICE_FIELDS_BY_TYPE,
+  type InteractionType,
+} from "@/lib/domain/interaction";
 
 const typeValues = INTERACTION_TYPES.map((o) => o.value) as [string, ...string[]];
 const emptyToUndefined = (val: unknown) => (val === "" ? undefined : val);
+const enumValues = (options: readonly { value: string }[]) =>
+  options.map((o) => o.value) as [string, ...string[]];
+const optionalCount = z.preprocess(
+  emptyToUndefined,
+  z.coerce.number().int("Please enter a whole number.").min(0, "Can't be negative.").max(100000).optional()
+);
 
 export type InteractionFormState = {
   error: string | null;
@@ -20,14 +34,55 @@ export type InteractionFormState = {
   checkedVolunteerIds?: string[];
 };
 
-const interactionSchema = z.object({
-  resident_id: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
-  contact_id: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
-  facility_id: z.string().uuid("Please choose a facility."),
-  occurred_at: z.string().min(1, "Please enter a date and time."),
-  interaction_type: z.enum(typeValues),
-  notes: z.preprocess(emptyToUndefined, z.string().trim().optional()),
-});
+const interactionSchema = z
+  .object({
+    resident_id: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
+    contact_id: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
+    facility_id: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
+    occurred_at: z.string().min(1, "Please enter a date and time."),
+    interaction_type: z.enum(typeValues),
+    notes: z.preprocess(emptyToUndefined, z.string().trim().optional()),
+    occasion: z.preprocess(emptyToUndefined, z.enum(enumValues(OCCASIONS)).optional()),
+    program_partner: z.preprocess(emptyToUndefined, z.enum(enumValues(PROGRAM_PARTNERS)).optional()),
+    quantity: optionalCount,
+    people_reached: optionalCount,
+    participants: optionalCount,
+    minutes_spent: optionalCount,
+    unmet_need: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
+    unmet_need_reason: z.preprocess(emptyToUndefined, z.enum(enumValues(UNMET_NEED_REASONS)).optional()),
+    funder_story: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.facility_id && !FACILITY_OPTIONAL_TYPES.includes(data.interaction_type)) {
+      ctx.addIssue({ code: "custom", path: ["facility_id"], message: "Please choose a facility." });
+    }
+  });
+
+/** The row to save: every optional service field the chosen type
+ * doesn't ask about is cleared (null), so an entry whose type was
+ * changed -- e.g. from a food delivery to a phone call -- can't keep
+ * counting its old quantity in the impact report. */
+function toInteractionRow(data: z.infer<typeof interactionSchema>) {
+  const applies = SERVICE_FIELDS_BY_TYPE[data.interaction_type as InteractionType] ?? [];
+  const pick = <K extends (typeof applies)[number]>(key: K) => (applies.includes(key) ? data[key] ?? null : null);
+  return {
+    resident_id: data.resident_id ?? null,
+    contact_id: data.contact_id ?? null,
+    facility_id: data.facility_id ?? null,
+    occurred_at: new Date(data.occurred_at).toISOString(),
+    interaction_type: data.interaction_type,
+    notes: data.notes ?? null,
+    occasion: pick("occasion"),
+    program_partner: pick("program_partner"),
+    quantity: pick("quantity"),
+    people_reached: pick("people_reached"),
+    participants: pick("participants"),
+    minutes_spent: data.minutes_spent ?? null,
+    unmet_need: data.unmet_need,
+    unmet_need_reason: data.unmet_need ? data.unmet_need_reason ?? null : null,
+    funder_story: data.funder_story,
+  };
+}
 
 /** Replaces the set of volunteers linked to an interaction. Delete-then
  * -insert is simplest and safe here: interaction_volunteers has no
@@ -77,12 +132,10 @@ export async function createInteraction(
     return { error: "Your session expired. Please sign in again.", values: raw, checkedVolunteerIds: volunteerIds };
   }
 
-  const { occurred_at, ...rest } = parsed.data;
   const { data: created, error } = await supabase
     .from("interactions")
     .insert({
-      ...rest,
-      occurred_at: new Date(occurred_at).toISOString(),
+      ...toInteractionRow(parsed.data),
       staff_member_id: user.id,
     })
     .select("id")
@@ -104,7 +157,7 @@ export async function createInteraction(
   }
 
   if (parsed.data.resident_id) revalidatePath(`/residents/${parsed.data.resident_id}`);
-  revalidatePath(`/facilities/${parsed.data.facility_id}`);
+  if (parsed.data.facility_id) revalidatePath(`/facilities/${parsed.data.facility_id}`);
   redirect(redirectTo);
 }
 
@@ -135,14 +188,13 @@ export async function updateInteraction(
     return { error: "Your session expired. Please sign in again.", values: raw, checkedVolunteerIds: volunteerIds };
   }
 
-  const { occurred_at, ...rest } = parsed.data;
   const { error } = await supabase
     .from("interactions")
     .update({
-      ...rest,
-      resident_id: rest.resident_id ?? null,
-      contact_id: rest.contact_id ?? null,
-      occurred_at: new Date(occurred_at).toISOString(),
+      ...toInteractionRow(parsed.data),
+      // Saving the full edit form counts as reviewing it -- it drops off
+      // the "Review past entries" list.
+      service_reviewed_at: new Date().toISOString(),
     })
     .eq("id", id);
 
@@ -160,7 +212,60 @@ export async function updateInteraction(
   }
 
   if (parsed.data.resident_id) revalidatePath(`/residents/${parsed.data.resident_id}`);
-  revalidatePath(`/facilities/${parsed.data.facility_id}`);
+  if (parsed.data.facility_id) revalidatePath(`/facilities/${parsed.data.facility_id}`);
   revalidatePath("/interactions");
   redirect(redirectTo);
+}
+
+export type ReviewFormState = { error: string | null; saved?: boolean };
+
+const reviewSchema = z.object({
+  interaction_type: z.enum(typeValues),
+  occasion: z.preprocess(emptyToUndefined, z.enum(enumValues(OCCASIONS)).optional()),
+  program_partner: z.preprocess(emptyToUndefined, z.enum(enumValues(PROGRAM_PARTNERS)).optional()),
+  quantity: optionalCount,
+  people_reached: optionalCount,
+  participants: optionalCount,
+});
+
+/** One-tap save from the "Review past entries" screen: confirms (or
+ * corrects) an older entry's type and the few numbers that type asks
+ * about, and marks it reviewed. Everything else on the entry -- notes,
+ * who, where, when -- is left untouched; the full edit form is one tap
+ * away for anything more. */
+export async function saveInteractionReview(
+  id: string,
+  _prevState: ReviewFormState,
+  formData: FormData
+): Promise<ReviewFormState> {
+  const parsed = reviewSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Please check the numbers entered." };
+  }
+
+  const data = parsed.data;
+  const applies = SERVICE_FIELDS_BY_TYPE[data.interaction_type as InteractionType] ?? [];
+  const pick = <K extends (typeof applies)[number]>(key: K) => (applies.includes(key) ? data[key] ?? null : null);
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("interactions")
+    .update({
+      interaction_type: data.interaction_type,
+      occasion: pick("occasion"),
+      program_partner: pick("program_partner"),
+      quantity: pick("quantity"),
+      people_reached: pick("people_reached"),
+      participants: pick("participants"),
+      service_reviewed_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+
+  if (error) return { error: "Couldn't save this one. Please try again." };
+
+  // Deliberately not revalidating the review page itself: that would pull
+  // the row out from under the person mid-list. It shows "Saved" in
+  // place instead, and is gone next time the page loads.
+  revalidatePath("/data-quality");
+  return { error: null, saved: true };
 }

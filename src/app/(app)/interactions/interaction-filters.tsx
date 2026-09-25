@@ -61,7 +61,7 @@ export function InteractionFilters({
         </Button>
       </form>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="flex flex-col gap-1">
           <Label className="text-xs text-muted-foreground">Type</Label>
           <Select
@@ -98,6 +98,23 @@ export function InteractionFilters({
                   {f.name}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <Label className="text-xs text-muted-foreground">Show</Label>
+          <Select
+            value={searchParams.get("flag") ?? "all"}
+            onValueChange={(v) => updateParam("flag", v === "all" ? null : v)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Everything</SelectItem>
+              <SelectItem value="funder_story">Good stories for funders</SelectItem>
+              <SelectItem value="unmet_need">Requests we couldn&apos;t meet</SelectItem>
             </SelectContent>
           </Select>
         </div>

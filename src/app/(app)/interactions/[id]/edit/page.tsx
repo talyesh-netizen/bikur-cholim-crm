@@ -100,6 +100,15 @@ export default async function EditInteractionPage({
               occurred_at: toDatetimeLocalValue(interaction.occurred_at),
               interaction_type: interaction.interaction_type,
               notes: interaction.notes ?? "",
+              occasion: interaction.occasion ?? "",
+              program_partner: interaction.program_partner ?? "",
+              quantity: interaction.quantity?.toString() ?? "",
+              people_reached: interaction.people_reached?.toString() ?? "",
+              participants: interaction.participants?.toString() ?? "",
+              minutes_spent: interaction.minutes_spent?.toString() ?? "",
+              unmet_need: interaction.unmet_need ? "on" : "",
+              unmet_need_reason: interaction.unmet_need_reason ?? "",
+              funder_story: interaction.funder_story ? "on" : "",
             }}
             submitLabel="Save changes"
             savingLabel="Saving changes…"

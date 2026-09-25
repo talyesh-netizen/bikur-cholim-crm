@@ -31,7 +31,11 @@ export function InteractionRow({ interaction }: { interaction: InteractionWithNa
     <li className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 text-sm transition-colors hover:border-primary/50">
       <Link href={`/interactions/${interaction.id}`} className="flex flex-col gap-1">
         <div className="flex flex-wrap items-start justify-between gap-2">
-          <Badge variant="secondary">{labelFor(INTERACTION_TYPES, interaction.interaction_type)}</Badge>
+          <div className="flex flex-wrap gap-1">
+            <Badge variant="secondary">{labelFor(INTERACTION_TYPES, interaction.interaction_type)}</Badge>
+            {interaction.unmet_need ? <Badge variant="warning">Couldn&apos;t fully meet</Badge> : null}
+            {interaction.funder_story ? <Badge variant="outline">Funder story</Badge> : null}
+          </div>
           <span className="text-xs text-muted-foreground">{formatDateTime(interaction.occurred_at)}</span>
         </div>
 

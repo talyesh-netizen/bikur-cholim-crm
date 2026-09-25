@@ -20,6 +20,7 @@ export default async function InteractionsPage({
       dateFrom: params.from,
       dateTo: params.to,
       search: params.search,
+      flag: params.flag === "funder_story" || params.flag === "unmet_need" ? params.flag : undefined,
     }),
     listFacilityOptions(),
   ]);

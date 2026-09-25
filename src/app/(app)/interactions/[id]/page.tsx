@@ -4,7 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getInteraction, listInteractionsForResident, listInteractionsForFacility } from "@/lib/queries/interactions";
-import { labelFor, INTERACTION_TYPES } from "@/lib/domain/interaction";
+import {
+  labelFor,
+  formatMinutes,
+  INTERACTION_TYPES,
+  OCCASIONS,
+  PROGRAM_PARTNERS,
+  UNMET_NEED_REASONS,
+} from "@/lib/domain/interaction";
 import { formatDateTime } from "@/lib/format-date";
 import { InteractionList } from "../interaction-list";
 import { ClusterBadge } from "@/components/cluster-badge";
@@ -23,6 +30,15 @@ export default async function InteractionDetailPage({
     interaction.resident_id ? listInteractionsForResident(interaction.resident_id) : Promise.resolve([]),
     interaction.facility_id ? listInteractionsForFacility(interaction.facility_id) : Promise.resolve([]),
   ]);
+
+  const serviceDetails = [
+    interaction.program_partner ? { label: "School or shul", value: labelFor(PROGRAM_PARTNERS, interaction.program_partner) } : null,
+    interaction.occasion ? { label: "Occasion", value: labelFor(OCCASIONS, interaction.occasion) } : null,
+    interaction.quantity != null ? { label: "Items", value: String(interaction.quantity) } : null,
+    interaction.participants != null ? { label: "Participants", value: String(interaction.participants) } : null,
+    interaction.people_reached != null ? { label: "Residents reached", value: `about ${interaction.people_reached}` } : null,
+    interaction.minutes_spent != null ? { label: "Time spent", value: formatMinutes(interaction.minutes_spent) } : null,
+  ].filter((d): d is { label: string; value: string } => d !== null);
 
   const otherResidentInteractions = residentInteractions.filter((i) => i.id !== id);
   const otherFacilityInteractions = facilityInteractions.filter((i) => i.id !== id);
@@ -100,6 +116,27 @@ export default async function InteractionDetailPage({
               <Link href={`/contacts/${interaction.contact_id}`} className="font-medium hover:underline">
                 {interaction.contact_name}
               </Link>
+            </p>
+          ) : null}
+          {serviceDetails.map((d) => (
+            <p key={d.label}>
+              <span className="text-muted-foreground">{d.label}: </span>
+              <span className="font-medium">{d.value}</span>
+            </p>
+          ))}
+          {interaction.unmet_need ? (
+            <p>
+              <Badge variant="warning">Couldn&apos;t fully meet this request</Badge>{" "}
+              {interaction.unmet_need_reason ? (
+                <span className="text-muted-foreground">
+                  {labelFor(UNMET_NEED_REASONS, interaction.unmet_need_reason)}
+                </span>
+              ) : null}
+            </p>
+          ) : null}
+          {interaction.funder_story ? (
+            <p>
+              <Badge variant="secondary">Good story for funders</Badge>
             </p>
           ) : null}
           {interaction.staff_member_name ? (
