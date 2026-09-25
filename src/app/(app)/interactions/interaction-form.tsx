@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,21 +23,12 @@ import {
   type InteractionType,
 } from "@/lib/domain/interaction";
 import type { InteractionFormState } from "@/lib/actions/interactions";
+import { toOrgDatetimeLocalValue } from "@/lib/format-date";
 
 type Action = (
   state: InteractionFormState,
   formData: FormData
 ) => Promise<InteractionFormState>;
-
-/** "2026-07-28T14:30", the format <input type="datetime-local"> needs —
- * built from local date/time parts (not toISOString(), which would
- * shift to UTC and show the wrong time of day). */
-function toDatetimeLocalValue(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
-    date.getHours()
-  )}:${pad(date.getMinutes())}`;
-}
 
 export function InteractionForm({
   action,
@@ -87,7 +78,10 @@ export function InteractionForm({
     error: null,
   });
   const fieldErrors = state.fieldErrors ?? {};
-  const [defaultOccurredAt] = useState(() => toDatetimeLocalValue(new Date()));
+  // "Now" in Cleveland time -- computed the same way on the server and in
+  // the browser, so the pre-filled time is right even though the page is
+  // first rendered on a server running in UTC.
+  const [defaultOccurredAt] = useState(() => toOrgDatetimeLocalValue(new Date()));
   const values = state.values ??
     initialValues ?? {
       facility_id: defaultFacilityId ?? "",
@@ -121,7 +115,33 @@ export function InteractionForm({
     if (next !== "volunteer_visit") setCheckedVolunteerIds([]);
   }
 
+  // One random ID for everything typed into this form, kept across
+  // failed attempts, so the server can recognize a repeat of the same
+  // save (double tap, or a retry after a dropped connection) and never
+  // store the visit twice. Created on first submit, in the browser.
+  const submissionIdRef = useRef<string | null>(null);
+
+  // Warn before leaving the page (closing the tab, refreshing, the
+  // browser's Back button) while there are typed-in changes that
+  // haven't been saved yet.
+  const [isDirty, setIsDirty] = useState(false);
+  useEffect(() => {
+    if (!isDirty || isPending) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [isDirty, isPending]);
+
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    // Already saving -- ignore a second tap rather than queueing a
+    // second save behind the first.
+    if (isPending) {
+      e.preventDefault();
+      return;
+    }
     // A volunteer visit with nobody checked off is exactly the gap
     // that left the volunteer-impact report empty for months of real
     // visits -- a nudge here, not a hard block, since occasionally the
@@ -130,14 +150,30 @@ export function InteractionForm({
       const proceed = window.confirm(
         "No volunteers are checked off for this volunteer visit. It won't count toward the volunteer impact report unless someone is selected. Log it anyway?"
       );
-      if (!proceed) e.preventDefault();
+      if (!proceed) {
+        e.preventDefault();
+        return;
+      }
     }
+    submissionIdRef.current ??= crypto.randomUUID();
+    const idField = e.currentTarget.elements.namedItem("client_submission_id");
+    if (idField instanceof HTMLInputElement) idField.value = submissionIdRef.current;
   }
 
   return (
-    <form key={formKey} action={formAction} onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form
+      key={formKey}
+      action={formAction}
+      onSubmit={handleSubmit}
+      onChange={() => setIsDirty(true)}
+      className="flex flex-col gap-4"
+    >
+      <input type="hidden" name="client_submission_id" defaultValue="" />
       {state.error ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p
+          role="alert"
+          className="rounded-md border border-destructive bg-destructive/10 px-3 py-2.5 text-sm font-medium text-destructive"
+        >
           {state.error}
         </p>
       ) : null}
@@ -348,8 +384,11 @@ export function InteractionForm({
         </label>
       </div>
 
+      {state.error ? (
+        <p className="text-sm font-medium text-destructive">Not saved yet — see the message at the top of the form.</p>
+      ) : null}
       <div className="flex justify-end">
-        <Button type="submit" disabled={isPending}>
+        <Button type="submit" disabled={isPending} className="w-full sm:w-auto">
           {isPending ? savingLabel : submitLabel}
         </Button>
       </div>

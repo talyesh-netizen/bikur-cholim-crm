@@ -20,7 +20,7 @@ import { ServicesDeliveredTiles } from "@/components/services-delivered";
 import { HeartHandshake, TrendingUp } from "lucide-react";
 import { labelFor, INTERACTION_TYPES } from "@/lib/domain/interaction";
 import { ENGAGEMENT_STATUSES } from "@/lib/domain/facility";
-import { formatRelative, formatDateOnly } from "@/lib/format-date";
+import { formatRelative, formatDateTime } from "@/lib/format-date";
 import {
   ListChecks,
   Users,
@@ -392,7 +392,7 @@ export default async function DashboardPage({
                     {interaction.facility_name ? ` · ${interaction.facility_name}` : ""}
                   </p>
                   <span className="whitespace-nowrap text-xs text-muted-foreground">
-                    {formatDateOnly(interaction.occurred_at.slice(0, 10))}
+                    {formatDateTime(interaction.occurred_at)}
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground">

@@ -115,10 +115,15 @@ export async function updateResident(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.from("residents").update(parsed.data).eq("id", residentId);
+  const { data: updated, error } = await supabase.from("residents").update(parsed.data).eq("id", residentId).select("id");
 
   if (error) {
     return { error: "Something went wrong saving this resident. Please try again.", values: raw };
+  }
+  // Access rules turn a disallowed update into "0 rows changed", not an
+  // error -- never let that look like a successful save.
+  if (!updated || updated.length === 0) {
+    return { error: "Changes NOT saved: this record no longer exists or you don't have access to it.", values: raw };
   }
 
   revalidatePath("/residents");

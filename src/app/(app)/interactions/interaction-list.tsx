@@ -3,6 +3,7 @@ import { labelFor, INTERACTION_TYPES } from "@/lib/domain/interaction";
 import type { InteractionWithNames } from "@/lib/domain/interaction";
 import { ClusterBadge } from "@/components/cluster-badge";
 import { ListPlus, Pencil } from "lucide-react";
+import { formatDateTimeWithTime } from "@/lib/format-date";
 
 /** Recent-interactions list shown on both resident and facility pages —
  * the "other side" of the record (facility name on a resident page,
@@ -36,13 +37,7 @@ export function InteractionList({
                   {labelFor(INTERACTION_TYPES, interaction.interaction_type)}
                 </span>
                 <span className="whitespace-nowrap text-xs text-muted-foreground">
-                  {new Date(interaction.occurred_at).toLocaleString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })}
+                  {formatDateTimeWithTime(interaction.occurred_at)}
                 </span>
               </div>
               {variant === "resident" && interaction.facility_name ? (

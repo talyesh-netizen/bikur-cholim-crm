@@ -1,5 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import type { InteractionType } from "@/lib/domain/interaction";
+import { orgDayStartIso, orgMonthStart, orgMonthKey } from "@/lib/format-date";
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
 
 export type ImpactPeriod = "month" | "quarter" | "all";
 
@@ -43,14 +46,17 @@ async function selectAllPages<T>(
   }
 }
 
+/** The start of this month / quarter in Cleveland (midnight Eastern on
+ * the 1st), not the server's UTC -- otherwise the last evening of the
+ * previous month would be counted in this one. */
 function periodStart(period: ImpactPeriod): string | null {
-  const now = new Date();
+  const { year, month } = orgMonthStart();
   if (period === "month") {
-    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    return orgDayStartIso(`${year}-${pad2(month)}-01`);
   }
   if (period === "quarter") {
-    const quarterStartMonth = Math.floor(now.getMonth() / 3) * 3;
-    return new Date(now.getFullYear(), quarterStartMonth, 1).toISOString();
+    const quarterStartMonth = Math.floor((month - 1) / 3) * 3 + 1;
+    return orgDayStartIso(`${year}-${pad2(quarterStartMonth)}-01`);
   }
   return null;
 }
@@ -125,27 +131,28 @@ export type MonthlyCount = { key: string; label: string; count: number };
  * separate from the type/staff/volunteer breakdowns above. */
 export async function getInteractionTrend(months = 6): Promise<MonthlyCount[]> {
   const supabase = await createClient();
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
+  const first = orgMonthStart(months - 1);
+  const start = orgDayStartIso(`${first.year}-${pad2(first.month)}-01`)!;
 
   const data = await selectAllPages<{ occurred_at: string }>((from, to) =>
-    supabase.from("interactions").select("occurred_at").gte("occurred_at", start.toISOString()).order("id").range(from, to)
+    supabase.from("interactions").select("occurred_at").gte("occurred_at", start).order("id").range(from, to)
   );
 
+  // Months are Cleveland months, so a visit on the evening of the 31st
+  // lands in its own month rather than the next one.
   const buckets: MonthlyCount[] = [];
   for (let i = months - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const { year, month } = orgMonthStart(i);
     buckets.push({
-      key: `${d.getFullYear()}-${d.getMonth()}`,
-      label: d.toLocaleDateString("en-US", { month: "short" }),
+      key: `${year}-${pad2(month)}`,
+      label: new Date(Date.UTC(year, month - 1, 15)).toLocaleDateString("en-US", { month: "short", timeZone: "UTC" }),
       count: 0,
     });
   }
   const indexByKey = new Map(buckets.map((b, i) => [b.key, i]));
 
   for (const row of data) {
-    const d = new Date(row.occurred_at);
-    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    const key = orgMonthKey(row.occurred_at);
     const idx = indexByKey.get(key);
     if (idx !== undefined) buckets[idx].count += 1;
   }
@@ -176,7 +183,7 @@ export async function getVolunteerImpact(period: ImpactPeriod = "month"): Promis
       contacts: { name: string } | null;
       interactions: { occurred_at: string } | null;
     };
-    if (start && (!r.interactions || r.interactions.occurred_at < start)) continue;
+    if (start && (!r.interactions || Date.parse(r.interactions.occurred_at) < Date.parse(start))) continue;
     const existing = counts.get(r.contact_id);
     if (existing) {
       existing.count += 1;
@@ -265,7 +272,7 @@ export async function getServicesDelivered(period: ImpactPeriod = "month"): Prom
 
   const volunteersByInteraction = new Map<string, Set<string>>();
   for (const link of volunteerLinks) {
-    if (start && (!link.interactions || link.interactions.occurred_at < start)) continue;
+    if (start && (!link.interactions || Date.parse(link.interactions.occurred_at) < Date.parse(start))) continue;
     const set = volunteersByInteraction.get(link.interaction_id) ?? new Set<string>();
     set.add(link.contact_id);
     volunteersByInteraction.set(link.interaction_id, set);
