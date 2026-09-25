@@ -21,6 +21,7 @@ export const metadata: Metadata = {
     template: `%s · ${APP_NAME}`,
   },
   applicationName: APP_NAME,
+  manifest: "/manifest.webmanifest?v=20260925",
   description: `Internal CRM for the ${ORGANIZATION_NAME} Senior Living Resident Support Services department.`,
   // Internal tool: keep it out of search engines.
   robots: { index: false, follow: false },
@@ -30,7 +31,7 @@ export const metadata: Metadata = {
     capable: true,
     // "default" = dark status-bar text on the app's light background.
     statusBarStyle: "default",
-    title: APP_NAME,
+    title: "Senior Resident Support Services",
   },
   formatDetection: {
     // Phone numbers are already real tap-to-call links where it matters;
@@ -42,7 +43,7 @@ export const metadata: Metadata = {
       { url: "/icon-32.png", sizes: "32x32", type: "image/png" },
       { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
     ],
-    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+    apple: [{ url: "/brand/mark.png?v=20260925" }],
   },
 };
 
