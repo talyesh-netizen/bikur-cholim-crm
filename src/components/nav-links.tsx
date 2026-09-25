@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   NAV_ITEMS,
-  ADMIN_NAV_ITEM,
+  ADMIN_NAV_ITEMS,
   MOBILE_PRIMARY_HREFS,
   MOBILE_MORE_ITEM,
   isActive,
@@ -13,7 +13,7 @@ import {
 
 export function SidebarNavLinks({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
-  const items = isAdmin ? [...NAV_ITEMS, ADMIN_NAV_ITEM] : NAV_ITEMS;
+  const items = isAdmin ? [...NAV_ITEMS, ...ADMIN_NAV_ITEMS] : NAV_ITEMS;
 
   return (
     <nav className="flex flex-col gap-1">

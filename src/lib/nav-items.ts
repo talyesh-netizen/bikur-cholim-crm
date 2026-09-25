@@ -9,6 +9,7 @@ import {
   Landmark,
   ClipboardCheck,
   MoreHorizontal,
+  DatabaseBackup,
   type LucideIcon,
 } from "lucide-react";
 
@@ -28,7 +29,10 @@ export const NAV_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/data-quality", label: "Data Quality", icon: ClipboardCheck },
 ];
 
-export const ADMIN_NAV_ITEM = { href: "/settings/staff", label: "Staff", icon: Settings };
+export const ADMIN_NAV_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
+  { href: "/settings/staff", label: "Staff", icon: Settings },
+  { href: "/settings/backup", label: "Backup", icon: DatabaseBackup },
+];
 
 // The sidebar has room for every item, but a phone's bottom bar gets
 // cramped past ~5 icons (see the "cluttered on the bottom" feedback) --
@@ -45,5 +49,5 @@ export function isActive(pathname: string, href: string) {
  * bar -- shown on the /more page instead. */
 export function mobileMoreItems(isAdmin: boolean) {
   const secondary = NAV_ITEMS.filter((item) => !MOBILE_PRIMARY_HREFS.includes(item.href));
-  return isAdmin ? [...secondary, ADMIN_NAV_ITEM] : secondary;
+  return isAdmin ? [...secondary, ...ADMIN_NAV_ITEMS] : secondary;
 }
