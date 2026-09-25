@@ -1,7 +1,7 @@
 "use client";
 
+import { FormActions, FormError } from "@/components/form-actions";
 import { useActionState, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -43,11 +43,7 @@ export function RelationshipForm({
 
   return (
     <form key={formKey} action={formAction} className="flex flex-col gap-4">
-      {state.error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {state.error}
-        </p>
-      ) : null}
+      <FormError message={state.error} />
 
       <Field
         label="Relationship to resident"
@@ -95,11 +91,12 @@ export function RelationshipForm({
         />
       </Field>
 
-      <div className="flex justify-end">
-        <Button type="submit" disabled={isPending}>
-          {isPending ? "Saving…" : "Save changes"}
-        </Button>
-      </div>
+      <FormActions
+        isPending={isPending}
+        submitLabel={"Save changes"}
+        savingLabel={"Saving…"}
+        hasUnsavedError={!!state.error}
+      />
     </form>
   );
 }
@@ -124,7 +121,7 @@ function Field({
         {required ? <span className="text-destructive"> *</span> : null}
       </Label>
       {children}
-      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      {error ? <p className="text-sm font-medium text-destructive">{error}</p> : null}
     </div>
   );
 }

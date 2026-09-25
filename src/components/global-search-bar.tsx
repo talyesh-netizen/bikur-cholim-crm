@@ -33,12 +33,15 @@ export function GlobalSearchBar() {
         e.preventDefault();
         if (value.trim()) router.push(`/search?q=${encodeURIComponent(value.trim())}`);
       }}
-      className="relative w-full max-w-md"
+      className="relative w-full md:max-w-md"
     >
       <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
       <Input
         value={value}
         onChange={(e) => setValue(e.target.value)}
+        type="search"
+        enterKeyHint="search"
+        aria-label="Search residents, facilities, and contacts"
         placeholder="Search residents, facilities, contacts…"
         className="pl-9"
       />

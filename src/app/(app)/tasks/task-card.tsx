@@ -1,54 +1,55 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { labelFor, TASK_CATEGORIES, TASK_STATUSES, OPEN_TASK_STATUSES } from "@/lib/domain/task";
+import { PriorityBadge, TaskStatusBadge } from "@/components/status-badge";
+import { labelFor, TASK_CATEGORIES, OPEN_TASK_STATUSES } from "@/lib/domain/task";
 import type { TaskWithNames } from "@/lib/domain/task";
 import { formatDateOnly, getLocalToday } from "@/lib/format-date";
+import { cn } from "@/lib/utils";
+import { CalendarClock } from "lucide-react";
 
-function priorityVariant(priority: string): "destructive" | "warning" | "secondary" {
-  if (priority === "high") return "destructive";
-  if (priority === "medium") return "warning";
-  return "secondary";
-}
-
-function isOverdue(task: TaskWithNames): boolean {
+export function isTaskOverdue(task: Pick<TaskWithNames, "due_date" | "status">): boolean {
   if (!task.due_date) return false;
   if (!(OPEN_TASK_STATUSES as readonly string[]).includes(task.status)) return false;
   return task.due_date < getLocalToday();
 }
 
 export function TaskCard({ task }: { task: TaskWithNames }) {
-  const overdue = isOverdue(task);
+  const overdue = isTaskOverdue(task);
+  const dueToday = task.due_date === getLocalToday();
   const dueDate = formatDateOnly(task.due_date);
 
   return (
-    <Link href={`/tasks/${task.id}`}>
-      <Card className={overdue ? "border-destructive/50 transition-colors" : "transition-colors hover:border-primary/50"}>
-        <CardContent className="flex flex-col gap-2 p-4">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="font-semibold leading-tight">{task.title}</p>
-              <span className="text-sm text-muted-foreground">
+    <Link href={`/tasks/${task.id}`} className="group block">
+      <Card
+        className={cn(
+          "transition-colors group-hover:border-primary/50",
+          overdue && "border-l-4 border-l-destructive"
+        )}
+      >
+        <CardContent className="flex flex-col gap-2 p-4 sm:p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-base font-semibold leading-snug">{task.title}</p>
+              <p className="text-sm text-muted-foreground">
                 {[task.resident_name, task.facility_name].filter(Boolean).join(" · ") ||
                   labelFor(TASK_CATEGORIES, task.task_category)}
-              </span>
+              </p>
             </div>
-            <div className="flex flex-col items-end gap-1">
-              <Badge variant={priorityVariant(task.priority)}>{task.priority}</Badge>
-              <Badge variant="secondary">{labelFor(TASK_STATUSES, task.status)}</Badge>
-            </div>
+            <TaskStatusBadge status={task.status} className="shrink-0" />
           </div>
 
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-            {dueDate ? (
-              <span className={overdue ? "font-medium text-destructive" : undefined}>
-                {overdue ? "Overdue — " : "Due "}
-                {dueDate}
-              </span>
-            ) : (
-              <span>No due date</span>
-            )}
-            {task.assigned_to_name ? <span>Assigned to {task.assigned_to_name}</span> : null}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
+            <span
+              className={cn(
+                "flex items-center gap-1.5",
+                overdue ? "font-medium text-destructive" : dueToday ? "font-medium text-foreground" : "text-muted-foreground"
+              )}
+            >
+              <CalendarClock className="size-4" />
+              {dueDate ? (overdue ? `Overdue — was due ${dueDate}` : dueToday ? "Due today" : `Due ${dueDate}`) : "No due date"}
+            </span>
+            {task.priority === "high" ? <PriorityBadge priority="high" kind="task" /> : null}
+            {task.assigned_to_name ? <span className="text-muted-foreground">{task.assigned_to_name}</span> : null}
           </div>
         </CardContent>
       </Card>

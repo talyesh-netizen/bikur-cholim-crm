@@ -1,3 +1,5 @@
+import { Building2 } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Plus, Settings } from "lucide-react";
@@ -56,9 +58,12 @@ export default async function FacilitiesPage({
       <FacilityFilters clusters={clusters} />
 
       {facilities.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          No facilities match your search. Try adjusting the filters above.
-        </p>
+        <EmptyState
+          icon={Building2}
+          title="No facilities found"
+          description="Try a shorter search or clear the filters above."
+          action={{ href: "/facilities/new", label: "Add a facility" }}
+        />
       ) : (
         <div className="flex flex-col gap-3">
           {facilities.map((facility) => (

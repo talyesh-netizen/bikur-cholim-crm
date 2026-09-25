@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { signIn, type SignInState } from "@/lib/actions/auth";
 import { APP_NAME } from "@/lib/config";
 import { createClient } from "@/lib/supabase/client";
+import { getBrowserSiteUrl } from "@/lib/site-url";
 import { Eye, EyeOff } from "lucide-react";
 
 const initialState: SignInState = { error: null };
@@ -32,7 +33,11 @@ export default function SignInPage() {
     setResetState("sending");
     const supabase = createClient();
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/`,
+      // Always send the reset link to the canonical domain (see
+      // lib/site-url.ts), not whichever preview URL this page happened
+      // to be opened on. That domain must also be listed under
+      // Authentication > URL Configuration > Redirect URLs in Supabase.
+      redirectTo: `${getBrowserSiteUrl()}/`,
     });
     // Same message either way -- confirming or denying that an email
     // exists in the system is its own small privacy leak.
