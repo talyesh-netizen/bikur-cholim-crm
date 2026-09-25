@@ -7,6 +7,7 @@ import { listResidents } from "@/lib/queries/residents";
 import { listFacilities } from "@/lib/queries/facilities";
 import { ResidentFilters } from "./resident-filters";
 import { ResidentCard } from "./resident-card";
+import { SectionIcon } from "@/components/section-icon";
 
 export default async function ResidentsPage({
   searchParams,
@@ -29,7 +30,10 @@ export default async function ResidentsPage({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Residents</h1>
+          <h1 className="flex items-center gap-2.5 text-2xl font-semibold">
+            <SectionIcon section="residents" icon={Users} />
+            Residents
+          </h1>
           <p className="text-sm text-muted-foreground">
             {residents.length} resident{residents.length === 1 ? "" : "s"}
           </p>

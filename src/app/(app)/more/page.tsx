@@ -5,6 +5,7 @@ import { getCurrentProfile } from "@/lib/get-current-profile";
 import { mobileMoreItems } from "@/lib/nav-items";
 import { signOut } from "@/lib/actions/auth";
 import { ChevronRight, LogOut } from "lucide-react";
+import { SectionIcon } from "@/components/section-icon";
 
 /** Overflow page for the mobile bottom nav, which only has room for a
  * handful of full-time tabs -- see nav-links.tsx. Not needed on
@@ -20,14 +21,13 @@ export default async function MorePage() {
       <Card>
         <CardContent className="flex flex-col p-0 sm:p-0">
           {items.map((item) => {
-            const Icon = item.icon;
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className="flex min-h-14 items-center gap-3 border-b border-border px-4 py-3 text-base font-medium last:border-0 hover:bg-accent"
               >
-                <Icon className="size-5 text-muted-foreground" />
+                <SectionIcon section={item.section} icon={item.icon} />
                 <span className="flex-1">{item.label}</span>
                 <ChevronRight className="size-4 text-muted-foreground" />
               </Link>

@@ -8,6 +8,8 @@ import {
 } from "@/lib/queries/data-quality";
 import type { DataQualityRow } from "@/lib/queries/data-quality";
 import { CheckCircle2, ChevronRight } from "lucide-react";
+import { SectionIcon } from "@/components/section-icon";
+import { ClipboardCheck } from "lucide-react";
 
 function Section({ title, rows }: { title: string; rows: DataQualityRow[] }) {
   return (
@@ -57,7 +59,10 @@ export default async function DataQualityPage() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-2xl font-semibold">Data Quality</h1>
+        <h1 className="flex items-center gap-2.5 text-2xl font-semibold">
+            <SectionIcon section="neutral" icon={ClipboardCheck} />
+            Data Quality
+          </h1>
         <p className="text-sm text-muted-foreground">
           {totalGaps} gap{totalGaps === 1 ? "" : "s"} across active records — tap a gap to fix it.
         </p>

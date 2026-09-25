@@ -4,11 +4,22 @@
 /*
   Color palette notes (plain English):
 
-  Matches the Bikur Cholim of Cleveland logo: its red (#C02336) is the
-  one accent color, used for primary buttons and "you are here" cues,
-  with black text on clean white cards over a very light warm-grey page.
-  Everything else stays neutral so the app reads as calm and
-  professional rather than colorful.
+  Matches the Bikur Cholim of Cleveland logo: its red (#C02336) is used
+  for primary buttons and "you are here" cues, with black text on clean
+  white cards over a very light warm-grey page.
+
+  On top of that, each part of the app has its own color ("section
+  colors" below), so you can tell where you are at a glance: residents
+  are always blue, facilities teal, contacts and partners violet, tasks
+  gold, visits and Quick Log pink. The color only ever sits on icons and
+  thin stripes, always next to a text label -- never on body text, and
+  never the only way something is identified.
+
+  Each section has three values:
+    -accent  bright version, for stripes and borders
+    -fill    background of an icon tile
+    -on      the icon's color on that tile (>= 4.5:1 against -fill)
+  The set was checked for color-blind separation (dataviz validator).
 */
 
 :root {
@@ -60,6 +71,29 @@
   --tone-urgent-fg: #8f1f17;
   --tone-brand-bg: #fbe8ea;
   --tone-brand-fg: #9a1b2b;
+
+  /* Section colors -- see the note at the top. */
+  --section-dashboard-accent: #c02336;
+  --section-dashboard-fill: #c02336;
+  --section-dashboard-on: #ffffff;
+  --section-log-accent: #e87ba4;
+  --section-log-fill: #b8406f;
+  --section-log-on: #ffffff;
+  --section-facilities-accent: #009e8f;
+  --section-facilities-fill: #0b7d61;
+  --section-facilities-on: #ffffff;
+  --section-residents-accent: #2a78d6;
+  --section-residents-fill: #1d5fb3;
+  --section-residents-on: #ffffff;
+  --section-contacts-accent: #6a4fc9;
+  --section-contacts-fill: #5a3fb8;
+  --section-contacts-on: #ffffff;
+  --section-tasks-accent: #eda100;
+  --section-tasks-fill: #8f5a00;
+  --section-tasks-on: #ffffff;
+  --section-neutral-accent: #8a857e;
+  --section-neutral-fill: #66625d;
+  --section-neutral-on: #ffffff;
 }
 
 .dark {
@@ -107,6 +141,29 @@
   --tone-urgent-fg: #f3a79d;
   --tone-brand-bg: #45202a;
   --tone-brand-fg: #f4a3ad;
+
+  /* In the dark, tiles use the bright steps with dark icons instead. */
+  --section-dashboard-accent: #e5616f;
+  --section-dashboard-fill: #e5616f;
+  --section-dashboard-on: #171615;
+  --section-log-accent: #e87ba4;
+  --section-log-fill: #e87ba4;
+  --section-log-on: #171615;
+  --section-facilities-accent: #1fb3a3;
+  --section-facilities-fill: #1fb3a3;
+  --section-facilities-on: #171615;
+  --section-residents-accent: #3987e5;
+  --section-residents-fill: #3987e5;
+  --section-residents-on: #171615;
+  --section-contacts-accent: #8f78e6;
+  --section-contacts-fill: #8f78e6;
+  --section-contacts-on: #171615;
+  --section-tasks-accent: #eda100;
+  --section-tasks-fill: #eda100;
+  --section-tasks-on: #171615;
+  --section-neutral-accent: #8a857e;
+  --section-neutral-fill: #b3ada6;
+  --section-neutral-on: #171615;
 }
 
 @theme inline {
