@@ -25,6 +25,8 @@ import { telHref, websiteHref, mapsHref } from "@/lib/link-helpers";
 import { InteractionList } from "@/app/(app)/interactions/interaction-list";
 import { TaskList } from "@/app/(app)/tasks/task-list";
 import { InfoRow } from "@/components/info-row";
+import { ProfileNotesCard } from "@/components/profile-notes-card";
+import { listFacilityProfileNotes } from "@/lib/queries/profile-notes";
 import { ClipboardCheck, Pencil, Plus, UserX, Undo2, Star, User, Mail, Phone } from "lucide-react";
 
 export default async function FacilityDetailPage({
@@ -33,11 +35,12 @@ export default async function FacilityDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [facility, residents, interactions, facilityContacts] = await Promise.all([
+  const [facility, residents, interactions, facilityContacts, profileNotes] = await Promise.all([
     getFacility(id),
     listResidents({ facilityId: id, showAllStatuses: true }),
     listInteractionsForFacility(id),
     listFacilityContacts(id),
+    listFacilityProfileNotes(id),
   ]);
 
   if (!facility) notFound();
@@ -186,6 +189,8 @@ export default async function FacilityDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      <ProfileNotesCard targetType="facility" targetId={facility.id} notes={profileNotes} />
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
