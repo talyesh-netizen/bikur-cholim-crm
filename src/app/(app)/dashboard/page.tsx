@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getDashboardSummary } from "@/lib/queries/dashboard";
+import { listFacilities } from "@/lib/queries/facilities";
 import {
   getImpactBreakdown,
   getStaffActivity,
@@ -17,6 +18,7 @@ import { DonutChart } from "@/components/donut-chart";
 import { ImpactLeaderboard } from "@/components/impact-leaderboard";
 import { TrendChart } from "@/components/trend-chart";
 import { ServicesDeliveredTiles } from "@/components/services-delivered";
+import { DashboardOnsiteLauncher } from "@/components/dashboard-onsite-launcher";
 import { HeartHandshake, TrendingUp } from "lucide-react";
 import { labelFor, INTERACTION_TYPES } from "@/lib/domain/interaction";
 import { ENGAGEMENT_STATUSES } from "@/lib/domain/facility";
@@ -149,7 +151,7 @@ export default async function DashboardPage({
     params.impact === "month" || params.impact === "all" ? params.impact : "quarter";
 
   const supabase = await createClient();
-  const [{ data: { user } }, summary, impact, staffActivity, volunteerImpact, trend, services] = await Promise.all([
+  const [{ data: { user } }, summary, impact, staffActivity, volunteerImpact, trend, services, facilities] = await Promise.all([
     supabase.auth.getUser(),
     getDashboardSummary(),
     getImpactBreakdown(impactPeriod),
@@ -157,6 +159,7 @@ export default async function DashboardPage({
     getVolunteerImpact(impactPeriod),
     getInteractionTrend(6),
     getServicesDelivered(impactPeriod),
+    listFacilities(),
   ]);
 
   let firstName = "";
@@ -188,6 +191,10 @@ export default async function DashboardPage({
         <StatCard label="Active residents" value={summary.counts.activeResidents} href="/residents" icon={Users} section="residents" />
         <StatCard label="Active facilities" value={summary.counts.activeFacilities} href="/facilities" icon={Building2} section="facilities" />
       </div>
+
+      <DashboardOnsiteLauncher
+        facilities={facilities.map((facility) => ({ id: facility.id, name: facility.name }))}
+      />
 
       <Card>
         <CardHeader className="flex-row flex-wrap items-center justify-between gap-2 space-y-0">
