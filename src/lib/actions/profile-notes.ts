@@ -86,12 +86,22 @@ export async function saveProfileNote(
 
   const cleanNote = await cleanProfileNote(trimmed);
 
-  const insert =
+  const { error } =
     targetType === "resident"
-      ? { resident_id: targetId, facility_id: null, raw_note: trimmed, clean_note: cleanNote, created_by: user.id }
-      : { resident_id: null, facility_id: targetId, raw_note: trimmed, clean_note: cleanNote, created_by: user.id };
-
-  const { error } = await supabase.from("profile_notes").insert(insert);
+      ? await supabase.from("profile_notes").insert({
+          resident_id: targetId,
+          facility_id: null,
+          raw_note: trimmed,
+          clean_note: cleanNote,
+          created_by: user.id,
+        })
+      : await supabase.from("profile_notes").insert({
+          resident_id: null,
+          facility_id: targetId,
+          raw_note: trimmed,
+          clean_note: cleanNote,
+          created_by: user.id,
+        });
   if (error) {
     console.error("Profile note save failed", error.message);
     return { ok: false, error: "The note was not saved. Please try again." };
