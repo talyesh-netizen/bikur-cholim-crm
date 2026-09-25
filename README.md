@@ -109,6 +109,23 @@ In Supabase, under **Authentication → URL Configuration**, set the
 **Site URL** to the same official address and add `https://<that address>/`
 to **Redirect URLs** — otherwise password-reset links won't work.
 
+## Task emails (one-time setup)
+
+When someone assigns you a task, you get an email right away. Each morning
+(about 8am Cleveland time, Sunday–Friday, none on Shabbos) everyone also gets
+one summary email of their tasks that are due today or overdue. No
+email is sent if nothing is due.
+
+To turn this on, add these in Vercel under **Settings → Environment
+Variables** (Production), then redeploy:
+
+- `RESEND_API_KEY` — from a free account at resend.com (**API Keys**).
+- `TASK_REMINDER_FROM_EMAIL` — e.g. `Bikur Cholim CRM <crm@bikurcholimcleveland.org>`,
+  after verifying `bikurcholimcleveland.org` on Resend's **Domains** page.
+  Until then, emails can only reach the Resend account owner's address.
+- `CRON_SECRET` — any long random password; protects the morning email.
+- `SUPABASE_SERVICE_ROLE_KEY` — must also be set (the morning email uses it).
+
 ## Project documents
 
 - `PLAN.md` — the full build plan, stage by stage, in plain English.

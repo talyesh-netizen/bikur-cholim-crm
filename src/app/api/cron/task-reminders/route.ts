@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { OPEN_TASK_STATUSES, TASK_CATEGORIES, labelFor } from "@/lib/domain/task";
 import { getLocalToday, formatDateOnly } from "@/lib/format-date";
-import { APP_NAME, ORGANIZATION_NAME } from "@/lib/config";
+import { APP_NAME } from "@/lib/config";
+import { emailLayout, escapeHtml, isEmailConfigured, sendEmail } from "@/lib/email";
 import { getSiteUrl } from "@/lib/site-url";
 
 export const dynamic = "force-dynamic";
@@ -17,10 +18,6 @@ type ReminderTask = {
   resident_name: string | null;
   facility_name: string | null;
 };
-
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
-}
 
 function renderEmail(staffName: string, overdue: ReminderTask[], dueToday: ReminderTask[]): { subject: string; html: string } {
   const base = getSiteUrl();
@@ -45,29 +42,15 @@ function renderEmail(staffName: string, overdue: ReminderTask[], dueToday: Remin
   const total = overdue.length + dueToday.length;
   return {
     subject: `${total} task${total === 1 ? "" : "s"} need${total === 1 ? "s" : ""} your attention`,
-    html: `
-      <div style="font-family:-apple-system,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;">
+    html: emailLayout(
+      `
         <p>Hi ${escapeHtml(staffName)},</p>
         <p>Here's your daily follow-up task summary from the ${escapeHtml(APP_NAME)} CRM.</p>
         ${sections}
-        <p style="margin-top:24px;"><a href="${base}/tasks" style="color:#1a1a1a;">Open your tasks &rarr;</a></p>
-        <p style="color:#999;font-size:12px;margin-top:32px;">${escapeHtml(ORGANIZATION_NAME)} &middot; You're receiving this because you have open follow-up tasks assigned to you.</p>
-      </div>`,
+        <p style="margin-top:24px;"><a href="${base}/tasks" style="color:#1a1a1a;">Open your tasks &rarr;</a></p>`,
+      "You're receiving this because you have open follow-up tasks assigned to you."
+    ),
   };
-}
-
-async function sendEmail(to: string, subject: string, html: string): Promise<{ ok: boolean; error?: string }> {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) return { ok: false, error: "RESEND_API_KEY is not set" };
-
-  const from = process.env.TASK_REMINDER_FROM_EMAIL ?? "onboarding@resend.dev";
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from, to, subject, html }),
-  });
-  if (!res.ok) return { ok: false, error: `Resend returned ${res.status}: ${await res.text()}` };
-  return { ok: true };
 }
 
 /**
@@ -86,7 +69,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  if (!process.env.RESEND_API_KEY) {
+  if (!isEmailConfigured()) {
     return NextResponse.json({ skipped: true, reason: "RESEND_API_KEY not configured yet" });
   }
 
