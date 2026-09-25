@@ -12,6 +12,7 @@ import {
   ListPlus,
   ArrowRightLeft,
   Building2,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -69,7 +70,13 @@ export function QuickAddMenu({ className, fullWidth = false }: { className?: str
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [openedAt, setOpenedAt] = useState(pathname);
-  const { context, actions } = actionsFor(pathname);
+  const { context, actions: pageActions } = actionsFor(pathname);
+  // Quick Log first everywhere: one note can cover what several of the
+  // forms below would.
+  const actions: QuickAction[] = [
+    { href: "/quick-log", label: "Quick Log", hint: "Type or speak a note and it files everything", icon: Sparkles },
+    ...pageActions,
+  ];
 
   // Close whenever the page changes (i.e. after picking an action).
   if (open && openedAt !== pathname) setOpen(false);
