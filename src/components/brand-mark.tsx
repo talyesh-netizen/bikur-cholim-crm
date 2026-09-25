@@ -1,23 +1,33 @@
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
-/** The app's small home-and-heart mark -- same artwork as the
- * home-screen icon (public/icon-*.png), drawn inline so it's crisp. */
+/** The Bikur Cholim of Cleveland hearts mark (public/brand/mark.png) --
+ * the same artwork as the home-screen icon. */
 export function BrandMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 512 512" aria-hidden className={cn("size-8 shrink-0", className)}>
-      <rect width="512" height="512" rx="112" fill="#b5592f" />
-      <path
-        d="M136 214 L256 118 L376 214"
-        fill="none"
-        stroke="#fff8f2"
-        strokeWidth="30"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M256 404 C 178 352 150 314 150 276 C 150 246 173 224 202 224 C 226 224 244 238 256 258 C 268 238 286 224 310 224 C 339 224 362 246 362 276 C 362 314 334 352 256 404 Z"
-        fill="#fff8f2"
-      />
-    </svg>
+    <Image
+      src="/brand/mark.png"
+      alt=""
+      aria-hidden
+      width={64}
+      height={64}
+      className={cn("size-8 shrink-0 object-contain", className)}
+      priority
+    />
+  );
+}
+
+/** The full Bikur Cholim of Cleveland logo, for the sign-in screen and
+ * the desktop sidebar. Transparent background, 1200x487. */
+export function BrandLogo({ className }: { className?: string }) {
+  return (
+    <Image
+      src="/brand/logo-full.png"
+      alt="Bikur Cholim of Cleveland"
+      width={1200}
+      height={487}
+      className={cn("h-auto w-48", className)}
+      priority
+    />
   );
 }

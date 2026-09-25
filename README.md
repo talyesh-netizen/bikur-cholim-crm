@@ -145,9 +145,13 @@ Other useful commands:
   currently treats as its default; changes merged only there do **not**
   reach production. Open pull requests against `main`.)
 - **Daily task reminders:** a Vercel Cron job (see `vercel.json`) calls
-  `/api/cron/task-reminders` once a day. It only runs when `CRON_SECRET`,
+  `/api/cron/task-reminders` about 8am Eastern, Sunday–Friday (never on
+  Shabbos). It only runs when `CRON_SECRET`,
   `RESEND_API_KEY` and `TASK_REMINDER_FROM_EMAIL` are set on the
   production project (see `.env.example`).
+- **"New task" emails:** when someone assigns a task to another staff
+  member, that person gets an email right away (no task details, just a
+  link). Needs `RESEND_API_KEY` and `TASK_REMINDER_FROM_EMAIL`.
 
 ### Changing the database
 

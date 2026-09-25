@@ -10,28 +10,33 @@ import {
   ClipboardCheck,
   MoreHorizontal,
   DatabaseBackup,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
+import type { Section } from "@/lib/sections";
 
 // Nav item data, kept separate from nav-links.tsx (a "use client"
 // component file) so server components like more/page.tsx can call
 // mobileMoreItems() directly -- a plain function can't be invoked from
 // the server when it's exported out of a client module.
 
-export const NAV_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/facilities", label: "Facilities", icon: Building2 },
-  { href: "/residents", label: "Residents", icon: Users },
-  { href: "/contacts", label: "Contacts", icon: Contact },
-  { href: "/organizations", label: "Shuls & Partners", icon: Landmark },
-  { href: "/interactions", label: "Interactions", icon: History },
-  { href: "/tasks", label: "Tasks", icon: ListChecks },
-  { href: "/data-quality", label: "Data Quality", icon: ClipboardCheck },
+export type NavItem = { href: string; label: string; icon: LucideIcon; section: Section };
+
+export const NAV_ITEMS: NavItem[] = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, section: "dashboard" },
+  { href: "/quick-log", label: "Quick Log", icon: Sparkles, section: "log" },
+  { href: "/facilities", label: "Facilities", icon: Building2, section: "facilities" },
+  { href: "/residents", label: "Residents", icon: Users, section: "residents" },
+  { href: "/contacts", label: "Contacts", icon: Contact, section: "contacts" },
+  { href: "/organizations", label: "Shuls & Partners", icon: Landmark, section: "contacts" },
+  { href: "/interactions", label: "Interactions", icon: History, section: "log" },
+  { href: "/tasks", label: "Tasks", icon: ListChecks, section: "tasks" },
+  { href: "/data-quality", label: "Data Quality", icon: ClipboardCheck, section: "neutral" },
 ];
 
-export const ADMIN_NAV_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
-  { href: "/settings/staff", label: "Staff", icon: Settings },
-  { href: "/settings/backup", label: "Backup", icon: DatabaseBackup },
+export const ADMIN_NAV_ITEMS: NavItem[] = [
+  { href: "/settings/staff", label: "Staff", icon: Settings, section: "neutral" },
+  { href: "/settings/backup", label: "Backup", icon: DatabaseBackup, section: "neutral" },
 ];
 
 // The sidebar has room for every item, but a phone's bottom bar gets
@@ -39,7 +44,7 @@ export const ADMIN_NAV_ITEMS: { href: string; label: string; icon: LucideIcon }[
 // these are the ones worth a full-time slot there; everything else
 // (Contacts, and Staff for admins) lives under "More" instead.
 export const MOBILE_PRIMARY_HREFS = ["/dashboard", "/facilities", "/residents", "/interactions", "/tasks"];
-export const MOBILE_MORE_ITEM = { href: "/more", label: "More", icon: MoreHorizontal };
+export const MOBILE_MORE_ITEM: NavItem = { href: "/more", label: "More", icon: MoreHorizontal, section: "neutral" };
 
 export function isActive(pathname: string, href: string) {
   return href === "/dashboard" ? pathname === href : pathname.startsWith(href);

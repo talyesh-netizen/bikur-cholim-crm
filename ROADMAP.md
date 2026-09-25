@@ -298,6 +298,10 @@ This includes:
 
 A new third-party service may not receive CRM data without explicit approval.
 
+Approved exception (September 2026): the Quick Log assistant sends a
+staff member's note, and the names/relationships they can already see,
+to Anthropic's Claude API. See `PRIVACY_AND_SECURITY.md`.
+
 ## 3. Interaction Notes
 
 Interaction notes must:

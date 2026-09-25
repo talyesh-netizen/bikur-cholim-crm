@@ -4,108 +4,166 @@
 /*
   Color palette notes (plain English):
 
-  This app intentionally avoids the cold blue/white/grey look of typical
-  clinical or hospital software. Instead it uses warm, muted tones —
-  ivory backgrounds, a warm clay/terracotta accent color, and soft sand
-  neutrals — meant to feel calm and human rather than institutional.
+  Matches the Bikur Cholim of Cleveland logo: its red (#C02336) is used
+  for primary buttons and "you are here" cues, with black text on clean
+  white cards over a very light warm-grey page.
+
+  On top of that, each part of the app has its own color ("section
+  colors" below), so you can tell where you are at a glance: residents
+  are always blue, facilities teal, contacts and partners violet, tasks
+  gold, visits and Quick Log pink. The color only ever sits on icons and
+  thin stripes, always next to a text label -- never on body text, and
+  never the only way something is identified.
+
+  Each section has three values:
+    -accent  bright version, for stripes and borders
+    -fill    background of an icon tile
+    -on      the icon's color on that tile (>= 4.5:1 against -fill)
+  The set was checked for color-blind separation (dataviz validator).
 */
 
 :root {
   --radius: 0.75rem;
 
-  --background: #faf6f0;
-  --foreground: #2b2420;
+  --background: #f6f5f3;
+  --foreground: #1c1b1a;
 
   --card: #ffffff;
-  --card-foreground: #2b2420;
+  --card-foreground: #1c1b1a;
 
   --popover: #ffffff;
-  --popover-foreground: #2b2420;
+  --popover-foreground: #1c1b1a;
 
-  --primary: #b5592f;
-  --primary-foreground: #fff8f2;
+  --primary: #c02336;
+  --primary-foreground: #ffffff;
 
-  --secondary: #efe4d6;
-  --secondary-foreground: #4a3f33;
+  --secondary: #f1efec;
+  --secondary-foreground: #2e2c2a;
 
-  --muted: #f1ebe1;
-  --muted-foreground: #7a6f62;
+  --muted: #f2f1ee;
+  --muted-foreground: #66625d;
 
-  --accent: #e7d9c4;
-  --accent-foreground: #3a2f25;
+  --accent: #f1edea;
+  --accent-foreground: #1c1b1a;
 
-  --destructive: #b3271e;
-  --destructive-foreground: #fff8f2;
+  --destructive: #b42318;
+  --destructive-foreground: #ffffff;
 
-  --success: #4f7a5c;
-  --success-foreground: #fff8f2;
+  --success: #2f7a4b;
+  --success-foreground: #ffffff;
 
   --warning: #a5720a;
-  --warning-foreground: #fff8f2;
+  --warning-foreground: #ffffff;
 
-  --border: #e4d9c8;
-  --input: #d9ccb8;
-  --ring: #b5592f;
+  --border: #e7e4e0;
+  --input: #d8d4ce;
+  --ring: #c02336;
 
   /* Soft badge tones (see src/components/status-badge.tsx). Every
      foreground/background pair here is at least 4.5:1 contrast. */
-  --tone-neutral-bg: #efe8dd;
-  --tone-neutral-fg: #4a3f33;
-  --tone-good-bg: #e3eee5;
-  --tone-good-fg: #2f5a3c;
-  --tone-attention-bg: #f7ecd2;
+  --tone-neutral-bg: #eeece8;
+  --tone-neutral-fg: #3d3a36;
+  --tone-good-bg: #e3f0e7;
+  --tone-good-fg: #245c39;
+  --tone-attention-bg: #f8eed4;
   --tone-attention-fg: #6f4c05;
-  --tone-urgent-bg: #f8e1dd;
+  --tone-urgent-bg: #fbe4e1;
   --tone-urgent-fg: #8f1f17;
-  --tone-brand-bg: #f6e4d9;
-  --tone-brand-fg: #8a3f1c;
+  --tone-brand-bg: #fbe8ea;
+  --tone-brand-fg: #9a1b2b;
+
+  /* Section colors -- see the note at the top. */
+  --section-dashboard-accent: #c02336;
+  --section-dashboard-fill: #c02336;
+  --section-dashboard-on: #ffffff;
+  --section-log-accent: #e87ba4;
+  --section-log-fill: #b8406f;
+  --section-log-on: #ffffff;
+  --section-facilities-accent: #009e8f;
+  --section-facilities-fill: #0b7d61;
+  --section-facilities-on: #ffffff;
+  --section-residents-accent: #2a78d6;
+  --section-residents-fill: #1d5fb3;
+  --section-residents-on: #ffffff;
+  --section-contacts-accent: #6a4fc9;
+  --section-contacts-fill: #5a3fb8;
+  --section-contacts-on: #ffffff;
+  --section-tasks-accent: #eda100;
+  --section-tasks-fill: #8f5a00;
+  --section-tasks-on: #ffffff;
+  --section-neutral-accent: #8a857e;
+  --section-neutral-fill: #66625d;
+  --section-neutral-on: #ffffff;
 }
 
 .dark {
-  --background: #201a15;
-  --foreground: #f4ece1;
+  --background: #171615;
+  --foreground: #f3f1ee;
 
-  --card: #2a231d;
-  --card-foreground: #f4ece1;
+  --card: #211f1e;
+  --card-foreground: #f3f1ee;
 
-  --popover: #2a231d;
-  --popover-foreground: #f4ece1;
+  --popover: #211f1e;
+  --popover-foreground: #f3f1ee;
 
-  --primary: #e08a56;
-  --primary-foreground: #201a15;
+  --primary: #e5616f;
+  --primary-foreground: #171615;
 
-  --secondary: #3a3129;
-  --secondary-foreground: #f4ece1;
+  --secondary: #2f2c2a;
+  --secondary-foreground: #f3f1ee;
 
-  --muted: #332b24;
-  --muted-foreground: #b8aa98;
+  --muted: #2a2826;
+  --muted-foreground: #b3ada6;
 
-  --accent: #3f3428;
-  --accent-foreground: #f4ece1;
+  --accent: #332f2d;
+  --accent-foreground: #f3f1ee;
 
-  --destructive: #e5675a;
-  --destructive-foreground: #201a15;
+  --destructive: #f07a6d;
+  --destructive-foreground: #171615;
 
-  --success: #7fae8b;
-  --success-foreground: #201a15;
+  --success: #7fbf94;
+  --success-foreground: #171615;
 
   --warning: #d9a441;
-  --warning-foreground: #201a15;
+  --warning-foreground: #171615;
 
-  --border: #3f362c;
-  --input: #4a4034;
-  --ring: #e08a56;
+  --border: #3a3633;
+  --input: #47423e;
+  --ring: #e5616f;
 
-  --tone-neutral-bg: #3a3129;
-  --tone-neutral-fg: #eadfce;
-  --tone-good-bg: #26372b;
-  --tone-good-fg: #a9d2b3;
+  --tone-neutral-bg: #2f2c2a;
+  --tone-neutral-fg: #e6e2dc;
+  --tone-good-bg: #213629;
+  --tone-good-fg: #a9d7b6;
   --tone-attention-bg: #3d3018;
   --tone-attention-fg: #ecc57a;
   --tone-urgent-bg: #43221e;
   --tone-urgent-fg: #f3a79d;
-  --tone-brand-bg: #432b1e;
-  --tone-brand-fg: #f0b48e;
+  --tone-brand-bg: #45202a;
+  --tone-brand-fg: #f4a3ad;
+
+  /* In the dark, tiles use the bright steps with dark icons instead. */
+  --section-dashboard-accent: #e5616f;
+  --section-dashboard-fill: #e5616f;
+  --section-dashboard-on: #171615;
+  --section-log-accent: #e87ba4;
+  --section-log-fill: #e87ba4;
+  --section-log-on: #171615;
+  --section-facilities-accent: #1fb3a3;
+  --section-facilities-fill: #1fb3a3;
+  --section-facilities-on: #171615;
+  --section-residents-accent: #3987e5;
+  --section-residents-fill: #3987e5;
+  --section-residents-on: #171615;
+  --section-contacts-accent: #8f78e6;
+  --section-contacts-fill: #8f78e6;
+  --section-contacts-on: #171615;
+  --section-tasks-accent: #eda100;
+  --section-tasks-fill: #eda100;
+  --section-tasks-on: #171615;
+  --section-neutral-accent: #8a857e;
+  --section-neutral-fill: #b3ada6;
+  --section-neutral-on: #171615;
 }
 
 @theme inline {

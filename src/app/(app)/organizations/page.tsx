@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import { listOrganizations } from "@/lib/queries/organizations";
 import { OrganizationFilters } from "./organization-filters";
 import { OrganizationCard } from "./organization-card";
+import { SectionIcon } from "@/components/section-icon";
 
 export default async function OrganizationsPage({
   searchParams,
@@ -24,7 +25,10 @@ export default async function OrganizationsPage({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Shuls & Partners</h1>
+          <h1 className="flex items-center gap-2.5 text-2xl font-semibold">
+            <SectionIcon section="contacts" icon={Landmark} />
+            Shuls & Partners
+          </h1>
           <p className="text-sm text-muted-foreground">
             {organizations.length} organization{organizations.length === 1 ? "" : "s"}
           </p>

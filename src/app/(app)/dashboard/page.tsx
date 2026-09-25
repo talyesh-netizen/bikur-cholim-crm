@@ -35,6 +35,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ORGANIZATION_TIMEZONE } from "@/lib/config";
+import { SectionIcon } from "@/components/section-icon";
+import { sectionVars, type Section } from "@/lib/sections";
 
 const IMPACT_PERIODS: { value: ImpactPeriod; label: string }[] = [
   { value: "month", label: "This month" },
@@ -54,33 +56,29 @@ function greeting(): string {
   return "Good evening";
 }
 
-const STAT_TONES = {
-  warning: { bg: "bg-warning/10", text: "text-warning" },
-  primary: { bg: "bg-primary/10", text: "text-primary" },
-  success: { bg: "bg-success/10", text: "text-success" },
-} as const;
-
 function StatCard({
   label,
   value,
   href,
-  icon: Icon,
-  tone,
+  icon,
+  section,
 }: {
   label: string;
   value: number;
   href: string;
   icon: LucideIcon;
-  tone: keyof typeof STAT_TONES;
+  section: Section;
 }) {
-  const { bg, text } = STAT_TONES[tone];
   return (
     <Link href={href}>
-      <Card className="transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md">
-        <CardContent className="flex items-center gap-3 p-4">
-          <div className={cn("flex size-11 shrink-0 items-center justify-center rounded-full", bg, text)}>
-            <Icon className="size-5" />
-          </div>
+      {/* A stripe across the top in the section's color -- the same
+          color that section's icon wears in the menu. */}
+      <Card
+        className="border-t-4 transition-all hover:-translate-y-0.5 hover:shadow-md"
+        style={{ borderTopColor: sectionVars(section).accent }}
+      >
+        <CardContent className="flex items-center gap-3 p-4 sm:p-4">
+          <SectionIcon section={section} icon={icon} size="lg" />
           <div>
             <p className="text-2xl font-semibold leading-none">{value}</p>
             <p className="text-sm text-muted-foreground">{label}</p>
@@ -186,9 +184,9 @@ export default async function DashboardPage({
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <StatCard label="Open tasks" value={summary.counts.openTasks} href="/tasks" icon={ListChecks} tone="warning" />
-        <StatCard label="Active residents" value={summary.counts.activeResidents} href="/residents" icon={Users} tone="primary" />
-        <StatCard label="Active facilities" value={summary.counts.activeFacilities} href="/facilities" icon={Building2} tone="success" />
+        <StatCard label="Open tasks" value={summary.counts.openTasks} href="/tasks" icon={ListChecks} section="tasks" />
+        <StatCard label="Active residents" value={summary.counts.activeResidents} href="/residents" icon={Users} section="residents" />
+        <StatCard label="Active facilities" value={summary.counts.activeFacilities} href="/facilities" icon={Building2} section="facilities" />
       </div>
 
       <Card>

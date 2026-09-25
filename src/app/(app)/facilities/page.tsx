@@ -7,6 +7,7 @@ import { listFacilities, listGeographicClusters } from "@/lib/queries/facilities
 import { getCurrentProfile } from "@/lib/get-current-profile";
 import { FacilityFilters } from "./facility-filters";
 import { FacilityCard } from "./facility-card";
+import { SectionIcon } from "@/components/section-icon";
 
 export default async function FacilitiesPage({
   searchParams,
@@ -32,7 +33,10 @@ export default async function FacilitiesPage({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Facilities</h1>
+          <h1 className="flex items-center gap-2.5 text-2xl font-semibold">
+            <SectionIcon section="facilities" icon={Building2} />
+            Facilities
+          </h1>
           <p className="text-sm text-muted-foreground">
             {facilities.length} facilit{facilities.length === 1 ? "y" : "ies"}
           </p>
