@@ -9,6 +9,7 @@ import {
   Landmark,
   ClipboardCheck,
   MoreHorizontal,
+  CalendarDays,
   type LucideIcon,
 } from "lucide-react";
 
@@ -24,6 +25,7 @@ export const NAV_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/contacts", label: "Contacts", icon: Contact },
   { href: "/organizations", label: "Shuls & Partners", icon: Landmark },
   { href: "/interactions", label: "Interactions", icon: History },
+  { href: "/daily-summary", label: "Daily Summary", icon: CalendarDays },
   { href: "/tasks", label: "Tasks", icon: ListChecks },
   { href: "/data-quality", label: "Data Quality", icon: ClipboardCheck },
 ];
