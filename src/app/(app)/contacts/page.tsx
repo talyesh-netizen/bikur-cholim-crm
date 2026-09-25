@@ -9,6 +9,7 @@ import { contactTypeColor } from "@/lib/domain/contact-colors";
 import { ContactFilters } from "./contact-filters";
 import { ContactCard } from "./contact-card";
 import { cn } from "@/lib/utils";
+import { SectionIcon } from "@/components/section-icon";
 
 export default async function ContactsPage({
   searchParams,
@@ -27,7 +28,10 @@ export default async function ContactsPage({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Contacts</h1>
+          <h1 className="flex items-center gap-2.5 text-2xl font-semibold">
+            <SectionIcon section="contacts" icon={Contact} />
+            Contacts
+          </h1>
           <p className="text-sm text-muted-foreground">
             {contacts.length} contact{contacts.length === 1 ? "" : "s"}
           </p>

@@ -7,6 +7,7 @@ import { listInteractions } from "@/lib/queries/interactions";
 import { listFacilityOptions } from "@/lib/queries/facilities";
 import { InteractionFilters } from "./interaction-filters";
 import { InteractionRow } from "./interaction-row";
+import { SectionIcon } from "@/components/section-icon";
 
 export default async function InteractionsPage({
   searchParams,
@@ -31,7 +32,10 @@ export default async function InteractionsPage({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Interactions</h1>
+          <h1 className="flex items-center gap-2.5 text-2xl font-semibold">
+            <SectionIcon section="log" icon={History} />
+            Interactions
+          </h1>
           <p className="text-sm text-muted-foreground">
             {totalCount} interaction{totalCount === 1 ? "" : "s"}
             {totalCount > pageSize ? ` · showing the most recent ${pageSize}` : ""}
