@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     capable: true,
     // "default" = dark status-bar text on the app's light background.
     statusBarStyle: "default",
-    title: "Resident Support",
+    title: APP_NAME,
   },
   formatDetection: {
     // Phone numbers are already real tap-to-call links where it matters;
