@@ -27,7 +27,7 @@ export function ContactCard({ contact }: { contact: ContactListItem }) {
         }
         style={{ borderLeftColor: color }}
       >
-        <CardContent className="flex flex-col gap-2 p-4">
+        <CardContent className="flex flex-col gap-2 p-4 sm:p-4">
           <div className="flex items-start justify-between gap-2">
             <div>
               <p className="font-semibold leading-tight">{contact.name}</p>

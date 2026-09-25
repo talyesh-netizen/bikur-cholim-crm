@@ -1,5 +1,6 @@
 "use server";
 
+import { withSaved } from "@/lib/saved-flash";
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -71,7 +72,7 @@ export async function createTask(
   }
 
   revalidateTaskPaths(parsed.data);
-  redirect(redirectTo);
+  redirect(withSaved(redirectTo, "task-added"));
 }
 
 export async function updateTask(
@@ -95,7 +96,7 @@ export async function updateTask(
 
   revalidateTaskPaths(parsed.data);
   revalidatePath(`/tasks/${taskId}`);
-  redirect(redirectTo);
+  redirect(withSaved(redirectTo, "task-saved"));
 }
 
 const statusChangeSchema = z.object({ status: z.enum(statusValues), completion_notes: optionalText() });

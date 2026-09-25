@@ -1,5 +1,6 @@
 "use server";
 
+import { withSaved } from "@/lib/saved-flash";
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -96,7 +97,7 @@ export async function createResident(
 
   revalidatePath("/residents");
   revalidatePath(`/facilities/${parsed.data.current_facility_id}`);
-  redirect(`/residents/${data.id}`);
+  redirect(withSaved(`/residents/${data.id}`, "resident-added"));
 }
 
 export async function updateResident(
@@ -122,5 +123,5 @@ export async function updateResident(
 
   revalidatePath("/residents");
   revalidatePath(`/residents/${residentId}`);
-  redirect(`/residents/${residentId}`);
+  redirect(withSaved(`/residents/${residentId}`, "resident-saved"));
 }

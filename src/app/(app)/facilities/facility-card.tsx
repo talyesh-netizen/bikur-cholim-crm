@@ -1,83 +1,49 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  labelFor,
-  FACILITY_TYPES,
-  ENGAGEMENT_STATUSES,
-  VISIT_PRIORITIES,
-} from "@/lib/domain/facility";
+import { labelFor, FACILITY_TYPES } from "@/lib/domain/facility";
 import type { FacilityWithSummary } from "@/lib/domain/facility";
 import { ClusterBadge } from "@/components/cluster-badge";
-import { formatDateTime } from "@/lib/format-date";
-import { MapPin, Users } from "lucide-react";
-import { cn } from "@/lib/utils";
-
-function priorityVariant(priority: string): "destructive" | "warning" | "secondary" {
-  if (priority === "high") return "destructive";
-  if (priority === "medium") return "warning";
-  return "secondary";
-}
-
-function priorityAccent(priority: string): string {
-  if (priority === "high") return "border-l-4 border-l-destructive";
-  if (priority === "medium") return "border-l-4 border-l-warning";
-  return "";
-}
-
-function formatLastVisit(lastVisitAt: string | null) {
-  const formatted = formatDateTime(lastVisitAt);
-  return formatted ? `Last visit ${formatted}` : "No visits logged yet";
-}
+import { EngagementBadge, PriorityBadge, StatusBadge } from "@/components/status-badge";
+import { formatRelative } from "@/lib/format-date";
+import { ChevronRight, MapPin, Users } from "lucide-react";
 
 export function FacilityCard({ facility }: { facility: FacilityWithSummary }) {
+  const lastVisit = formatRelative(facility.last_visit_at);
+
   return (
-    <Link href={`/facilities/${facility.id}`}>
-      <Card className={cn("transition-colors hover:border-primary/50", priorityAccent(facility.visit_priority))}>
-        <CardContent className="flex flex-col gap-2 p-4">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="font-semibold leading-tight">{facility.name}</p>
-              <p className="text-sm text-muted-foreground">
-                {labelFor(FACILITY_TYPES, facility.facility_type)}
-              </p>
+    <Link href={`/facilities/${facility.id}`} className="group block">
+      <Card className="transition-colors group-hover:border-primary/50">
+        <CardContent className="flex items-center gap-3 p-4 sm:p-4">
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <p className="text-base font-semibold leading-tight">{facility.name}</p>
+              {!facility.active ? <StatusBadge tone="muted">Inactive</StatusBadge> : null}
             </div>
-            <div className="flex flex-col items-end gap-1">
-              {!facility.active ? <Badge variant="outline">Inactive</Badge> : null}
-              <Badge variant={priorityVariant(facility.visit_priority)}>
-                {labelFor(VISIT_PRIORITIES, facility.visit_priority)} priority
-              </Badge>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-            {facility.city ? (
+            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+              <span>{labelFor(FACILITY_TYPES, facility.facility_type)}</span>
+              {facility.city ? (
+                <span className="flex items-center gap-1">
+                  <MapPin className="size-3.5" />
+                  {facility.city}
+                </span>
+              ) : null}
               <span className="flex items-center gap-1">
-                <MapPin className="size-3.5" />
-                {facility.city}
+                <Users className="size-3.5" />
+                {facility.active_resident_count} resident{facility.active_resident_count === 1 ? "" : "s"}
               </span>
-            ) : null}
-            {facility.geographic_cluster_name ? (
-              <ClusterBadge
-                clusterId={facility.geographic_cluster_id}
-                name={facility.geographic_cluster_name}
-              />
-            ) : null}
-            <span className="flex items-center gap-1">
-              <Users className="size-3.5" />
-              {facility.active_resident_count} active resident
-              {facility.active_resident_count === 1 ? "" : "s"}
-            </span>
+            </p>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <EngagementBadge status={facility.engagement_status} />
+              {facility.visit_priority === "high" ? <PriorityBadge priority="high" /> : null}
+              {facility.geographic_cluster_name ? (
+                <ClusterBadge clusterId={facility.geographic_cluster_id} name={facility.geographic_cluster_name} />
+              ) : null}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {lastVisit ? `Last visit: ${lastVisit}` : "No visits logged yet"}
+            </p>
           </div>
-
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <Badge variant="secondary">
-              {labelFor(ENGAGEMENT_STATUSES, facility.engagement_status)}
-            </Badge>
-            <span className="text-muted-foreground">
-              {formatLastVisit(facility.last_visit_at)}
-            </span>
-          </div>
+          <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
         </CardContent>
       </Card>
     </Link>

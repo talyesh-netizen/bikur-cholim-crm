@@ -75,6 +75,40 @@ same as a completed compliance review.
 
 See `PLAN.md` for why these were chosen and how the pieces fit together.
 
+## Installing the app on a phone
+
+The CRM can be added to a phone's home screen and opened full-screen,
+like a regular app. There is nothing to download from an app store.
+
+**iPhone (must use Safari):**
+1. Open the CRM's web address in **Safari** and sign in.
+2. Tap the **Share** button (the square with an arrow pointing up).
+3. Scroll down and tap **Add to Home Screen**, then tap **Add**.
+4. Open it from the new "Resident Support" icon from now on.
+
+**Android (Chrome):**
+1. Open the CRM's web address in **Chrome** and sign in.
+2. Tap the **⋮** menu in the top-right corner.
+3. Tap **Add to Home screen** (on some phones it says **Install app**), then **Install**.
+4. Open it from the new "Resident Support" icon. Long-pressing the icon
+   offers shortcuts to "Log a visit" and "Tasks".
+
+## Production web address (one-time setup)
+
+The app should be used from one official address (for example
+`https://crm.bikurcholimcleveland.org`). In Vercel, under
+**Settings → Environment Variables**, for the **Production** environment:
+
+- `NEXT_PUBLIC_SITE_URL` — the official address, including `https://`.
+  Used for links in password-reset and task-reminder emails.
+- `REDIRECT_TO_CANONICAL_DOMAIN` — optional; set to `true` only after the
+  official address loads correctly, to send anyone who opens the
+  `*.vercel.app` address over to the official one.
+
+In Supabase, under **Authentication → URL Configuration**, set the
+**Site URL** to the same official address and add `https://<that address>/`
+to **Redirect URLs** — otherwise password-reset links won't work.
+
 ## Project documents
 
 - `PLAN.md` — the full build plan, stage by stage, in plain English.

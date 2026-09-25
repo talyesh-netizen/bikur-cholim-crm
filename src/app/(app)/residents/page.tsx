@@ -1,3 +1,5 @@
+import { Users } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -43,9 +45,12 @@ export default async function ResidentsPage({
       <ResidentFilters facilities={facilities} />
 
       {residents.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          No residents match your search. Try adjusting the filters above.
-        </p>
+        <EmptyState
+          icon={Users}
+          title="No residents found"
+          description="Try just a last name, or clear the filters. Residents who moved away or passed are hidden unless you choose to show all statuses."
+          action={{ href: "/residents/new", label: "Add a resident" }}
+        />
       ) : (
         <div className="flex flex-col gap-3">
           {residents.map((resident) => (

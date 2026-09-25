@@ -1,7 +1,7 @@
 "use client";
 
+import { FormActions, FormError } from "@/components/form-actions";
 import { useActionState, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -61,14 +61,10 @@ export function ResidentForm({
 
   return (
     <form key={formKey} action={formAction} className="flex flex-col gap-6">
-      {state.error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {state.error}
-        </p>
-      ) : null}
+      <FormError message={state.error} />
 
-      <section className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold text-muted-foreground">Basic information</h2>
+      <section className="flex flex-col gap-5">
+        <h2 className="border-b border-border pb-2 text-base font-semibold">Basic information</h2>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="First name" htmlFor="first_name" error={fieldErrors.first_name} required>
@@ -122,8 +118,8 @@ export function ResidentForm({
         </Field>
       </section>
 
-      <section className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold text-muted-foreground">
+      <section className="flex flex-col gap-5">
+        <h2 className="border-b border-border pb-2 text-base font-semibold">
           Jewish background &amp; needs
         </h2>
 
@@ -173,8 +169,8 @@ export function ResidentForm({
         </Field>
       </section>
 
-      <section className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold text-muted-foreground">Private internal notes</h2>
+      <section className="flex flex-col gap-5">
+        <h2 className="border-b border-border pb-2 text-base font-semibold">Private internal notes</h2>
         <p className="text-xs text-muted-foreground">
           For sensitive details you wouldn&apos;t want shared outside the
           department — never visible to facilities or family members.
@@ -187,11 +183,12 @@ export function ResidentForm({
         />
       </section>
 
-      <div className="flex justify-end gap-2">
-        <Button type="submit" disabled={isPending}>
-          {isPending ? "Saving…" : resident ? "Save changes" : "Add resident"}
-        </Button>
-      </div>
+      <FormActions
+        isPending={isPending}
+        submitLabel={resident ? "Save changes" : "Add resident"}
+        savingLabel={"Saving…"}
+        hasUnsavedError={!!state.error}
+      />
     </form>
   );
 }
@@ -216,7 +213,7 @@ function Field({
         {required ? <span className="text-destructive"> *</span> : null}
       </Label>
       {children}
-      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      {error ? <p className="text-sm font-medium text-destructive">{error}</p> : null}
     </div>
   );
 }

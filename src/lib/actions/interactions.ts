@@ -1,5 +1,6 @@
 "use server";
 
+import { withSaved } from "@/lib/saved-flash";
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -158,7 +159,8 @@ export async function createInteraction(
 
   if (parsed.data.resident_id) revalidatePath(`/residents/${parsed.data.resident_id}`);
   if (parsed.data.facility_id) revalidatePath(`/facilities/${parsed.data.facility_id}`);
-  redirect(redirectTo);
+  const isVisit = parsed.data.interaction_type === "resident_visit" || parsed.data.interaction_type === "volunteer_visit";
+  redirect(withSaved(redirectTo, isVisit ? "visit-logged" : "interaction-logged", created.id));
 }
 
 export async function updateInteraction(
@@ -214,7 +216,7 @@ export async function updateInteraction(
   if (parsed.data.resident_id) revalidatePath(`/residents/${parsed.data.resident_id}`);
   if (parsed.data.facility_id) revalidatePath(`/facilities/${parsed.data.facility_id}`);
   revalidatePath("/interactions");
-  redirect(redirectTo);
+  redirect(withSaved(redirectTo, "interaction-saved"));
 }
 
 export type ReviewFormState = { error: string | null; saved?: boolean };

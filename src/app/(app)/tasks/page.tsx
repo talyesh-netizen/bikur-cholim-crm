@@ -1,3 +1,5 @@
+import { ListChecks } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Plus, LayoutGrid, List as ListIcon } from "lucide-react";
@@ -55,9 +57,12 @@ export default async function TasksPage({
       <TaskFilters staff={staff} />
 
       {tasks.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          No tasks match your filters.
-        </p>
+        <EmptyState
+          icon={ListChecks}
+          title="No tasks match these filters"
+          description="Try a different status or person, or clear the filters. Open follow-ups from visits show up here."
+          action={{ href: "/tasks/new", label: "Add a follow-up task" }}
+        />
       ) : view === "board" ? (
         <TaskBoard tasks={tasks} />
       ) : (

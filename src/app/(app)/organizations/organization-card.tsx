@@ -9,7 +9,7 @@ export function OrganizationCard({ organization }: { organization: Organization 
   return (
     <Link href={`/organizations/${organization.id}`}>
       <Card className="transition-colors hover:border-primary/50">
-        <CardContent className="flex flex-col gap-2 p-4">
+        <CardContent className="flex flex-col gap-2 p-4 sm:p-4">
           <div className="flex items-start justify-between gap-2">
             <p className="font-semibold leading-tight">{organization.name}</p>
             <div className="flex items-center gap-1.5">

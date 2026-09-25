@@ -1,3 +1,5 @@
+import { Search } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { searchAll } from "@/lib/queries/search";
@@ -54,9 +56,11 @@ export default async function SearchPage({
       </div>
 
       {results && totalCount === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          No matches for &quot;{query}&quot;. Try a different spelling or a shorter search.
-        </p>
+        <EmptyState
+          icon={Search}
+          title={`No matches for "${query}"`}
+          description="Try a different spelling, just a last name, or part of the facility name."
+        />
       ) : null}
 
       {results ? (

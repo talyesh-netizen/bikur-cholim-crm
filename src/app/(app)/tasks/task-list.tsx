@@ -1,38 +1,89 @@
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
-import { labelFor, TASK_STATUSES, OPEN_TASK_STATUSES } from "@/lib/domain/task";
+import { TaskStatusBadge } from "@/components/status-badge";
+import { EmptyState } from "@/components/empty-state";
+import { OPEN_TASK_STATUSES } from "@/lib/domain/task";
 import type { TaskWithNames } from "@/lib/domain/task";
 import { formatDateOnly, getLocalToday } from "@/lib/format-date";
+import { isTaskOverdue } from "./task-card";
+import { ListChecks, ChevronRight } from "lucide-react";
 
 /** Compact task list shown on resident/facility pages — the full
- * details live on the task's own page (linked from each row). */
-export function TaskList({ tasks }: { tasks: TaskWithNames[] }) {
-  if (tasks.length === 0) {
-    return <p className="text-sm text-muted-foreground">No follow-up tasks on file yet.</p>;
-  }
+ * details live on the task's own page (linked from each row). Open
+ * tasks come first; finished ones are tucked behind a toggle so the
+ * section answers "what still needs doing?" at a glance. */
+export function TaskList({
+  tasks,
+  emptyAction,
+}: {
+  tasks: TaskWithNames[];
+  /** Where "add one" should go when there are no open tasks. */
+  emptyAction?: { href: string; label: string };
+}) {
+  const open = tasks.filter((t) => (OPEN_TASK_STATUSES as readonly string[]).includes(t.status));
+  const closed = tasks.filter((t) => !(OPEN_TASK_STATUSES as readonly string[]).includes(t.status));
 
   return (
-    <ul className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3">
+      {open.length === 0 ? (
+        <EmptyState
+          icon={ListChecks}
+          title="No open follow-ups"
+          description={
+            closed.length > 0
+              ? "Everything here has been completed. Add a task if something new comes up."
+              : "Nothing is waiting on anyone. Add a follow-up task after a visit if something needs doing — a call back, a referral, a delivery."
+          }
+          action={emptyAction}
+        />
+      ) : (
+        <TaskRows tasks={open} />
+      )}
+
+      {closed.length > 0 ? (
+        <details className="group">
+          <summary className="cursor-pointer list-none py-1 text-sm font-medium text-muted-foreground hover:text-foreground">
+            <span className="group-open:hidden">Show {closed.length} completed or cancelled</span>
+            <span className="hidden group-open:inline">Hide completed or cancelled</span>
+          </summary>
+          <div className="mt-2 opacity-80">
+            <TaskRows tasks={closed} />
+          </div>
+        </details>
+      ) : null}
+    </div>
+  );
+}
+
+function TaskRows({ tasks }: { tasks: TaskWithNames[] }) {
+  const today = getLocalToday();
+  return (
+    <ul className="-mx-2 flex flex-col">
       {tasks.map((task) => {
-        const overdue =
-          task.due_date &&
-          (OPEN_TASK_STATUSES as readonly string[]).includes(task.status) &&
-          task.due_date < getLocalToday();
+        const overdue = isTaskOverdue(task);
         const dueDate = formatDateOnly(task.due_date);
         return (
           <li key={task.id}>
             <Link
               href={`/tasks/${task.id}`}
-              className="flex items-start justify-between gap-4 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+              className="flex min-h-12 items-center justify-between gap-3 rounded-md px-2 py-2 hover:bg-accent/60"
             >
-              <div>
-                <p className="font-medium">{task.title}</p>
-                <p className={overdue ? "text-xs font-medium text-destructive" : "text-xs text-muted-foreground"}>
-                  {dueDate ? `${overdue ? "Overdue — " : "Due "}${dueDate}` : "No due date"}
+              <div className="min-w-0">
+                <p className="font-medium leading-snug">{task.title}</p>
+                <p className={overdue ? "text-sm font-medium text-destructive" : "text-sm text-muted-foreground"}>
+                  {dueDate
+                    ? overdue
+                      ? `Overdue — was due ${dueDate}`
+                      : task.due_date === today
+                        ? "Due today"
+                        : `Due ${dueDate}`
+                    : "No due date"}
                   {task.assigned_to_name ? ` · ${task.assigned_to_name}` : ""}
                 </p>
               </div>
-              <Badge variant="secondary">{labelFor(TASK_STATUSES, task.status)}</Badge>
+              <span className="flex shrink-0 items-center gap-1">
+                <TaskStatusBadge status={task.status} />
+                <ChevronRight className="size-4 text-muted-foreground" />
+              </span>
             </Link>
           </li>
         );
