@@ -39,7 +39,6 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/favicon.svg", type: "image/svg+xml" },
       { url: "/icon-32.png", sizes: "32x32", type: "image/png" },
       { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
     ],
@@ -48,7 +47,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#b5592f",
+  // White, to match the app header (and the white home-screen icon).
+  themeColor: "#ffffff",
   width: "device-width",
   initialScale: 1,
   // Lets the layout extend under the iPhone home indicator/notch; the
