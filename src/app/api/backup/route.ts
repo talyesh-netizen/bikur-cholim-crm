@@ -23,6 +23,7 @@ const TABLES: { name: string; orderBy: string[] }[] = [
   { name: "interactions", orderBy: ["id"] },
   { name: "interaction_volunteers", orderBy: ["interaction_id", "contact_id"] },
   { name: "tasks", orderBy: ["id"] },
+  { name: "profile_notes", orderBy: ["id"] },
   { name: "profiles", orderBy: ["id"] },
   { name: "profile_facility_access", orderBy: ["profile_id", "facility_id"] },
   { name: "geographic_clusters", orderBy: ["id"] },

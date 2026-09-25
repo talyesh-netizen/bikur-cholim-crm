@@ -10,6 +10,7 @@ import { listTasksForFacility } from "@/lib/queries/tasks";
 import { SectionIcon } from "@/components/section-icon";
 import { StatusBadge } from "@/components/status-badge";
 import { sectionVars, type Section } from "@/lib/sections";
+import { ProfileNotesCard } from "@/components/profile-notes-card";
 import { ACTIVE_RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { formatDateOnly, formatRelative, getLocalToday } from "@/lib/format-date";
 
@@ -97,6 +98,8 @@ export default async function FacilityOnsitePage({
           </div>
         </div>
       </div>
+
+      <ProfileNotesCard targetType="facility" targetId={facility.id} notes={[]} compact />
 
       <div className="grid grid-cols-3 gap-2">
         <CountTile value={residentsNeedingVisit.length} label="Need a visit" section="residents" />
@@ -211,6 +214,8 @@ export default async function FacilityOnsitePage({
                         </Link>
                       </Button>
                     </div>
+
+                    <ProfileNotesCard targetType="resident" targetId={resident.id} notes={[]} compact />
                   </li>
                 );
               })}

@@ -17,6 +17,8 @@ import { telHref } from "@/lib/link-helpers";
 import { InteractionList } from "@/app/(app)/interactions/interaction-list";
 import { TaskList } from "@/app/(app)/tasks/task-list";
 import { InfoRow } from "@/components/info-row";
+import { ProfileNotesCard } from "@/components/profile-notes-card";
+import { listResidentProfileNotes } from "@/lib/queries/profile-notes";
 import { Pencil, ArrowRightLeft, Plus, UserX, Undo2, Star } from "lucide-react";
 
 export default async function ResidentDetailPage({
@@ -25,13 +27,14 @@ export default async function ResidentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [resident, history, interactions, volunteers, familyContacts, tasks] = await Promise.all([
+  const [resident, history, interactions, volunteers, familyContacts, tasks, profileNotes] = await Promise.all([
     getResident(id),
     getResidentFacilityHistory(id),
     listInteractionsForResident(id),
     listVolunteersForResident(id),
     listResidentContacts(id),
     listTasks({ residentId: id, showAllStatuses: true }),
+    listResidentProfileNotes(id),
   ]);
 
   if (!resident) notFound();
@@ -108,6 +111,8 @@ export default async function ResidentDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      <ProfileNotesCard targetType="resident" targetId={resident.id} notes={profileNotes} />
 
       <Card>
         <CardHeader>
