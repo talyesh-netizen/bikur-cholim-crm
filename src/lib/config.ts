@@ -6,7 +6,7 @@
  * change or vary, it's a one-line edit here rather than a search-and-
  * replace across the codebase.
  */
-export const APP_NAME = "Resident Support Services";
+export const APP_NAME = "Senior Resident Support Services";
 export const ORGANIZATION_NAME = "Bikur Cholim of Cleveland";
 
 /** Used for anything that needs "today"/"right now" in the org's own
