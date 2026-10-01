@@ -1,14 +1,15 @@
 import type { OrganizationType } from "@/lib/domain/organization";
 
 /**
- * Stable color per organization type (synagogue, school, community
- * partner, other), used when a contact's primary profile is set to
+ * Stable color per organization type (synagogue, school, outreach center,
+ * community partner, other), used when a contact's primary profile is set to
  * "their shul/school/partner" -- same idea as contactTypeColor and
  * clusterColor.
  */
 const ORGANIZATION_TYPE_COLORS: Record<OrganizationType, string> = {
   synagogue: "#5b5fc7",
   school: "#eda100",
+  outreach_center: "#2e9d62",
   community_partner: "#eb6834",
   other: "#898781",
 };
