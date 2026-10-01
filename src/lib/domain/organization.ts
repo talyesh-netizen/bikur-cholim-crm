@@ -10,6 +10,7 @@ export { labelFor } from "./options";
 export const ORGANIZATION_TYPES = [
   { value: "synagogue", label: "Synagogue" },
   { value: "school", label: "School" },
+  { value: "outreach_center", label: "Outreach center" },
   { value: "community_partner", label: "Community partner" },
   { value: "other", label: "Other" },
 ] as const;
@@ -30,6 +31,7 @@ export type Organization = {
   active: boolean;
   created_at: string;
   updated_at: string;
+  parent_organization_id: string | null;
 };
 
 /** An organization_contacts row plus the linked contact's own fields,
