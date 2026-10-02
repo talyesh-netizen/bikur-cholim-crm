@@ -96,6 +96,12 @@ export function ResidentActiveStatus({ status, size = "large" }: { status: strin
   );
 }
 
+/** Gentle reminder when a resident was saved with only one name. */
+export function MissingNameBadge({ resident }: { resident: { first_name: string | null; last_name: string | null } }) {
+  const missing = !resident.last_name ? "Last name missing" : !resident.first_name ? "First name missing" : null;
+  return missing ? <StatusBadge tone="attention">{missing}</StatusBadge> : null;
+}
+
 // ---- Facilities ---------------------------------------------------------
 
 const ENGAGEMENT_TONES: Record<string, BadgeTone> = {

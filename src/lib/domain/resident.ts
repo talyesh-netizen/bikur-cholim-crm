@@ -40,8 +40,8 @@ export function isActiveResidentStatus(status: string) {
 
 export type Resident = {
   id: string;
-  first_name: string;
-  last_name: string;
+  first_name: string | null;
+  last_name: string | null;
   preferred_name: string | null;
   current_facility_id: string | null;
   room_number: string | null;

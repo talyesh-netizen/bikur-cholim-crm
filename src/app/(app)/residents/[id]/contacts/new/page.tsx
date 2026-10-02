@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getResident } from "@/lib/queries/residents";
 import { addFamilyContact } from "@/lib/actions/resident-contacts";
 import { FamilyContactForm } from "../family-contact-form";
+import { residentName } from "@/lib/domain/resident-name";
 
 export default async function NewFamilyContactPage({
   params,
@@ -13,9 +14,7 @@ export default async function NewFamilyContactPage({
   const resident = await getResident(id);
   if (!resident) notFound();
 
-  const displayName = resident.preferred_name
-    ? `${resident.preferred_name} ${resident.last_name}`
-    : `${resident.first_name} ${resident.last_name}`;
+  const displayName = residentName(resident);
   const action = addFamilyContact.bind(null, resident.id);
 
   return (

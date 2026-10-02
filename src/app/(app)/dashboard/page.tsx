@@ -39,6 +39,7 @@ import { cn } from "@/lib/utils";
 import { ORGANIZATION_TIMEZONE } from "@/lib/config";
 import { SectionIcon } from "@/components/section-icon";
 import { sectionVars, type Section } from "@/lib/sections";
+import { residentName } from "@/lib/domain/resident-name";
 
 const IMPACT_PERIODS: { value: ImpactPeriod; label: string }[] = [
   { value: "month", label: "This month" },
@@ -333,7 +334,7 @@ export default async function DashboardPage({
               >
                 <div>
                   <p className="font-medium leading-tight">
-                    {resident.preferred_name ?? resident.first_name} {resident.last_name}
+                    {residentName(resident)}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {resident.current_facility_name ?? "Current location unknown"}

@@ -22,8 +22,8 @@ type Action = (state: ResidentFormState, formData: FormData) => Promise<Resident
 function residentToFormValues(resident?: Resident): Record<string, string> {
   if (!resident) return { status: "active" };
   return {
-    first_name: resident.first_name,
-    last_name: resident.last_name,
+    first_name: resident.first_name ?? "",
+    last_name: resident.last_name ?? "",
     preferred_name: resident.preferred_name ?? "",
     room_number: resident.room_number ?? "",
     phone_number: resident.phone_number ?? "",
@@ -72,13 +72,17 @@ export function ResidentForm({
         <h2 className="text-sm font-semibold text-muted-foreground">Basic information</h2>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="First name" htmlFor="first_name" error={fieldErrors.first_name} required>
-            <Input id="first_name" name="first_name" defaultValue={values.first_name} autoCapitalize="words" onChange={capitalizeAsYouType} required />
+          <Field label="First name" htmlFor="first_name" error={fieldErrors.first_name}>
+            <Input id="first_name" name="first_name" defaultValue={values.first_name} autoCapitalize="words" onChange={capitalizeAsYouType} />
           </Field>
-          <Field label="Last name" htmlFor="last_name" error={fieldErrors.last_name} required>
-            <Input id="last_name" name="last_name" defaultValue={values.last_name} autoCapitalize="words" onChange={capitalizeAsYouType} required />
+          <Field label="Last name" htmlFor="last_name" error={fieldErrors.last_name}>
+            <Input id="last_name" name="last_name" defaultValue={values.last_name} autoCapitalize="words" onChange={capitalizeAsYouType} />
           </Field>
         </div>
+
+        <p className="-mt-2 text-xs text-muted-foreground">
+          A first or last name is enough to save. Fill in the other when you learn it.
+        </p>
 
         <Field label="Preferred name" htmlFor="preferred_name">
           <Input id="preferred_name" name="preferred_name" defaultValue={values.preferred_name} autoCapitalize="words" onChange={capitalizeAsYouType} />

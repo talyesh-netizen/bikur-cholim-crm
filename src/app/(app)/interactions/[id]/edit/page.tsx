@@ -8,6 +8,7 @@ import { listContactOptions, listContactsByIds } from "@/lib/queries/contacts";
 import { updateInteraction } from "@/lib/actions/interactions";
 import { InteractionForm } from "../../interaction-form";
 import { toOrgDatetimeLocalValue } from "@/lib/format-date";
+import { residentName } from "@/lib/domain/resident-name";
 
 export default async function EditInteractionPage({
   params,
@@ -78,7 +79,7 @@ export default async function EditInteractionPage({
             facilities={facilities}
             residents={residentsAtFacility.map((r) => ({
               id: r.id,
-              name: `${r.preferred_name ?? r.first_name} ${r.last_name}`,
+              name: residentName(r),
             }))}
             contacts={contacts}
             volunteers={volunteers}

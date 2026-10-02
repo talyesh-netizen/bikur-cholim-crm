@@ -7,6 +7,7 @@ import { listFacilities } from "@/lib/queries/facilities";
 import { transferResident } from "@/lib/actions/transfer-resident";
 import { TransferForm } from "./transfer-form";
 import { ArrowLeft } from "lucide-react";
+import { residentName } from "@/lib/domain/resident-name";
 
 export default async function TransferResidentPage({
   params,
@@ -37,9 +38,7 @@ export default async function TransferResidentPage({
     : undefined;
 
   const action = transferResident.bind(null, resident.id);
-  const displayName = resident.preferred_name
-    ? `${resident.preferred_name} ${resident.last_name}`
-    : `${resident.first_name} ${resident.last_name}`;
+  const displayName = residentName(resident);
 
   return (
     <div className="flex flex-col gap-4">

@@ -13,6 +13,7 @@ import { sectionVars, type Section } from "@/lib/sections";
 import { ProfileNotesCard } from "@/components/profile-notes-card";
 import { ACTIVE_RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { formatDateOnly, formatRelative, getLocalToday } from "@/lib/format-date";
+import { residentName } from "@/lib/domain/resident-name";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -141,7 +142,7 @@ export default async function FacilityOnsitePage({
                 href={`/residents/${resident.id}`}
                 className="rounded-md border px-3 py-2 hover:bg-accent"
               >
-                Confirm room for <span className="font-medium">{resident.preferred_name ?? resident.first_name} {resident.last_name}</span>
+                Confirm room for <span className="font-medium">{residentName(resident)}</span>
               </Link>
             ))}
           </CardContent>
@@ -169,7 +170,7 @@ export default async function FacilityOnsitePage({
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <Link href={`/residents/${resident.id}`} className="font-semibold leading-snug hover:underline">
-                          {resident.preferred_name ?? resident.first_name} {resident.last_name}
+                          {residentName(resident)}
                         </Link>
                         <p className="mt-0.5 text-sm text-muted-foreground">
                           {resident.room_number ? `Room ${resident.room_number}` : "Room not recorded"}

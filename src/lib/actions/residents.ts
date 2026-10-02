@@ -28,8 +28,10 @@ export type ResidentFormState = {
 // with its own history-preserving side effects, rather than something
 // that can happen as a side effect of an unrelated edit.
 const residentSchema = z.object({
-  first_name: z.string().trim().min(1, "First name is required.").transform(capitalizeWords),
-  last_name: z.string().trim().min(1, "Last name is required.").transform(capitalizeWords),
+  // Either name may be unknown -- saved as blank (null), never guessed.
+  // At least one of the two is required (checked below and in the database).
+  first_name: optionalText().transform((v) => (v ? capitalizeWords(v) : null)),
+  last_name: optionalText().transform((v) => (v ? capitalizeWords(v) : null)),
   preferred_name: optionalText().transform(capitalizeOptional),
   room_number: optionalText(),
   phone_number: optionalText(),
@@ -46,16 +48,23 @@ const residentSchema = z.object({
   private_internal_notes: optionalText(),
 });
 
+function hasAName(r: { first_name: string | null; last_name: string | null }) {
+  return !!(r.first_name || r.last_name);
+}
+const NAME_REQUIRED = { message: "Please enter a first or last name.", path: ["first_name"] };
+
 // Only used when creating a new resident. The facility may be left blank
 // when the resident's current location is genuinely unknown -- we never
 // guess one. It can be set later with the transfer workflow.
-const createResidentSchema = residentSchema.extend({
-  current_facility_id: z.preprocess(emptyToUndefined, z.string().uuid("Please choose a facility.").optional()),
-});
+const createResidentSchema = residentSchema
+  .extend({
+    current_facility_id: z.preprocess(emptyToUndefined, z.string().uuid("Please choose a facility.").optional()),
+  })
+  .refine(hasAName, NAME_REQUIRED);
 
 function parseResidentForm(formData: FormData) {
   const raw = Object.fromEntries(formData.entries()) as Record<string, string>;
-  return { raw, result: residentSchema.safeParse(raw) };
+  return { raw, result: residentSchema.refine(hasAName, NAME_REQUIRED).safeParse(raw) };
 }
 
 function flattenErrors(error: z.ZodError): Record<string, string> {

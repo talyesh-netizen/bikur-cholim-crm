@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { residentName } from "@/lib/domain/resident-name";
 
 /**
  * The "who's who" the Quick Log assistant reads before it decides what a
@@ -29,8 +30,8 @@ export type Directory = {
 type FacilityRow = { id: string; name: string; city: string | null; active: boolean };
 type ResidentRow = {
   id: string;
-  first_name: string;
-  last_name: string;
+  first_name: string | null;
+  last_name: string | null;
   preferred_name: string | null;
   current_facility_id: string | null;
   room_number: string | null;
@@ -80,12 +81,12 @@ export async function loadDirectory(supabase: SupabaseClient, selfId: string): P
 
   lines.push("", "RESIDENTS (alias | name | facility alias | room | status)");
   (residents.data as ResidentRow[]).forEach((r, i) => {
-    const display = `${r.preferred_name ?? r.first_name} ${r.last_name}`;
+    const display = residentName(r);
     const alias = register("R", i, r.id, display);
     const name =
       r.preferred_name && r.preferred_name !== r.first_name
-        ? `${clean(r.first_name)} "${clean(r.preferred_name)}" ${clean(r.last_name)}`
-        : `${clean(r.first_name)} ${clean(r.last_name)}`;
+        ? `${clean(r.first_name)} "${clean(r.preferred_name)}" ${clean(r.last_name)}`.trim()
+        : `${clean(r.first_name)} ${clean(r.last_name)}`.trim();
     const facility = r.current_facility_id ? aliasOf.get(r.current_facility_id) ?? "" : "";
     lines.push([alias, name, facility, r.room_number ? `room ${clean(r.room_number)}` : "", r.status].join(" | "));
   });

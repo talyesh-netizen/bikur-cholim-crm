@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { CONTACT_QUICK_FILTERS } from "@/lib/domain/contact";
 import type { Contact, ResidentContact, FacilityContact } from "@/lib/domain/contact";
 import { escapeIlikeTerm, sanitizeForOrFilter } from "@/lib/supabase-filters";
+import { residentName } from "@/lib/domain/resident-name";
 
 export type ContactFilters = {
   search?: string;
@@ -231,8 +232,8 @@ export async function listResidentsForContact(contactId: string) {
   return (data ?? []).map((row) => {
     const resident = row.residents as unknown as {
       id: string;
-      first_name: string;
-      last_name: string;
+      first_name: string | null;
+      last_name: string | null;
       preferred_name: string | null;
     } | null;
     return {
@@ -241,7 +242,7 @@ export async function listResidentsForContact(contactId: string) {
       is_primary_contact: row.is_primary_contact,
       resident_id: resident?.id ?? null,
       resident_name: resident
-        ? `${resident.preferred_name ?? resident.first_name} ${resident.last_name}`
+        ? residentName(resident)
         : "Unknown resident",
     };
   });
