@@ -27,6 +27,7 @@ function residentToFormValues(resident?: Resident): Record<string, string> {
     preferred_name: resident.preferred_name ?? "",
     room_number: resident.room_number ?? "",
     phone_number: resident.phone_number ?? "",
+    sex: resident.sex ?? "",
     rabbi_synagogue_connection: resident.rabbi_synagogue_connection ?? "",
     jewish_interests_background: resident.jewish_interests_background ?? "",
     kosher_food_needs: resident.kosher_food_needs ?? "",
@@ -107,6 +108,10 @@ export function ResidentForm({
             <Input id="phone_number" name="phone_number" defaultValue={values.phone_number} />
           </Field>
         </div>
+
+        <Field label="Sex" htmlFor="sex">
+          <SelectField name="sex" defaultValue={values.sex} options={[{ value: "male", label: "Male" }, { value: "female", label: "Female" }]} placeholder="Not recorded" />
+        </Field>
 
         <Field label="Status" htmlFor="status" required>
           <SelectField name="status" defaultValue={values.status} options={RESIDENT_STATUSES} />
