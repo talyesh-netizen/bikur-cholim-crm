@@ -29,7 +29,9 @@ export default async function TransferResidentPage({
   // making staff hunt for (and remember) the right facility, which is
   // how a resident's current facility ends up stale after a stay like
   // that ends. Only offered if that facility is still active/available.
-  const previousHistoryEntry = history[1];
+  // When the current location is unknown there is no open stay, so the
+  // most recent (already closed) stay is history[0].
+  const previousHistoryEntry = resident.current_facility_id ? history[1] : history[0];
   const previousFacility = previousHistoryEntry
     ? otherFacilities.find((f) => f.id === previousHistoryEntry.facility_id)
     : undefined;
@@ -65,7 +67,11 @@ export default async function TransferResidentPage({
             <TransferForm
               action={action}
               facilities={otherFacilities}
-              currentFacilityName={resident.current_facility_name ?? "their current facility"}
+              currentFacilityName={
+                resident.current_facility_id
+                  ? resident.current_facility_name ?? "their current facility"
+                  : null
+              }
               previousFacility={previousFacility ? { id: previousFacility.id, name: previousFacility.name } : null}
             />
           )}

@@ -68,7 +68,7 @@ export default async function NewInteractionPage({
           <InteractionForm
             action={action}
             facilities={facilities}
-            defaultFacilityId={facilityId ?? resident?.current_facility_id}
+            defaultFacilityId={facilityId ?? resident?.current_facility_id ?? undefined}
             defaultInteractionType={defaultType}
             fixedResident={fixedResident}
             residents={residentsAtFacility.map((r) => ({

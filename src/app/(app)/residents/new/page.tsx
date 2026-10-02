@@ -16,8 +16,8 @@ export default async function NewResidentPage({
       <div>
         <h1 className="text-2xl font-semibold">Add a resident</h1>
         <p className="text-sm text-muted-foreground">
-          Name, facility, and status are required — everything else can be
-          filled in later.
+          Name and status are required — everything else can be filled in
+          later. Leave the facility blank if their current location is unknown.
         </p>
       </div>
 

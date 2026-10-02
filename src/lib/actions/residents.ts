@@ -33,7 +33,8 @@ const residentSchema = z.object({
   preferred_name: optionalText().transform(capitalizeOptional),
   room_number: optionalText(),
   phone_number: optionalText(),
-  sex: z.preprocess(emptyToUndefined, z.enum(["male", "female"]).optional()),
+  // null (not undefined) so choosing "Not recorded" on edit actually clears it.
+  sex: z.preprocess(emptyToUndefined, z.enum(["male", "female"]).optional()).transform((v) => v ?? null),
   rabbi_synagogue_connection: optionalText(),
   jewish_interests_background: optionalText(),
   kosher_food_needs: optionalText(),
@@ -45,10 +46,11 @@ const residentSchema = z.object({
   private_internal_notes: optionalText(),
 });
 
-// Only used when creating a new resident, who must be assigned to a
-// facility from the start.
+// Only used when creating a new resident. The facility may be left blank
+// when the resident's current location is genuinely unknown -- we never
+// guess one. It can be set later with the transfer workflow.
 const createResidentSchema = residentSchema.extend({
-  current_facility_id: z.string().uuid("Please choose a facility."),
+  current_facility_id: z.preprocess(emptyToUndefined, z.string().uuid("Please choose a facility.").optional()),
 });
 
 function parseResidentForm(formData: FormData) {
@@ -97,7 +99,7 @@ export async function createResident(
   }
 
   revalidatePath("/residents");
-  revalidatePath(`/facilities/${parsed.data.current_facility_id}`);
+  if (parsed.data.current_facility_id) revalidatePath(`/facilities/${parsed.data.current_facility_id}`);
   redirect(`/residents/${data.id}`);
 }
 
