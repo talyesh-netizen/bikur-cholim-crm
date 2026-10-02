@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { escapeIlikeTerm, sanitizeForOrFilter } from "@/lib/supabase-filters";
+import { residentName } from "@/lib/domain/resident-name";
 
 export type SearchResult = {
   id: string;
@@ -45,7 +46,7 @@ export async function searchAll(query: string): Promise<SearchResults> {
       const facility = r.facilities as unknown as { name: string } | null;
       return {
         id: r.id,
-        label: `${r.preferred_name ?? r.first_name} ${r.last_name}`,
+        label: residentName(r),
         sublabel: facility?.name ?? null,
         href: `/residents/${r.id}`,
       };

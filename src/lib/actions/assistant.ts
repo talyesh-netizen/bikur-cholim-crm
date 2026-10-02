@@ -19,6 +19,7 @@ import {
 import { getLocalToday, orgLocalToIso, toOrgDatetimeLocalValue } from "@/lib/format-date";
 import { capitalizeWords } from "@/lib/format-text";
 import { notifyTaskAssigned } from "@/lib/notify-task-assigned";
+import { residentName } from "@/lib/domain/resident-name";
 
 const MODEL = "claude-opus-5";
 const MAX_NOTE_LENGTH = 6000;
@@ -136,12 +137,12 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
   const fail = (label: string, error = "Not saved -- please do this one by hand.") => steps.push({ label, ok: false, error });
 
   for (const r of plan.new_residents) {
-    const label = `New resident: ${capitalizeWords(r.first_name)} ${capitalizeWords(r.last_name)}`;
+    const label = `New resident: ${capitalizeWords(r.first_name)} ${capitalizeWords(r.last_name)}`.replace(/\s+/g, " ").trim();
     const { data, error } = await supabase
       .from("residents")
       .insert({
-        first_name: capitalizeWords(r.first_name.trim()),
-        last_name: capitalizeWords(r.last_name.trim()),
+        first_name: blankToNull(r.first_name) ? capitalizeWords(r.first_name.trim()) : null,
+        last_name: blankToNull(r.last_name) ? capitalizeWords(r.last_name.trim()) : null,
         preferred_name: blankToNull(r.preferred_name),
         current_facility_id: r.facility,
         room_number: blankToNull(r.room_number),
@@ -237,7 +238,7 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
     if (blankToNull(u.add_to_visitation_needs)) changes.visitation_needs = appendNote(current.visitation_needs, u.add_to_visitation_needs!, today);
     if (blankToNull(u.add_to_holiday_support_needs)) changes.holiday_support_needs = appendNote(current.holiday_support_needs, u.add_to_holiday_support_needs!, today);
     if (blankToNull(u.add_to_private_notes)) changes.private_internal_notes = appendNote(current.private_internal_notes, u.add_to_private_notes!, today);
-    const who = `${current.preferred_name ?? current.first_name} ${current.last_name}`;
+    const who = residentName(current);
     if (Object.keys(changes).length === 0) continue;
     const { data: updated, error } = await supabase.from("residents").update(changes).eq("id", u.resident).select("id");
     if (error || !updated?.length) {

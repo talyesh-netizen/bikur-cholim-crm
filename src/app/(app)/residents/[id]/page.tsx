@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { MissingNameBadge } from "@/components/status-badge";
 import { ClusterBadge } from "@/components/cluster-badge";
 import { getResident, getResidentFacilityHistory } from "@/lib/queries/residents";
 import { listInteractionsForResident, listVolunteersForResident } from "@/lib/queries/interactions";
@@ -20,6 +21,7 @@ import { InfoRow } from "@/components/info-row";
 import { ProfileNotesCard } from "@/components/profile-notes-card";
 import { listResidentProfileNotes } from "@/lib/queries/profile-notes";
 import { Pencil, ArrowRightLeft, Plus, UserX, Undo2, Star } from "lucide-react";
+import { residentName } from "@/lib/domain/resident-name";
 
 function residenceUnitLabel(facilityType: string | null) {
   return facilityType === "assisted_living" || facilityType === "independent_living" || facilityType === "senior_apartment" ? "Apt" : "Room";
@@ -43,15 +45,18 @@ export default async function ResidentDetailPage({
 
   if (!resident) notFound();
 
-  const displayName = resident.preferred_name
-    ? `${resident.preferred_name} ${resident.last_name}`
-    : `${resident.first_name} ${resident.last_name}`;
+  const displayName = residentName(resident);
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">{displayName}</h1>
+          {!resident.first_name || !resident.last_name ? (
+            <Link href={`/residents/${resident.id}/edit`} className="mt-1 inline-block hover:opacity-80">
+              <MissingNameBadge resident={resident} />
+            </Link>
+          ) : null}
           <p className="mt-1 flex items-center gap-1.5">
             {resident.current_facility_id ? (
               <Link href={`/facilities/${resident.current_facility_id}`} className="hover:opacity-80">

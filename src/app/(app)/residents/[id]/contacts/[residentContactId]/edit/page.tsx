@@ -4,6 +4,7 @@ import { getResident } from "@/lib/queries/residents";
 import { getResidentContact } from "@/lib/queries/contacts";
 import { updateFamilyContactRelationship } from "@/lib/actions/resident-contacts";
 import { RelationshipForm } from "../../relationship-form";
+import { residentName } from "@/lib/domain/resident-name";
 
 export default async function EditFamilyContactRelationshipPage({
   params,
@@ -25,7 +26,7 @@ export default async function EditFamilyContactRelationshipPage({
         <h1 className="text-2xl font-semibold">Edit relationship</h1>
         <p className="text-sm text-muted-foreground">
           {residentContact.contact.name}&apos;s relationship to{" "}
-          {resident.preferred_name ?? resident.first_name} {resident.last_name}
+          {residentName(resident)}
         </p>
       </div>
 

@@ -2,12 +2,13 @@ import { createClient } from "@/lib/supabase/server";
 import { OPEN_TASK_STATUSES } from "@/lib/domain/task";
 import type { Task, TaskWithNames } from "@/lib/domain/task";
 import { getLocalToday } from "@/lib/format-date";
+import { residentName } from "@/lib/domain/resident-name";
 
 const SELECT_WITH_NAMES =
   "*, residents(first_name, last_name, preferred_name), facilities(name), profiles!tasks_assigned_to_fkey(full_name)";
 
 function toTaskWithNames(row: {
-  residents: { first_name: string; last_name: string; preferred_name: string | null } | null;
+  residents: { first_name: string | null; last_name: string | null; preferred_name: string | null } | null;
   facilities: { name: string } | null;
   profiles: { full_name: string } | null;
   [key: string]: unknown;
@@ -16,7 +17,7 @@ function toTaskWithNames(row: {
   return {
     ...(task as unknown as Task),
     resident_name: resident
-      ? `${resident.preferred_name ?? resident.first_name} ${resident.last_name}`
+      ? residentName(resident)
       : null,
     facility_name: facilities?.name ?? null,
     assigned_to_name: profiles?.full_name ?? null,

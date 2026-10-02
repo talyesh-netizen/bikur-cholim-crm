@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { InteractionWithNames, ServiceDetails } from "@/lib/domain/interaction";
 import { escapeIlikeTerm } from "@/lib/supabase-filters";
 import { orgDayStartIso, nextDay } from "@/lib/format-date";
+import { residentName } from "@/lib/domain/resident-name";
 
 // Recent-interactions lists on resident/facility pages show a short,
 // scannable history rather than the full log — see the interactions
@@ -18,7 +19,7 @@ function toInteractionWithNames(row: ServiceDetails & {
   staff_member_id: string;
   notes: string | null;
   created_at: string;
-  residents: { first_name: string; last_name: string; preferred_name: string | null } | null;
+  residents: { first_name: string | null; last_name: string | null; preferred_name: string | null } | null;
   facilities: { name: string; geographic_cluster_id: string | null } | null;
   contacts: { name: string } | null;
   profiles: { full_name: string } | null;
@@ -45,7 +46,7 @@ function toInteractionWithNames(row: ServiceDetails & {
     unmet_need_reason: row.unmet_need_reason,
     funder_story: row.funder_story,
     resident_name: resident
-      ? `${resident.preferred_name ?? resident.first_name} ${resident.last_name}`
+      ? residentName(resident)
       : null,
     facility_name: row.facilities?.name ?? null,
     facility_cluster_id: row.facilities?.geographic_cluster_id ?? null,
@@ -242,7 +243,7 @@ type VisitPairRow = {
   interactions: {
     occurred_at: string;
     resident_id: string | null;
-    residents: { first_name: string; last_name: string; preferred_name: string | null } | null;
+    residents: { first_name: string | null; last_name: string | null; preferred_name: string | null } | null;
   } | null;
 };
 
@@ -300,6 +301,6 @@ export async function listResidentsVisitedByVolunteer(contactId: string): Promis
     const i = row.interactions;
     if (!i?.resident_id || !i.residents) return null;
     const r = i.residents;
-    return { id: i.resident_id, name: `${r.preferred_name || r.first_name} ${r.last_name}`.trim() };
+    return { id: i.resident_id, name: residentName(r).trim() };
   });
 }

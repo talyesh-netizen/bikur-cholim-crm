@@ -7,6 +7,7 @@ import type { ResidentWithSummary } from "@/lib/domain/resident";
 import { listTasks } from "./tasks";
 import { listRecentInteractions } from "./interactions";
 import { getLocalToday } from "@/lib/format-date";
+import { residentName } from "@/lib/domain/resident-name";
 
 // A resident with no logged visit in this many days shows up under
 // "residents without a recent visit." Phase One keeps this a single
@@ -101,7 +102,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
 
   const dueTodayTasks = (dueTodayTasksRaw.data ?? []).map((row) => {
     const r = row as unknown as {
-      residents: { first_name: string; last_name: string; preferred_name: string | null } | null;
+      residents: { first_name: string | null; last_name: string | null; preferred_name: string | null } | null;
       facilities: { name: string } | null;
       profiles: { full_name: string } | null;
       [key: string]: unknown;
@@ -109,7 +110,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
     const { residents, facilities, profiles, ...task } = r;
     return {
       ...(task as unknown as TaskWithNames),
-      resident_name: residents ? `${residents.preferred_name ?? residents.first_name} ${residents.last_name}` : null,
+      resident_name: residents ? residentName(residents) : null,
       facility_name: facilities?.name ?? null,
       assigned_to_name: profiles?.full_name ?? null,
     };

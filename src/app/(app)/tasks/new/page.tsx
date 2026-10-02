@@ -7,6 +7,7 @@ import { listActiveStaff } from "@/lib/queries/profiles";
 import { createTask } from "@/lib/actions/tasks";
 import { labelFor, INTERACTION_TYPES } from "@/lib/domain/interaction";
 import { TaskForm } from "../task-form";
+import { residentName } from "@/lib/domain/resident-name";
 
 export default async function NewTaskPage({
   searchParams,
@@ -50,7 +51,7 @@ export default async function NewTaskPage({
     };
   } else if (resident) {
     fixedContext = {
-      label: `${resident.preferred_name ?? resident.first_name} ${resident.last_name}`,
+      label: residentName(resident),
       residentId: resident.id,
     };
   } else if (facility) {
