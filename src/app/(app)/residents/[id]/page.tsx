@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MissingNameBadge } from "@/components/status-badge";
+import { MissingNameBadge, ResidentActiveStatus } from "@/components/status-badge";
 import { ClusterBadge } from "@/components/cluster-badge";
 import { getResident, getResidentFacilityHistory } from "@/lib/queries/residents";
 import { listInteractionsForResident, listVolunteersForResident } from "@/lib/queries/interactions";
@@ -11,7 +11,6 @@ import { VisitPartnersCard } from "@/components/visit-partners-card";
 import { listResidentContacts } from "@/lib/queries/contacts";
 import { listTasks } from "@/lib/queries/tasks";
 import { setResidentContactActive, setPrimaryResidentContact } from "@/lib/actions/resident-contacts";
-import { labelFor, RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { labelFor as labelForContact, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
 import { formatDateOnly, formatDateTime } from "@/lib/format-date";
 import { telHref } from "@/lib/link-helpers";
@@ -92,7 +91,7 @@ export default async function ResidentDetailPage({
         </div>
       </div>
 
-      <Badge className="w-fit">{labelFor(RESIDENT_STATUSES, resident.status)}</Badge>
+      <ResidentActiveStatus status={resident.status} />
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { ClusterBadge } from "@/components/cluster-badge";
-import { MissingNameBadge, ResidentStatusBadge } from "@/components/status-badge";
+import { MissingNameBadge, ResidentActiveStatus } from "@/components/status-badge";
 import type { ResidentWithSummary } from "@/lib/domain/resident";
 import { clusterColor } from "@/lib/domain/cluster-colors";
 import { formatDateOnly, formatRelative } from "@/lib/format-date";
@@ -27,8 +27,8 @@ export function ResidentCard({ resident }: { resident: ResidentWithSummary }) {
           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <p className="text-base font-semibold leading-tight">{displayName}</p>
+              <ResidentActiveStatus status={resident.status} size="small" />
               <MissingNameBadge resident={resident} />
-              {resident.status !== "active" ? <ResidentStatusBadge status={resident.status} /> : null}
             </div>
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
               <ClusterBadge
