@@ -25,7 +25,7 @@ export function TransferForm({
 }: {
   action: Action;
   facilities: { id: string; name: string }[];
-  currentFacilityName: string;
+  currentFacilityName: string | null;
   previousFacility?: { id: string; name: string } | null;
 }) {
   const [state, formAction, isPending] = useActionState<TransferFormState, FormData>(action, {
@@ -51,7 +51,15 @@ export function TransferForm({
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="new_facility_id">
-          Currently at <span className="font-medium">{currentFacilityName}</span>. Move to:
+          {currentFacilityName ? (
+            <>
+              Currently at <span className="font-medium">{currentFacilityName}</span>. Move to:
+            </>
+          ) : (
+            <>
+              <span className="font-medium">Current location unknown.</span> Move to:
+            </>
+          )}
         </Label>
         <input type="hidden" name="new_facility_id" value={facilityId} readOnly />
         <Select value={facilityId} onValueChange={setFacilityId}>

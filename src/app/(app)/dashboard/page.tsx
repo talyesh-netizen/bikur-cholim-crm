@@ -336,7 +336,7 @@ export default async function DashboardPage({
                     {resident.preferred_name ?? resident.first_name} {resident.last_name}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {resident.current_facility_name ?? "No facility"}
+                    {resident.current_facility_name ?? "Current location unknown"}
                   </p>
                 </div>
                 <span className="whitespace-nowrap text-xs text-muted-foreground">

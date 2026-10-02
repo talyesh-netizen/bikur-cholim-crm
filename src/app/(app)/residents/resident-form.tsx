@@ -89,13 +89,13 @@ export function ResidentForm({
             label="Facility"
             htmlFor="current_facility_id"
             error={fieldErrors.current_facility_id}
-            required
           >
             <SelectField
               name="current_facility_id"
               defaultValue={values.current_facility_id ?? defaultFacilityId}
               options={facilities.map((f) => ({ value: f.id, label: f.name }))}
-              placeholder="Choose a facility…"
+              placeholder="Current location unknown"
+              blankOptionLabel="Current location unknown"
             />
           </Field>
         ) : null}
@@ -110,7 +110,7 @@ export function ResidentForm({
         </div>
 
         <Field label="Sex" htmlFor="sex">
-          <SelectField name="sex" defaultValue={values.sex} options={[{ value: "male", label: "Male" }, { value: "female", label: "Female" }]} placeholder="Not recorded" />
+          <SelectField name="sex" defaultValue={values.sex} options={[{ value: "male", label: "Male" }, { value: "female", label: "Female" }]} placeholder="Not recorded" blankOptionLabel="Not recorded" />
         </Field>
 
         <Field label="Status" htmlFor="status" required>
@@ -226,27 +226,34 @@ function Field({
   );
 }
 
+const BLANK_OPTION = "__blank__";
+
 function SelectField({
   name,
   defaultValue,
   options,
   placeholder,
+  blankOptionLabel,
 }: {
   name: string;
   defaultValue?: string;
   options: readonly { value: string; label: string }[];
   placeholder?: string;
+  // Adds a choice that submits an empty value, so a field can be set
+  // back to blank (the dropdown can't otherwise be un-picked).
+  blankOptionLabel?: string;
 }) {
   const [value, setValue] = useState(defaultValue ?? "");
 
   return (
     <>
-      <input type="hidden" name={name} value={value} readOnly />
+      <input type="hidden" name={name} value={value === BLANK_OPTION ? "" : value} readOnly />
       <Select value={value} onValueChange={setValue}>
         <SelectTrigger id={name}>
           <SelectValue placeholder={placeholder ?? "Select…"} />
         </SelectTrigger>
         <SelectContent>
+          {blankOptionLabel ? <SelectItem value={BLANK_OPTION}>{blankOptionLabel}</SelectItem> : null}
           {options.map((o) => (
             <SelectItem key={o.value} value={o.value}>
               {o.label}
