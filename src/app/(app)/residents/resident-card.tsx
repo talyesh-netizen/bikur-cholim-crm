@@ -1,20 +1,19 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { ClusterBadge } from "@/components/cluster-badge";
-import { ResidentStatusBadge } from "@/components/status-badge";
+import { MissingNameBadge, ResidentStatusBadge } from "@/components/status-badge";
 import type { ResidentWithSummary } from "@/lib/domain/resident";
 import { clusterColor } from "@/lib/domain/cluster-colors";
 import { formatDateOnly, formatRelative } from "@/lib/format-date";
 import { ChevronRight } from "lucide-react";
+import { residentName } from "@/lib/domain/resident-name";
 
 function residenceUnitLabel(facilityType: string | null) {
   return facilityType === "assisted_living" || facilityType === "independent_living" || facilityType === "senior_apartment" ? "Apt" : "Room";
 }
 
 export function ResidentCard({ resident }: { resident: ResidentWithSummary }) {
-  const displayName = resident.preferred_name
-    ? `${resident.preferred_name} ${resident.last_name}`
-    : `${resident.first_name} ${resident.last_name}`;
+  const displayName = residentName(resident);
   const lastVisit = formatRelative(resident.last_visit_at);
   const nextFollowUp = formatDateOnly(resident.next_follow_up_date);
 
@@ -28,6 +27,7 @@ export function ResidentCard({ resident }: { resident: ResidentWithSummary }) {
           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <p className="text-base font-semibold leading-tight">{displayName}</p>
+              <MissingNameBadge resident={resident} />
               {resident.status !== "active" ? <ResidentStatusBadge status={resident.status} /> : null}
             </div>
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">

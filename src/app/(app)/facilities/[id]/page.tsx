@@ -28,6 +28,7 @@ import { InfoRow } from "@/components/info-row";
 import { ProfileNotesCard } from "@/components/profile-notes-card";
 import { listFacilityProfileNotes } from "@/lib/queries/profile-notes";
 import { ClipboardCheck, Pencil, Plus, UserX, Undo2, Star, User, Mail, Phone } from "lucide-react";
+import { residentName } from "@/lib/domain/resident-name";
 
 export default async function FacilityDetailPage({
   params,
@@ -214,7 +215,7 @@ export default async function FacilityDetailPage({
                     className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-accent"
                   >
                     <span>
-                      {resident.preferred_name ?? resident.first_name} {resident.last_name}
+                      {residentName(resident)}
                       {resident.room_number ? ` · Room ${resident.room_number}` : ""}
                     </span>
                     <Badge variant="secondary">{labelFor(RESIDENT_STATUSES, resident.status)}</Badge>

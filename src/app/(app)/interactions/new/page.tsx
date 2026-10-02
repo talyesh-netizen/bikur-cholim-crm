@@ -7,6 +7,7 @@ import { listContactOptions } from "@/lib/queries/contacts";
 import { createInteraction } from "@/lib/actions/interactions";
 import { InteractionForm } from "../interaction-form";
 import { INTERACTION_TYPES, labelFor } from "@/lib/domain/interaction";
+import { residentName } from "@/lib/domain/resident-name";
 
 export default async function NewInteractionPage({
   searchParams,
@@ -42,7 +43,7 @@ export default async function NewInteractionPage({
   const fixedResident = resident
     ? {
         id: resident.id,
-        name: `${resident.preferred_name ?? resident.first_name} ${resident.last_name}`,
+        name: residentName(resident),
       }
     : undefined;
 
@@ -73,7 +74,7 @@ export default async function NewInteractionPage({
             fixedResident={fixedResident}
             residents={residentsAtFacility.map((r) => ({
               id: r.id,
-              name: `${r.preferred_name ?? r.first_name} ${r.last_name}`,
+              name: residentName(r),
             }))}
             contacts={contacts}
             volunteers={volunteers}

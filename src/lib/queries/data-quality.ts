@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { INTERACTION_TYPES, type Interaction } from "@/lib/domain/interaction";
+import { residentName } from "@/lib/domain/resident-name";
 
 export type DataQualityRow = { id: string; label: string; href: string; missing: string };
 
@@ -130,13 +131,13 @@ export async function getVolunteerVisitGaps(): Promise<VolunteerVisitGap[]> {
   return (data ?? []).map((row) => {
     const facility = row.facilities as unknown as { name: string } | null;
     const resident = row.residents as unknown as
-      | { first_name: string; last_name: string; preferred_name: string | null }
+      | { first_name: string | null; last_name: string | null; preferred_name: string | null }
       | null;
     return {
       id: row.id,
       occurred_at: row.occurred_at,
       facility_name: facility?.name ?? null,
-      resident_name: resident ? `${resident.preferred_name ?? resident.first_name} ${resident.last_name}` : null,
+      resident_name: resident ? residentName(resident) : null,
       href: `/interactions/${row.id}/edit`,
     };
   });
@@ -192,7 +193,7 @@ export async function listUnreviewedEntries(interactionType?: string): Promise<U
   return (data ?? []).map((row) => {
     const facility = row.facilities as unknown as { name: string } | null;
     const resident = row.residents as unknown as
-      | { first_name: string; last_name: string; preferred_name: string | null }
+      | { first_name: string | null; last_name: string | null; preferred_name: string | null }
       | null;
     const staff = row.profiles as unknown as { full_name: string } | null;
     return {
@@ -206,7 +207,7 @@ export async function listUnreviewedEntries(interactionType?: string): Promise<U
       people_reached: row.people_reached,
       participants: row.participants,
       facility_name: facility?.name ?? null,
-      resident_name: resident ? `${resident.preferred_name ?? resident.first_name} ${resident.last_name}` : null,
+      resident_name: resident ? residentName(resident) : null,
       staff_member_name: staff?.full_name ?? null,
     };
   });
