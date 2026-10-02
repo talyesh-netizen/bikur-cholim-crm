@@ -21,6 +21,9 @@ import { ProfileNotesCard } from "@/components/profile-notes-card";
 import { listResidentProfileNotes } from "@/lib/queries/profile-notes";
 import { Pencil, ArrowRightLeft, Plus, UserX, Undo2, Star } from "lucide-react";
 import { residentName } from "@/lib/domain/resident-name";
+import { getCurrentProfile } from "@/lib/get-current-profile";
+import { listChangesForRecord } from "@/lib/queries/change-log";
+import { ChangeHistoryList } from "@/components/change-history-list";
 
 function residenceUnitLabel(facilityType: string | null) {
   return facilityType === "assisted_living" || facilityType === "independent_living" || facilityType === "senior_apartment" ? "Apt" : "Room";
@@ -32,7 +35,7 @@ export default async function ResidentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [resident, history, interactions, volunteers, familyContacts, tasks, profileNotes] = await Promise.all([
+  const [resident, history, interactions, volunteers, familyContacts, tasks, profileNotes, profile, changes] = await Promise.all([
     getResident(id),
     getResidentFacilityHistory(id),
     listInteractionsForResident(id),
@@ -40,6 +43,8 @@ export default async function ResidentDetailPage({
     listResidentContacts(id),
     listTasks({ residentId: id, showAllStatuses: true }),
     listResidentProfileNotes(id),
+    getCurrentProfile(),
+    listChangesForRecord("residents", id),
   ]);
 
   if (!resident) notFound();
@@ -275,6 +280,18 @@ export default async function ResidentDetailPage({
           </CardHeader>
           <CardContent className="whitespace-pre-wrap text-sm text-muted-foreground">
             {resident.private_internal_notes}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {profile?.role === "admin" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Change history</CardTitle>
+            <p className="text-sm text-muted-foreground">Every edit to this resident: who, when, and what it said before. Only administrators see this.</p>
+          </CardHeader>
+          <CardContent>
+            <ChangeHistoryList entries={changes} />
           </CardContent>
         </Card>
       ) : null}

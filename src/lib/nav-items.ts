@@ -37,6 +37,7 @@ export const NAV_ITEMS: NavItem[] = [
 export const ADMIN_NAV_ITEMS: NavItem[] = [
   { href: "/settings/staff", label: "Staff", icon: Settings, section: "neutral" },
   { href: "/settings/backup", label: "Backup", icon: DatabaseBackup, section: "neutral" },
+  { href: "/settings/changes", label: "Recent changes", icon: History, section: "neutral" },
 ];
 
 // The sidebar has room for every item, but a phone's bottom bar gets
