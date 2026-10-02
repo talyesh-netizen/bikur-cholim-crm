@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { labelFor as labelForResident, RESIDENT_STATUSES } from "@/lib/domain/resident";
+import { labelFor as labelForResident, RESIDENT_STATUSES, isActiveResidentStatus } from "@/lib/domain/resident";
 import { labelFor as labelForFacility, ENGAGEMENT_STATUSES, VISIT_PRIORITIES } from "@/lib/domain/facility";
 import { labelFor as labelForTask, TASK_STATUSES, TASK_PRIORITIES } from "@/lib/domain/task";
 
@@ -71,6 +71,28 @@ export function ResidentStatusBadge({ status, className }: { status: string; cla
     <StatusBadge tone={RESIDENT_STATUS_TONES[status] ?? "neutral"} className={className}>
       {labelForResident(RESIDENT_STATUSES, status)}
     </StatusBadge>
+  );
+}
+
+/** The big, obvious "Active" / "Not active" marker for a resident, with
+ * the detailed status alongside whenever it says more than "Active". */
+export function ResidentActiveStatus({ status, size = "large" }: { status: string; size?: "large" | "small" }) {
+  const active = isActiveResidentStatus(status);
+  const large = size === "large";
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      <span
+        className={cn(
+          "inline-flex items-center gap-1.5 rounded-full font-semibold",
+          large ? "px-3.5 py-1 text-base" : "px-2.5 py-0.5 text-xs leading-5",
+          active ? TONE_CLASSES.good : "bg-muted text-muted-foreground"
+        )}
+      >
+        <span aria-hidden className={cn("shrink-0 rounded-full", large ? "size-2.5" : "size-2", active ? "bg-current" : "bg-muted-foreground/60")} />
+        {active ? "Active" : "Not active"}
+      </span>
+      {status !== "active" ? <ResidentStatusBadge status={status} className={large ? "text-sm" : undefined} /> : null}
+    </span>
   );
 }
 

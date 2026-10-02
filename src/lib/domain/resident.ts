@@ -27,6 +27,17 @@ export const ACTIVE_RESIDENT_STATUSES: ResidentStatus[] = [
   "temporarily_hospitalized",
 ];
 
+// Plain "Active / Not active" grouping shown at the top of each resident,
+// so staff can tell at a glance whether this is someone we're serving now.
+// The detailed status is never collapsed -- it's still stored and shown
+// underneath. Statuses not listed here (hospitalized, location unknown,
+// unable to reach) are people we're still serving or trying to reach.
+const NOT_ACTIVE_STATUSES = ["moved_to_another_facility", "returned_home", "deceased", "no_longer_receiving_services"];
+
+export function isActiveResidentStatus(status: string) {
+  return !NOT_ACTIVE_STATUSES.includes(status);
+}
+
 export type Resident = {
   id: string;
   first_name: string;
