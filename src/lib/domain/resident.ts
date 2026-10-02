@@ -10,6 +10,7 @@ export { labelFor } from "./options";
 export const RESIDENT_STATUSES = [
   { value: "active", label: "Active" },
   { value: "temporarily_hospitalized", label: "Temporarily hospitalized" },
+  { value: "location_unknown", label: "Location unknown" },
   { value: "moved_to_another_facility", label: "Moved to another facility" },
   { value: "returned_home", label: "Returned home" },
   { value: "deceased", label: "Deceased" },
@@ -31,9 +32,10 @@ export type Resident = {
   first_name: string;
   last_name: string;
   preferred_name: string | null;
-  current_facility_id: string;
+  current_facility_id: string | null;
   room_number: string | null;
   phone_number: string | null;
+  sex: "male" | "female" | null;
   rabbi_synagogue_connection: string | null;
   jewish_interests_background: string | null;
   kosher_food_needs: string | null;
@@ -53,6 +55,7 @@ export type Resident = {
 export type ResidentWithSummary = Resident & {
   current_facility_name: string | null;
   current_facility_cluster_id: string | null;
+  current_facility_type: string | null;
   last_visit_at: string | null;
   next_follow_up_date: string | null;
   primary_contact_resident_contact_id: string | null;
