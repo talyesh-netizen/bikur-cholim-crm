@@ -33,6 +33,7 @@ const residentSchema = z.object({
   preferred_name: optionalText().transform(capitalizeOptional),
   room_number: optionalText(),
   phone_number: optionalText(),
+  sex: z.preprocess(emptyToUndefined, z.enum(["male", "female"]).optional()),
   rabbi_synagogue_connection: optionalText(),
   jewish_interests_background: optionalText(),
   kosher_food_needs: optionalText(),
