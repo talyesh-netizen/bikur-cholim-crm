@@ -58,6 +58,7 @@ export function StatusBadge({
 const RESIDENT_STATUS_TONES: Record<string, BadgeTone> = {
   active: "good",
   temporarily_hospitalized: "attention",
+  location_unknown: "urgent",
   unable_to_reach: "attention",
   moved_to_another_facility: "muted",
   returned_home: "muted",

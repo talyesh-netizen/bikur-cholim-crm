@@ -7,6 +7,10 @@ import { clusterColor } from "@/lib/domain/cluster-colors";
 import { formatDateOnly, formatRelative } from "@/lib/format-date";
 import { ChevronRight } from "lucide-react";
 
+function residenceUnitLabel(facilityType: string | null) {
+  return facilityType === "assisted_living" || facilityType === "independent_living" || facilityType === "senior_apartment" ? "Apt" : "Room";
+}
+
 export function ResidentCard({ resident }: { resident: ResidentWithSummary }) {
   const displayName = resident.preferred_name
     ? `${resident.preferred_name} ${resident.last_name}`
@@ -29,9 +33,9 @@ export function ResidentCard({ resident }: { resident: ResidentWithSummary }) {
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
               <ClusterBadge
                 clusterId={resident.current_facility_cluster_id}
-                name={resident.current_facility_name ?? "Unknown facility"}
+                name={resident.current_facility_name ?? "Current location unknown"}
               />
-              {resident.room_number ? <span>Room {resident.room_number}</span> : null}
+              {resident.room_number ? <span>{residenceUnitLabel(resident.current_facility_type)} {resident.room_number}</span> : null}
             </p>
             <p className="flex flex-wrap gap-x-3 gap-y-0.5 text-sm text-muted-foreground">
               <span>{lastVisit ? `Last visit: ${lastVisit}` : "No visits logged yet"}</span>

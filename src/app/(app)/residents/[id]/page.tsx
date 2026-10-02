@@ -21,6 +21,10 @@ import { ProfileNotesCard } from "@/components/profile-notes-card";
 import { listResidentProfileNotes } from "@/lib/queries/profile-notes";
 import { Pencil, ArrowRightLeft, Plus, UserX, Undo2, Star } from "lucide-react";
 
+function residenceUnitLabel(facilityType: string | null) {
+  return facilityType === "assisted_living" || facilityType === "independent_living" || facilityType === "senior_apartment" ? "Apt" : "Room";
+}
+
 export default async function ResidentDetailPage({
   params,
 }: {
@@ -49,14 +53,15 @@ export default async function ResidentDetailPage({
         <div>
           <h1 className="text-2xl font-semibold">{displayName}</h1>
           <p className="mt-1 flex items-center gap-1.5">
-            <Link href={`/facilities/${resident.current_facility_id}`} className="hover:opacity-80">
-              <ClusterBadge
-                clusterId={resident.current_facility_cluster_id}
-                name={resident.current_facility_name ?? "Unknown facility"}
-              />
-            </Link>
+            {resident.current_facility_id ? (
+              <Link href={`/facilities/${resident.current_facility_id}`} className="hover:opacity-80">
+                <ClusterBadge clusterId={resident.current_facility_cluster_id} name={resident.current_facility_name ?? "Unknown facility"} />
+              </Link>
+            ) : (
+              <ClusterBadge clusterId={null} name="Current location unknown" />
+            )}
             {resident.room_number ? (
-              <span className="text-sm text-muted-foreground">Room {resident.room_number}</span>
+              <span className="text-sm text-muted-foreground">{residenceUnitLabel(resident.current_facility_type)} {resident.room_number}</span>
             ) : null}
           </p>
         </div>
@@ -91,6 +96,7 @@ export default async function ResidentDetailPage({
           </CardHeader>
           <CardContent className="flex flex-col gap-2 text-sm">
             <InfoRow label="Phone number" value={resident.phone_number} href={telHref(resident.phone_number)} />
+            <InfoRow label="Sex" value={resident.sex ? resident.sex.charAt(0).toUpperCase() + resident.sex.slice(1) : null} />
             <InfoRow label="Preferred visit frequency" value={resident.preferred_visit_frequency} />
             <InfoRow label="Visitation needs" value={resident.visitation_needs} />
             <InfoRow label="Last visit" value={formatDateTime(resident.last_visit_at)} />
