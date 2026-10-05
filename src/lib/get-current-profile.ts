@@ -4,7 +4,7 @@ export type CurrentProfile = {
   id: string;
   full_name: string;
   email: string;
-  role: "staff" | "admin";
+  role: "staff" | "admin" | "intern";
 };
 
 /**

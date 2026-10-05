@@ -27,7 +27,7 @@ function generateTemporaryPassword(): string {
 }
 
 const facilityAccessSchema = z.object({
-  role: z.enum(["staff", "admin"]),
+  role: z.enum(["staff", "admin", "intern"]),
   facility_access_scope: z.enum(["all", "restricted"]),
   facility_ids: z.array(z.string().uuid()).optional(),
 });

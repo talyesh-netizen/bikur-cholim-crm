@@ -4,6 +4,7 @@ import { getResident } from "@/lib/queries/residents";
 import { updateResident } from "@/lib/actions/residents";
 import { ResidentForm } from "../../resident-form";
 import { residentName } from "@/lib/domain/resident-name";
+import { getCurrentProfile } from "@/lib/get-current-profile";
 
 export default async function EditResidentPage({
   params,
@@ -11,7 +12,7 @@ export default async function EditResidentPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const resident = await getResident(id);
+  const [resident, profile] = await Promise.all([getResident(id), getCurrentProfile()]);
 
   if (!resident) notFound();
 
@@ -34,7 +35,7 @@ export default async function EditResidentPage({
           <CardTitle className="text-base">Resident details</CardTitle>
         </CardHeader>
         <CardContent>
-          <ResidentForm action={action} resident={resident} />
+          <ResidentForm action={action} resident={resident} showPrivateNotes={profile?.role !== "intern"} />
         </CardContent>
       </Card>
     </div>

@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { listFacilities } from "@/lib/queries/facilities";
 import { createResident } from "@/lib/actions/residents";
 import { ResidentForm } from "../resident-form";
+import { getCurrentProfile } from "@/lib/get-current-profile";
 
 export default async function NewResidentPage({
   searchParams,
@@ -9,7 +10,7 @@ export default async function NewResidentPage({
   searchParams: Promise<{ facility?: string }>;
 }) {
   const { facility } = await searchParams;
-  const facilities = await listFacilities();
+  const [facilities, profile] = await Promise.all([listFacilities(), getCurrentProfile()]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -30,6 +31,7 @@ export default async function NewResidentPage({
             action={createResident}
             facilities={facilities}
             defaultFacilityId={facility}
+            showPrivateNotes={profile?.role !== "intern"}
           />
         </CardContent>
       </Card>

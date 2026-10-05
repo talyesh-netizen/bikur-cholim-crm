@@ -4,6 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentProfile } from "@/lib/get-current-profile";
 import { loadDirectory, type Directory } from "@/lib/assistant/directory";
 import { resolvePlan } from "@/lib/assistant/resolve";
 import { SYSTEM_PROMPT } from "@/lib/assistant/prompt";
@@ -123,6 +124,8 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, steps: [{ label: "Nothing was saved: your session expired. Please sign in again.", ok: false }] };
+  // Interns can't see or change private notes (the database ignores it too).
+  const canWritePrivateNotes = (await getCurrentProfile())?.role !== "intern";
 
   const today = getLocalToday();
   const steps: ApplyStep[] = [];
@@ -240,7 +243,7 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
     if (blankToNull(u.add_to_kosher_food_needs)) changes.kosher_food_needs = appendNote(current.kosher_food_needs, u.add_to_kosher_food_needs!, today);
     if (blankToNull(u.add_to_visitation_needs)) changes.visitation_needs = appendNote(current.visitation_needs, u.add_to_visitation_needs!, today);
     if (blankToNull(u.add_to_holiday_support_needs)) changes.holiday_support_needs = appendNote(current.holiday_support_needs, u.add_to_holiday_support_needs!, today);
-    if (blankToNull(u.add_to_private_notes)) changes.private_internal_notes = appendNote(current.private_internal_notes, u.add_to_private_notes!, today);
+    if (canWritePrivateNotes && blankToNull(u.add_to_private_notes)) changes.private_internal_notes = appendNote(current.private_internal_notes, u.add_to_private_notes!, today);
     const who = residentName(current);
     if (Object.keys(changes).length === 0) continue;
     const { data: updated, error } = await supabase.from("residents").update(changes).eq("id", u.resident).select("id");
