@@ -20,7 +20,7 @@ function distance(a: string, b: string) {
   return prev[b.length];
 }
 
-/** "Shirley" vs "Shirly", "Rosalyn" vs "Roslyn": the same name give or
+/** "Rifka" vs "Rivka", "Rosalyn" vs "Roslyn": the same name give or
  * take a typo. Very short names must match exactly. */
 function closeName(a: string, b: string) {
   if (!a || !b) return false;

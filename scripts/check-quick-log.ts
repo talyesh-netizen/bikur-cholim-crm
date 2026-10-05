@@ -27,16 +27,16 @@ const directory = {
   selfAlias: "S1",
   residents: [
     { id: ids.R1, first_name: "Rivka", last_name: "Cohen", facility_id: ids.F1 },
-    { id: "55555555-5555-4555-8555-555555555555", first_name: "Shirly", last_name: null, facility_id: ids.F1 },
+    { id: "55555555-5555-4555-8555-555555555555", first_name: "Rivka", last_name: null, facility_id: ids.F1 },
   ],
 };
 
 const wire = {
   summary: "Visit with Rivka Cohen; her daughter Sarah is new.",
-  // "Shirley" should be flagged as maybe the existing "Shirly"; the
+  // "Rifka" should be flagged as maybe the existing "Rivka"; the
   // nameless one should be dropped with a question.
   new_residents: [
-    { key: "NR1", first_name: "shirley", last_name: "", preferred_name: "", facility: "F1", room_number: "", status: "active",
+    { key: "NR1", first_name: "rifka", last_name: "", preferred_name: "", facility: "F1", room_number: "", status: "active",
       kosher_food_needs: "", visitation_needs: "", holiday_support_needs: "", private_internal_notes: "" },
     { key: "NR2", first_name: "", last_name: "", preferred_name: "", facility: "F1", room_number: "", status: "active",
       kosher_food_needs: "", visitation_needs: "", holiday_support_needs: "", private_internal_notes: "" },
