@@ -126,8 +126,21 @@ export async function updateResident(
     };
   }
 
+  // An erased box arrives as undefined, and the database update skips
+  // undefined fields -- so the old value used to quietly stay. Send null
+  // for every field the form submitted blank so erasing really clears it.
+  // Private internal notes are the exception: an empty box never wipes
+  // existing notes (protects against accidental deletion; every edit is
+  // also in the change history).
+  const changes: Record<string, unknown> = { ...parsed.data };
+  for (const key of Object.keys(raw)) {
+    if (key in residentSchema.shape && key !== "private_internal_notes" && changes[key] === undefined) {
+      changes[key] = null;
+    }
+  }
+
   const supabase = await createClient();
-  const { data: updated, error } = await supabase.from("residents").update(parsed.data).eq("id", residentId).select("id");
+  const { data: updated, error } = await supabase.from("residents").update(changes).eq("id", residentId).select("id");
 
   if (error) {
     return { error: "Something went wrong saving this resident. Please try again.", values: raw };

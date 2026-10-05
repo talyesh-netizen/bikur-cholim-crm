@@ -187,6 +187,8 @@ export function ResidentForm({
         <p className="text-xs text-muted-foreground">
           For sensitive details you wouldn&apos;t want shared outside the
           department — never visible to facilities or family members.
+          You can add to or edit these notes, but emptying the box won&apos;t
+          delete them.
         </p>
         <Textarea
           id="private_internal_notes"
