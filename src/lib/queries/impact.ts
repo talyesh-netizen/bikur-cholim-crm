@@ -211,8 +211,13 @@ export type ServicesDelivered = {
   };
   volunteers: { volunteers: number; visits: number; hours: number; residentsVisited: number };
   schoolShul: { programs: number; school: number; shul: number; participants: number; peopleReached: number };
-  /** Every "Residents reached" count added up, whatever the activity --
-   * the department's headline "how many people did we serve" number. */
+  /** Different residents who had a one-on-one visit or call (staff or
+   * volunteer) in the period -- each person counted once -- and how many
+   * such visits and calls there were. */
+  oneOnOne: { residents: number; contacts: number };
+  /** Every "Residents reached" count added up -- programs, deliveries and
+   * group visits. Approximate attendance: the same person can be counted
+   * more than once, and one-on-one visits (left blank) aren't in it. */
   peopleReached: {
     total: number;
     programs: number;
@@ -244,6 +249,9 @@ type ServiceRow = {
   unmet_need_reason: string | null;
   funder_story: boolean;
 };
+
+/** Contact with one named resident: visits and calls, by staff or volunteers. */
+const ONE_ON_ONE_TYPES = new Set(["resident_visit", "resident_phone_call", "volunteer_visit"]);
 
 const toHours = (minutes: number) => Math.round((minutes / 60) * 10) / 10;
 
@@ -299,6 +307,7 @@ export async function getServicesDelivered(period: ImpactPeriod = "month", facil
     food: { deliveries: 0, items: 0, peopleReached: 0, byOccasion: { shabbos: 0, yomTov: 0, other: 0 } },
     volunteers: { volunteers: 0, visits: 0, hours: 0, residentsVisited: 0 },
     schoolShul: { programs: 0, school: 0, shul: 0, participants: 0, peopleReached: 0 },
+    oneOnOne: { residents: 0, contacts: 0 },
     peopleReached: { total: 0, programs: 0, food: 0, schoolShul: 0, volunteerGroups: 0, residentGroups: 0, other: 0 },
     medicalReferrals: 0,
     rides: 0,
@@ -310,6 +319,7 @@ export async function getServicesDelivered(period: ImpactPeriod = "month", facil
 
   const volunteerIds = new Set<string>();
   const residentsVisited = new Set<string>();
+  const oneOnOneResidents = new Set<string>();
   const unmetByReason = new Map<string, number>();
   let volunteerMinutes = 0;
   let staffMinutes = 0;
@@ -352,6 +362,10 @@ export async function getServicesDelivered(period: ImpactPeriod = "month", facil
         careMinutes += minutes;
         break;
     }
+    if (row.resident_id && ONE_ON_ONE_TYPES.has(row.interaction_type)) {
+      result.oneOnOne.contacts += 1;
+      oneOnOneResidents.add(row.resident_id);
+    }
     if (row.people_reached) {
       const reached = result.peopleReached;
       reached.total += row.people_reached;
@@ -371,6 +385,7 @@ export async function getServicesDelivered(period: ImpactPeriod = "month", facil
     if (row.funder_story) result.funderStories += 1;
   }
 
+  result.oneOnOne.residents = oneOnOneResidents.size;
   result.volunteers.volunteers = volunteerIds.size;
   result.volunteers.residentsVisited = residentsVisited.size;
   result.volunteers.hours = toHours(volunteerMinutes);

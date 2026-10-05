@@ -2,6 +2,7 @@ import type { ServicesDelivered } from "@/lib/queries/impact";
 import { labelFor, UNMET_NEED_REASONS } from "@/lib/domain/interaction";
 import { cn } from "@/lib/utils";
 import {
+  UserCheck,
   Utensils,
   HeartHandshake,
   School,
@@ -74,21 +75,34 @@ export function ServicesDeliveredTiles({
   const show = (value: number) => !hideEmpty || value > 0;
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {show(services.oneOnOne.residents) ? (
+        <Tile
+          icon={UserCheck}
+          title={`Residents served one-on-one · ${periodLabel}`}
+          value={services.oneOnOne.residents}
+          unit={services.oneOnOne.residents === 1 ? "resident" : "different residents"}
+          details={[
+            `${n(services.oneOnOne.contacts)} visits & calls (staff and volunteers)`,
+            "Each person counted once",
+          ]}
+        />
+      ) : null}
       {show(peopleReached.total) ? (
-      <Tile
-        icon={Users}
-        title={`People reached · ${periodLabel}`}
-        value={peopleReached.total}
-        unit="people (approx.)"
-        details={[
-          peopleReached.programs > 0 ? `Facility programs: ~${n(peopleReached.programs)}` : null,
-          peopleReached.food > 0 ? `Food & holiday deliveries: ~${n(peopleReached.food)}` : null,
-          peopleReached.volunteerGroups > 0 ? `Volunteer group visits: ~${n(peopleReached.volunteerGroups)}` : null,
-          peopleReached.residentGroups > 0 ? `Group resident visits: ~${n(peopleReached.residentGroups)}` : null,
-          peopleReached.schoolShul > 0 ? `School & shul programs: ~${n(peopleReached.schoolShul)}` : null,
-          peopleReached.other > 0 ? `Other activities: ~${n(peopleReached.other)}` : null,
-        ]}
-      />
+        <Tile
+          icon={Users}
+          title={`Reached through programs & deliveries · ${periodLabel}`}
+          value={peopleReached.total}
+          unit="(approx.)"
+          details={[
+            peopleReached.programs > 0 ? `Facility programs: ~${n(peopleReached.programs)}` : null,
+            peopleReached.food > 0 ? `Food & holiday deliveries: ~${n(peopleReached.food)}` : null,
+            peopleReached.volunteerGroups > 0 ? `Volunteer group visits: ~${n(peopleReached.volunteerGroups)}` : null,
+            peopleReached.residentGroups > 0 ? `Group resident visits: ~${n(peopleReached.residentGroups)}` : null,
+            peopleReached.schoolShul > 0 ? `School & shul programs: ~${n(peopleReached.schoolShul)}` : null,
+            peopleReached.other > 0 ? `Other activities: ~${n(peopleReached.other)}` : null,
+            "Attendance: someone at 3 programs counts 3 times",
+          ]}
+        />
       ) : null}
       {show(food.deliveries) ? (
       <Tile
