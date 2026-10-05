@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { listInteractions } from "@/lib/queries/interactions";
 import { listFacilityOptions } from "@/lib/queries/facilities";
+import { listActiveStaff } from "@/lib/queries/profiles";
 import { InteractionFilters } from "./interaction-filters";
 import { InteractionRow } from "./interaction-row";
 import { SectionIcon } from "@/components/section-icon";
@@ -16,16 +17,18 @@ export default async function InteractionsPage({
 }) {
   const params = await searchParams;
 
-  const [{ interactions, totalCount, pageSize }, facilities] = await Promise.all([
+  const [{ interactions, totalCount, pageSize }, facilities, staff] = await Promise.all([
     listInteractions({
       interactionType: params.type,
       facilityId: params.facility,
+      staffId: params.staff,
       dateFrom: params.from,
       dateTo: params.to,
       search: params.search,
       flag: params.flag === "funder_story" || params.flag === "unmet_need" ? params.flag : undefined,
     }),
     listFacilityOptions(),
+    listActiveStaff(),
   ]);
 
   return (
@@ -49,7 +52,7 @@ export default async function InteractionsPage({
         </Button>
       </div>
 
-      <InteractionFilters facilities={facilities} />
+      <InteractionFilters facilities={facilities} staff={staff} />
 
       {interactions.length === 0 ? (
         <EmptyState
