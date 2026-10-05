@@ -10,8 +10,10 @@ import {
   getVolunteerImpact,
   getInteractionTrend,
   getServicesDelivered,
+  getImpactByGroup,
   type ImpactPeriod,
 } from "@/lib/queries/impact";
+import { ImpactByGroupTable } from "@/components/impact-by-group";
 import { createClient } from "@/lib/supabase/server";
 import { TaskCard } from "../tasks/task-card";
 import { DonutChart } from "@/components/donut-chart";
@@ -19,7 +21,7 @@ import { ImpactLeaderboard } from "@/components/impact-leaderboard";
 import { TrendChart } from "@/components/trend-chart";
 import { ServicesDeliveredTiles } from "@/components/services-delivered";
 import { DashboardOnsiteLauncher } from "@/components/dashboard-onsite-launcher";
-import { HeartHandshake, TrendingUp } from "lucide-react";
+import { HeartHandshake, TrendingUp, Network } from "lucide-react";
 import { labelFor, INTERACTION_TYPES } from "@/lib/domain/interaction";
 import { ENGAGEMENT_STATUSES } from "@/lib/domain/facility";
 import { formatRelative, formatDateTime } from "@/lib/format-date";
@@ -152,7 +154,7 @@ export default async function DashboardPage({
     params.impact === "month" || params.impact === "all" ? params.impact : "quarter";
 
   const supabase = await createClient();
-  const [{ data: { user } }, summary, impact, staffActivity, volunteerImpact, trend, services, facilities] = await Promise.all([
+  const [{ data: { user } }, summary, impact, staffActivity, volunteerImpact, trend, services, facilities, byGroup] = await Promise.all([
     supabase.auth.getUser(),
     getDashboardSummary(),
     getImpactBreakdown(impactPeriod),
@@ -161,6 +163,7 @@ export default async function DashboardPage({
     getInteractionTrend(6),
     getServicesDelivered(impactPeriod),
     listFacilities(),
+    getImpactByGroup(impactPeriod),
   ]);
 
   let firstName = "";
@@ -252,6 +255,26 @@ export default async function DashboardPage({
               periodLabel={IMPACT_PERIODS.find((p) => p.value === impactPeriod)?.label ?? "This quarter"}
             />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex-row flex-wrap items-center justify-between gap-2 space-y-0">
+          <div className="flex items-center gap-2">
+            <Network className="size-4 text-muted-foreground" />
+            <CardTitle className="text-base uppercase tracking-wide">
+              Impact by healthcare group — {IMPACT_PERIODS.find((p) => p.value === impactPeriod)?.label}
+            </CardTitle>
+          </div>
+          <Button variant="outline" size="sm" className="uppercase tracking-wide" asChild>
+            <a href={`/api/impact-by-group?period=${impactPeriod}`}>
+              <Download className="size-4" />
+              Export
+            </a>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <ImpactByGroupTable rows={byGroup.rows} notAtAFacility={byGroup.notAtAFacility} />
         </CardContent>
       </Card>
 
