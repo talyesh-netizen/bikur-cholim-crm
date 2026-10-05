@@ -5,7 +5,19 @@ import { ImpactView } from "./impact-view";
 
 export default async function ImpactPage({ searchParams }: { searchParams: Promise<{ period?: string }> }) {
   const { period: periodParam } = await searchParams;
-  const period: ImpactPeriod = periodParam === "month" || periodParam === "all" ? periodParam : "quarter";
+  let period: ImpactPeriod = periodParam === "month" || periodParam === "all" ? periodParam : "quarter";
+
+  // Opened plainly (no period chosen) early in a quarter with nothing
+  // logged yet: show all time instead of a page of zeros, and say so.
+  let fellBackToAllTime = false;
+  if (!periodParam) {
+    const q = await getImpactOverview("quarter");
+    const h = q.headline;
+    if (h.residentContacts + h.familyConversations + h.staffTouchpoints + h.programs + h.deliveries === 0) {
+      period = "all";
+      fellBackToAllTime = true;
+    }
+  }
 
   // First day of the period (Cleveland calendar), so tapping a staff
   // member opens their interactions for the same period.
@@ -18,5 +30,5 @@ export default async function ImpactPage({ searchParams }: { searchParams: Promi
     getStaffActivity(period),
     getVolunteerImpact(period),
   ]);
-  return <ImpactView period={period} o={o} team={{ staff, volunteers, periodFrom }} />;
+  return <ImpactView period={period} o={o} team={{ staff, volunteers, periodFrom }} fellBackToAllTime={fellBackToAllTime} />;
 }

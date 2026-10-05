@@ -7,10 +7,10 @@ import { listFacilities } from "@/lib/queries/facilities";
 import { createClient } from "@/lib/supabase/server";
 import { TaskCard } from "../tasks/task-card";
 import { DashboardOnsiteLauncher } from "@/components/dashboard-onsite-launcher";
-import { Sparkles, BellRing, ChartColumn } from "lucide-react";
+import { Sparkles, BellRing, ChartColumn, HeartHandshake } from "lucide-react";
 import { labelFor, INTERACTION_TYPES } from "@/lib/domain/interaction";
 import { ENGAGEMENT_STATUSES } from "@/lib/domain/facility";
-import { formatRelative, formatDateTime } from "@/lib/format-date";
+import { formatRelative, formatDateTime, orgMonthStart, orgDayStartIso } from "@/lib/format-date";
 import {
   ListChecks,
   Users,
@@ -124,11 +124,20 @@ function SectionCard({
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const [{ data: { user } }, summary, facilities] = await Promise.all([
+  const { year: monthYear, month: monthNumber } = orgMonthStart();
+  const monthStartIso = orgDayStartIso(`${monthYear}-${String(monthNumber).padStart(2, "0")}-01`)!;
+  const [{ data: { user } }, summary, facilities, { data: familyRows }] = await Promise.all([
     supabase.auth.getUser(),
     getDashboardSummary(),
     listFacilities(),
+    supabase
+      .from("interactions")
+      .select("contact_id, resident_id")
+      .in("interaction_type", ["family_communication", "care_navigation"])
+      .gte("occurred_at", monthStartIso),
   ]);
+  // A family = the family member spoken with, else the resident whose family it was.
+  const familiesThisMonth = new Set((familyRows ?? []).map((r) => r.contact_id ?? r.resident_id).filter(Boolean)).size;
 
   let firstName = "";
   if (user) {
@@ -175,10 +184,11 @@ export default async function DashboardPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Open tasks" value={summary.counts.openTasks} href="/tasks" icon={ListChecks} section="tasks" />
         <StatCard label="Active residents" value={summary.counts.activeResidents} href="/residents" icon={Users} section="residents" />
         <StatCard label="Active facilities" value={summary.counts.activeFacilities} href="/facilities" icon={Building2} section="facilities" />
+        <StatCard label="Families supported this month" value={familiesThisMonth} href="/impact?period=month" icon={HeartHandshake} section="contacts" />
       </div>
 
       <DashboardOnsiteLauncher

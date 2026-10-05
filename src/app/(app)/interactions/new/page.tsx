@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getResident } from "@/lib/queries/residents";
 import { getFacility, listFacilities } from "@/lib/queries/facilities";
 import { listResidents } from "@/lib/queries/residents";
-import { listContactOptions } from "@/lib/queries/contacts";
+import { listContactOptions, listResidentContacts } from "@/lib/queries/contacts";
+import { labelFor as labelForContact, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
 import { createInteraction } from "@/lib/actions/interactions";
 import { InteractionForm } from "../interaction-form";
 import { INTERACTION_TYPES, labelFor } from "@/lib/domain/interaction";
@@ -17,7 +18,7 @@ export default async function NewInteractionPage({
   const { resident: residentId, facility: facilityId, type } = await searchParams;
   const defaultType = INTERACTION_TYPES.some((t) => t.value === type) ? type : undefined;
 
-  const [facilities, resident, residentsAtFacility, contacts, volunteers] = await Promise.all([
+  const [facilities, resident, residentsAtFacility, allContacts, volunteers, residentFamily] = await Promise.all([
     listFacilities(),
     residentId ? getResident(residentId) : Promise.resolve(null),
     !residentId && facilityId
@@ -25,7 +26,23 @@ export default async function NewInteractionPage({
       : Promise.resolve([]),
     listContactOptions(),
     listContactOptions("volunteer"),
+    residentId ? listResidentContacts(residentId) : Promise.resolve([]),
   ]);
+
+  // The resident's own family members first ("Sarah Katz (daughter)"),
+  // so logging family support is one pick, not a search.
+  const family = residentFamily
+    .filter((rc) => rc.active && rc.contact)
+    .map((rc) => ({
+      id: rc.contact_id,
+      name: `${rc.contact.name} (${
+        rc.relationship_to_resident === "other"
+          ? rc.relationship_other_description || "family"
+          : labelForContact(RESIDENT_CONTACT_RELATIONSHIPS, rc.relationship_to_resident).toLowerCase()
+      })`,
+    }));
+  const familyIds = new Set(family.map((f) => f.id));
+  const contacts = [...family, ...allContacts.filter((c) => !familyIds.has(c.id))];
 
   if (residentId && !resident) notFound();
   if (facilityId) {
