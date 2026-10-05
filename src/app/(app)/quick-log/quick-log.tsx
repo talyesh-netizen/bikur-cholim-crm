@@ -21,7 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { analyzeNote, applyPlan } from "@/lib/actions/assistant";
 import type { ApplyResult, Plan, PlanNames } from "@/lib/assistant/schema";
-import { labelFor, INTERACTION_TYPES } from "@/lib/domain/interaction";
+import { labelFor, INTERACTION_TYPES, HOLIDAYS } from "@/lib/domain/interaction";
 import { RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { CONTACT_TYPES, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
 import { ENGAGEMENT_STATUSES, VISIT_PRIORITIES, KOSHER_FOOD_OPTIONS } from "@/lib/domain/facility";
@@ -89,7 +89,7 @@ function describe(plan: Plan, names: PlanNames): Item[] {
   );
   plan.interactions.forEach((x, i) => {
     const iso = orgLocalToIso(x.occurred_at);
-    add("interactions", i, HeartHandshake, `Log: ${labelFor(INTERACTION_TYPES, x.interaction_type)}`, [
+    add("interactions", i, HeartHandshake, `Log: ${labelFor(INTERACTION_TYPES, x.interaction_type)}${x.holiday ? ` · ${labelFor(HOLIDAYS, x.holiday)}` : ""}`, [
       [n(x.resident), n(x.contact) && `with ${n(x.contact)}`, n(x.facility) && `at ${n(x.facility)}`].filter(Boolean).join(" "),
       x.volunteers.length > 0 && `Volunteers: ${x.volunteers.map(n).join(", ")}`,
       iso && formatDateTimeWithTime(iso),

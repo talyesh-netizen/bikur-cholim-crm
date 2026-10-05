@@ -5,6 +5,7 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/get-current-profile";
+import { HOLIDAY_TYPES, SERVICE_FIELDS_BY_TYPE, occasionForHoliday, type InteractionType } from "@/lib/domain/interaction";
 import { loadDirectory, type Directory } from "@/lib/assistant/directory";
 import { resolvePlan } from "@/lib/assistant/resolve";
 import { SYSTEM_PROMPT } from "@/lib/assistant/prompt";
@@ -320,6 +321,11 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
         contact_id: contactId,
         notes: blankToNull(i.notes),
         minutes_spent: i.minutes_spent && i.minutes_spent > 0 ? i.minutes_spent : null,
+        holiday: i.holiday && HOLIDAY_TYPES.includes(i.interaction_type) ? i.holiday : null,
+        occasion:
+          i.holiday && HOLIDAY_TYPES.includes(i.interaction_type) && SERVICE_FIELDS_BY_TYPE[i.interaction_type as InteractionType]?.includes("occasion")
+            ? occasionForHoliday(i.holiday)
+            : null,
         staff_member_id: user.id,
       })
       .select("id")

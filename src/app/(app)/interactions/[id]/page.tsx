@@ -9,6 +9,7 @@ import {
   formatMinutes,
   INTERACTION_TYPES,
   OCCASIONS,
+  HOLIDAYS,
   PROGRAM_PARTNERS,
   UNMET_NEED_REASONS,
 } from "@/lib/domain/interaction";
@@ -33,6 +34,7 @@ export default async function InteractionDetailPage({
 
   const serviceDetails = [
     interaction.program_partner ? { label: "School or shul", value: labelFor(PROGRAM_PARTNERS, interaction.program_partner) } : null,
+    interaction.holiday ? { label: "Holiday", value: labelFor(HOLIDAYS, interaction.holiday) } : null,
     interaction.occasion ? { label: "Occasion", value: labelFor(OCCASIONS, interaction.occasion) } : null,
     interaction.quantity != null ? { label: "Items", value: String(interaction.quantity) } : null,
     interaction.participants != null ? { label: "Participants", value: String(interaction.participants) } : null,

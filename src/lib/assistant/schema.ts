@@ -20,7 +20,7 @@
  */
 
 import { z } from "zod";
-import { INTERACTION_TYPES } from "@/lib/domain/interaction";
+import { INTERACTION_TYPES, HOLIDAYS } from "@/lib/domain/interaction";
 import { RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { CONTACT_TYPES, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
 import { ENGAGEMENT_STATUSES, VISIT_PRIORITIES, KOSHER_FOOD_OPTIONS } from "@/lib/domain/facility";
@@ -37,6 +37,7 @@ const enumOf = (options: readonly { value: string }[]) => ({
 type EnumPair = ReturnType<typeof enumOf>;
 
 const interactionType = enumOf(INTERACTION_TYPES);
+const holiday = enumOf(HOLIDAYS);
 const residentStatus = enumOf(RESIDENT_STATUSES);
 const contactType = enumOf(CONTACT_TYPES);
 const relationship = enumOf(RESIDENT_CONTACT_RELATIONSHIPS);
@@ -132,6 +133,7 @@ function buildPlanSchema<Ref extends z.ZodType>(ref: Ref, wire: boolean) {
         volunteers: z.array(ref),
         notes: text,
         minutes_spent: maybe(z.number().int()),
+        holiday: choice(holiday),
       })
     ),
     tasks: z.array(

@@ -16,11 +16,14 @@ import {
   INTERACTION_TYPES,
   FACILITY_OPTIONAL_TYPES,
   GROUP_VISIT_TYPES,
-  OCCASIONS,
   PROGRAM_PARTNERS,
   UNMET_NEED_REASONS,
   TIME_SPENT_OPTIONS,
   SERVICE_FIELDS_BY_TYPE,
+  TYPE_BUTTONS,
+  MORE_TYPES,
+  HOLIDAYS,
+  HOLIDAY_TYPES,
   type InteractionType,
 } from "@/lib/domain/interaction";
 import type { InteractionFormState } from "@/lib/actions/interactions";
@@ -226,14 +229,20 @@ export function InteractionForm({
         error={fieldErrors.interaction_type}
         required
       >
-        <SelectField
-          name="interaction_type"
-          value={interactionType}
-          onValueChange={handleInteractionTypeChange}
-          options={INTERACTION_TYPES}
-          placeholder="Choose a type…"
-        />
+        <TypePicker value={interactionType} onChange={handleInteractionTypeChange} />
       </Field>
+
+      {HOLIDAY_TYPES.includes(interactionType) ? (
+        <Field label="For a holiday?" htmlFor="holiday" error={fieldErrors.holiday}>
+          <SelectField
+            name="holiday"
+            defaultValue={service.holiday}
+            options={HOLIDAYS}
+            placeholder="No holiday"
+            allowEmpty
+          />
+        </Field>
+      ) : null}
 
       {serviceFields.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 rounded-md border border-border bg-muted/40 p-3 sm:grid-cols-2">
@@ -247,11 +256,9 @@ export function InteractionForm({
               />
             </Field>
           ) : null}
-          {serviceFields.includes("occasion") ? (
-            <Field label="Occasion" htmlFor="occasion" error={fieldErrors.occasion}>
-              <SelectField name="occasion" defaultValue={service.occasion} options={OCCASIONS} placeholder="Choose…" />
-            </Field>
-          ) : null}
+          {/* The holiday (below) now sets the Shabbos / Yom Tov occasion on
+              save; an occasion already on an older entry rides along. */}
+          {serviceFields.includes("occasion") ? <input type="hidden" name="occasion" value={service.occasion} readOnly /> : null}
           {serviceFields.includes("quantity") ? (
             <NumberField
               name="quantity"
@@ -409,6 +416,7 @@ export function InteractionForm({
  * back on a failed save. */
 export type ServiceFormValues = {
   occasion: string;
+  holiday: string;
   program_partner: string;
   quantity: string;
   people_reached: string;
@@ -421,6 +429,7 @@ export type ServiceFormValues = {
 
 const EMPTY_SERVICE_VALUES: ServiceFormValues = {
   occasion: "",
+  holiday: "",
   program_partner: "",
   quantity: "",
   people_reached: "",
@@ -527,5 +536,75 @@ function SelectField({
         </SelectContent>
       </Select>
     </>
+  );
+}
+
+/** The simple type picker: 8 big buttons, a short follow-up for the two
+ * that cover more than one kind, and "More types" for the rest. An older
+ * entry whose type isn't offered any more still shows (and keeps) it. */
+function TypePicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const activeButton = TYPE_BUTTONS.find((b) => b.choices.some((c) => c.value === value));
+  const isMoreType = !activeButton && value !== "";
+  const [showMore, setShowMore] = useState(isMoreType);
+  const moreOptions = INTERACTION_TYPES.filter(
+    (t) => (MORE_TYPES as readonly string[]).includes(t.value) || t.value === value
+  ).filter((t) => !TYPE_BUTTONS.some((b) => b.choices.some((c) => c.value === t.value)));
+
+  const pill = (selected: boolean) =>
+    selected
+      ? "rounded-md border-2 border-primary bg-primary/10 px-3 py-2.5 text-sm font-semibold text-foreground"
+      : "rounded-md border border-border bg-card px-3 py-2.5 text-sm font-medium text-foreground hover:border-primary/50";
+
+  return (
+    <div className="flex flex-col gap-2">
+      <input type="hidden" name="interaction_type" value={value} readOnly />
+      <div id="interaction_type" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {TYPE_BUTTONS.map((b) => (
+          <button
+            key={b.key}
+            type="button"
+            aria-pressed={activeButton?.key === b.key}
+            className={pill(activeButton?.key === b.key)}
+            onClick={() => onChange(activeButton?.key === b.key ? value : b.choices[0].value)}
+          >
+            {b.label}
+          </button>
+        ))}
+      </div>
+
+      {activeButton && activeButton.choices.length > 1 ? (
+        <div className="flex flex-wrap gap-2 rounded-md bg-muted/40 p-2">
+          {activeButton.choices.map((c) => (
+            <button
+              key={c.value}
+              type="button"
+              aria-pressed={value === c.value}
+              className={
+                value === c.value
+                  ? "rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground"
+                  : "rounded-full bg-card px-3 py-1 text-xs font-medium text-muted-foreground ring-1 ring-border hover:text-foreground"
+              }
+              onClick={() => onChange(c.value)}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {showMore ? (
+        <div className="flex flex-wrap gap-2">
+          {moreOptions.map((t) => (
+            <button key={t.value} type="button" aria-pressed={value === t.value} className={pill(value === t.value)} onClick={() => onChange(t.value)}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <button type="button" className="w-fit text-xs text-muted-foreground underline" onClick={() => setShowMore(true)}>
+          More types…
+        </button>
+      )}
+    </div>
   );
 }
