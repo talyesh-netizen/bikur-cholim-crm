@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import type { InteractionType } from "@/lib/domain/interaction";
 import { orgDayStartIso, orgMonthStart, orgMonthKey } from "@/lib/format-date";
+import { isActiveResidentStatus } from "@/lib/domain/resident";
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
 
@@ -375,4 +376,111 @@ export async function getServicesDelivered(period: ImpactPeriod = "month"): Prom
   );
 
   return result;
+}
+
+export type GroupImpactRow = {
+  group: string;
+  isUngrouped: boolean;
+  facilities: number;
+  currentResidents: number;
+  residentsReached: number;
+  visits: number;
+  programs: number;
+  food: number;
+  referrals: number;
+  total: number;
+};
+
+export const NO_GROUP_LABEL = "No group recorded";
+
+const typesFor = (...keys: string[]) =>
+  new Set(BUCKET_DEFS.filter((d) => keys.includes(d.key)).flatMap((d) => d.types as string[]));
+const GROUP_VISIT_TYPES = typesFor("resident_visits", "volunteers");
+const GROUP_PROGRAM_TYPES = typesFor("programs");
+const GROUP_FOOD_TYPES = typesFor("food");
+const GROUP_REFERRAL_TYPES = typesFor("referrals");
+
+/** Work grouped by each facility's parent healthcare group (the
+ * facilities.parent_healthcare_group field), for funder reports like
+ * "across Progressive Quality Care we reached N residents". Uses the
+ * same categories as the Impact donut. Interactions not tied to a
+ * facility can't be placed in a group and are counted separately.
+ * Aggregate numbers only -- no names. */
+export async function getImpactByGroup(period: ImpactPeriod = "quarter"): Promise<{
+  rows: GroupImpactRow[];
+  notAtAFacility: number;
+}> {
+  const supabase = await createClient();
+  const start = periodStart(period);
+
+  const [facilities, residents, interactions] = await Promise.all([
+    selectAllPages<{ id: string; parent_healthcare_group: string | null }>((from, to) =>
+      supabase.from("facilities").select("id, parent_healthcare_group").order("id").range(from, to)
+    ),
+    selectAllPages<{ current_facility_id: string | null; status: string }>((from, to) =>
+      supabase.from("resident_summary").select("current_facility_id, status").order("id").range(from, to)
+    ),
+    selectAllPages<{ interaction_type: string; facility_id: string | null; resident_id: string | null }>((from, to) => {
+      let query = supabase.from("interactions").select("interaction_type, facility_id, resident_id").order("id").range(from, to);
+      if (start) query = query.gte("occurred_at", start);
+      return query;
+    }),
+  ]);
+
+  const groupOf = new Map<string, string>();
+  const rows = new Map<string, GroupImpactRow & { reached: Set<string> }>();
+  const rowFor = (group: string) => {
+    let row = rows.get(group);
+    if (!row) {
+      row = {
+        group,
+        isUngrouped: group === NO_GROUP_LABEL,
+        facilities: 0,
+        currentResidents: 0,
+        residentsReached: 0,
+        visits: 0,
+        programs: 0,
+        food: 0,
+        referrals: 0,
+        total: 0,
+        reached: new Set(),
+      };
+      rows.set(group, row);
+    }
+    return row;
+  };
+
+  for (const f of facilities) {
+    const group = f.parent_healthcare_group?.trim() || NO_GROUP_LABEL;
+    groupOf.set(f.id, group);
+    rowFor(group).facilities += 1;
+  }
+
+  for (const r of residents) {
+    if (!r.current_facility_id || !isActiveResidentStatus(r.status)) continue;
+    const group = groupOf.get(r.current_facility_id);
+    if (group) rowFor(group).currentResidents += 1;
+  }
+
+  let notAtAFacility = 0;
+  for (const i of interactions) {
+    const group = i.facility_id ? groupOf.get(i.facility_id) : undefined;
+    if (!group) {
+      notAtAFacility += 1;
+      continue;
+    }
+    const row = rowFor(group);
+    row.total += 1;
+    if (GROUP_VISIT_TYPES.has(i.interaction_type)) row.visits += 1;
+    else if (GROUP_PROGRAM_TYPES.has(i.interaction_type)) row.programs += 1;
+    else if (GROUP_FOOD_TYPES.has(i.interaction_type)) row.food += 1;
+    else if (GROUP_REFERRAL_TYPES.has(i.interaction_type)) row.referrals += 1;
+    if (i.resident_id) row.reached.add(i.resident_id);
+  }
+
+  const result = [...rows.values()]
+    .map(({ reached, ...row }) => ({ ...row, residentsReached: reached.size }))
+    .sort((a, b) => Number(a.isUngrouped) - Number(b.isUngrouped) || b.total - a.total || a.group.localeCompare(b.group));
+
+  return { rows: result, notAtAFacility };
 }
