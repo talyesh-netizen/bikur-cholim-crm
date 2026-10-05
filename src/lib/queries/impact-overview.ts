@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { orgDayStartIso, orgMonthStart, orgMonthKey } from "@/lib/format-date";
 import { ACTIVE_RESIDENT_STATUSES } from "@/lib/domain/resident";
-import { HOLIDAYS } from "@/lib/domain/interaction";
+import { HOLIDAYS, FAMILY_NEEDS } from "@/lib/domain/interaction";
 import { pad2, periodStart, selectAllPages, type ImpactPeriod } from "@/lib/queries/impact";
 
 // What each section of the Impact page counts. Kept here so every number
@@ -20,6 +20,7 @@ type Row = {
   facility_id: string | null;
   people_reached: number | null;
   holiday: string | null;
+  family_need: string | null;
 };
 
 export type Headline = {
@@ -97,6 +98,7 @@ export type ImpactOverview = {
   withFamily: number;
   careNavigation: number;
   holidays: LabeledValue[];
+  familyNeeds: LabeledValue[];
   stages: LabeledValue[];
   facilitiesTotal: number;
   noJewishResidentsKnown: number;
@@ -115,7 +117,7 @@ export async function getImpactOverview(period: ImpactPeriod): Promise<ImpactOve
     selectAllPages<Row>((from, to) => {
       let q = supabase
         .from("interactions")
-        .select("interaction_type, occurred_at, resident_id, contact_id, facility_id, people_reached, holiday")
+        .select("interaction_type, occurred_at, resident_id, contact_id, facility_id, people_reached, holiday, family_need")
         .order("id")
         .range(from, to);
       if (fetchFrom) q = q.gte("occurred_at", fetchFrom);
@@ -188,6 +190,16 @@ export async function getImpactOverview(period: ImpactPeriod): Promise<ImpactOve
     value: holidayCounts.get(h.value)!,
   }));
 
+  // What families needed, in the period (only entries where it was picked).
+  const needCounts = new Map<string, number>();
+  for (const r of inPeriod) {
+    if (r.family_need) needCounts.set(r.family_need, (needCounts.get(r.family_need) ?? 0) + 1);
+  }
+  const familyNeeds = FAMILY_NEEDS.filter((f) => needCounts.has(f.value)).map((f) => ({
+    label: f.label,
+    value: needCounts.get(f.value)!,
+  }));
+
   // Facility relationship stage (active facilities).
   const STAGE_OF: Record<string, number> = {
     active_facility: 0, recurring_visits: 0, recurring_programming: 0,
@@ -235,6 +247,7 @@ export async function getImpactOverview(period: ImpactPeriod): Promise<ImpactOve
     withFamily,
     careNavigation: inPeriod.filter((r) => r.interaction_type === "care_navigation").length,
     holidays,
+    familyNeeds,
     stages,
     facilitiesTotal: facilities.length,
     noJewishResidentsKnown,

@@ -167,14 +167,18 @@ export function ImpactView({
               style={{ width: `${o.activeResidents > 0 ? (o.withFamily / o.activeResidents) * 100 : 0}%`, backgroundColor: SERIES.families }}
             />
           </div>
+          <p className="text-sm text-muted-foreground">
+            {n(o.activeResidents - o.withFamily)} residents have no family on file yet. Add family from each resident&apos;s page.
+          </p>
         </ChartCard>
-        <ChartCard title={`Family support · ${p.label.toLowerCase()}`}>
-          <div className="flex flex-col gap-3 text-sm">
-            <div className="flex justify-between"><span>Families we spoke with</span><strong className="tabular-nums">{n(h.families)}</strong></div>
-            <div className="flex justify-between"><span>Conversations</span><strong className="tabular-nums">{n(h.familyConversations)}</strong></div>
-            <div className="flex justify-between"><span>Families helped find care</span><strong className="tabular-nums">{n(o.careNavigation)}</strong></div>
-            <div className="flex justify-between"><span>Residents with no family on file</span><strong className="tabular-nums">{n(o.activeResidents - o.withFamily)}</strong></div>
-          </div>
+        <ChartCard title="What families needed" subtitle={`Family support conversations · ${p.label.toLowerCase()}`}>
+          {o.familyNeeds.length > 0 ? (
+            <HBars data={o.familyNeeds} color={SERIES.families} labelWidth={170} />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Shows here once family support is logged with “What did the family need?” picked.
+            </p>
+          )}
         </ChartCard>
       </Section>
 

@@ -1,4 +1,4 @@
-import { HOLIDAYS, INTERACTION_TYPES } from "@/lib/domain/interaction";
+import { FAMILY_NEEDS, HOLIDAYS, INTERACTION_TYPES } from "@/lib/domain/interaction";
 
 /**
  * The standing instructions for the Quick Log assistant. Kept word-for-
@@ -30,6 +30,7 @@ Guidance:
 - "notes": a short, factual, professional summary in plain English of what matters for the person's support and follow-up. Don't copy the whole note, don't add opinions, and include medical detail only as far as needed to follow up.
 - "minutes_spent" only if the note says how long.
 - "holiday": only when the note says the visit, program or delivery was for Shabbos or a Jewish holiday (${HOLIDAYS.map((h) => h.value).join(", ")}), e.g. "brought a Purim package" -> food_delivery with holiday "purim"; "Chanukah program" -> program with holiday "chanukah". Otherwise leave it empty. Never guess a holiday from the date alone.
+- "family_need": only for family_communication -- what the family needed (${FAMILY_NEEDS.map((f) => `${f.value} = ${f.label}`).join("; ")}), e.g. "daughter asked how her mother is doing" -> update; "son was very upset, we talked it through" -> emotional_support; "connected them with home care / a lawyer / a benefit" -> referral; "helping them choose a nursing home" -> finding_care. Leave it empty if the note doesn't say.
 
 ## 3. Update profiles with lasting facts
 Separate one-time events (which go in the interaction's notes) from lasting facts about a person or place, which also go on their profile:
