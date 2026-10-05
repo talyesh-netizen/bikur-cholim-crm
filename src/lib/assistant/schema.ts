@@ -69,7 +69,7 @@ function buildPlanSchema<Ref extends z.ZodType>(ref: Ref, wire: boolean) {
       z.object({
         key: z.string(),
         // At least one of the two (checked in resolve.ts) -- the CRM
-        // allows a resident known only by first name, like "Shirly".
+        // allows a resident known only by first name, like "Rivka".
         first_name: text,
         last_name: text,
         preferred_name: text,
