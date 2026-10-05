@@ -221,8 +221,11 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
   }
 
   for (const u of plan.resident_updates) {
+    // Read through resident_summary, which always carries the resident's
+    // current private notes (stored separately; see 20261005000002), so
+    // appending never starts from a blank and overwrites them.
     const { data: current, error: readError } = await supabase
-      .from("residents")
+      .from("resident_summary")
       .select("first_name, last_name, preferred_name, kosher_food_needs, visitation_needs, holiday_support_needs, private_internal_notes")
       .eq("id", u.resident)
       .single();
