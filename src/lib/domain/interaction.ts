@@ -81,6 +81,18 @@ export const HOLIDAYS = [
   { value: "shavuos", label: "Shavuos" },
 ] as const;
 
+/** What a family needed, picked when logging Family support. */
+export const FAMILY_NEEDS = [
+  { value: "update", label: "Update on their loved one" },
+  { value: "emotional_support", label: "Emotional support" },
+  { value: "referral", label: "Referral / connecting to help" },
+  { value: "finding_care", label: "Finding care or placement" },
+  { value: "other", label: "Something else" },
+] as const;
+
+/** Types that ask "What did the family need?". */
+export const FAMILY_NEED_TYPES: readonly string[] = ["family_communication"];
+
 /** Types that ask "Which holiday?". */
 export const HOLIDAY_TYPES: readonly string[] = [
   "resident_visit",
@@ -194,6 +206,7 @@ export const GROUP_VISIT_TYPES: readonly string[] = ["resident_visit", "voluntee
 export type ServiceDetails = {
   occasion: string | null;
   holiday: string | null;
+  family_need: string | null;
   program_partner: string | null;
   quantity: number | null;
   people_reached: number | null;

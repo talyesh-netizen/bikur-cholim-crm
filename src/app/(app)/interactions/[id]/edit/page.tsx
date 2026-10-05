@@ -93,6 +93,7 @@ export default async function EditInteractionPage({
               notes: interaction.notes ?? "",
               occasion: interaction.occasion ?? "",
               holiday: interaction.holiday ?? "",
+              family_need: interaction.family_need ?? "",
               program_partner: interaction.program_partner ?? "",
               quantity: interaction.quantity?.toString() ?? "",
               people_reached: interaction.people_reached?.toString() ?? "",

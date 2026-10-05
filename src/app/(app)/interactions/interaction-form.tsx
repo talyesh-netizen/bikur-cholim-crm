@@ -24,6 +24,8 @@ import {
   MORE_TYPES,
   HOLIDAYS,
   HOLIDAY_TYPES,
+  FAMILY_NEEDS,
+  FAMILY_NEED_TYPES,
   type InteractionType,
 } from "@/lib/domain/interaction";
 import type { InteractionFormState } from "@/lib/actions/interactions";
@@ -232,6 +234,18 @@ export function InteractionForm({
         <TypePicker value={interactionType} onChange={handleInteractionTypeChange} />
       </Field>
 
+      {FAMILY_NEED_TYPES.includes(interactionType) ? (
+        <Field label="What did the family need?" htmlFor="family_need" error={fieldErrors.family_need}>
+          <SelectField
+            name="family_need"
+            defaultValue={service.family_need}
+            options={FAMILY_NEEDS}
+            placeholder="Choose (optional)"
+            allowEmpty
+          />
+        </Field>
+      ) : null}
+
       {HOLIDAY_TYPES.includes(interactionType) ? (
         <Field label="For a holiday?" htmlFor="holiday" error={fieldErrors.holiday}>
           <SelectField
@@ -417,6 +431,7 @@ export function InteractionForm({
 export type ServiceFormValues = {
   occasion: string;
   holiday: string;
+  family_need: string;
   program_partner: string;
   quantity: string;
   people_reached: string;
@@ -430,6 +445,7 @@ export type ServiceFormValues = {
 const EMPTY_SERVICE_VALUES: ServiceFormValues = {
   occasion: "",
   holiday: "",
+  family_need: "",
   program_partner: "",
   quantity: "",
   people_reached: "",
