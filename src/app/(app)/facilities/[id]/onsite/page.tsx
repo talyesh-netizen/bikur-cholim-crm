@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Building2, ClipboardCheck, HeartHandshake, ListChecks, UserRoundX } from "lucide-react";
+import { ArrowLeft, Building2, ClipboardCheck, ListChecks, UserRoundX } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -230,13 +230,9 @@ export default async function FacilityOnsitePage({
                       </p>
                     ) : null}
 
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-                      <Button asChild>
-                        <Link href={`/interactions/new?facility=${facility.id}&resident=${resident.id}&type=resident_visit`}>
-                          <HeartHandshake />
-                          Log visit
-                        </Link>
-                      </Button>
+                    {/* Visits are logged with the "Who did you see today?" check-in
+                        above -- one way to do it on-site. */}
+                    <div className="mt-3 grid grid-cols-1 gap-2">
                       <Button variant="outline" asChild>
                         <Link href={`/tasks/new?facility=${facility.id}&resident=${resident.id}`}>
                           <ListChecks />
