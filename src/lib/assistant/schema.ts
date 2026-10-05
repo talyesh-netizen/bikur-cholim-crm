@@ -68,8 +68,10 @@ function buildPlanSchema<Ref extends z.ZodType>(ref: Ref, wire: boolean) {
     new_residents: z.array(
       z.object({
         key: z.string(),
-        first_name: z.string(),
-        last_name: z.string(),
+        // At least one of the two (checked in resolve.ts) -- the CRM
+        // allows a resident known only by first name, like "Shirly".
+        first_name: text,
+        last_name: text,
         preferred_name: text,
         facility: ref,
         room_number: text,
@@ -134,6 +136,8 @@ function buildPlanSchema<Ref extends z.ZodType>(ref: Ref, wire: boolean) {
         volunteers: z.array(ref),
         notes: text,
         minutes_spent: maybe(z.number().int()),
+        /** How many people a delivery, program or group visit reached. */
+        people_reached: maybe(z.number().int()),
         holiday: choice(holiday),
         family_need: choice(familyNeed),
       })
@@ -162,8 +166,8 @@ export const modelPlanSchema = buildPlanSchema(z.string(), false);
 export type ModelPlan = z.infer<typeof modelPlanSchema>;
 
 /** Turns the wire format's "" and 0 placeholders into null. Every empty
- * string anywhere in the plan means "nothing", and the only number is
- * minutes_spent, where 0 means "not said". */
+ * string anywhere in the plan means "nothing", and for the only numbers
+ * (minutes_spent, people_reached) 0 means "not said". */
 export function fromWire(wirePlan: unknown): ModelPlan | null {
   const nullify = (value: unknown): unknown => {
     if (value === "" || value === 0) return null;

@@ -141,12 +141,12 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
   const fail = (label: string, error = "Not saved -- please do this one by hand.") => steps.push({ label, ok: false, error });
 
   for (const r of plan.new_residents) {
-    const label = `New resident: ${capitalizeWords(r.first_name)} ${capitalizeWords(r.last_name)}`.replace(/\s+/g, " ").trim();
+    const label = `New resident: ${residentName(r)}`;
     const { data, error } = await supabase
       .from("residents")
       .insert({
-        first_name: blankToNull(r.first_name) ? capitalizeWords(r.first_name.trim()) : null,
-        last_name: blankToNull(r.last_name) ? capitalizeWords(r.last_name.trim()) : null,
+        first_name: blankToNull(r.first_name) ? capitalizeWords(r.first_name!.trim()) : null,
+        last_name: blankToNull(r.last_name) ? capitalizeWords(r.last_name!.trim()) : null,
         preferred_name: blankToNull(r.preferred_name),
         current_facility_id: r.facility,
         room_number: blankToNull(r.room_number),
@@ -321,6 +321,10 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
         contact_id: contactId,
         notes: blankToNull(i.notes),
         minutes_spent: i.minutes_spent && i.minutes_spent > 0 ? i.minutes_spent : null,
+        people_reached:
+          i.people_reached && i.people_reached > 0 && SERVICE_FIELDS_BY_TYPE[i.interaction_type as InteractionType]?.includes("people_reached")
+            ? i.people_reached
+            : null,
         holiday: i.holiday && HOLIDAY_TYPES.includes(i.interaction_type) ? i.holiday : null,
         family_need: i.family_need && FAMILY_NEED_TYPES.includes(i.interaction_type) ? i.family_need : null,
         occasion:

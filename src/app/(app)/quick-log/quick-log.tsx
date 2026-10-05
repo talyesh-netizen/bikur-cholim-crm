@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { residentName } from "@/lib/domain/resident-name";
 import { analyzeNote, applyPlan } from "@/lib/actions/assistant";
 import type { ApplyResult, Plan, PlanNames } from "@/lib/assistant/schema";
 import { labelFor, INTERACTION_TYPES, HOLIDAYS, FAMILY_NEEDS } from "@/lib/domain/interaction";
@@ -43,7 +44,7 @@ function describe(plan: Plan, names: PlanNames): Item[] {
     items.push({ section, index, icon, title, lines: lines.filter(Boolean) as string[] });
 
   plan.new_residents.forEach((r, i) =>
-    add("new_residents", i, UserPlus, `Add new resident: ${r.first_name} ${r.last_name}`, [
+    add("new_residents", i, UserPlus, `Add new resident: ${residentName(r)}`, [
       `At ${n(r.facility)}${r.room_number ? `, room ${r.room_number}` : ""}`,
       r.status !== "active" && `Status: ${labelFor(RESIDENT_STATUSES, r.status)}`,
       r.kosher_food_needs && `Kosher food: ${r.kosher_food_needs}`,
@@ -94,6 +95,7 @@ function describe(plan: Plan, names: PlanNames): Item[] {
       x.volunteers.length > 0 && `Volunteers: ${x.volunteers.map(n).join(", ")}`,
       iso && formatDateTimeWithTime(iso),
       x.minutes_spent ? `${x.minutes_spent} minutes` : null,
+      x.people_reached ? `${x.people_reached} ${x.people_reached === 1 ? "person" : "people"} reached` : null,
       x.notes,
     ]);
   });

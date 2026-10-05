@@ -12,8 +12,10 @@ import { residentName } from "@/lib/domain/resident-name";
  * people -- the same rows it can see on every other screen.
  *
  * Only what's needed to recognize who a note is about goes in: names,
- * facility, status, room, relationships and roles. No phone numbers,
- * emails, notes or visit history.
+ * facility, status, room, relationships and roles -- plus a facility's
+ * old name when its notes record one ("Formerly named Royalton Woods"),
+ * so a note using the old name still finds it. No phone numbers,
+ * emails, other notes or visit history.
  */
 
 export type Directory = {
@@ -25,9 +27,12 @@ export type Directory = {
   nameFor: Map<string, string>;
   /** alias of the signed-in staff member, e.g. "S3" */
   selfAlias: string | null;
+  /** Existing residents, for spotting a "new" resident who is really
+   * someone already here under a slightly different spelling. */
+  residents: { id: string; first_name: string | null; last_name: string | null; facility_id: string | null }[];
 };
 
-type FacilityRow = { id: string; name: string; city: string | null; active: boolean };
+type FacilityRow = { id: string; name: string; city: string | null; active: boolean; notes: string | null };
 type ResidentRow = {
   id: string;
   first_name: string | null;
@@ -44,9 +49,22 @@ type StaffRow = { id: string; full_name: string };
 
 const clean = (value: string | null | undefined) => (value ?? "").replace(/[|\n\r]+/g, " ").trim();
 
+/** Old names a facility's notes record, e.g. "Formerly named Royalton
+ * Woods." or "Formerly Richmond Heights Place. Renamed ..." -> the old
+ * name only; nothing else from the notes leaves the CRM. */
+export function formerNames(notes: string | null): string[] {
+  if (!notes) return [];
+  const found = new Set<string>();
+  for (const m of notes.matchAll(/\b(?:formerly(?:\s+(?:named|called|known as))?|previously\s+(?:named|called|known as)|also known as|a\.k\.a\.?|aka)\s+([^.;\n()]+)/gi)) {
+    const name = clean(m[1]).replace(/^["'“]|["'”]$/g, "").trim();
+    if (name && name.length <= 80) found.add(name);
+  }
+  return [...found];
+}
+
 export async function loadDirectory(supabase: SupabaseClient, selfId: string): Promise<Directory> {
   const [facilities, residents, contacts, residentLinks, facilityLinks, staff] = await Promise.all([
-    supabase.from("facilities").select("id, name, city, active").order("name"),
+    supabase.from("facilities").select("id, name, city, active, notes").order("name"),
     supabase
       .from("residents")
       .select("id, first_name, last_name, preferred_name, current_facility_id, room_number, status")
@@ -73,10 +91,15 @@ export async function loadDirectory(supabase: SupabaseClient, selfId: string): P
 
   const lines: string[] = [];
 
-  lines.push("FACILITIES (alias | name | city | inactive?)");
+  lines.push("FACILITIES (alias | name | city | old names | inactive?)");
   (facilities.data as FacilityRow[]).forEach((f, i) => {
     const alias = register("F", i, f.id, f.name);
-    lines.push([alias, clean(f.name), clean(f.city), f.active ? "" : "INACTIVE"].filter(Boolean).join(" | "));
+    const old = formerNames(f.notes);
+    lines.push(
+      [alias, clean(f.name), clean(f.city), old.length ? `formerly ${old.join(" / ")}` : "", f.active ? "" : "INACTIVE"]
+        .filter(Boolean)
+        .join(" | ")
+    );
   });
 
   lines.push("", "RESIDENTS (alias | name | facility alias | room | status)");
@@ -125,5 +148,12 @@ export async function loadDirectory(supabase: SupabaseClient, selfId: string): P
     lines.push(`${alias} | ${clean(s.full_name)}${s.id === selfId ? " (the person writing this note)" : ""}`);
   });
 
-  return { text: lines.join("\n"), idFor, nameFor, selfAlias };
+  const residentList = (residents.data as ResidentRow[]).map((r) => ({
+    id: r.id,
+    first_name: r.first_name,
+    last_name: r.last_name,
+    facility_id: r.current_facility_id,
+  }));
+
+  return { text: lines.join("\n"), idFor, nameFor, selfAlias, residents: residentList };
 }
