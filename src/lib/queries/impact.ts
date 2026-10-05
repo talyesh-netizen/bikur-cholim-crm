@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { InteractionType } from "@/lib/domain/interaction";
 import { orgDayStartIso, orgMonthStart, orgMonthKey } from "@/lib/format-date";
 
-const pad2 = (n: number) => String(n).padStart(2, "0");
+export const pad2 = (n: number) => String(n).padStart(2, "0");
 
 export type ImpactPeriod = "month" | "quarter" | "all";
 
@@ -34,7 +34,7 @@ const BUCKET_DEFS: { key: string; label: string; color: string; types: Interacti
 // every impact number here pages through the whole period instead.
 const PAGE_SIZE = 1000;
 
-async function selectAllPages<T>(
+export async function selectAllPages<T>(
   build: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>
 ): Promise<T[]> {
   const rows: T[] = [];
@@ -49,7 +49,7 @@ async function selectAllPages<T>(
 /** The start of this month / quarter in Cleveland (midnight Eastern on
  * the 1st), not the server's UTC -- otherwise the last evening of the
  * previous month would be counted in this one. */
-function periodStart(period: ImpactPeriod): string | null {
+export function periodStart(period: ImpactPeriod): string | null {
   const { year, month } = orgMonthStart();
   if (period === "month") {
     return orgDayStartIso(`${year}-${pad2(month)}-01`);

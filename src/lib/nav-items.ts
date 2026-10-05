@@ -12,6 +12,7 @@ import {
   DatabaseBackup,
   Sparkles,
   BellRing,
+  ChartColumn,
   type LucideIcon,
 } from "lucide-react";
 import type { Section } from "@/lib/sections";
@@ -25,6 +26,7 @@ export type NavItem = { href: string; label: string; icon: LucideIcon; section: 
 
 export const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, section: "dashboard" },
+  { href: "/impact", label: "Impact", icon: ChartColumn, section: "dashboard" },
   { href: "/quick-log", label: "Quick Log", icon: Sparkles, section: "log" },
   { href: "/facilities", label: "Facilities", icon: Building2, section: "facilities" },
   { href: "/residents", label: "Residents", icon: Users, section: "residents" },
