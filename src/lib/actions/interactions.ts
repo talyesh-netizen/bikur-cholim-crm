@@ -11,6 +11,9 @@ import {
   PROGRAM_PARTNERS,
   UNMET_NEED_REASONS,
   SERVICE_FIELDS_BY_TYPE,
+  HOLIDAYS,
+  HOLIDAY_TYPES,
+  occasionForHoliday,
   type InteractionType,
 } from "@/lib/domain/interaction";
 import { orgLocalToIso } from "@/lib/format-date";
@@ -47,6 +50,7 @@ const interactionSchema = z
     interaction_type: z.enum(typeValues),
     notes: z.preprocess(emptyToUndefined, z.string().trim().optional()),
     occasion: z.preprocess(emptyToUndefined, z.enum(enumValues(OCCASIONS)).optional()),
+    holiday: z.preprocess(emptyToUndefined, z.enum(enumValues(HOLIDAYS)).optional()),
     program_partner: z.preprocess(emptyToUndefined, z.enum(enumValues(PROGRAM_PARTNERS)).optional()),
     quantity: optionalCount,
     people_reached: optionalCount,
@@ -69,6 +73,11 @@ const interactionSchema = z
 function toInteractionRow(data: z.infer<typeof interactionSchema>) {
   const applies = SERVICE_FIELDS_BY_TYPE[data.interaction_type as InteractionType] ?? [];
   const pick = <K extends (typeof applies)[number]>(key: K) => (applies.includes(key) ? data[key] ?? null : null);
+  const holiday = HOLIDAY_TYPES.includes(data.interaction_type) ? data.holiday ?? null : null;
+  // The holiday now drives the older Shabbos / Yom Tov occasion (used by
+  // the funder report); with no holiday, any occasion already saved on
+  // the entry is kept.
+  const occasion = applies.includes("occasion") ? occasionForHoliday(holiday) ?? data.occasion ?? null : null;
   return {
     resident_id: data.resident_id ?? null,
     contact_id: data.contact_id ?? null,
@@ -80,7 +89,8 @@ function toInteractionRow(data: z.infer<typeof interactionSchema>) {
     occurred_at: orgLocalToIso(data.occurred_at)!,
     interaction_type: data.interaction_type,
     notes: data.notes ?? null,
-    occasion: pick("occasion"),
+    occasion,
+    holiday,
     program_partner: pick("program_partner"),
     quantity: pick("quantity"),
     people_reached: pick("people_reached"),

@@ -10,23 +10,92 @@ export const INTERACTION_TYPES = [
   { value: "resident_visit", label: "Resident visit" },
   { value: "volunteer_visit", label: "Volunteer visit" },
   { value: "resident_phone_call", label: "Phone call with resident" },
-  { value: "family_communication", label: "Family communication" },
+  { value: "family_communication", label: "Family support" },
   { value: "care_navigation", label: "Care navigation (helping a family find care)" },
-  { value: "food_delivery", label: "Food delivery" },
+  { value: "food_delivery", label: "Delivery (food, Shabbos & holiday packages)" },
   { value: "kosher_food_coordination", label: "Kosher food coordination" },
-  { value: "program", label: "Program at a facility" },
+  { value: "program", label: "Program / event" },
   { value: "school_engagement", label: "School & shul program" },
   { value: "medical_referral", label: "Medical referral (to Bikur Cholim)" },
   { value: "ride_arranged", label: "Ride arranged (through Bikur Cholim)" },
   { value: "referral", label: "Referral (other)" },
-  { value: "facility_staff_communication", label: "Facility staff communication" },
-  { value: "facility_discovery_visit", label: "Facility discovery visit" },
+  { value: "facility_staff_communication", label: "Facility staff (meeting, touchpoint, appreciation)" },
+  { value: "facility_discovery_visit", label: "First visit to a new facility" },
   { value: "hospital_related_communication", label: "Hospital-related communication" },
   { value: "email", label: "Email" },
   { value: "other", label: "Other" },
 ] as const;
 
 export type InteractionType = (typeof INTERACTION_TYPES)[number]["value"];
+
+/** The simple picker on the log form: 8 big buttons. A button that
+ * covers more than one stored type asks a short follow-up (its
+ * `choices`); the first choice is the default. Every stored type stays
+ * valid for old records and reports -- this only changes what's offered. */
+export const TYPE_BUTTONS: {
+  key: string;
+  label: string;
+  choices: { value: InteractionType; label: string }[];
+}[] = [
+  { key: "resident_visit", label: "Resident visit", choices: [{ value: "resident_visit", label: "Resident visit" }] },
+  { key: "phone", label: "Phone call", choices: [{ value: "resident_phone_call", label: "Phone call" }] },
+  { key: "volunteer", label: "Volunteer visit", choices: [{ value: "volunteer_visit", label: "Volunteer visit" }] },
+  { key: "family", label: "Family support", choices: [{ value: "family_communication", label: "Family support" }] },
+  {
+    key: "facility",
+    label: "Facility staff",
+    choices: [
+      { value: "facility_staff_communication", label: "Meeting, touchpoint or appreciation" },
+      { value: "facility_discovery_visit", label: "First visit to a new facility" },
+    ],
+  },
+  { key: "program", label: "Program / event", choices: [{ value: "program", label: "Program / event" }] },
+  { key: "delivery", label: "Delivery", choices: [{ value: "food_delivery", label: "Delivery" }] },
+  {
+    key: "referral",
+    label: "Referral",
+    choices: [
+      { value: "medical_referral", label: "Medical" },
+      { value: "ride_arranged", label: "Ride" },
+      { value: "referral", label: "Other" },
+    ],
+  },
+];
+
+/** Offered under "More types". Types not listed here or in TYPE_BUTTONS
+ * (school & shul, care navigation, hospital, email) are no longer
+ * offered for new entries, but still show for old ones. */
+export const MORE_TYPES: InteractionType[] = ["kosher_food_coordination", "other"];
+
+/** Which holiday an activity was for. The year comes from the date, so
+ * "Purim program '26" is just Program + Purim -- the list never grows. */
+export const HOLIDAYS = [
+  { value: "shabbos", label: "Shabbos" },
+  { value: "rosh_hashana", label: "Rosh Hashana" },
+  { value: "yom_kippur", label: "Yom Kippur" },
+  { value: "sukkos", label: "Sukkos" },
+  { value: "chanukah", label: "Chanukah" },
+  { value: "tu_bshvat", label: "Tu B'Shvat" },
+  { value: "purim", label: "Purim" },
+  { value: "pesach", label: "Pesach" },
+  { value: "shavuos", label: "Shavuos" },
+] as const;
+
+/** Types that ask "Which holiday?". */
+export const HOLIDAY_TYPES: readonly string[] = [
+  "resident_visit",
+  "volunteer_visit",
+  "program",
+  "food_delivery",
+  "school_engagement",
+];
+
+/** The older Shabbos / Yom Tov "occasion" (still used by the funder
+ * report's food numbers), worked out from the holiday. */
+export function occasionForHoliday(holiday: string | null | undefined): "shabbos" | "yom_tov" | null {
+  if (!holiday) return null;
+  return holiday === "shabbos" ? "shabbos" : "yom_tov";
+}
 
 export type Interaction = {
   id: string;
@@ -124,6 +193,7 @@ export const GROUP_VISIT_TYPES: readonly string[] = ["resident_visit", "voluntee
 
 export type ServiceDetails = {
   occasion: string | null;
+  holiday: string | null;
   program_partner: string | null;
   quantity: number | null;
   people_reached: number | null;
