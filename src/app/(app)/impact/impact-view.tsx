@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import type { ImpactOverview } from "@/lib/queries/impact-overview";
+import type { PersonImpactRow } from "@/lib/queries/impact";
+import { ImpactLeaderboard } from "@/components/impact-leaderboard";
 import type { ImpactPeriod } from "@/lib/queries/impact";
 import { ChartCard, HBars, HeadlineTile, Legend, MonthBars, SERIES, SplitBar } from "@/components/impact/charts";
 import { Download } from "lucide-react";
@@ -28,7 +30,15 @@ function Section({ id, color, title, intro, children }: { id: string; color: str
   );
 }
 
-export function ImpactView({ period, o }: { period: ImpactPeriod; o: ImpactOverview }) {
+export function ImpactView({
+  period,
+  o,
+  team,
+}: {
+  period: ImpactPeriod;
+  o: ImpactOverview;
+  team?: { staff: PersonImpactRow[]; volunteers: PersonImpactRow[]; periodFrom: string | null };
+}) {
   const p = PERIODS.find((x) => x.value === period)!;
   const h = o.headline;
   const prev = o.previous;
@@ -178,6 +188,33 @@ export function ImpactView({ period, o }: { period: ImpactPeriod; o: ImpactOverv
           )}
         </ChartCard>
       </Section>
+
+      {team ? (
+        <section aria-labelledby="team" className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <h2 id="team" className="text-xl font-bold">Team</h2>
+            <p className="text-sm text-muted-foreground">Who did the work {periodPhrase}. Tap a staff member to see their entries.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <ChartCard title="Staff" subtitle="Interactions logged">
+              <ImpactLeaderboard
+                rows={team.staff}
+                hrefFor={(row) => `/interactions?staff=${row.id}${team.periodFrom ? `&from=${team.periodFrom}` : ""}`}
+                barColor={SERIES.residents}
+                emptyMessage="Nothing logged in this period yet."
+              />
+            </ChartCard>
+            <ChartCard title="Volunteers" subtitle="Visits">
+              <ImpactLeaderboard
+                rows={team.volunteers}
+                hrefFor={(row) => `/contacts/${row.id}`}
+                barColor={SERIES.reached}
+                emptyMessage="No volunteer visits in this period yet."
+              />
+            </ChartCard>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }
