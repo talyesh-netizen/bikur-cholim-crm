@@ -15,6 +15,8 @@ import { ACTIVE_RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { formatDateOnly, formatRelative, getLocalToday } from "@/lib/format-date";
 import { residentName } from "@/lib/domain/resident-name";
 
+import { VisitChecklist } from "./visit-checklist";
+import { logOnsiteVisits } from "@/lib/actions/onsite";
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 /** One of the three counts at the top, striped in its section's color
@@ -149,6 +151,33 @@ export default async function FacilityOnsitePage({
         </Card>
       ) : null}
 
+      {currentResidents.length > 0 ? (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Who did you see today?</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Tick everyone you visited, then save once. Each gets their own visit, logged now.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <VisitChecklist
+              action={logOnsiteVisits.bind(null, facility.id)}
+              residents={currentResidents.map((resident) => ({
+                id: resident.id,
+                name: residentName(resident),
+                detail: [
+                  resident.room_number ? `Room ${resident.room_number}` : null,
+                  `Last visit: ${formatRelative(resident.last_visit_at) ?? "none yet"}`,
+                ]
+                  .filter(Boolean)
+                  .join(" · "),
+                needsVisit: needsVisit(resident.last_visit_at),
+              }))}
+            />
+          </CardContent>
+        </Card>
+      ) : null}
+
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center justify-between gap-2 text-base">
@@ -226,7 +255,7 @@ export default async function FacilityOnsitePage({
       </Card>
 
       <Button variant="outline" asChild>
-        <Link href={`/interactions/new?facility=${facility.id}`}>Log other facility interaction</Link>
+        <Link href={`/interactions/new?facility=${facility.id}&type=facility_staff_communication`}>Talked with staff</Link>
       </Button>
     </div>
   );
