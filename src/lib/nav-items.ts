@@ -11,6 +11,7 @@ import {
   MoreHorizontal,
   DatabaseBackup,
   Sparkles,
+  BellRing,
   type LucideIcon,
 } from "lucide-react";
 import type { Section } from "@/lib/sections";
@@ -27,6 +28,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/quick-log", label: "Quick Log", icon: Sparkles, section: "log" },
   { href: "/facilities", label: "Facilities", icon: Building2, section: "facilities" },
   { href: "/residents", label: "Residents", icon: Users, section: "residents" },
+  { href: "/needs-attention", label: "Needs attention", icon: BellRing, section: "residents" },
   { href: "/contacts", label: "Contacts", icon: Contact, section: "contacts" },
   { href: "/organizations", label: "Shuls & Partners", icon: Landmark, section: "contacts" },
   { href: "/interactions", label: "Interactions", icon: History, section: "log" },
