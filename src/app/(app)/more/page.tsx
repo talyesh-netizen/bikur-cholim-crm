@@ -1,11 +1,10 @@
-import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getCurrentProfile } from "@/lib/get-current-profile";
 import { mobileMoreItems } from "@/lib/nav-items";
 import { signOut } from "@/lib/actions/auth";
-import { ChevronRight, LogOut } from "lucide-react";
-import { SectionIcon } from "@/components/section-icon";
+import { LogOut } from "lucide-react";
+import { LinkList } from "@/components/link-list";
 
 /** Overflow page for the mobile bottom nav, which only has room for a
  * handful of full-time tabs -- see nav-links.tsx. Not needed on
@@ -13,28 +12,12 @@ import { SectionIcon } from "@/components/section-icon";
  * "Sign out" lives on a phone, away from anything tapped often. */
 export default async function MorePage() {
   const profile = await getCurrentProfile();
-  const items = mobileMoreItems(profile?.role === "admin");
+  const items = mobileMoreItems();
 
   return (
     <div className="flex flex-col gap-5">
       <h1 className="text-2xl font-semibold">More</h1>
-      <Card>
-        <CardContent className="flex flex-col p-0 sm:p-0">
-          {items.map((item) => {
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="flex min-h-14 items-center gap-3 border-b border-border px-4 py-3 text-base font-medium last:border-0 hover:bg-accent"
-              >
-                <SectionIcon section={item.section} icon={item.icon} />
-                <span className="flex-1">{item.label}</span>
-                <ChevronRight className="size-4 text-muted-foreground" />
-              </Link>
-            );
-          })}
-        </CardContent>
-      </Card>
+      <LinkList items={items} />
 
       {profile ? (
         <Card>

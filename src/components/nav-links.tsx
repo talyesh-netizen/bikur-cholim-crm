@@ -7,20 +7,19 @@ import { SectionIcon } from "@/components/section-icon";
 import { sectionVars } from "@/lib/sections";
 import {
   NAV_ITEMS,
-  ADMIN_NAV_ITEMS,
   MOBILE_PRIMARY_HREFS,
   MOBILE_MORE_ITEM,
   isActive,
 } from "@/lib/nav-items";
 
-export function SidebarNavLinks({ isAdmin = false }: { isAdmin?: boolean }) {
+export function SidebarNavLinks() {
   const pathname = usePathname();
-  const items = isAdmin ? [...NAV_ITEMS, ...ADMIN_NAV_ITEMS] : NAV_ITEMS;
+  const items = NAV_ITEMS;
 
   return (
     <nav className="flex flex-col gap-1">
       {items.map((item) => {
-        const active = isActive(pathname, item.href);
+        const active = isActive(pathname, item.href, item.alsoActive);
         return (
           <Link
             key={item.href}
@@ -44,13 +43,13 @@ export function SidebarNavLinks({ isAdmin = false }: { isAdmin?: boolean }) {
 export function MobileBottomNavLinks() {
   const pathname = usePathname();
   const primaryItems = NAV_ITEMS.filter((item) => MOBILE_PRIMARY_HREFS.includes(item.href));
-  const moreIsActive = !primaryItems.some((item) => isActive(pathname, item.href));
+  const moreIsActive = !primaryItems.some((item) => isActive(pathname, item.href, item.alsoActive));
   const items = [...primaryItems, MOBILE_MORE_ITEM];
 
   return (
     <nav className="flex items-stretch justify-between">
       {items.map((item) => {
-        const active = item.href === "/more" ? moreIsActive : isActive(pathname, item.href);
+        const active = item.href === "/more" ? moreIsActive : isActive(pathname, item.href, item.alsoActive);
         const Icon = item.icon;
         return (
           <Link

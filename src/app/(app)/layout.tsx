@@ -40,7 +40,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
         <QuickAddMenu className="mb-4 px-1" fullWidth />
 
-        <SidebarNavLinks isAdmin={role === "admin"} />
+        <SidebarNavLinks />
 
         <div className="mt-auto flex flex-col gap-3 border-t border-border px-1 pt-4">
           <div className="px-2 text-sm">
