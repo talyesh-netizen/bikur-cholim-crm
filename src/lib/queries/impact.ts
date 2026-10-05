@@ -211,22 +211,26 @@ export type ServicesDelivered = {
   };
   volunteers: { volunteers: number; visits: number; hours: number; residentsVisited: number };
   schoolShul: { programs: number; school: number; shul: number; participants: number; peopleReached: number };
-  /** Different residents who had a one-on-one visit or call (staff or
-   * volunteer) in the period -- each person counted once -- and how many
-   * such visits and calls there were. */
-  oneOnOne: { residents: number; contacts: number };
-  /** Every "Residents reached" count added up -- programs, deliveries and
-   * group visits. Approximate attendance: the same person can be counted
-   * more than once, and one-on-one visits (left blank) aren't in it. */
-  peopleReached: {
-    total: number;
-    programs: number;
-    food: number;
-    schoolShul: number;
-    volunteerGroups: number;
-    residentGroups: number;
-    other: number;
+  /** Visits and calls with one named resident. `residents` is how many
+   * different people that was (each counted once); `contacts` is how
+   * many visits and calls, split by who made them. `byYou` is the
+   * signed-in person's own, when a viewer is given. Group visits (no
+   * one resident named, just a head count) are kept apart. */
+  oneOnOne: {
+    residents: number;
+    contacts: number;
+    byStaff: number;
+    byYou: number | null;
+    byVolunteers: number;
+    facilities: number;
+    groupVisits: number;
+    groupAttendance: number;
   };
+  /** Programs and events the department ran or hosted (including
+   * school & shul programs): how many, at how many facilities, and the
+   * attendance typed on them. Attendance is approximate -- someone at
+   * three programs counts three times. */
+  programs: { programs: number; facilities: number; attendance: number; withoutAttendance: number };
   medicalReferrals: number;
   rides: number;
   careNavigation: { families: number; hours: number };
@@ -239,6 +243,8 @@ type ServiceRow = {
   id: string;
   interaction_type: string;
   resident_id: string | null;
+  facility_id: string | null;
+  staff_member_id: string;
   occasion: string | null;
   program_partner: string | null;
   quantity: number | null;
@@ -252,6 +258,7 @@ type ServiceRow = {
 
 /** Contact with one named resident: visits and calls, by staff or volunteers. */
 const ONE_ON_ONE_TYPES = new Set(["resident_visit", "resident_phone_call", "volunteer_visit"]);
+const PROGRAM_TYPES = new Set(["program", "school_engagement"]);
 
 const toHours = (minutes: number) => Math.round((minutes / 60) * 10) / 10;
 
@@ -262,7 +269,12 @@ const toHours = (minutes: number) => Math.round((minutes / 60) * 10) / 10;
  * Volunteer hours are each visit's time spent times the number of
  * volunteers tagged on it (two volunteers for an hour = two volunteer
  * hours); staff hours are time spent on everything else. */
-export async function getServicesDelivered(period: ImpactPeriod = "month", facilityId?: string): Promise<ServicesDelivered> {
+export async function getServicesDelivered(
+  period: ImpactPeriod = "month",
+  facilityId?: string,
+  /** The signed-in person, to count their own visits and calls. */
+  viewerId?: string
+): Promise<ServicesDelivered> {
   const supabase = await createClient();
   const start = periodStart(period);
 
@@ -271,7 +283,7 @@ export async function getServicesDelivered(period: ImpactPeriod = "month", facil
       let query = supabase
         .from("interactions")
         .select(
-          "id, interaction_type, resident_id, occasion, program_partner, quantity, people_reached, participants, minutes_spent, unmet_need, unmet_need_reason, funder_story"
+          "id, interaction_type, resident_id, facility_id, staff_member_id, occasion, program_partner, quantity, people_reached, participants, minutes_spent, unmet_need, unmet_need_reason, funder_story"
         )
         .order("id")
         .range(from, to);
@@ -307,8 +319,17 @@ export async function getServicesDelivered(period: ImpactPeriod = "month", facil
     food: { deliveries: 0, items: 0, peopleReached: 0, byOccasion: { shabbos: 0, yomTov: 0, other: 0 } },
     volunteers: { volunteers: 0, visits: 0, hours: 0, residentsVisited: 0 },
     schoolShul: { programs: 0, school: 0, shul: 0, participants: 0, peopleReached: 0 },
-    oneOnOne: { residents: 0, contacts: 0 },
-    peopleReached: { total: 0, programs: 0, food: 0, schoolShul: 0, volunteerGroups: 0, residentGroups: 0, other: 0 },
+    oneOnOne: {
+      residents: 0,
+      contacts: 0,
+      byStaff: 0,
+      byYou: viewerId ? 0 : null,
+      byVolunteers: 0,
+      facilities: 0,
+      groupVisits: 0,
+      groupAttendance: 0,
+    },
+    programs: { programs: 0, facilities: 0, attendance: 0, withoutAttendance: 0 },
     medicalReferrals: 0,
     rides: 0,
     careNavigation: { families: 0, hours: 0 },
@@ -320,6 +341,8 @@ export async function getServicesDelivered(period: ImpactPeriod = "month", facil
   const volunteerIds = new Set<string>();
   const residentsVisited = new Set<string>();
   const oneOnOneResidents = new Set<string>();
+  const oneOnOneFacilities = new Set<string>();
+  const programFacilities = new Set<string>();
   const unmetByReason = new Map<string, number>();
   let volunteerMinutes = 0;
   let staffMinutes = 0;
@@ -362,19 +385,28 @@ export async function getServicesDelivered(period: ImpactPeriod = "month", facil
         careMinutes += minutes;
         break;
     }
-    if (row.resident_id && ONE_ON_ONE_TYPES.has(row.interaction_type)) {
-      result.oneOnOne.contacts += 1;
-      oneOnOneResidents.add(row.resident_id);
+    if (ONE_ON_ONE_TYPES.has(row.interaction_type)) {
+      const one = result.oneOnOne;
+      if (row.resident_id) {
+        one.contacts += 1;
+        oneOnOneResidents.add(row.resident_id);
+        if (row.facility_id) oneOnOneFacilities.add(row.facility_id);
+        if (row.interaction_type === "volunteer_visit") {
+          one.byVolunteers += 1;
+        } else {
+          one.byStaff += 1;
+          if (one.byYou !== null && row.staff_member_id === viewerId) one.byYou += 1;
+        }
+      } else if (row.people_reached) {
+        one.groupVisits += 1;
+        one.groupAttendance += row.people_reached;
+      }
     }
-    if (row.people_reached) {
-      const reached = result.peopleReached;
-      reached.total += row.people_reached;
-      if (row.interaction_type === "program") reached.programs += row.people_reached;
-      else if (row.interaction_type === "food_delivery") reached.food += row.people_reached;
-      else if (row.interaction_type === "school_engagement") reached.schoolShul += row.people_reached;
-      else if (row.interaction_type === "volunteer_visit") reached.volunteerGroups += row.people_reached;
-      else if (row.interaction_type === "resident_visit") reached.residentGroups += row.people_reached;
-      else reached.other += row.people_reached;
+    if (PROGRAM_TYPES.has(row.interaction_type)) {
+      result.programs.programs += 1;
+      if (row.facility_id) programFacilities.add(row.facility_id);
+      if (row.people_reached) result.programs.attendance += row.people_reached;
+      else result.programs.withoutAttendance += 1;
     }
     if (row.interaction_type !== "volunteer_visit") staffMinutes += minutes;
     if (row.unmet_need) {
@@ -386,6 +418,8 @@ export async function getServicesDelivered(period: ImpactPeriod = "month", facil
   }
 
   result.oneOnOne.residents = oneOnOneResidents.size;
+  result.oneOnOne.facilities = oneOnOneFacilities.size;
+  result.programs.facilities = programFacilities.size;
   result.volunteers.volunteers = volunteerIds.size;
   result.volunteers.residentsVisited = residentsVisited.size;
   result.volunteers.hours = toHours(volunteerMinutes);

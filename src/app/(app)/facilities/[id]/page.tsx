@@ -30,7 +30,7 @@ import { listFacilityProfileNotes } from "@/lib/queries/profile-notes";
 import { ClipboardCheck, Pencil, Plus, UserX, Undo2, Star, User, Mail, Phone, Download } from "lucide-react";
 import { getImpactBreakdown, getServicesDelivered, type ImpactPeriod } from "@/lib/queries/impact";
 import { DonutChart } from "@/components/donut-chart";
-import { ServicesDeliveredTiles } from "@/components/services-delivered";
+import { ServicesDeliveredTiles, HeadlineImpactTiles } from "@/components/services-delivered";
 import { residentName } from "@/lib/domain/resident-name";
 
 const IMPACT_PERIODS: { value: ImpactPeriod; label: string }[] = [
@@ -378,6 +378,7 @@ export default async function FacilityDetailPage({
             </p>
           ) : (
             <div className="flex flex-col gap-6">
+              <HeadlineImpactTiles services={services} />
               <DonutChart segments={impact.buckets} title={`Interactions by type — ${periodLabel}`} />
               <ServicesDeliveredTiles services={services} periodLabel={periodLabel} hideEmpty />
             </div>

@@ -17,7 +17,7 @@ import { TaskCard } from "../tasks/task-card";
 import { DonutChart } from "@/components/donut-chart";
 import { ImpactLeaderboard } from "@/components/impact-leaderboard";
 import { TrendChart } from "@/components/trend-chart";
-import { ServicesDeliveredTiles } from "@/components/services-delivered";
+import { ServicesDeliveredTiles, HeadlineImpactTiles } from "@/components/services-delivered";
 import { DashboardOnsiteLauncher } from "@/components/dashboard-onsite-launcher";
 import { HeartHandshake, TrendingUp } from "lucide-react";
 import { labelFor, INTERACTION_TYPES } from "@/lib/domain/interaction";
@@ -159,14 +159,16 @@ export default async function DashboardPage({
     impactPeriod === "all" ? null : `${periodYear}-${String(periodFirstMonth).padStart(2, "0")}-01`;
 
   const supabase = await createClient();
-  const [{ data: { user } }, summary, impact, staffActivity, volunteerImpact, trend, services, facilities] = await Promise.all([
-    supabase.auth.getUser(),
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const [summary, impact, staffActivity, volunteerImpact, trend, services, facilities] = await Promise.all([
     getDashboardSummary(),
     getImpactBreakdown(impactPeriod),
     getStaffActivity(impactPeriod),
     getVolunteerImpact(impactPeriod),
     getInteractionTrend(6),
-    getServicesDelivered(impactPeriod),
+    getServicesDelivered(impactPeriod, undefined, user?.id),
     listFacilities(),
   ]);
 
@@ -241,15 +243,22 @@ export default async function DashboardPage({
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-6">
+          {impact.total === 0 && impactPeriod !== "all" ? (
+            <p className="text-sm text-muted-foreground">
+              Nothing logged in {IMPACT_PERIODS.find((p) => p.value === impactPeriod)?.label.toLowerCase()} yet. Try
+              &ldquo;All time&rdquo;.
+            </p>
+          ) : null}
+          <HeadlineImpactTiles services={services} />
           <DonutChart segments={impact.buckets} title={`Interactions by type — ${IMPACT_PERIODS.find((p) => p.value === impactPeriod)?.label}`} />
-          <div className="mt-6 flex flex-col gap-3 border-t border-border pt-4">
+          <div className="flex flex-col gap-3 border-t border-border pt-4">
             <div>
               <h2 className="text-sm font-semibold uppercase tracking-wide">
                 Services delivered — {IMPACT_PERIODS.find((p) => p.value === impactPeriod)?.label.toLowerCase()}
               </h2>
               <p className="text-xs text-muted-foreground">
-                Beyond visits and facility programs. Included in the export.
+                Everything else we did, beyond the visits and programs above. All of it is in the export.
                 {services.staffHours > 0 ? ` ${services.staffHours.toLocaleString("en-US")} staff hours logged.` : ""}
                 {services.funderStories > 0 ? ` ${services.funderStories} entries flagged as funder stories.` : ""}
               </p>
