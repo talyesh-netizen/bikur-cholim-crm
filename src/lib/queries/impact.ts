@@ -61,7 +61,7 @@ function periodStart(period: ImpactPeriod): string | null {
   return null;
 }
 
-export async function getImpactBreakdown(period: ImpactPeriod = "month"): Promise<{
+export async function getImpactBreakdown(period: ImpactPeriod = "month", facilityId?: string): Promise<{
   buckets: ImpactBucket[];
   total: number;
 }> {
@@ -71,6 +71,7 @@ export async function getImpactBreakdown(period: ImpactPeriod = "month"): Promis
   const data = await selectAllPages<{ interaction_type: string }>((from, to) => {
     let query = supabase.from("interactions").select("interaction_type").order("id").range(from, to);
     if (start) query = query.gte("occurred_at", start);
+    if (facilityId) query = query.eq("facility_id", facilityId);
     return query;
   });
 
@@ -96,13 +97,14 @@ export type PersonImpactRow = { id: string; name: string; count: number };
 /** How many interactions each staff member logged in the period — lets
  * the director show funders (and staff themselves) impact beyond just
  * their own work, not just a single org-wide total. */
-export async function getStaffActivity(period: ImpactPeriod = "month"): Promise<PersonImpactRow[]> {
+export async function getStaffActivity(period: ImpactPeriod = "month", facilityId?: string): Promise<PersonImpactRow[]> {
   const supabase = await createClient();
   const start = periodStart(period);
 
   const data = await selectAllPages((from, to) => {
     let query = supabase.from("interactions").select("staff_member_id, profiles(full_name)").order("id").range(from, to);
     if (start) query = query.gte("occurred_at", start);
+    if (facilityId) query = query.eq("facility_id", facilityId);
     return query;
   });
 
@@ -163,14 +165,14 @@ export async function getInteractionTrend(months = 6): Promise<MonthlyCount[]> {
 /** How many logged interactions each volunteer took part in during the
  * period — the volunteer-side equivalent of getStaffActivity, for
  * showing volunteer impact separately from staff impact. */
-export async function getVolunteerImpact(period: ImpactPeriod = "month"): Promise<PersonImpactRow[]> {
+export async function getVolunteerImpact(period: ImpactPeriod = "month", facilityId?: string): Promise<PersonImpactRow[]> {
   const supabase = await createClient();
   const start = periodStart(period);
 
   const data = await selectAllPages((from, to) =>
     supabase
       .from("interaction_volunteers")
-      .select("interaction_id, contact_id, contacts(name), interactions(occurred_at)")
+      .select("interaction_id, contact_id, contacts(name), interactions(occurred_at, facility_id)")
       .order("interaction_id")
       .order("contact_id")
       .range(from, to)
@@ -181,9 +183,10 @@ export async function getVolunteerImpact(period: ImpactPeriod = "month"): Promis
     const r = row as unknown as {
       contact_id: string;
       contacts: { name: string } | null;
-      interactions: { occurred_at: string } | null;
+      interactions: { occurred_at: string; facility_id: string | null } | null;
     };
     if (start && (!r.interactions || Date.parse(r.interactions.occurred_at) < Date.parse(start))) continue;
+    if (facilityId && r.interactions?.facility_id !== facilityId) continue;
     const existing = counts.get(r.contact_id);
     if (existing) {
       existing.count += 1;
@@ -251,7 +254,7 @@ const toHours = (minutes: number) => Math.round((minutes / 60) * 10) / 10;
  * Volunteer hours are each visit's time spent times the number of
  * volunteers tagged on it (two volunteers for an hour = two volunteer
  * hours); staff hours are time spent on everything else. */
-export async function getServicesDelivered(period: ImpactPeriod = "month"): Promise<ServicesDelivered> {
+export async function getServicesDelivered(period: ImpactPeriod = "month", facilityId?: string): Promise<ServicesDelivered> {
   const supabase = await createClient();
   const start = periodStart(period);
 
@@ -265,6 +268,9 @@ export async function getServicesDelivered(period: ImpactPeriod = "month"): Prom
         .order("id")
         .range(from, to);
       if (start) query = query.gte("occurred_at", start);
+      // Volunteer links are only ever looked up by these rows' ids, so
+      // filtering the rows is enough to scope everything to one facility.
+      if (facilityId) query = query.eq("facility_id", facilityId);
       return query;
     }),
     selectAllPages<{ interaction_id: string; contact_id: string; interactions: { occurred_at: string } | null }>(

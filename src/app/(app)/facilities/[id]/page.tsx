@@ -27,21 +27,37 @@ import { TaskList } from "@/app/(app)/tasks/task-list";
 import { InfoRow } from "@/components/info-row";
 import { ProfileNotesCard } from "@/components/profile-notes-card";
 import { listFacilityProfileNotes } from "@/lib/queries/profile-notes";
-import { ClipboardCheck, Pencil, Plus, UserX, Undo2, Star, User, Mail, Phone } from "lucide-react";
+import { ClipboardCheck, Pencil, Plus, UserX, Undo2, Star, User, Mail, Phone, Download } from "lucide-react";
+import { getImpactBreakdown, getServicesDelivered, type ImpactPeriod } from "@/lib/queries/impact";
+import { DonutChart } from "@/components/donut-chart";
+import { ServicesDeliveredTiles } from "@/components/services-delivered";
 import { residentName } from "@/lib/domain/resident-name";
+
+const IMPACT_PERIODS: { value: ImpactPeriod; label: string }[] = [
+  { value: "month", label: "This month" },
+  { value: "quarter", label: "This quarter" },
+  { value: "all", label: "All time" },
+];
 
 export default async function FacilityDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ impact?: string }>;
 }) {
   const { id } = await params;
-  const [facility, residents, interactions, facilityContacts, profileNotes] = await Promise.all([
+  const { impact: impactParam } = await searchParams;
+  const impactPeriod: ImpactPeriod = impactParam === "month" || impactParam === "all" ? impactParam : "quarter";
+  const periodLabel = IMPACT_PERIODS.find((p) => p.value === impactPeriod)?.label ?? "This quarter";
+  const [facility, residents, interactions, facilityContacts, profileNotes, impact, services] = await Promise.all([
     getFacility(id),
     listResidents({ facilityId: id, showAllStatuses: true }),
     listInteractionsForFacility(id),
     listFacilityContacts(id),
     listFacilityProfileNotes(id),
+    getImpactBreakdown(impactPeriod, id),
+    getServicesDelivered(impactPeriod, id),
   ]);
 
   if (!facility) notFound();
@@ -323,6 +339,49 @@ export default async function FacilityDetailPage({
         </CardHeader>
         <CardContent>
           <TaskList tasks={tasks} showResident />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex-row flex-wrap items-center justify-between gap-2 space-y-0">
+          <CardTitle className="text-base">Impact at this facility — {periodLabel}</CardTitle>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex gap-1 rounded-md bg-muted p-1">
+              {IMPACT_PERIODS.map((p) => (
+                <Link
+                  key={p.value}
+                  href={p.value === "quarter" ? `/facilities/${facility.id}` : `/facilities/${facility.id}?impact=${p.value}`}
+                  scroll={false}
+                  className={
+                    impactPeriod === p.value
+                      ? "rounded bg-card px-2.5 py-1 text-xs font-medium text-foreground shadow-sm"
+                      : "rounded px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+                  }
+                >
+                  {p.label}
+                </Link>
+              ))}
+            </div>
+            <Button variant="outline" size="sm" asChild>
+              <a href={`/api/impact-report?period=${impactPeriod}&facility=${facility.id}`}>
+                <Download className="size-4" />
+                Export
+              </a>
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {impact.total === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Nothing logged at this facility {impactPeriod === "all" ? "yet" : `in ${periodLabel.toLowerCase()}`}.
+              {impactPeriod !== "all" ? " Try “All time”." : ""}
+            </p>
+          ) : (
+            <div className="flex flex-col gap-6">
+              <DonutChart segments={impact.buckets} title={`Interactions by type — ${periodLabel}`} />
+              <ServicesDeliveredTiles services={services} periodLabel={periodLabel} hideEmpty />
+            </div>
+          )}
         </CardContent>
       </Card>
 
