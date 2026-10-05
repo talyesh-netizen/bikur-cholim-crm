@@ -75,13 +75,14 @@ export function StaffRow({
           <div className="flex flex-col gap-1.5">
             <span className="text-xs text-muted-foreground">Role</span>
             <input type="hidden" name="role" value={role} readOnly />
-            <Select value={role} onValueChange={(v) => setRole(v as "staff" | "admin")} disabled={isSelf}>
+            <Select value={role} onValueChange={(v) => setRole(v as "staff" | "admin" | "intern")} disabled={isSelf}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="staff">Staff</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="intern">Intern (can&apos;t see private notes)</SelectItem>
               </SelectContent>
             </Select>
           </div>

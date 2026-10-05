@@ -18,7 +18,7 @@ export type StaffAccount = {
   id: string;
   full_name: string;
   email: string;
-  role: "staff" | "admin";
+  role: "staff" | "admin" | "intern";
   active: boolean;
   facility_access_scope: "all" | "restricted";
   facility_ids: string[];

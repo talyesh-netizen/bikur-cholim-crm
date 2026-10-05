@@ -14,6 +14,8 @@ export const dynamic = "force-dynamic";
 const TABLES: { name: string; orderBy: string[] }[] = [
   { name: "facilities", orderBy: ["id"] },
   { name: "residents", orderBy: ["id"] },
+  // Private notes live here since Oct 5 2026 (residents.private_internal_notes is always empty).
+  { name: "resident_private_notes", orderBy: ["resident_id"] },
   { name: "resident_facility_history", orderBy: ["id"] },
   { name: "contacts", orderBy: ["id"] },
   { name: "resident_contacts", orderBy: ["id"] },

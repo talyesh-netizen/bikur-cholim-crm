@@ -45,9 +45,12 @@ export function ResidentForm({
   resident,
   facilities,
   defaultFacilityId,
+  showPrivateNotes = true,
 }: {
   action: Action;
   resident?: Resident;
+  /** False for interns, who can't see or change private notes. */
+  showPrivateNotes?: boolean;
   /** Only passed when adding a new resident — editing never shows a
    * facility picker; see the comment in lib/actions/residents.ts. */
   facilities?: { id: string; name: string }[];
@@ -182,6 +185,7 @@ export function ResidentForm({
         </Field>
       </section>
 
+      {showPrivateNotes ? (
       <section className="flex flex-col gap-4">
         <h2 className="text-sm font-semibold text-muted-foreground">Private internal notes</h2>
         <p className="text-xs text-muted-foreground">
@@ -197,6 +201,7 @@ export function ResidentForm({
           defaultValue={values.private_internal_notes}
         />
       </section>
+      ) : null}
 
       <div className="flex justify-end gap-2">
         <Button type="submit" disabled={isPending}>

@@ -17,7 +17,7 @@ import { capitalizeAsYouType } from "@/lib/format-text";
 
 export function NewStaffForm({ facilities }: { facilities: { id: string; name: string }[] }) {
   const formRef = useRef<HTMLFormElement>(null);
-  const [role, setRole] = useState<"staff" | "admin">("staff");
+  const [role, setRole] = useState<"staff" | "admin" | "intern">("staff");
   const [scope, setScope] = useState<"all" | "restricted">("all");
   const [state, formAction, isPending] = useActionState<StaffFormState, FormData>(
     async (prevState, formData) => {
@@ -58,13 +58,14 @@ export function NewStaffForm({ facilities }: { facilities: { id: string; name: s
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="role">Role</Label>
             <input type="hidden" name="role" value={role} readOnly />
-            <Select value={role} onValueChange={(v) => setRole(v as "staff" | "admin")}>
+            <Select value={role} onValueChange={(v) => setRole(v as "staff" | "admin" | "intern")}>
               <SelectTrigger id="role">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="staff">Staff</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="intern">Intern (can&apos;t see private notes)</SelectItem>
               </SelectContent>
             </Select>
           </div>
