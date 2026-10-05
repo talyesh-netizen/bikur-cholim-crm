@@ -4,25 +4,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getDashboardSummary } from "@/lib/queries/dashboard";
 import { listFacilities } from "@/lib/queries/facilities";
-import {
-  getImpactBreakdown,
-  getStaffActivity,
-  getVolunteerImpact,
-  getInteractionTrend,
-  getServicesDelivered,
-  type ImpactPeriod,
-} from "@/lib/queries/impact";
 import { createClient } from "@/lib/supabase/server";
 import { TaskCard } from "../tasks/task-card";
-import { DonutChart } from "@/components/donut-chart";
-import { ImpactLeaderboard } from "@/components/impact-leaderboard";
-import { TrendChart } from "@/components/trend-chart";
-import { ServicesDeliveredTiles } from "@/components/services-delivered";
 import { DashboardOnsiteLauncher } from "@/components/dashboard-onsite-launcher";
-import { HeartHandshake, TrendingUp } from "lucide-react";
+import { Sparkles, BellRing, ChartColumn } from "lucide-react";
 import { labelFor, INTERACTION_TYPES } from "@/lib/domain/interaction";
 import { ENGAGEMENT_STATUSES } from "@/lib/domain/facility";
-import { formatRelative, formatDateTime, orgMonthStart } from "@/lib/format-date";
+import { formatRelative, formatDateTime } from "@/lib/format-date";
 import {
   ListChecks,
   Users,
@@ -31,8 +19,6 @@ import {
   UserRoundX,
   Activity,
   CheckCircle2,
-  PieChart,
-  Download,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -40,12 +26,6 @@ import { ORGANIZATION_TIMEZONE } from "@/lib/config";
 import { SectionIcon } from "@/components/section-icon";
 import { sectionVars, type Section } from "@/lib/sections";
 import { residentName } from "@/lib/domain/resident-name";
-
-const IMPACT_PERIODS: { value: ImpactPeriod; label: string }[] = [
-  { value: "month", label: "This month" },
-  { value: "quarter", label: "This quarter" },
-  { value: "all", label: "All time" },
-];
 
 /** The server (Vercel) runs in UTC, not Cleveland time, so reading the
  * hour/date directly off `new Date()` here could show "Good evening" at
@@ -142,31 +122,11 @@ function SectionCard({
   );
 }
 
-export default async function DashboardPage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | undefined>>;
-}) {
-  const params = await searchParams;
-  const impactPeriod: ImpactPeriod =
-    params.impact === "month" || params.impact === "all" ? params.impact : "quarter";
-
-  // First day of the selected period (Cleveland calendar), so tapping a
-  // staff member opens their interactions for the same period.
-  const { year: periodYear, month: periodMonth } = orgMonthStart();
-  const periodFirstMonth = impactPeriod === "quarter" ? Math.floor((periodMonth - 1) / 3) * 3 + 1 : periodMonth;
-  const periodFrom =
-    impactPeriod === "all" ? null : `${periodYear}-${String(periodFirstMonth).padStart(2, "0")}-01`;
-
+export default async function DashboardPage() {
   const supabase = await createClient();
-  const [{ data: { user } }, summary, impact, staffActivity, volunteerImpact, trend, services, facilities] = await Promise.all([
+  const [{ data: { user } }, summary, facilities] = await Promise.all([
     supabase.auth.getUser(),
     getDashboardSummary(),
-    getImpactBreakdown(impactPeriod),
-    getStaffActivity(impactPeriod),
-    getVolunteerImpact(impactPeriod),
-    getInteractionTrend(6),
-    getServicesDelivered(impactPeriod),
     listFacilities(),
   ]);
 
@@ -194,6 +154,27 @@ export default async function DashboardPage({
         <p className="text-sm text-muted-foreground">{today} &mdash; here&apos;s what needs attention.</p>
       </div>
 
+      <div className="flex flex-wrap gap-2">
+        <Button asChild size="lg">
+          <Link href="/quick-log">
+            <Sparkles className="size-4" />
+            Quick Log
+          </Link>
+        </Button>
+        <Button asChild size="lg" variant="outline">
+          <Link href="/needs-attention">
+            <BellRing className="size-4" />
+            Needs attention
+          </Link>
+        </Button>
+        <Button asChild size="lg" variant="outline">
+          <Link href="/impact">
+            <ChartColumn className="size-4" />
+            Our impact
+          </Link>
+        </Button>
+      </div>
+
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <StatCard label="Open tasks" value={summary.counts.openTasks} href="/tasks" icon={ListChecks} section="tasks" />
         <StatCard label="Active residents" value={summary.counts.activeResidents} href="/residents" icon={Users} section="residents" />
@@ -209,102 +190,6 @@ export default async function DashboardPage({
           zip: facility.zip,
         }))}
       />
-
-      <Card>
-        <CardHeader className="flex-row flex-wrap items-center justify-between gap-2 space-y-0">
-          <div className="flex items-center gap-2">
-            <PieChart className="size-4 text-muted-foreground" />
-            <CardTitle className="text-base uppercase tracking-wide">Impact</CardTitle>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="flex gap-1 rounded-md bg-muted p-1">
-              {IMPACT_PERIODS.map((p) => (
-                <Link
-                  key={p.value}
-                  href={p.value === "quarter" ? "/dashboard" : `/dashboard?impact=${p.value}`}
-                  className={cn(
-                    "rounded px-2.5 py-1 text-xs font-medium uppercase tracking-wide transition-colors",
-                    impactPeriod === p.value
-                      ? "bg-card text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {p.label}
-                </Link>
-              ))}
-            </div>
-            <Button variant="outline" size="sm" className="uppercase tracking-wide" asChild>
-              <a href={`/api/impact-report?period=${impactPeriod}`}>
-                <Download className="size-4" />
-                Export
-              </a>
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <DonutChart segments={impact.buckets} title={`Interactions by type — ${IMPACT_PERIODS.find((p) => p.value === impactPeriod)?.label}`} />
-          <div className="mt-6 flex flex-col gap-3 border-t border-border pt-4">
-            <div>
-              <h2 className="text-sm font-semibold uppercase tracking-wide">
-                Services delivered — {IMPACT_PERIODS.find((p) => p.value === impactPeriod)?.label.toLowerCase()}
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Beyond visits and facility programs. Included in the export.
-                {services.staffHours > 0 ? ` ${services.staffHours.toLocaleString("en-US")} staff hours logged.` : ""}
-                {services.funderStories > 0 ? ` ${services.funderStories} entries flagged as funder stories.` : ""}
-              </p>
-            </div>
-            <ServicesDeliveredTiles
-              services={services}
-              periodLabel={IMPACT_PERIODS.find((p) => p.value === impactPeriod)?.label ?? "This quarter"}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex-row items-center gap-2 space-y-0">
-          <TrendingUp className="size-4 text-muted-foreground" />
-          <CardTitle className="text-base uppercase tracking-wide">Activity over time</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <TrendChart data={trend} title="Interactions logged per month, last 6 months" />
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader className="flex-row items-center gap-2 space-y-0">
-            <Users className="size-4 text-muted-foreground" />
-            <CardTitle className="text-base uppercase tracking-wide">Staff impact</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ImpactLeaderboard
-              rows={staffActivity}
-              hrefFor={(row) => `/interactions?staff=${row.id}${periodFrom ? `&from=${periodFrom}` : ""}`}
-              barColor="#2a78d6"
-              emptyMessage="No interactions logged in this period yet."
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex-row items-center gap-2 space-y-0">
-            <HeartHandshake className="size-4 text-muted-foreground" />
-            <CardTitle className="text-base uppercase tracking-wide">
-              Volunteer impact · {IMPACT_PERIODS.find((p) => p.value === impactPeriod)?.label}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ImpactLeaderboard
-              rows={volunteerImpact}
-              hrefFor={(row) => `/contacts/${row.id}`}
-              barColor="#1baf7a"
-              emptyMessage="No volunteer visits logged in this period yet."
-            />
-          </CardContent>
-        </Card>
-      </div>
 
       <SectionCard
         title="Needs attention today"
