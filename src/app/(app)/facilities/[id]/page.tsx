@@ -379,7 +379,7 @@ export default async function FacilityDetailPage({
           ) : (
             <div className="flex flex-col gap-6">
               <DonutChart segments={impact.buckets} title={`Interactions by type — ${periodLabel}`} />
-              <ServicesDeliveredTiles services={services} periodLabel={periodLabel} />
+              <ServicesDeliveredTiles services={services} periodLabel={periodLabel} hideEmpty />
             </div>
           )}
         </CardContent>

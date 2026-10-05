@@ -62,13 +62,19 @@ function Tile({
 export function ServicesDeliveredTiles({
   services,
   periodLabel,
+  hideEmpty = false,
 }: {
   services: ServicesDelivered;
   periodLabel: string;
+  /** Leave out tiles whose number is zero (used on facility pages,
+   * where most services won't apply to any one facility). */
+  hideEmpty?: boolean;
 }) {
   const { food, volunteers, schoolShul, careNavigation, unmetNeed, peopleReached } = services;
+  const show = (value: number) => !hideEmpty || value > 0;
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {show(peopleReached.total) ? (
       <Tile
         icon={Users}
         title={`People reached · ${periodLabel}`}
@@ -83,6 +89,8 @@ export function ServicesDeliveredTiles({
           peopleReached.other > 0 ? `Other activities: ~${n(peopleReached.other)}` : null,
         ]}
       />
+      ) : null}
+      {show(food.deliveries) ? (
       <Tile
         icon={Utensils}
         title="Food deliveries"
@@ -96,6 +104,8 @@ export function ServicesDeliveredTiles({
             : null,
         ]}
       />
+      ) : null}
+      {show(volunteers.visits) ? (
       <Tile
         icon={HeartHandshake}
         title={`Volunteer impact · ${periodLabel}`}
@@ -107,6 +117,8 @@ export function ServicesDeliveredTiles({
           volunteers.residentsVisited > 0 ? `${n(volunteers.residentsVisited)} residents visited` : null,
         ]}
       />
+      ) : null}
+      {show(schoolShul.programs) ? (
       <Tile
         icon={School}
         title="School & shul programs"
@@ -118,6 +130,8 @@ export function ServicesDeliveredTiles({
           schoolShul.peopleReached > 0 ? `~${n(schoolShul.peopleReached)} residents reached` : null,
         ]}
       />
+      ) : null}
+      {show(services.medicalReferrals) ? (
       <Tile
         icon={Stethoscope}
         title="Medical referrals"
@@ -125,6 +139,8 @@ export function ServicesDeliveredTiles({
         unit={services.medicalReferrals === 1 ? "referral" : "referrals"}
         details={["To the Bikur Cholim medical referral team"]}
       />
+      ) : null}
+      {show(services.rides) ? (
       <Tile
         icon={Car}
         title="Rides arranged"
@@ -132,6 +148,8 @@ export function ServicesDeliveredTiles({
         unit={services.rides === 1 ? "ride" : "rides"}
         details={["Through Bikur Cholim rides"]}
       />
+      ) : null}
+      {show(careNavigation.families) ? (
       <Tile
         icon={Compass}
         title="Care navigation"
@@ -139,6 +157,8 @@ export function ServicesDeliveredTiles({
         unit={careNavigation.families === 1 ? "family helped" : "families helped"}
         details={[careNavigation.hours > 0 ? `${n(careNavigation.hours)} hours spent` : null]}
       />
+      ) : null}
+      {show(unmetNeed.total) ? (
       <Tile
         icon={HandHelping}
         title="Need we couldn't meet"
@@ -150,6 +170,7 @@ export function ServicesDeliveredTiles({
             `${r.reason === "unspecified" ? "Reason not given" : labelFor(UNMET_NEED_REASONS, r.reason)}: ${n(r.count)}`
         )}
       />
+      ) : null}
     </div>
   );
 }
