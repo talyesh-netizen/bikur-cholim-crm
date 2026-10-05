@@ -46,7 +46,8 @@ begin
 end;
 $$;
 
-create or replace view public.resident_summary as
+-- NOTE: this rebuild dropped security_invoker; restored in 20261005000001.
+create or replace view public.resident_summary with (security_invoker = true) as
 select r.id,r.first_name,r.last_name,r.preferred_name,r.current_facility_id,r.room_number,r.phone_number,r.rabbi_synagogue_connection,r.jewish_interests_background,r.kosher_food_needs,r.holiday_support_needs,r.visitation_needs,r.preferred_visit_frequency,r.status,r.private_internal_notes,r.created_by,r.created_at,r.updated_at,r.referral_source,
 f.name as current_facility_name,f.geographic_cluster_id as current_facility_cluster_id,
 (select max(i.occurred_at) from public.interactions i where i.resident_id=r.id and i.interaction_type in ('resident_visit','volunteer_visit')) as last_visit_at,
