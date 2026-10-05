@@ -2,6 +2,52 @@ import type { Directory } from "@/lib/assistant/directory";
 import type { ModelPlan, Plan, PlanNames } from "@/lib/assistant/schema";
 import { orgLocalToIso } from "@/lib/format-date";
 import { capitalizeWords } from "@/lib/format-text";
+import { residentName } from "@/lib/domain/resident-name";
+
+const cap = (value: string | null) => (value ? capitalizeWords(value) : null);
+const letters = (value: string | null) => (value ?? "").toLowerCase().replace(/[^a-z]/g, "");
+
+/** Edit distance between two short names (insert/delete/swap a letter). */
+function distance(a: string, b: string) {
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const row = [i];
+    for (let j = 1; j <= b.length; j++) {
+      row[j] = Math.min(prev[j] + 1, row[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    prev = row;
+  }
+  return prev[b.length];
+}
+
+/** "Shirley" vs "Shirly", "Rosalyn" vs "Roslyn": the same name give or
+ * take a typo. Very short names must match exactly. */
+function closeName(a: string, b: string) {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const shorter = Math.min(a.length, b.length);
+  return shorter >= 4 && distance(a, b) <= (shorter >= 7 ? 2 : 1);
+}
+
+/** Someone already in the CRM who is probably the "new" resident: a
+ * close first name at the same facility, with no conflicting last name
+ * (or, with no first name given, a close last name there). */
+export function likelyExisting(
+  newResident: { first_name: string | null; last_name: string | null },
+  facilityId: string,
+  existing: Directory["residents"]
+) {
+  const first = letters(newResident.first_name);
+  const last = letters(newResident.last_name);
+  return existing.filter((r) => {
+    if (r.facility_id !== facilityId) return false;
+    const rFirst = letters(r.first_name);
+    const rLast = letters(r.last_name);
+    const lastFits = !last || !rLast || closeName(last, rLast);
+    if (first) return closeName(first, rFirst) && lastFits;
+    return !!last && closeName(last, rLast);
+  });
+}
 
 /** Swaps every directory alias in the model's plan for the real ID (and
  * every "NR1"/"NC1" key for "new:NR1"), checking each alias is the right
@@ -13,7 +59,7 @@ export function resolvePlan(model: ModelPlan, directory: Directory): { plan: Pla
   const newResidentKeys = new Set(model.new_residents.map((r) => r.key));
   const newContactKeys = new Set(model.new_contacts.map((c) => c.key));
 
-  for (const r of model.new_residents) names[`new:${r.key}`] = `${capitalizeWords(r.first_name)} ${capitalizeWords(r.last_name)} (new)`;
+  for (const r of model.new_residents) names[`new:${r.key}`] = `${residentName({ first_name: cap(r.first_name), last_name: cap(r.last_name) })} (new)`;
   for (const c of model.new_contacts) names[`new:${c.key}`] = `${capitalizeWords(c.name)} (new)`;
 
   type Kind = "facility" | "resident" | "contact" | "staff";
@@ -47,12 +93,26 @@ export function resolvePlan(model: ModelPlan, directory: Directory): { plan: Pla
   };
 
   for (const r of model.new_residents) {
-    const facility = resolve(r.facility, "facility");
-    if (!facility) {
-      unresolved(`the facility for new resident ${r.first_name} ${r.last_name}`);
+    const who = residentName({ first_name: cap(r.first_name), last_name: cap(r.last_name) });
+    if (!r.first_name && !r.last_name) {
+      questions.push("A new resident had no name at all, so I left them out. What is their first or last name?");
       continue;
     }
-    plan.new_residents.push({ ...r, first_name: capitalizeWords(r.first_name), last_name: capitalizeWords(r.last_name), facility });
+    const facility = resolve(r.facility, "facility");
+    if (!facility) {
+      unresolved(`the facility for new resident ${who}`);
+      continue;
+    }
+    for (const match of likelyExisting(r, facility, directory.residents)) {
+      questions.push(
+        `"${who}" may already be in the CRM as ${residentName(match)} at ${directory.nameFor.get(facility) ?? "the same facility"}. ` +
+          `If it's the same person, change the name in your note to "${residentName(match)}" so it's logged on their record instead of adding someone new.`
+      );
+    }
+    if (!r.last_name) {
+      questions.push(`${who} will be added without a last name -- add it to their profile when you learn it.`);
+    }
+    plan.new_residents.push({ ...r, first_name: cap(r.first_name), last_name: cap(r.last_name), facility });
   }
   const keptResidents = new Set(plan.new_residents.map((r) => r.key));
 

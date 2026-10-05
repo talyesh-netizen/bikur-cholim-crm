@@ -25,11 +25,22 @@ const directory = {
     [ids.S1, "Rabbi Test"],
   ]),
   selfAlias: "S1",
+  residents: [
+    { id: ids.R1, first_name: "Rivka", last_name: "Cohen", facility_id: ids.F1 },
+    { id: "55555555-5555-4555-8555-555555555555", first_name: "Shirly", last_name: null, facility_id: ids.F1 },
+  ],
 };
 
 const wire = {
   summary: "Visit with Rivka Cohen; her daughter Sarah is new.",
-  new_residents: [],
+  // "Shirley" should be flagged as maybe the existing "Shirly"; the
+  // nameless one should be dropped with a question.
+  new_residents: [
+    { key: "NR1", first_name: "shirley", last_name: "", preferred_name: "", facility: "F1", room_number: "", status: "active",
+      kosher_food_needs: "", visitation_needs: "", holiday_support_needs: "", private_internal_notes: "" },
+    { key: "NR2", first_name: "", last_name: "", preferred_name: "", facility: "F1", room_number: "", status: "active",
+      kosher_food_needs: "", visitation_needs: "", holiday_support_needs: "", private_internal_notes: "" },
+  ],
   new_contacts: [
     { key: "NC1", name: "sarah levine", contact_type: "family_member", organization: "", phone: "216-555-0142", email: "", notes: "",
       resident: "R1", relationship_to_resident: "daughter", facility: "", role_at_facility: "" },
@@ -42,9 +53,11 @@ const wire = {
   facility_updates: [],
   interactions: [
     { interaction_type: "resident_visit", occurred_at: "2026-09-25T15:00", facility: "F1", resident: "R1", contact: "",
-      volunteers: [], notes: "Friendly visit; moved to room 212.", minutes_spent: 45 },
+      volunteers: [], notes: "Friendly visit; moved to room 212.", minutes_spent: 45, people_reached: 0, holiday: "", family_need: "" },
+    { interaction_type: "food_delivery", occurred_at: "2026-09-08T12:00", facility: "F1", resident: "", contact: "",
+      volunteers: [], notes: "Rosh Hashana packages", minutes_spent: 0, people_reached: 15, holiday: "rosh_hashana", family_need: "" },
     { interaction_type: "family_communication", occurred_at: "2026-09-25T15:30", facility: "F1", resident: "R1", contact: "NC1",
-      volunteers: ["C99"], notes: "", minutes_spent: 0 },
+      volunteers: ["C99"], notes: "", minutes_spent: 0, people_reached: 0, holiday: "", family_need: "update" },
   ],
   tasks: [
     { title: "Bring grape juice", description: "", due_date: "2026-09-25", priority: "medium", task_category: "kosher_food",
