@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MissingNameBadge, ResidentActiveStatus } from "@/components/status-badge";
@@ -18,6 +17,7 @@ import { InteractionList } from "@/app/(app)/interactions/interaction-list";
 import { TaskList } from "@/app/(app)/tasks/task-list";
 import { InfoRow } from "@/components/info-row";
 import { ProfileNotesCard } from "@/components/profile-notes-card";
+import { Fold } from "@/components/fold";
 import { listResidentProfileNotes } from "@/lib/queries/profile-notes";
 import { Pencil, ArrowRightLeft, Plus, UserX, Undo2, Star, HeartHandshake } from "lucide-react";
 import { residentName } from "@/lib/domain/resident-name";
@@ -87,95 +87,62 @@ export default async function ResidentDetailPage({
               Family support
             </Link>
           </Button>
-          <Button variant="outline" asChild>
-            <Link href={`/residents/${resident.id}/edit`}>
-              <Pencil className="size-4" />
-              Edit
-            </Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href={`/residents/${resident.id}/transfer`}>
-              <ArrowRightLeft className="size-4" />
-              Move to another facility
-            </Link>
-          </Button>
         </div>
       </div>
 
-      <ResidentActiveStatus status={resident.status} />
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Contact &amp; visitation</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2 text-sm">
-            <InfoRow label="Phone number" value={resident.phone_number} href={telHref(resident.phone_number)} />
-            <InfoRow label="Sex" value={resident.sex ? resident.sex.charAt(0).toUpperCase() + resident.sex.slice(1) : null} />
-            <InfoRow label="Preferred visit frequency" value={resident.preferred_visit_frequency} />
-            <InfoRow label="Visitation needs" value={resident.visitation_needs} />
-            <InfoRow label="Last visit" value={formatDateTime(resident.last_visit_at)} />
-            <InfoRow label="Next follow-up" value={formatDateOnly(resident.next_follow_up_date)} />
-            <InfoRow label="How we found them" value={resident.referral_source} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Jewish background &amp; needs</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2 text-sm">
-            <InfoRow label="Rabbi / synagogue" value={resident.rabbi_synagogue_connection} />
-            <InfoRow label="Interests / background" value={resident.jewish_interests_background} />
-            <InfoRow label="Kosher food needs" value={resident.kosher_food_needs} />
-            <InfoRow label="Holiday support needs" value={resident.holiday_support_needs} />
-          </CardContent>
-        </Card>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <ResidentActiveStatus status={resident.status} />
+        <div className="flex gap-4 text-sm">
+          <Link href={`/residents/${resident.id}/edit`} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
+            <Pencil className="size-4" />
+            Edit
+          </Link>
+          <Link href={`/residents/${resident.id}/transfer`} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
+            <ArrowRightLeft className="size-4" />
+            Move
+          </Link>
+        </div>
       </div>
 
-      <ProfileNotesCard targetType="resident" targetId={resident.id} notes={profileNotes} />
+      <dl className="grid grid-cols-3 gap-2 sm:gap-3">
+        <div className="min-w-0 rounded-xl border border-border bg-card p-3 sm:p-4">
+          <dt className="text-xs text-muted-foreground">Last visit</dt>
+          <dd className="mt-1 truncate text-sm font-semibold sm:text-base">{formatDateTime(resident.last_visit_at) ?? "None yet"}</dd>
+        </div>
+        <div className="min-w-0 rounded-xl border border-border bg-card p-3 sm:p-4">
+          <dt className="text-xs text-muted-foreground">Next follow-up</dt>
+          <dd className="mt-1 truncate text-sm font-semibold sm:text-base">{formatDateOnly(resident.next_follow_up_date) ?? "None"}</dd>
+        </div>
+        <div className="min-w-0 rounded-xl border border-border bg-card p-3 sm:p-4">
+          <dt className="text-xs text-muted-foreground">Phone</dt>
+          <dd className="mt-1 truncate text-sm font-semibold sm:text-base">
+            {resident.phone_number ? (
+              <a href={telHref(resident.phone_number)} className="hover:underline">
+                {resident.phone_number}
+              </a>
+            ) : (
+              "Not recorded"
+            )}
+          </dd>
+        </div>
+      </dl>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Facility history</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {history.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No facility history recorded.</p>
-          ) : (
-            <ol className="flex flex-col gap-3">
-              {history.map((entry) => (
-                <li key={entry.id} className="relative -mx-2 rounded-md px-2 py-1.5 transition-colors hover:bg-muted/60 flex items-start justify-between gap-4 text-sm">
-                  <div>
-                    <Link href={`/facilities/${entry.facility_id}`} className="stretched-link font-medium hover:underline">
-                      {entry.facility_name}
-                    </Link>
-                    {entry.reason ? (
-                      <p className="text-xs text-muted-foreground">{entry.reason}</p>
-                    ) : null}
-                  </div>
-                  <p className="whitespace-nowrap text-xs text-muted-foreground">
-                    {formatDateOnly(entry.start_date)} –{" "}
-                    {entry.end_date ? formatDateOnly(entry.end_date) : "present"}
-                  </p>
-                </li>
-              ))}
-            </ol>
-          )}
-        </CardContent>
-      </Card>
+      <Fold title="Recent interactions" count={interactions.length} open>
+        <InteractionList interactions={interactions} variant="resident" />
+      </Fold>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-base">Family contacts</CardTitle>
+      <Fold
+        title="Family"
+        count={familyContacts.filter((rc) => rc.active).length}
+        action={
           <Button size="sm" variant="outline" asChild>
             <Link href={`/residents/${resident.id}/contacts/new`}>
               <Plus className="size-4" />
               Add family contact
             </Link>
           </Button>
-        </CardHeader>
-        <CardContent>
+        }
+      >
           {familyContacts.length === 0 ? (
             <p className="text-sm text-muted-foreground">No family contacts on file yet.</p>
           ) : (
@@ -245,61 +212,87 @@ export default async function ResidentDetailPage({
               })}
             </ul>
           )}
-        </CardContent>
-      </Card>
+      </Fold>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-base">Follow-up tasks</CardTitle>
+      <Fold
+        title="Follow-up tasks"
+        count={tasks.filter((t) => t.status !== "completed" && t.status !== "cancelled").length}
+        action={
           <Button size="sm" variant="outline" asChild>
             <Link href={`/tasks/new?resident=${resident.id}`}>
               <Plus className="size-4" />
               Add task
             </Link>
           </Button>
-        </CardHeader>
-        <CardContent>
-          <TaskList tasks={tasks} />
-        </CardContent>
-      </Card>
+        }
+      >
+        <TaskList tasks={tasks} />
+      </Fold>
 
-      <VisitPartnersCard
-        title="Volunteers who visit"
-        partners={volunteers}
-        hrefBase="/contacts"
-        emptyMessage="No volunteer visits logged yet."
-      />
+      <Fold title="About">
+        <div className="grid gap-x-8 gap-y-2 text-sm md:grid-cols-2">
+          <InfoRow label="Sex" value={resident.sex ? resident.sex.charAt(0).toUpperCase() + resident.sex.slice(1) : null} />
+          <InfoRow label="Preferred visit frequency" value={resident.preferred_visit_frequency} />
+          <InfoRow label="Visitation needs" value={resident.visitation_needs} />
+          <InfoRow label="How we found them" value={resident.referral_source} />
+          <InfoRow label="Rabbi / synagogue" value={resident.rabbi_synagogue_connection} />
+          <InfoRow label="Interests / background" value={resident.jewish_interests_background} />
+          <InfoRow label="Kosher food needs" value={resident.kosher_food_needs} />
+          <InfoRow label="Holiday support needs" value={resident.holiday_support_needs} />
+        </div>
+      </Fold>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Recent interactions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <InteractionList interactions={interactions} variant="resident" />
-        </CardContent>
-      </Card>
+      <Fold title="Notes" count={profileNotes.length}>
+        <ProfileNotesCard targetType="resident" targetId={resident.id} notes={profileNotes} compact />
+      </Fold>
+
+
+      <Fold title="Facility history" count={history.length}>
+          {history.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No facility history recorded.</p>
+          ) : (
+            <ol className="flex flex-col gap-3">
+              {history.map((entry) => (
+                <li key={entry.id} className="relative -mx-2 rounded-md px-2 py-1.5 transition-colors hover:bg-muted/60 flex items-start justify-between gap-4 text-sm">
+                  <div>
+                    <Link href={`/facilities/${entry.facility_id}`} className="stretched-link font-medium hover:underline">
+                      {entry.facility_name}
+                    </Link>
+                    {entry.reason ? (
+                      <p className="text-xs text-muted-foreground">{entry.reason}</p>
+                    ) : null}
+                  </div>
+                  <p className="whitespace-nowrap text-xs text-muted-foreground">
+                    {formatDateOnly(entry.start_date)} –{" "}
+                    {entry.end_date ? formatDateOnly(entry.end_date) : "present"}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          )}
+      </Fold>
+
+      <Fold title="Volunteers who visit" count={volunteers.length}>
+        <VisitPartnersCard
+          title="Volunteers who visit"
+          partners={volunteers}
+          hrefBase="/contacts"
+          emptyMessage="No volunteer visits logged yet."
+          bare
+        />
+      </Fold>
 
       {resident.private_internal_notes ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Private internal notes</CardTitle>
-          </CardHeader>
-          <CardContent className="whitespace-pre-wrap text-sm text-muted-foreground">
-            {resident.private_internal_notes}
-          </CardContent>
-        </Card>
+        <Fold title="Private internal notes">
+          <p className="whitespace-pre-wrap text-sm text-muted-foreground">{resident.private_internal_notes}</p>
+        </Fold>
       ) : null}
 
       {profile?.role === "admin" ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Change history</CardTitle>
-            <p className="text-sm text-muted-foreground">Every edit to this resident: who, when, and what it said before. Only administrators see this.</p>
-          </CardHeader>
-          <CardContent>
-            <ChangeHistoryList entries={changes} />
-          </CardContent>
-        </Card>
+        <Fold title="Change history" count={changes.length}>
+          <p className="text-sm text-muted-foreground">Every edit to this resident: who, when, and what it said before. Only administrators see this.</p>
+          <ChangeHistoryList entries={changes} />
+        </Fold>
       ) : null}
     </div>
   );

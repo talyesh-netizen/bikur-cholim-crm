@@ -10,20 +10,17 @@ export function VisitPartnersCard({
   partners,
   hrefBase,
   emptyMessage,
+  bare = false,
 }: {
+  /** Just the list, no card or title -- for use inside a Fold. */
+  bare?: boolean;
   title: string;
   partners: VisitPartner[];
   hrefBase: "/contacts" | "/residents";
   emptyMessage: string;
 }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">
-          {title} ({partners.length})
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+  const list = (
+      <>
         {partners.length === 0 ? (
           <p className="text-sm text-muted-foreground">{emptyMessage}</p>
         ) : (
@@ -43,7 +40,17 @@ export function VisitPartnersCard({
             ))}
           </ul>
         )}
-      </CardContent>
+      </>
+  );
+  if (bare) return list;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">
+          {title} ({partners.length})
+        </CardTitle>
+      </CardHeader>
+      <CardContent>{list}</CardContent>
     </Card>
   );
 }
