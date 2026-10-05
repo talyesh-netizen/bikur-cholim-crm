@@ -112,7 +112,15 @@ export const SERVICE_FIELDS_BY_TYPE: Partial<
   food_delivery: ["occasion", "quantity", "people_reached"],
   program: ["occasion", "people_reached"],
   school_engagement: ["program_partner", "occasion", "participants", "people_reached"],
+  // Group visits: the old tracking sheet logged e.g. "1 to 1 Pesach visit,
+  // 15 residents" or a volunteer group seeing 7 people as one entry.
+  resident_visit: ["people_reached"],
+  volunteer_visit: ["people_reached"],
 };
+
+/** Types where "Residents reached" means a group visit -- one person is
+ * the normal case, so the form says to leave it blank for that. */
+export const GROUP_VISIT_TYPES: readonly string[] = ["resident_visit", "volunteer_visit"];
 
 export type ServiceDetails = {
   occasion: string | null;

@@ -208,6 +208,17 @@ export type ServicesDelivered = {
   };
   volunteers: { volunteers: number; visits: number; hours: number; residentsVisited: number };
   schoolShul: { programs: number; school: number; shul: number; participants: number; peopleReached: number };
+  /** Every "Residents reached" count added up, whatever the activity --
+   * the department's headline "how many people did we serve" number. */
+  peopleReached: {
+    total: number;
+    programs: number;
+    food: number;
+    schoolShul: number;
+    volunteerGroups: number;
+    residentGroups: number;
+    other: number;
+  };
   medicalReferrals: number;
   rides: number;
   careNavigation: { families: number; hours: number };
@@ -282,6 +293,7 @@ export async function getServicesDelivered(period: ImpactPeriod = "month"): Prom
     food: { deliveries: 0, items: 0, peopleReached: 0, byOccasion: { shabbos: 0, yomTov: 0, other: 0 } },
     volunteers: { volunteers: 0, visits: 0, hours: 0, residentsVisited: 0 },
     schoolShul: { programs: 0, school: 0, shul: 0, participants: 0, peopleReached: 0 },
+    peopleReached: { total: 0, programs: 0, food: 0, schoolShul: 0, volunteerGroups: 0, residentGroups: 0, other: 0 },
     medicalReferrals: 0,
     rides: 0,
     careNavigation: { families: 0, hours: 0 },
@@ -333,6 +345,16 @@ export async function getServicesDelivered(period: ImpactPeriod = "month"): Prom
         result.careNavigation.families += 1;
         careMinutes += minutes;
         break;
+    }
+    if (row.people_reached) {
+      const reached = result.peopleReached;
+      reached.total += row.people_reached;
+      if (row.interaction_type === "program") reached.programs += row.people_reached;
+      else if (row.interaction_type === "food_delivery") reached.food += row.people_reached;
+      else if (row.interaction_type === "school_engagement") reached.schoolShul += row.people_reached;
+      else if (row.interaction_type === "volunteer_visit") reached.volunteerGroups += row.people_reached;
+      else if (row.interaction_type === "resident_visit") reached.residentGroups += row.people_reached;
+      else reached.other += row.people_reached;
     }
     if (row.interaction_type !== "volunteer_visit") staffMinutes += minutes;
     if (row.unmet_need) {
