@@ -250,9 +250,14 @@ export default async function FacilityOnsitePage({
         </CardContent>
       </Card>
 
-      <Button variant="outline" asChild>
-        <Link href={`/interactions/new?facility=${facility.id}&type=facility_staff_communication`}>Talked with staff</Link>
-      </Button>
+      <div className="grid grid-cols-2 gap-2">
+        <Button variant="outline" asChild>
+          <Link href={`/interactions/new?facility=${facility.id}&type=family_communication`}>Talked with family</Link>
+        </Button>
+        <Button variant="outline" asChild>
+          <Link href={`/interactions/new?facility=${facility.id}&type=facility_staff_communication`}>Talked with staff</Link>
+        </Button>
+      </div>
     </div>
   );
 }

@@ -34,7 +34,9 @@ export function ImpactView({
   period,
   o,
   team,
+  fellBackToAllTime = false,
 }: {
+  fellBackToAllTime?: boolean;
   period: ImpactPeriod;
   o: ImpactOverview;
   team?: { staff: PersonImpactRow[]; volunteers: PersonImpactRow[]; periodFrom: string | null };
@@ -76,6 +78,12 @@ export function ImpactView({
           </Button>
         </div>
       </header>
+
+      {fellBackToAllTime ? (
+        <p className="rounded-lg bg-tone-attention-bg px-3 py-2 text-sm text-tone-attention-fg">
+          Nothing has been logged yet this quarter, so this shows all time.
+        </p>
+      ) : null}
 
       <section aria-label="Headline numbers" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <HeadlineTile
