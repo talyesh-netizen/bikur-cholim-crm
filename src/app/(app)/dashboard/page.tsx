@@ -22,7 +22,7 @@ import { DashboardOnsiteLauncher } from "@/components/dashboard-onsite-launcher"
 import { HeartHandshake, TrendingUp } from "lucide-react";
 import { labelFor, INTERACTION_TYPES } from "@/lib/domain/interaction";
 import { ENGAGEMENT_STATUSES } from "@/lib/domain/facility";
-import { formatRelative, formatDateTime } from "@/lib/format-date";
+import { formatRelative, formatDateTime, orgMonthStart } from "@/lib/format-date";
 import {
   ListChecks,
   Users,
@@ -151,6 +151,13 @@ export default async function DashboardPage({
   const impactPeriod: ImpactPeriod =
     params.impact === "month" || params.impact === "all" ? params.impact : "quarter";
 
+  // First day of the selected period (Cleveland calendar), so tapping a
+  // staff member opens their interactions for the same period.
+  const { year: periodYear, month: periodMonth } = orgMonthStart();
+  const periodFirstMonth = impactPeriod === "quarter" ? Math.floor((periodMonth - 1) / 3) * 3 + 1 : periodMonth;
+  const periodFrom =
+    impactPeriod === "all" ? null : `${periodYear}-${String(periodFirstMonth).padStart(2, "0")}-01`;
+
   const supabase = await createClient();
   const [{ data: { user } }, summary, impact, staffActivity, volunteerImpact, trend, services, facilities] = await Promise.all([
     supabase.auth.getUser(),
@@ -274,6 +281,7 @@ export default async function DashboardPage({
           <CardContent>
             <ImpactLeaderboard
               rows={staffActivity}
+              hrefFor={(row) => `/interactions?staff=${row.id}${periodFrom ? `&from=${periodFrom}` : ""}`}
               barColor="#2a78d6"
               emptyMessage="No interactions logged in this period yet."
             />

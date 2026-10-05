@@ -111,6 +111,7 @@ const INTERACTION_LIST_PAGE_SIZE = 100;
 export type InteractionListFilters = {
   interactionType?: string;
   facilityId?: string;
+  staffId?: string;
   dateFrom?: string;
   dateTo?: string;
   search?: string;
@@ -131,6 +132,9 @@ export async function listInteractions(filters: InteractionListFilters = {}) {
   }
   if (filters.facilityId) {
     query = query.eq("facility_id", filters.facilityId);
+  }
+  if (filters.staffId) {
+    query = query.eq("staff_member_id", filters.staffId);
   }
   // The date filters are plain Cleveland calendar days ("2026-09-22")
   // from a date input, but occurred_at is an exact moment -- so "from the
