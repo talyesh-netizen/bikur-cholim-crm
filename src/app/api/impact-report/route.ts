@@ -10,6 +10,7 @@ import { labelFor, UNMET_NEED_REASONS } from "@/lib/domain/interaction";
 import { ORGANIZATION_NAME, APP_NAME, ORGANIZATION_TIMEZONE } from "@/lib/config";
 import { getLocalToday } from "@/lib/format-date";
 import { csvRow } from "@/lib/csv";
+import { getFacility } from "@/lib/queries/facilities";
 
 const PERIOD_LABELS: Record<ImpactPeriod, string> = {
   month: "This month",
@@ -26,12 +27,18 @@ const PERIOD_LABELS: Record<ImpactPeriod, string> = {
 export async function GET(request: NextRequest) {
   const periodParam = request.nextUrl.searchParams.get("period");
   const period: ImpactPeriod = periodParam === "quarter" || periodParam === "all" ? periodParam : "month";
+  // Optional: the same report for one facility (from its profile page).
+  const facilityId = request.nextUrl.searchParams.get("facility") || undefined;
+  const facility = facilityId ? await getFacility(facilityId) : null;
+  if (facilityId && !facility) {
+    return new NextResponse("Facility not found, or you don't have access to it.", { status: 404 });
+  }
 
   const [impact, staffActivity, volunteerImpact, services] = await Promise.all([
-    getImpactBreakdown(period),
-    getStaffActivity(period),
-    getVolunteerImpact(period),
-    getServicesDelivered(period),
+    getImpactBreakdown(period, facilityId),
+    getStaffActivity(period, facilityId),
+    getVolunteerImpact(period, facilityId),
+    getServicesDelivered(period, facilityId),
   ]);
 
   const generatedAt = new Date().toLocaleString("en-US", {
@@ -42,7 +49,7 @@ export async function GET(request: NextRequest) {
 
   let csv = "";
   csv += csvRow([`${ORGANIZATION_NAME} — ${APP_NAME}`]);
-  csv += csvRow([`Impact report — ${PERIOD_LABELS[period]}`]);
+  csv += csvRow([`Impact report — ${facility ? `${facility.name} — ` : ""}${PERIOD_LABELS[period]}`]);
   csv += csvRow([`Generated ${generatedAt}`]);
   csv += csvRow([]);
 
@@ -115,7 +122,8 @@ export async function GET(request: NextRequest) {
     csv += csvRow([row.name, row.count]);
   }
 
-  const filename = `impact-report-${period}-${getLocalToday()}.csv`;
+  const facilitySlug = facility ? `${facility.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-` : "";
+  const filename = `impact-report-${facilitySlug}${period}-${getLocalToday()}.csv`;
 
   return new NextResponse(csv, {
     headers: {
