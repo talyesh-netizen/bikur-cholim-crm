@@ -10,7 +10,7 @@ import {
   Car,
   Compass,
   HandHelping,
-  Users,
+  CalendarHeart,
   type LucideIcon,
 } from "lucide-react";
 
@@ -56,6 +56,91 @@ function Tile({
   );
 }
 
+function HeadlineTile({
+  icon: Icon,
+  title,
+  explainer,
+  value,
+  unit,
+  details,
+}: {
+  icon: LucideIcon;
+  title: string;
+  explainer: string;
+  value: number;
+  unit: string;
+  details: (string | null)[];
+}) {
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/40 p-4">
+      <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide">
+        <Icon className="size-5 text-primary" />
+        {title}
+      </div>
+      <p className="text-sm text-muted-foreground">{explainer}</p>
+      <p className="text-4xl font-semibold leading-none">
+        {n(value)} <span className="text-base font-normal text-muted-foreground">{unit}</span>
+      </p>
+      <ul className="flex flex-col gap-0.5 text-sm">
+        {details
+          .filter((d): d is string => d !== null)
+          .map((d) => (
+            <li key={d}>{d}</li>
+          ))}
+      </ul>
+    </div>
+  );
+}
+
+/** The two headline numbers at the top of the Impact card: one-on-one
+ * visits and calls, and programs the department ran or hosted. Each
+ * says in a line exactly what it counts, so a funder (or the director)
+ * never has to guess what a number is made of. */
+export function HeadlineImpactTiles({ services }: { services: ServicesDelivered }) {
+  const { oneOnOne, programs } = services;
+  const otherStaff = oneOnOne.byYou === null ? null : oneOnOne.byStaff - oneOnOne.byYou;
+  return (
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+      <HeadlineTile
+        icon={UserCheck}
+        title="One-on-one visits"
+        explainer="Visits and phone calls with one named resident. Each resident is counted once, however often we saw them."
+        value={oneOnOne.residents}
+        unit={oneOnOne.residents === 1 ? "resident" : "different residents"}
+        details={[
+          `${n(oneOnOne.contacts)} visits & calls in all${
+            oneOnOne.facilities > 0 ? `, at ${n(oneOnOne.facilities)} ${oneOnOne.facilities === 1 ? "facility" : "facilities"}` : ""
+          }`,
+          oneOnOne.byYou !== null
+            ? `By you personally: ${n(oneOnOne.byYou)}`
+            : `By staff: ${n(oneOnOne.byStaff)}`,
+          otherStaff !== null && otherStaff > 0 ? `By other staff: ${n(otherStaff)}` : null,
+          `By volunteers: ${n(oneOnOne.byVolunteers)}`,
+          oneOnOne.groupVisits > 0
+            ? `Also ${n(oneOnOne.groupVisits)} group ${oneOnOne.groupVisits === 1 ? "visit" : "visits"} (~${n(oneOnOne.groupAttendance)} people, not in the count above)`
+            : null,
+        ]}
+      />
+      <HeadlineTile
+        icon={CalendarHeart}
+        title="Programs we ran or hosted"
+        explainer="Holiday programs, events and school & shul programs. Attendance is what was typed in: someone at 3 programs counts 3 times."
+        value={programs.programs}
+        unit={programs.programs === 1 ? "program" : "programs"}
+        details={[
+          programs.facilities > 0
+            ? `At ${n(programs.facilities)} ${programs.facilities === 1 ? "facility" : "facilities"}`
+            : null,
+          programs.attendance > 0 ? `~${n(programs.attendance)} total attendance` : null,
+          programs.withoutAttendance > 0
+            ? `${n(programs.withoutAttendance)} ${programs.withoutAttendance === 1 ? "program has" : "programs have"} no attendance entered`
+            : null,
+        ]}
+      />
+    </div>
+  );
+}
+
 /** The funder-facing "what we did beyond our own visits" tiles on the
  * dashboard -- the same numbers the impact export's "Services
  * delivered" section carries. Detail lines only appear once there's
@@ -71,39 +156,10 @@ export function ServicesDeliveredTiles({
    * where most services won't apply to any one facility). */
   hideEmpty?: boolean;
 }) {
-  const { food, volunteers, schoolShul, careNavigation, unmetNeed, peopleReached } = services;
+  const { food, volunteers, schoolShul, careNavigation, unmetNeed } = services;
   const show = (value: number) => !hideEmpty || value > 0;
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {show(services.oneOnOne.residents) ? (
-        <Tile
-          icon={UserCheck}
-          title={`Residents served one-on-one · ${periodLabel}`}
-          value={services.oneOnOne.residents}
-          unit={services.oneOnOne.residents === 1 ? "resident" : "different residents"}
-          details={[
-            `${n(services.oneOnOne.contacts)} visits & calls (staff and volunteers)`,
-            "Each person counted once",
-          ]}
-        />
-      ) : null}
-      {show(peopleReached.total) ? (
-        <Tile
-          icon={Users}
-          title={`Reached through programs & deliveries · ${periodLabel}`}
-          value={peopleReached.total}
-          unit="(approx.)"
-          details={[
-            peopleReached.programs > 0 ? `Facility programs: ~${n(peopleReached.programs)}` : null,
-            peopleReached.food > 0 ? `Food & holiday deliveries: ~${n(peopleReached.food)}` : null,
-            peopleReached.volunteerGroups > 0 ? `Volunteer group visits: ~${n(peopleReached.volunteerGroups)}` : null,
-            peopleReached.residentGroups > 0 ? `Group resident visits: ~${n(peopleReached.residentGroups)}` : null,
-            peopleReached.schoolShul > 0 ? `School & shul programs: ~${n(peopleReached.schoolShul)}` : null,
-            peopleReached.other > 0 ? `Other activities: ~${n(peopleReached.other)}` : null,
-            "Attendance: someone at 3 programs counts 3 times",
-          ]}
-        />
-      ) : null}
       {show(food.deliveries) ? (
       <Tile
         icon={Utensils}
