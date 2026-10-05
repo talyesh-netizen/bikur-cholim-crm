@@ -9,6 +9,7 @@ import {
   Car,
   Compass,
   HandHelping,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 
@@ -65,9 +66,23 @@ export function ServicesDeliveredTiles({
   services: ServicesDelivered;
   periodLabel: string;
 }) {
-  const { food, volunteers, schoolShul, careNavigation, unmetNeed } = services;
+  const { food, volunteers, schoolShul, careNavigation, unmetNeed, peopleReached } = services;
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <Tile
+        icon={Users}
+        title={`People reached · ${periodLabel}`}
+        value={peopleReached.total}
+        unit="people (approx.)"
+        details={[
+          peopleReached.programs > 0 ? `Facility programs: ~${n(peopleReached.programs)}` : null,
+          peopleReached.food > 0 ? `Food & holiday deliveries: ~${n(peopleReached.food)}` : null,
+          peopleReached.volunteerGroups > 0 ? `Volunteer group visits: ~${n(peopleReached.volunteerGroups)}` : null,
+          peopleReached.residentGroups > 0 ? `Group resident visits: ~${n(peopleReached.residentGroups)}` : null,
+          peopleReached.schoolShul > 0 ? `School & shul programs: ~${n(peopleReached.schoolShul)}` : null,
+          peopleReached.other > 0 ? `Other activities: ~${n(peopleReached.other)}` : null,
+        ]}
+      />
       <Tile
         icon={Utensils}
         title="Food deliveries"

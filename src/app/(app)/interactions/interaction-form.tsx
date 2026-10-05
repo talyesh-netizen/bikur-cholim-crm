@@ -15,6 +15,7 @@ import {
 import {
   INTERACTION_TYPES,
   FACILITY_OPTIONAL_TYPES,
+  GROUP_VISIT_TYPES,
   OCCASIONS,
   PROGRAM_PARTNERS,
   UNMET_NEED_REASONS,
@@ -272,7 +273,11 @@ export function InteractionForm({
             <NumberField
               name="people_reached"
               label="Residents reached (about)"
-              hint="A rough count is fine"
+              hint={
+                GROUP_VISIT_TYPES.includes(interactionType)
+                  ? "Only for a group visit — leave blank when it's one person"
+                  : "A rough count is fine"
+              }
               defaultValue={service.people_reached}
               error={fieldErrors.people_reached}
             />

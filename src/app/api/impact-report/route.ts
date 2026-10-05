@@ -46,9 +46,16 @@ export async function GET(request: NextRequest) {
   csv += csvRow([`Generated ${generatedAt}`]);
   csv += csvRow([]);
 
-  const { food, volunteers, schoolShul, careNavigation, unmetNeed } = services;
+  const { food, volunteers, schoolShul, careNavigation, unmetNeed, peopleReached } = services;
   csv += csvRow(["Services delivered"]);
   csv += csvRow(["Service", "Measure", "Count"]);
+  csv += csvRow(["People reached", "Total (approx.)", peopleReached.total]);
+  csv += csvRow(["People reached", "Facility programs", peopleReached.programs]);
+  csv += csvRow(["People reached", "Food & holiday deliveries", peopleReached.food]);
+  csv += csvRow(["People reached", "Volunteer group visits", peopleReached.volunteerGroups]);
+  csv += csvRow(["People reached", "Group resident visits", peopleReached.residentGroups]);
+  csv += csvRow(["People reached", "School & shul programs", peopleReached.schoolShul]);
+  csv += csvRow(["People reached", "Other activities", peopleReached.other]);
   csv += csvRow(["Food deliveries", "Deliveries", food.deliveries]);
   csv += csvRow(["Food deliveries", "Items delivered", food.items]);
   csv += csvRow(["Food deliveries", "Residents reached (approx.)", food.peopleReached]);
