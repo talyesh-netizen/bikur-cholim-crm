@@ -2,7 +2,6 @@
 
 import { createHash } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
-import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/get-current-profile";
@@ -11,9 +10,9 @@ import { loadDirectory, type Directory } from "@/lib/assistant/directory";
 import { resolvePlan } from "@/lib/assistant/resolve";
 import { SYSTEM_PROMPT } from "@/lib/assistant/prompt";
 import {
-  fromWire,
+  parsePlanText,
+  PLAN_JSON_SCHEMA,
   planSchema,
-  wirePlanSchema,
   type AnalyzeResult,
   type ApplyResult,
   type ApplyStep,
@@ -26,6 +25,14 @@ import { residentName } from "@/lib/domain/resident-name";
 
 const MODEL = "claude-opus-5-5";
 const MAX_NOTE_LENGTH = 6000;
+
+/** How to answer: the plan as plain JSON (the API's strict structured-
+ * output mode can't take a schema this size). Never changes between
+ * requests, so it's cached with the instructions. */
+const OUTPUT_INSTRUCTIONS = `## Your answer
+Reply with ONLY one JSON object -- no other words, no code fences -- that matches this JSON Schema exactly. Include every key. Use "" for "nothing" in text and choice fields, 0 for numbers not given, and [] for empty lists. Choice fields must use exactly one of the listed values.
+
+${PLAN_JSON_SCHEMA}`;
 
 /**
  * Step 1 of Quick Log: read a free-form note and propose what to save.
@@ -74,50 +81,70 @@ export async function analyzeNote(
     new Date()
   );
 
-  const request = {
+  const userMessage = `Current time in Cleveland: ${weekday}, ${now.replace("T", " ")}.\nThe person writing is ${
+    directory.selfAlias ?? "a staff member"
+  }.${onSiteLine}\n\nNOTE:\n${trimmed}`;
+  const base = {
     model: MODEL,
     max_tokens: 16000,
     thinking: { type: "adaptive" as const },
-    output_config: { effort: "medium" as const, format: betaZodOutputFormat(wirePlanSchema) },
+    output_config: { effort: "medium" as const },
     system: [
       { type: "text" as const, text: SYSTEM_PROMPT },
+      { type: "text" as const, text: OUTPUT_INSTRUCTIONS },
       { type: "text" as const, text: `DIRECTORY\n\n${directory.text}`, cache_control: { type: "ephemeral" as const } },
-    ],
-    messages: [
-      {
-        role: "user" as const,
-        content: `Current time in Cleveland: ${weekday}, ${now.replace("T", " ")}.\nThe person writing is ${
-          directory.selfAlias ?? "a staff member"
-        }.${onSiteLine}\n\nNOTE:\n${trimmed}`,
-      },
     ],
   };
 
   let modelPlan: ModelPlan;
   try {
     const client = new Anthropic();
-    let response;
-    try {
-      // With the server-side fallback, a request one model declines is
-      // re-run on another inside the same call.
-      response = await client.beta.messages.parse({
-        ...request,
-        betas: ["server-side-fallback-2026-07-01"],
-        fallbacks: "default",
-      });
-    } catch (error) {
-      // Not every account has the fallback beta (e.g. a brand-new one):
-      // ask again without it rather than failing the note.
-      if (!(error instanceof Anthropic.BadRequestError)) throw error;
-      console.warn("Quick Log: retrying without the fallback beta:", error.message.slice(0, 200));
-      response = await client.beta.messages.parse(request);
-    }
+    let useFallbackBeta = true;
+    const ask = async (messages: Anthropic.Beta.BetaMessageParam[]) => {
+      if (useFallbackBeta) {
+        try {
+          // With the server-side fallback, a request one model declines
+          // is re-run on another inside the same call.
+          return await client.beta.messages.create({
+            ...base,
+            messages,
+            betas: ["server-side-fallback-2026-07-01"],
+            fallbacks: "default",
+          });
+        } catch (error) {
+          // Not every account has the fallback beta (e.g. a brand-new
+          // one): ask again without it rather than failing the note.
+          if (!(error instanceof Anthropic.BadRequestError) || !/fallback|beta/i.test(error.message)) throw error;
+          console.warn("Quick Log: continuing without the fallback beta:", error.message.slice(0, 200));
+          useFallbackBeta = false;
+        }
+      }
+      return client.beta.messages.create({ ...base, messages });
+    };
+    const textOf = (response: Anthropic.Beta.BetaMessage) =>
+      response.content.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("\n");
 
-    const plan = response.stop_reason === "refusal" ? null : fromWire(response.parsed_output);
-    if (!plan) {
+    const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: "user", content: userMessage }];
+    let response = await ask(messages);
+    if (response.stop_reason === "refusal") {
       return { ok: false, error: "The assistant couldn't read that note. Please reword it, or use the regular forms." };
     }
-    modelPlan = plan;
+    let result = parsePlanText(textOf(response));
+    if ("problem" in result) {
+      // One chance to fix its own answer, with the exact problem.
+      console.warn("Quick Log: asking for a corrected plan:", result.problem.slice(0, 300));
+      messages.push(
+        { role: "assistant", content: response.content },
+        { role: "user", content: `${result.problem}\nReply again with only the corrected JSON object.` }
+      );
+      response = await ask(messages);
+      result = parsePlanText(textOf(response));
+    }
+    if ("problem" in result) {
+      console.error("Quick Log: unusable plan:", result.problem.slice(0, 300));
+      return { ok: false, error: "The assistant's answer didn't come out right. Please tap Read my note again." };
+    }
+    modelPlan = result.plan;
   } catch (error) {
     if (error instanceof Anthropic.APIError) {
       console.error("Quick Log: assistant request failed", error.status, error.message.slice(0, 300));
