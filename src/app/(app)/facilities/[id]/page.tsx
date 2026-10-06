@@ -200,8 +200,8 @@ export default async function FacilityDetailPage({
               }
             />
             <InfoRow
-              label="Last visit"
-              value={formatDateTime(facility.last_visit_at) ?? "No visits logged yet"}
+              label="Last contact"
+              value={formatDateTime(facility.last_visit_at) ?? "Nothing logged yet"}
             />
           </CardContent>
         </Card>
