@@ -14,6 +14,9 @@ export const FACILITY_TYPES = [
   { value: "memory_care", label: "Memory care" },
   { value: "independent_living", label: "Independent living" },
   { value: "senior_apartment", label: "Senior apartment building" },
+  // Several levels on one campus (independent, assisted, memory care,
+  // nursing), e.g. the Judson campuses -- a.k.a. "life plan community".
+  { value: "continuing_care", label: "Continuing care community (several levels)" },
   { value: "hospital", label: "Hospital" },
   { value: "other", label: "Other" },
 ] as const;
