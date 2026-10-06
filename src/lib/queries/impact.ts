@@ -20,7 +20,7 @@ export type ImpactBucket = {
 // non-zero.
 const BUCKET_DEFS: { key: string; label: string; color: string; types: InteractionType[] }[] = [
   { key: "resident_visits", label: "Resident visits & calls", color: "#2a78d6", types: ["resident_visit", "resident_phone_call"] },
-  { key: "facility_staff", label: "Facility & staff", color: "#eb6834", types: ["facility_staff_communication", "facility_discovery_visit"] },
+  { key: "facility_staff", label: "Facility & staff", color: "#eb6834", types: ["facility_staff_communication", "facility_visit", "facility_discovery_visit"] },
   { key: "programs", label: "Programs (facility, school & shul)", color: "#1baf7a", types: ["program", "school_engagement"] },
   { key: "volunteers", label: "Volunteer visits", color: "#e34948", types: ["volunteer_visit"] },
   { key: "food", label: "Food", color: "#eda100", types: ["food_delivery", "kosher_food_coordination"] },

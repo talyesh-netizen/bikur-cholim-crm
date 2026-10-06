@@ -20,6 +20,7 @@ export const INTERACTION_TYPES = [
   { value: "ride_arranged", label: "Ride arranged (through Bikur Cholim)" },
   { value: "referral", label: "Referral (other)" },
   { value: "facility_staff_communication", label: "Facility staff (meeting, touchpoint, appreciation)" },
+  { value: "facility_visit", label: "Facility visit" },
   { value: "facility_discovery_visit", label: "First visit to a new facility" },
   { value: "hospital_related_communication", label: "Hospital-related communication" },
   { value: "email", label: "Email" },
@@ -46,6 +47,7 @@ export const TYPE_BUTTONS: {
     label: "Facility staff",
     choices: [
       { value: "facility_staff_communication", label: "Meeting, touchpoint or appreciation" },
+      { value: "facility_visit", label: "Visit to the facility" },
       { value: "facility_discovery_visit", label: "First visit to a new facility" },
     ],
   },
