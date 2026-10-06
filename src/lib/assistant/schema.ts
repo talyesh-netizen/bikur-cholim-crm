@@ -23,7 +23,7 @@ import { z } from "zod";
 import { INTERACTION_TYPES, HOLIDAYS, FAMILY_NEEDS } from "@/lib/domain/interaction";
 import { RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { CONTACT_TYPES, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
-import { ENGAGEMENT_STATUSES, VISIT_PRIORITIES, KOSHER_FOOD_OPTIONS } from "@/lib/domain/facility";
+import { ENGAGEMENT_STATUSES, VISIT_PRIORITIES, KOSHER_FOOD_OPTIONS, FACILITY_TYPES } from "@/lib/domain/facility";
 import { TASK_CATEGORIES, TASK_PRIORITIES } from "@/lib/domain/task";
 
 const values = (options: readonly { value: string }[]) => options.map((o) => o.value) as [string, ...string[]];
@@ -45,6 +45,7 @@ const relationship = enumOf(RESIDENT_CONTACT_RELATIONSHIPS);
 const engagementStatus = enumOf(ENGAGEMENT_STATUSES);
 const visitPriority = enumOf(VISIT_PRIORITIES);
 const kosherFood = enumOf(KOSHER_FOOD_OPTIONS);
+const facilityType = enumOf(FACILITY_TYPES);
 const taskCategory = enumOf(TASK_CATEGORIES);
 const taskPriority = enumOf(TASK_PRIORITIES);
 
@@ -65,6 +66,17 @@ function buildPlanSchema<Ref extends z.ZodType>(ref: Ref, wire: boolean) {
 
   return z.object({
     summary: z.string(),
+    /** A place the note names that isn't in the CRM yet ("NF1"...). */
+    new_facilities: z.array(
+      z.object({
+        key: z.string(),
+        name: z.string(),
+        facility_type: required(facilityType),
+        city: text,
+        address: text,
+        notes: text,
+      })
+    ),
     new_residents: z.array(
       z.object({
         key: z.string(),
@@ -126,6 +138,15 @@ function buildPlanSchema<Ref extends z.ZodType>(ref: Ref, wire: boolean) {
         add_to_notes: text,
       })
     ),
+    /** Lasting facts for a resident's or facility's Profile notes
+     * timeline -- exactly one of resident / facility. */
+    profile_notes: z.array(
+      z.object({
+        resident: optionalRef,
+        facility: optionalRef,
+        note: z.string(),
+      })
+    ),
     interactions: z.array(
       z.object({
         interaction_type: required(interactionType),
@@ -152,6 +173,8 @@ function buildPlanSchema<Ref extends z.ZodType>(ref: Ref, wire: boolean) {
         assigned_to: optionalRef,
         resident: optionalRef,
         facility: optionalRef,
+        /** The person the follow-up is with ("call Michelle back"). */
+        contact: optionalRef,
       })
     ),
     questions: z.array(z.string()),

@@ -169,13 +169,48 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
 
   const fail = (label: string, error = "Not saved -- please do this one by hand.") => steps.push({ label, ok: false, error });
 
+  for (const f of plan.new_facilities) {
+    const label = `New facility: ${f.name}`;
+    // Already in the CRM under this exact name (e.g. this note was saved before)? Use it.
+    const { data: sameNamed } = await supabase.from("facilities").select("id, name").ilike("name", f.name.trim());
+    const existing = (sameNamed ?? []).find((x) => sameName(x.name, f.name));
+    if (existing) {
+      newIds.set(f.key, existing.id);
+      steps.push({ label: `${f.name} is already in the CRM -- not added again`, ok: true, href: `/facilities/${existing.id}` });
+      continue;
+    }
+    const { data, error } = await supabase
+      .from("facilities")
+      .insert({
+        name: capitalizeWords(f.name.trim()),
+        facility_type: f.facility_type,
+        city: blankToNull(f.city),
+        address: blankToNull(f.address),
+        notes: blankToNull(f.notes),
+        created_by: user.id,
+      })
+      .select("id")
+      .single();
+    if (error || !data) {
+      fail(label, "Not saved -- please add it from Facilities -> Add facility.");
+      continue;
+    }
+    newIds.set(f.key, data.id);
+    steps.push({ label, ok: true, href: `/facilities/${data.id}` });
+  }
+
   for (const r of plan.new_residents) {
     const label = `New resident: ${residentName(r)}`;
+    const facilityId = idOf(r.facility);
+    if (!facilityId) {
+      fail(label, "Not saved, because the new facility they live at wasn't saved.");
+      continue;
+    }
     // Saved already (e.g. this note was saved before)? Use that record.
     const { data: sameHere } = await supabase
       .from("residents")
       .select("id, first_name, last_name")
-      .eq("current_facility_id", r.facility);
+      .eq("current_facility_id", facilityId);
     const existing = (sameHere ?? []).find((x) => sameName(x.first_name, r.first_name) && sameName(x.last_name, r.last_name));
     if (existing) {
       newIds.set(r.key, existing.id);
@@ -188,7 +223,7 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
         first_name: blankToNull(r.first_name) ? capitalizeWords(r.first_name!.trim()) : null,
         last_name: blankToNull(r.last_name) ? capitalizeWords(r.last_name!.trim()) : null,
         preferred_name: blankToNull(r.preferred_name),
-        current_facility_id: r.facility,
+        current_facility_id: facilityId,
         room_number: blankToNull(r.room_number),
         status: r.status,
         kosher_food_needs: blankToNull(r.kosher_food_needs),
@@ -204,15 +239,16 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
       continue;
     }
     newIds.set(r.key, data.id);
-    touchedFacilities.add(r.facility);
+    touchedFacilities.add(facilityId);
     steps.push({ label, ok: true, href: `/residents/${data.id}` });
   }
 
   for (const c of plan.new_contacts) {
     const label = `New contact: ${capitalizeWords(c.name)}`;
     const residentId = idOf(c.resident);
-    if (residentId === undefined) {
-      fail(label, "Not saved, because the new resident they belong to wasn't saved.");
+    const contactFacilityId = idOf(c.facility);
+    if (residentId === undefined || contactFacilityId === undefined) {
+      fail(label, "Not saved, because the new resident or facility they belong to wasn't saved.");
       continue;
     }
     const { data: sameNamed } = await supabase
@@ -257,16 +293,16 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
       linkFailed ||= !!linkError;
       touchedResidents.add(residentId);
     }
-    if (c.facility && !(await alreadyLinked("facility_contacts", "facility_id", c.facility))) {
+    if (contactFacilityId && !(await alreadyLinked("facility_contacts", "facility_id", contactFacilityId))) {
       const { error: linkError } = await supabase.from("facility_contacts").insert({
-        facility_id: c.facility,
+        facility_id: contactFacilityId,
         contact_id: data.id,
         role_at_facility: blankToNull(c.role_at_facility),
         is_primary_contact: false,
         created_by: user.id,
       });
       linkFailed ||= !!linkError;
-      touchedFacilities.add(c.facility);
+      touchedFacilities.add(contactFacilityId);
     }
     steps.push(
       linkFailed
@@ -315,9 +351,14 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
 
   for (const t of plan.transfers) {
     const label = "Move resident to another facility";
+    const newFacilityId = idOf(t.new_facility);
+    if (!newFacilityId) {
+      fail(label, "Not saved, because the new facility wasn't saved.");
+      continue;
+    }
     const { error } = await supabase.rpc("transfer_resident", {
       p_resident_id: t.resident,
-      p_new_facility_id: t.new_facility,
+      p_new_facility_id: newFacilityId,
       p_reason: blankToNull(t.reason),
       p_notes: null,
     });
@@ -330,7 +371,7 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
       continue;
     }
     touchedResidents.add(t.resident);
-    touchedFacilities.add(t.new_facility);
+    touchedFacilities.add(newFacilityId);
     steps.push({ label, ok: true, href: `/residents/${t.resident}` });
   }
 
@@ -362,14 +403,43 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
     steps.push({ label, ok: true, href: `/facilities/${u.facility}` });
   }
 
+  for (const n of plan.profile_notes) {
+    const residentId = idOf(n.resident);
+    const facilityId = idOf(n.facility);
+    const target = residentId ? "resident_id" : "facility_id";
+    const targetId = residentId ?? facilityId;
+    const label = `Profile note: ${n.note.length > 60 ? `${n.note.slice(0, 57)}...` : n.note}`;
+    if (!targetId) {
+      fail(label, "Not saved, because who it's about wasn't saved.");
+      continue;
+    }
+    // The same note saved from an earlier save of this note?
+    const { data: same } = await supabase.from("profile_notes").select("id").eq(target, targetId).eq("clean_note", n.note).limit(1);
+    if (same?.length) {
+      steps.push({ label: `${label} -- already saved earlier`, ok: true, href: residentId ? `/residents/${residentId}` : `/facilities/${facilityId}` });
+      continue;
+    }
+    const { error } = await supabase
+      .from("profile_notes")
+      .insert({ [target]: targetId, raw_note: n.note, clean_note: n.note, created_by: user.id });
+    if (error) {
+      fail(label);
+      continue;
+    }
+    if (residentId) touchedResidents.add(residentId);
+    if (facilityId) touchedFacilities.add(facilityId);
+    steps.push({ label, ok: true, href: residentId ? `/residents/${residentId}` : `/facilities/${facilityId}` });
+  }
+
   const interactionIds: string[] = [];
   for (const i of plan.interactions) {
     const label = `Log: ${i.interaction_type.replace(/_/g, " ")}`;
     const residentId = idOf(i.resident);
     const contactId = idOf(i.contact);
+    const facilityId = idOf(i.facility);
     const volunteerIds = i.volunteers.map(idOf);
     const occurredAt = orgLocalToIso(i.occurred_at);
-    if (residentId === undefined || contactId === undefined || volunteerIds.some((v) => !v) || !occurredAt) {
+    if (residentId === undefined || contactId === undefined || facilityId === undefined || volunteerIds.some((v) => !v) || !occurredAt) {
       fail(label, "Not saved, because someone it depends on wasn't saved.");
       continue;
     }
@@ -378,7 +448,7 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
       .insert({
         interaction_type: i.interaction_type,
         occurred_at: occurredAt,
-        facility_id: i.facility,
+        facility_id: facilityId,
         resident_id: residentId,
         contact_id: contactId,
         notes: blankToNull(i.notes),
@@ -395,14 +465,14 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
             : null,
         staff_member_id: user.id,
         client_submission_id: quickLogSubmissionId([
-          user.id, i.interaction_type, occurredAt, i.facility, residentId, contactId, i.holiday, i.family_need,
+          user.id, i.interaction_type, occurredAt, facilityId, residentId, contactId, i.holiday, i.family_need,
           i.people_reached && i.people_reached > 0 ? i.people_reached : null,
         ]),
       })
       .select("id")
       .single();
     if (error?.code === "23505") {
-      steps.push({ label: `${label} -- already saved earlier, not added again`, ok: true, href: residentId ? `/residents/${residentId}` : i.facility ? `/facilities/${i.facility}` : "/interactions" });
+      steps.push({ label: `${label} -- already saved earlier, not added again`, ok: true, href: residentId ? `/residents/${residentId}` : facilityId ? `/facilities/${facilityId}` : "/interactions" });
       continue;
     }
     if (error || !data) {
@@ -421,15 +491,17 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
       }
     }
     if (residentId) touchedResidents.add(residentId);
-    if (i.facility) touchedFacilities.add(i.facility);
-    steps.push({ label, ok: true, href: residentId ? `/residents/${residentId}` : i.facility ? `/facilities/${i.facility}` : "/interactions" });
+    if (facilityId) touchedFacilities.add(facilityId);
+    steps.push({ label, ok: true, href: residentId ? `/residents/${residentId}` : facilityId ? `/facilities/${facilityId}` : "/interactions" });
   }
 
   for (const t of plan.tasks) {
     const label = `Task: ${t.title}`;
     const residentId = idOf(t.resident);
-    if (residentId === undefined) {
-      fail(label, "Not saved, because the new resident it's about wasn't saved.");
+    const taskFacilityId = idOf(t.facility);
+    const taskContactId = idOf(t.contact);
+    if (residentId === undefined || taskFacilityId === undefined || taskContactId === undefined) {
+      fail(label, "Not saved, because someone or somewhere it's about wasn't saved.");
       continue;
     }
     const dueDate = t.due_date && /^\d{4}-\d{2}-\d{2}$/.test(t.due_date) ? t.due_date : null;
@@ -456,7 +528,8 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
         task_category: t.task_category,
         assigned_to: t.assigned_to ?? user.id,
         resident_id: residentId,
-        facility_id: t.facility,
+        facility_id: taskFacilityId,
+        contact_id: taskContactId,
         // Tie it to the visit it came from when this note logged exactly one.
         interaction_id: interactionIds.length === 1 ? interactionIds[0] : null,
         created_by: user.id,

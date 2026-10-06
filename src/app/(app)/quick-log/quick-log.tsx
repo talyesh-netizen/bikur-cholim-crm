@@ -15,6 +15,7 @@ import {
   HeartHandshake,
   ListPlus,
   Loader2,
+  StickyNote,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,7 @@ import type { ApplyResult, Plan, PlanNames, PossibleMatches } from "@/lib/assist
 import { labelFor, INTERACTION_TYPES, HOLIDAYS, FAMILY_NEEDS } from "@/lib/domain/interaction";
 import { RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { CONTACT_TYPES, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
-import { ENGAGEMENT_STATUSES, VISIT_PRIORITIES, KOSHER_FOOD_OPTIONS } from "@/lib/domain/facility";
+import { ENGAGEMENT_STATUSES, VISIT_PRIORITIES, KOSHER_FOOD_OPTIONS, FACILITY_TYPES } from "@/lib/domain/facility";
 import { TASK_CATEGORIES } from "@/lib/domain/task";
 import { formatDateOnly, formatDateTimeWithTime, orgLocalToIso } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
@@ -63,6 +64,13 @@ function describe(plan: Plan, names: PlanNames): Item[] {
     newResidentKey?: string
   ) => items.push({ section, index, icon, title, lines: lines.filter(Boolean) as string[], newResidentKey });
 
+  plan.new_facilities.forEach((f, i) =>
+    add("new_facilities", i, Building2, `Add new facility: ${f.name}`, [
+      labelFor(FACILITY_TYPES, f.facility_type),
+      [f.address, f.city].filter(Boolean).join(", ") || null,
+      f.notes && `Note: ${f.notes}`,
+    ])
+  );
   plan.new_residents.forEach((r, i) =>
     add("new_residents", i, UserPlus, `Add new resident: ${residentName(r)}`, [
       `At ${n(r.facility)}${r.room_number ? `, room ${r.room_number}` : ""}`,
@@ -108,6 +116,9 @@ function describe(plan: Plan, names: PlanNames): Item[] {
       u.add_to_notes && `Notes: + ${u.add_to_notes}`,
     ])
   );
+  plan.profile_notes.forEach((p, i) =>
+    add("profile_notes", i, StickyNote, `Profile note for ${n(p.resident) ?? n(p.facility)}`, [p.note])
+  );
   plan.interactions.forEach((x, i) => {
     const iso = orgLocalToIso(x.occurred_at);
     add("interactions", i, HeartHandshake, `Log: ${labelFor(INTERACTION_TYPES, x.interaction_type)}${x.holiday ? ` · ${labelFor(HOLIDAYS, x.holiday)}` : ""}${x.family_need ? ` · ${labelFor(FAMILY_NEEDS, x.family_need)}` : ""}`, [
@@ -124,7 +135,7 @@ function describe(plan: Plan, names: PlanNames): Item[] {
       [labelFor(TASK_CATEGORIES, t.task_category), t.priority === "high" && "high priority"].filter(Boolean).join(" · "),
       t.due_date && `Due ${formatDateOnly(t.due_date)}`,
       `For ${n(t.assigned_to) ?? "you"}`,
-      [n(t.resident), n(t.facility)].filter(Boolean).join(" · "),
+      [n(t.contact) && `with ${n(t.contact)}`, n(t.resident), n(t.facility)].filter(Boolean).join(" · "),
       t.description,
     ])
   );
@@ -137,11 +148,13 @@ function withoutSkipped(plan: Plan, skipped: Set<string>): Plan {
   const keep = <T,>(section: Section, list: T[]) => list.filter((_, i) => !skipped.has(`${section}:${i}`));
   return {
     ...plan,
+    new_facilities: keep("new_facilities", plan.new_facilities),
     new_residents: keep("new_residents", plan.new_residents),
     new_contacts: keep("new_contacts", plan.new_contacts),
     resident_updates: keep("resident_updates", plan.resident_updates),
     transfers: keep("transfers", plan.transfers),
     facility_updates: keep("facility_updates", plan.facility_updates),
+    profile_notes: keep("profile_notes", plan.profile_notes),
     interactions: keep("interactions", plan.interactions),
     tasks: keep("tasks", plan.tasks),
   };
@@ -161,6 +174,7 @@ function withDecisions(plan: Plan, decisions: Decisions): Plan {
     ...plan,
     new_residents: plan.new_residents.filter((r) => !existing.has(`new:${r.key}`)),
     new_contacts: plan.new_contacts.map((c) => ({ ...c, resident: swap(c.resident) })),
+    profile_notes: plan.profile_notes.map((p) => ({ ...p, resident: swap(p.resident) })),
     interactions: plan.interactions.map((x) => ({ ...x, resident: swap(x.resident) })),
     tasks: plan.tasks.map((t) => ({ ...t, resident: swap(t.resident) })),
   };

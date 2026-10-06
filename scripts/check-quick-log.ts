@@ -32,13 +32,18 @@ const directory = {
 };
 
 const wire = {
-  summary: "Visit with Rivka Cohen; her daughter Sarah is new.",
+  summary: "Visit with Rivka Cohen; her daughter Sarah is new. Esther moved to a new place, Oak Terrace.",
+  new_facilities: [
+    { key: "NF1", name: "oak terrace", facility_type: "assisted_living", city: "Beachwood", address: "", notes: "" },
+  ],
   // "Rifka" should be flagged as maybe the existing "Rivka"; the
   // nameless one should be dropped with a question.
   new_residents: [
     { key: "NR1", first_name: "rifka", last_name: "", preferred_name: "", facility: "F1", room_number: "", status: "active",
       kosher_food_needs: "", visitation_needs: "", holiday_support_needs: "", private_internal_notes: "" },
     { key: "NR2", first_name: "", last_name: "", preferred_name: "", facility: "F1", room_number: "", status: "active",
+      kosher_food_needs: "", visitation_needs: "", holiday_support_needs: "", private_internal_notes: "" },
+    { key: "NR3", first_name: "esther", last_name: "katz", preferred_name: "", facility: "NF1", room_number: "4", status: "active",
       kosher_food_needs: "", visitation_needs: "", holiday_support_needs: "", private_internal_notes: "" },
   ],
   new_contacts: [
@@ -50,7 +55,17 @@ const wire = {
       add_to_visitation_needs: "", add_to_holiday_support_needs: "", add_to_private_notes: "" },
   ],
   transfers: [],
-  facility_updates: [],
+  // NF1 can't be "updated" (its details go on the new facility itself) -> dropped with a question.
+  facility_updates: [
+    { facility: "NF1", engagement_status: "", visit_priority: "", kosher_food_availability: "", main_phone: "", add_to_notes: "x" },
+  ],
+  // Exactly one of resident/facility: the last one names both -> dropped with a question.
+  profile_notes: [
+    { resident: "R1", facility: "", note: "Hard of hearing; sit on her left." },
+    { resident: "", facility: "NF1", note: "Sign in at the back desk." },
+    { resident: "NR3", facility: "", note: "Loves Yiddish songs." },
+    { resident: "R1", facility: "F1", note: "bad" },
+  ],
   interactions: [
     { interaction_type: "resident_visit", occurred_at: "2026-09-25T15:00", facility: "F1", resident: "R1", contact: "",
       volunteers: [], notes: "Friendly visit; moved to room 212.", minutes_spent: 45, people_reached: 0, holiday: "", family_need: "" },
@@ -61,7 +76,11 @@ const wire = {
   ],
   tasks: [
     { title: "Bring grape juice", description: "", due_date: "2026-09-25", priority: "medium", task_category: "kosher_food",
-      assigned_to: "", resident: "R1", facility: "F1" },
+      assigned_to: "", resident: "R1", facility: "F1", contact: "" },
+    { title: "Call Sarah back", description: "", due_date: "2026-09-26", priority: "medium", task_category: "family_follow_up",
+      assigned_to: "", resident: "R1", facility: "F1", contact: "NC1" },
+    { title: "Visit Esther at Oak Terrace", description: "", due_date: "2026-09-30", priority: "medium", task_category: "visit",
+      assigned_to: "", resident: "NR3", facility: "NF1", contact: "" },
   ],
   questions: [],
 };
