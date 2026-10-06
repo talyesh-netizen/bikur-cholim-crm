@@ -5,6 +5,8 @@ import { ColorBadge } from "@/components/color-badge";
 import { primaryProfileColor, primaryProfileLabel } from "@/lib/domain/primary-profile";
 import { inactiveContactLabel } from "@/lib/domain/contact";
 import type { ContactListItem } from "@/lib/queries/contacts";
+import { formatDateTime } from "@/lib/format-date";
+import { labelFor, INTERACTION_TYPES } from "@/lib/domain/interaction";
 
 export function ContactCard({ contact }: { contact: ContactListItem }) {
   const roleLine = contact.role_at_facility
@@ -44,6 +46,16 @@ export function ContactCard({ contact }: { contact: ContactListItem }) {
           </div>
 
           {roleLine ? <p className="text-sm text-muted-foreground">{roleLine}</p> : null}
+
+          <p className="text-xs text-muted-foreground">
+            {contact.last_contact_at
+              ? `Last contact: ${formatDateTime(contact.last_contact_at)}${
+                  contact.last_contact_type
+                    ? ` · ${labelFor(INTERACTION_TYPES, contact.last_contact_type).replace(/\s*\(.*\)$/, "")}`
+                    : ""
+                }`
+              : "No contact logged yet"}
+          </p>
 
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
             {contact.phone ? <span>{contact.phone}</span> : null}

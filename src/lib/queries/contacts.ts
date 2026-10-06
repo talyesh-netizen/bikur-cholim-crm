@@ -3,6 +3,7 @@ import { CONTACT_QUICK_FILTERS } from "@/lib/domain/contact";
 import type { Contact, ResidentContact, FacilityContact } from "@/lib/domain/contact";
 import { escapeIlikeTerm, sanitizeForOrFilter } from "@/lib/supabase-filters";
 import { residentName } from "@/lib/domain/resident-name";
+import { selectAllPages } from "@/lib/queries/impact";
 
 export type ContactFilters = {
   search?: string;
@@ -22,6 +23,10 @@ export type ContactListItem = Contact & {
   facility_cluster_id: string | null;
   organization_name: string | null;
   organization_type: string | null;
+  /** Most recent interaction with this person -- one they were the
+   * contact on, or (for volunteers) a visit they were part of. */
+  last_contact_at: string | null;
+  last_contact_type: string | null;
 };
 
 export async function listContacts(filters: ContactFilters = {}): Promise<ContactListItem[]> {
@@ -51,6 +56,8 @@ export async function listContacts(filters: ContactFilters = {}): Promise<Contac
   const { data, error } = await query;
   if (error) throw new Error(error.message);
 
+  const lastContact = await lastContactByContact();
+
   return (data ?? []).map((row) => {
     const { facility_contacts, organization_contacts, ...contact } = row as Contact & {
       facility_contacts: {
@@ -76,8 +83,47 @@ export async function listContacts(filters: ContactFilters = {}): Promise<Contac
       facility_cluster_id: primaryFacility?.facilities?.geographic_cluster_id ?? null,
       organization_name: primaryOrg?.organizations?.name ?? null,
       organization_type: primaryOrg?.organizations?.organization_type ?? null,
+      last_contact_at: lastContact.get(contact.id)?.at ?? null,
+      last_contact_type: lastContact.get(contact.id)?.type ?? null,
     };
   });
+}
+
+/** contact id -> their latest interaction (when, and what kind). Reads
+ * every interaction that names a contact, plus every volunteer tag, in
+ * pages, under the signed-in person's own access rules. */
+async function lastContactByContact() {
+  const supabase = await createClient();
+  const [direct, volunteered] = await Promise.all([
+    selectAllPages<{ contact_id: string; occurred_at: string; interaction_type: string }>((from, to) =>
+      supabase
+        .from("interactions")
+        .select("contact_id, occurred_at, interaction_type")
+        .not("contact_id", "is", null)
+        .order("id")
+        .range(from, to)
+    ),
+    selectAllPages<{ contact_id: string; interactions: { occurred_at: string; interaction_type: string } | null }>(
+      (from, to) =>
+        supabase
+          .from("interaction_volunteers")
+          .select("contact_id, interactions(occurred_at, interaction_type)")
+          .order("interaction_id")
+          .order("contact_id")
+          .range(from, to) as unknown as PromiseLike<{
+          data: { contact_id: string; interactions: { occurred_at: string; interaction_type: string } | null }[] | null;
+          error: { message: string } | null;
+        }>
+    ),
+  ]);
+  const latest = new Map<string, { at: string; type: string }>();
+  const consider = (id: string, at: string, type: string) => {
+    const seen = latest.get(id);
+    if (!seen || at > seen.at) latest.set(id, { at, type });
+  };
+  for (const r of direct) consider(r.contact_id, r.occurred_at, r.interaction_type);
+  for (const r of volunteered) if (r.interactions) consider(r.contact_id, r.interactions.occurred_at, r.interactions.interaction_type);
+  return latest;
 }
 
 /** Lightweight {id, name} options for pickers (interaction forms, etc.)
