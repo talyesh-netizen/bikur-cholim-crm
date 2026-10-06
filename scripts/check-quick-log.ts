@@ -14,6 +14,7 @@ const ids = {
   R1: "22222222-2222-4222-8222-222222222222",
   C1: "33333333-3333-4333-8333-333333333333",
   S1: "44444444-4444-4444-8444-444444444444",
+  S2: "66666666-6666-4666-8666-666666666666",
 };
 const directory = {
   text: "",
@@ -23,6 +24,7 @@ const directory = {
     [ids.R1, "Rivka Cohen"],
     [ids.C1, "Dovid Klein"],
     [ids.S1, "Rabbi Test"],
+    [ids.S2, "Sara Test"],
   ]),
   selfAlias: "S1",
   residents: [
@@ -68,11 +70,11 @@ const wire = {
   ],
   interactions: [
     { interaction_type: "resident_visit", occurred_at: "2026-09-25T15:00", facility: "F1", resident: "R1", contact: "",
-      volunteers: [], notes: "Friendly visit; moved to room 212.", minutes_spent: 45, people_reached: 0, holiday: "", family_need: "" },
+      volunteers: [], also_by: ["S2", "S1", "S2", "C1"], notes: "Friendly visit; moved to room 212.", minutes_spent: 45, people_reached: 0, holiday: "", family_need: "" },
     { interaction_type: "food_delivery", occurred_at: "2026-09-08T12:00", facility: "F1", resident: "", contact: "",
-      volunteers: [], notes: "Rosh Hashana packages", minutes_spent: 0, people_reached: 15, holiday: "rosh_hashana", family_need: "" },
+      volunteers: [], also_by: [], notes: "Rosh Hashana packages", minutes_spent: 0, people_reached: 15, holiday: "rosh_hashana", family_need: "" },
     { interaction_type: "family_communication", occurred_at: "2026-09-25T15:30", facility: "F1", resident: "R1", contact: "NC1",
-      volunteers: ["C99"], notes: "", minutes_spent: 0, people_reached: 0, holiday: "", family_need: "update" },
+      volunteers: ["C99"], also_by: [], notes: "", minutes_spent: 0, people_reached: 0, holiday: "", family_need: "update" },
   ],
   tasks: [
     { title: "Bring grape juice", description: "", due_date: "2026-09-25", priority: "medium", task_category: "kosher_food",

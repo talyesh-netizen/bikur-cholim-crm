@@ -431,6 +431,13 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
     steps.push({ label, ok: true, href: residentId ? `/residents/${residentId}` : `/facilities/${facilityId}` });
   }
 
+  const colleagueIds = [...new Set(plan.interactions.flatMap((i) => i.also_by))];
+  const staffNames = new Map<string, string>();
+  if (colleagueIds.length > 0) {
+    const { data: colleagues } = await supabase.from("profiles").select("id, full_name").in("id", colleagueIds);
+    for (const c of colleagues ?? []) staffNames.set(c.id, c.full_name);
+  }
+
   const interactionIds: string[] = [];
   for (const i of plan.interactions) {
     const label = `Log: ${i.interaction_type.replace(/_/g, " ")}`;
@@ -443,9 +450,11 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
       fail(label, "Not saved, because someone it depends on wasn't saved.");
       continue;
     }
-    const { data, error } = await supabase
-      .from("interactions")
-      .insert({
+    // One entry for the writer, plus one per colleague who was also there.
+    const insertFor = (staffId: string) =>
+      supabase
+        .from("interactions")
+        .insert({
         interaction_type: i.interaction_type,
         occurred_at: occurredAt,
         facility_id: facilityId,
@@ -463,14 +472,15 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
           i.holiday && HOLIDAY_TYPES.includes(i.interaction_type) && SERVICE_FIELDS_BY_TYPE[i.interaction_type as InteractionType]?.includes("occasion")
             ? occasionForHoliday(i.holiday)
             : null,
-        staff_member_id: user.id,
+        staff_member_id: staffId,
         client_submission_id: quickLogSubmissionId([
-          user.id, i.interaction_type, occurredAt, facilityId, residentId, contactId, i.holiday, i.family_need,
+          staffId, i.interaction_type, occurredAt, facilityId, residentId, contactId, i.holiday, i.family_need,
           i.people_reached && i.people_reached > 0 ? i.people_reached : null,
         ]),
       })
-      .select("id")
-      .single();
+        .select("id")
+        .single();
+    const { data, error } = await insertFor(user.id);
     if (error?.code === "23505") {
       steps.push({ label: `${label} -- already saved earlier, not added again`, ok: true, href: residentId ? `/residents/${residentId}` : facilityId ? `/facilities/${facilityId}` : "/interactions" });
       continue;
@@ -493,6 +503,22 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
     if (residentId) touchedResidents.add(residentId);
     if (facilityId) touchedFacilities.add(facilityId);
     steps.push({ label, ok: true, href: residentId ? `/residents/${residentId}` : facilityId ? `/facilities/${facilityId}` : "/interactions" });
+    for (const colleague of i.also_by.filter((id) => id !== user.id)) {
+      const { data: copy, error: copyError } = await insertFor(colleague);
+      const copyLabel = `${label} -- also for ${staffNames.get(colleague) ?? "a colleague"}`;
+      if (copyError?.code === "23505") {
+        steps.push({ label: `${copyLabel} (already saved earlier)`, ok: true });
+        continue;
+      }
+      if (copyError || !copy) {
+        fail(copyLabel);
+        continue;
+      }
+      if (volunteerIds.length > 0) {
+        await supabase.rpc("set_interaction_volunteers", { p_interaction_id: copy.id, p_contact_ids: volunteerIds });
+      }
+      steps.push({ label: copyLabel, ok: true });
+    }
   }
 
   for (const t of plan.tasks) {

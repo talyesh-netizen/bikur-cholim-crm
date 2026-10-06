@@ -155,6 +155,9 @@ function buildPlanSchema<Ref extends z.ZodType>(ref: Ref, wire: boolean) {
         resident: optionalRef,
         contact: optionalRef,
         volunteers: z.array(ref),
+        /** Other staff (S aliases) who were there too ("visited with
+         * Sara") -- each gets the same entry under their own name. */
+        also_by: z.array(ref),
         notes: text,
         minutes_spent: maybe(z.number().int()),
         /** How many people a delivery, program or group visit reached. */

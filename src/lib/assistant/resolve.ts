@@ -189,6 +189,11 @@ export function resolvePlan(
     const resident = stillThere(resolve(i.resident, "resident"));
     const contact = stillThere(resolve(i.contact, "contact"));
     const volunteers = i.volunteers.map((v) => stillThere(resolve(v, "contact")));
+    // The writer themselves is never "also" -- they log it anyway.
+    const alsoBy = [...new Set(i.also_by.filter((a) => a !== directory.selfAlias).map((a) => resolve(a, "staff")))];
+    if (alsoBy.some((a) => !a)) {
+      questions.push(`Someone listed as also at the ${i.interaction_type.replace(/_/g, " ")} isn't a CRM user, so it isn't logged for them.`);
+    }
     if (facility === undefined || resident === undefined || contact === undefined || volunteers.some((v) => !v)) {
       unresolved(`someone in the ${i.interaction_type.replace(/_/g, " ")} entry`);
       continue;
@@ -197,7 +202,14 @@ export function resolvePlan(
       questions.push(`I couldn't work out when the ${i.interaction_type.replace(/_/g, " ")} happened, so I left it out.`);
       continue;
     }
-    plan.interactions.push({ ...i, facility, resident, contact, volunteers: volunteers as string[] });
+    plan.interactions.push({
+      ...i,
+      facility,
+      resident,
+      contact,
+      volunteers: volunteers as string[],
+      also_by: alsoBy.filter((a): a is string => !!a),
+    });
   }
 
   for (const t of model.tasks) {
