@@ -12,7 +12,7 @@ export function FacilityCard({ facility }: { facility: FacilityWithSummary }) {
     labelFor(FACILITY_TYPES, facility.facility_type),
     facility.city,
     `${facility.active_resident_count} resident${facility.active_resident_count === 1 ? "" : "s"}`,
-    lastVisit ? `visited ${lastVisit}` : "no visits yet",
+    lastVisit ? `last contact ${lastVisit}` : "nothing logged yet",
   ]
     .filter(Boolean)
     .join(" · ");

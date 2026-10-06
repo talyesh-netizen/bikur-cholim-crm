@@ -268,7 +268,7 @@ export default async function DashboardPage() {
                 <div>
                   <p className="font-medium leading-tight">{facility.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {facility.last_visit_at ? `Last visit ${formatRelative(facility.last_visit_at)}` : "No visit logged yet"}
+                    {facility.last_visit_at ? `Last contact ${formatRelative(facility.last_visit_at)}` : "Nothing logged yet"}
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1">
