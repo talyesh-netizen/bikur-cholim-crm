@@ -60,8 +60,11 @@ export function resolvePlan(
   const names: PlanNames = {};
   const matches: PossibleMatches = {};
   const questions = [...model.questions];
+  const newFacilityKeys = new Set(model.new_facilities.map((f) => f.key));
   const newResidentKeys = new Set(model.new_residents.map((r) => r.key));
   const newContactKeys = new Set(model.new_contacts.map((c) => c.key));
+
+  for (const f of model.new_facilities) names[`new:${f.key}`] = `${capitalizeWords(f.name)} (new)`;
 
   for (const r of model.new_residents) names[`new:${r.key}`] = `${residentName({ first_name: cap(r.first_name), last_name: cap(r.last_name) })} (new)`;
   for (const c of model.new_contacts) names[`new:${c.key}`] = `${capitalizeWords(c.name)} (new)`;
@@ -73,6 +76,7 @@ export function resolvePlan(
   // given but doesn't check out.
   const resolve = (alias: string | null, kind: Kind): string | null | undefined => {
     if (alias === null || alias === "") return null;
+    if (kind === "facility" && newFacilityKeys.has(alias)) return `new:${alias}`;
     if (kind === "resident" && newResidentKeys.has(alias)) return `new:${alias}`;
     if (kind === "contact" && newContactKeys.has(alias)) return `new:${alias}`;
     if (!alias.startsWith(prefix[kind])) return undefined;
@@ -86,11 +90,13 @@ export function resolvePlan(
 
   const plan: Plan = {
     summary: model.summary,
+    new_facilities: model.new_facilities.map((f) => ({ ...f, name: capitalizeWords(f.name.trim()) })),
     new_residents: [],
     new_contacts: [],
     resident_updates: [],
     transfers: [],
     facility_updates: [],
+    profile_notes: [],
     interactions: [],
     tasks: [],
     questions,
@@ -160,11 +166,22 @@ export function resolvePlan(
 
   for (const u of model.facility_updates) {
     const facility = resolve(u.facility, "facility");
-    if (!facility) {
+    // A new facility's details go on the new facility itself.
+    if (!facility || facility.startsWith("new:")) {
       unresolved(`the facility for a facility update`);
       continue;
     }
     plan.facility_updates.push({ ...u, facility });
+  }
+
+  for (const n of model.profile_notes) {
+    const resident = stillThere(resolve(n.resident, "resident"));
+    const facility = resolve(n.facility, "facility");
+    if (resident === undefined || facility === undefined || !!resident === !!facility || !n.note.trim()) {
+      unresolved(`who a profile note was about`);
+      continue;
+    }
+    plan.profile_notes.push({ resident, facility, note: n.note.trim() });
   }
 
   for (const i of model.interactions) {
@@ -187,11 +204,12 @@ export function resolvePlan(
     const assigned = resolve(t.assigned_to, "staff");
     const resident = stillThere(resolve(t.resident, "resident"));
     const facility = resolve(t.facility, "facility");
-    if (assigned === undefined || resident === undefined || facility === undefined) {
+    const contact = stillThere(resolve(t.contact, "contact"));
+    if (assigned === undefined || resident === undefined || facility === undefined || contact === undefined) {
       unresolved(`part of the task "${t.title}"`);
       continue;
     }
-    plan.tasks.push({ ...t, assigned_to: assigned, resident, facility });
+    plan.tasks.push({ ...t, assigned_to: assigned, resident, facility, contact });
   }
 
   return { plan, names, matches };
