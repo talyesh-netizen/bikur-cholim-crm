@@ -18,6 +18,10 @@ begin
   else
     raise exception 'FAIL (1): signed-out visitor could see % resident row(s)', v_count;
   end if;
+exception when insufficient_privilege then
+  -- Production goes further than an empty list: signed-out visitors have
+  -- no access to the table at all (see 20261006000002).
+  raise notice 'PASS (1): signed-out visitor is refused access to residents';
 end $$;
 reset role;
 
@@ -92,8 +96,11 @@ begin
   else
     raise exception 'FAIL (4b): admin insert did not take effect as expected';
   end if;
-  delete from public.geographic_clusters where name = 'Admin Test Cluster';
 end $$;
+-- Clean up as the database owner: the app never deletes clusters (it
+-- switches them off), so signed-in users have no delete permission.
+reset role;
+delete from public.geographic_clusters where name = 'Admin Test Cluster';
 
 -- ===== Check 5: at most one Primary Contact per resident =====
 do $$
@@ -184,10 +191,14 @@ begin
     from public.facility_summary
     where name = 'Maple Grove Rehabilitation and Nursing Center';
 
-  if v_last_visit = '2026-07-10 09:30'::timestamptz then
-    raise notice 'PASS (8): facility_summary computes the correct last visit date from the interaction log';
+  -- Since 20261006000001 a facility's last_visit_at is its last logged
+  -- contact of any kind (here a 2026-07-15 interaction), not only visits.
+  if v_last_visit = (select max(i.occurred_at) from public.interactions i
+                       join public.facilities f on f.id = i.facility_id
+                      where f.name = 'Maple Grove Rehabilitation and Nursing Center') then
+    raise notice 'PASS (8): facility_summary shows the facility''s most recent logged contact (%)', v_last_visit;
   else
-    raise exception 'FAIL (8): expected last visit 2026-07-10 09:30, got %', v_last_visit;
+    raise exception 'FAIL (8): facility_summary last contact % does not match the interaction log', v_last_visit;
   end if;
 end $$;
 

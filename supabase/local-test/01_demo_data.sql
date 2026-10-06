@@ -17,6 +17,9 @@ insert into auth.users (email, raw_user_meta_data) values
   ('noah.fischer@example.org', '{"full_name":"Noah Fischer"}'),
   ('dina.katz@example.org', '{"full_name":"Dina Katz"}');
 
+-- New accounts start switched off (an admin turns them on); the demo
+-- staff are switched on here so the checks can sign in as them.
+update public.profiles set active = true;
 update public.profiles set role = 'admin' where email = 'talia.green@example.org';
 
 -- ---------------------------------------------------------------------
