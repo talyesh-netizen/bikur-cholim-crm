@@ -52,6 +52,21 @@ export default function Home() {
       }
     });
 
+    // Password emails (lib/supabase/recovery.ts) put the one-time sign-in
+    // in the "#..." part of the link so it works on any device. This
+    // app's client only reads links made for the same browser, so take
+    // the session from the link ourselves, then ask for a new password.
+    const hash = new URLSearchParams(window.location.hash.slice(1));
+    const accessToken = hash.get("access_token");
+    const refreshToken = hash.get("refresh_token");
+    if (hash.get("type") === "recovery" && accessToken && refreshToken) {
+      isPasswordRecovery = true;
+      window.history.replaceState(null, "", window.location.pathname);
+      supabase.auth
+        .setSession({ access_token: accessToken, refresh_token: refreshToken })
+        .then(({ error }) => (error ? router.replace("/sign-in") : setShowResetForm(true)));
+    }
+
     supabase.auth.getSession().then(({ data }) => {
       if (isPasswordRecovery) return;
       router.replace(data.session ? "/dashboard" : "/sign-in");

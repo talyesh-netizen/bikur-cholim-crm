@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { sendPasswordSetupEmail } from "@/lib/supabase/recovery";
 
 export type SignInState = { error: string | null };
 
@@ -34,4 +35,13 @@ export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
   redirect("/sign-in");
+}
+
+/** "Forgot password?" on the sign-in page. Runs on the server so the
+ * emailed link works on any device -- see lib/supabase/recovery.ts. */
+export async function requestPasswordReset(email: string): Promise<{ ok: boolean }> {
+  const trimmed = email.trim();
+  if (!trimmed) return { ok: false };
+  const { error } = await sendPasswordSetupEmail(trimmed);
+  return { ok: !error };
 }
