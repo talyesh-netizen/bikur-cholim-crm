@@ -191,8 +191,13 @@ export type Plan = z.infer<typeof planSchema>;
  * can say "Rivka Cohen at Menorah Park" instead of showing IDs. */
 export type PlanNames = Record<string, string>;
 
+/** For each proposed new resident (by key, e.g. "NR1"), existing
+ * residents at the same facility with a near-identical name -- the
+ * review screen makes the person choose before saving. */
+export type PossibleMatches = Record<string, { id: string; name: string }[]>;
+
 export type AnalyzeResult =
-  | { ok: true; plan: Plan; names: PlanNames }
+  | { ok: true; plan: Plan; names: PlanNames; matches: PossibleMatches }
   | { ok: false; error: string };
 
 export type ApplyStep = { label: string; ok: boolean; href?: string; error?: string };

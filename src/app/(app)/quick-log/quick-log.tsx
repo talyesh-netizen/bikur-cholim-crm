@@ -21,7 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { residentName } from "@/lib/domain/resident-name";
 import { analyzeNote, applyPlan } from "@/lib/actions/assistant";
-import type { ApplyResult, Plan, PlanNames } from "@/lib/assistant/schema";
+import type { ApplyResult, Plan, PlanNames, PossibleMatches } from "@/lib/assistant/schema";
 import { labelFor, INTERACTION_TYPES, HOLIDAYS, FAMILY_NEEDS } from "@/lib/domain/interaction";
 import { RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { CONTACT_TYPES, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
@@ -31,7 +31,17 @@ import { formatDateOnly, formatDateTimeWithTime, orgLocalToIso } from "@/lib/for
 import { cn } from "@/lib/utils";
 
 type Section = keyof Omit<Plan, "summary" | "questions">;
-type Item = { section: Section; index: number; icon: LucideIcon; title: string; lines: string[] };
+type Item = {
+  section: Section;
+  index: number;
+  icon: LucideIcon;
+  title: string;
+  lines: string[];
+  /** Set on a new-resident card: its key, for the "same person?" choice. */
+  newResidentKey?: string;
+};
+/** Per flagged new resident: "new", or the id of the existing resident it really is. */
+type Decisions = Record<string, string>;
 
 const EXAMPLE =
   "Visited Mrs. Rivka Cohen at Menorah Park this afternoon, about 45 minutes. She moved to room 212. Her daughter Sarah Levine (216-555-0142) asked if we can bring grape juice for Shabbos — need to drop it off by Friday.";
@@ -40,8 +50,14 @@ const EXAMPLE =
 function describe(plan: Plan, names: PlanNames): Item[] {
   const n = (ref: string | null) => (ref ? names[ref] ?? "someone" : null);
   const items: Item[] = [];
-  const add = (section: Section, index: number, icon: LucideIcon, title: string, lines: (string | null | false)[]) =>
-    items.push({ section, index, icon, title, lines: lines.filter(Boolean) as string[] });
+  const add = (
+    section: Section,
+    index: number,
+    icon: LucideIcon,
+    title: string,
+    lines: (string | null | false)[],
+    newResidentKey?: string
+  ) => items.push({ section, index, icon, title, lines: lines.filter(Boolean) as string[], newResidentKey });
 
   plan.new_residents.forEach((r, i) =>
     add("new_residents", i, UserPlus, `Add new resident: ${residentName(r)}`, [
@@ -51,7 +67,7 @@ function describe(plan: Plan, names: PlanNames): Item[] {
       r.visitation_needs && `Visiting: ${r.visitation_needs}`,
       r.holiday_support_needs && `Holidays: ${r.holiday_support_needs}`,
       r.private_internal_notes && `Private note: ${r.private_internal_notes}`,
-    ])
+    ], r.key)
   );
   plan.new_contacts.forEach((c, i) =>
     add("new_contacts", i, UserPlus, `Add new contact: ${c.name}`, [
@@ -127,9 +143,29 @@ function withoutSkipped(plan: Plan, skipped: Set<string>): Plan {
   };
 }
 
+/** Where the person said a "new" resident is really someone already in
+ * the CRM: drop the new resident and point everything at the existing one. */
+function withDecisions(plan: Plan, decisions: Decisions): Plan {
+  const existing = new Map(
+    Object.entries(decisions)
+      .filter(([, choice]) => choice !== "new")
+      .map(([key, id]) => [`new:${key}`, id])
+  );
+  if (existing.size === 0) return plan;
+  const swap = (ref: string | null) => (ref && existing.has(ref) ? existing.get(ref)! : ref);
+  return {
+    ...plan,
+    new_residents: plan.new_residents.filter((r) => !existing.has(`new:${r.key}`)),
+    new_contacts: plan.new_contacts.map((c) => ({ ...c, resident: swap(c.resident) })),
+    interactions: plan.interactions.map((x) => ({ ...x, resident: swap(x.resident) })),
+    tasks: plan.tasks.map((t) => ({ ...t, resident: swap(t.resident) })),
+  };
+}
+
 export function QuickLog() {
   const [note, setNote] = useState("");
-  const [proposal, setProposal] = useState<{ plan: Plan; names: PlanNames } | null>(null);
+  const [proposal, setProposal] = useState<{ plan: Plan; names: PlanNames; matches: PossibleMatches } | null>(null);
+  const [decisions, setDecisions] = useState<Decisions>({});
   const [skipped, setSkipped] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ApplyResult | null>(null);
@@ -146,15 +182,16 @@ export function QuickLog() {
         setProposal(null);
         return;
       }
-      setProposal({ plan: response.plan, names: response.names });
+      setProposal({ plan: response.plan, names: response.names, matches: response.matches });
       setSkipped(new Set());
+      setDecisions({});
     });
   };
 
   const save = () => {
     if (!proposal) return;
     startSaving(async () => {
-      const response = await applyPlan(withoutSkipped(proposal.plan, skipped));
+      const response = await applyPlan(withDecisions(withoutSkipped(proposal.plan, skipped), decisions));
       setResult(response);
       setProposal(null);
     });
@@ -206,8 +243,21 @@ export function QuickLog() {
     );
   }
 
-  const items = proposal ? describe(proposal.plan, proposal.names) : [];
+  // Cards read "Shirly", not "Shirley (new)", once the person says it's her.
+  const shownNames: PlanNames = proposal ? { ...proposal.names } : {};
+  for (const [key, choice] of Object.entries(decisions)) {
+    if (choice !== "new") shownNames[`new:${key}`] = shownNames[choice] ?? shownNames[`new:${key}`];
+  }
+  const items = proposal ? describe(proposal.plan, shownNames) : [];
   const chosen = items.filter((item) => !skipped.has(`${item.section}:${item.index}`)).length;
+  // A flagged new resident that's still ticked needs an answer before saving.
+  const undecided = items.filter(
+    (item) =>
+      item.newResidentKey &&
+      proposal?.matches[item.newResidentKey]?.length &&
+      !skipped.has(`${item.section}:${item.index}`) &&
+      !decisions[item.newResidentKey]
+  ).length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -292,7 +342,11 @@ export function QuickLog() {
                         />
                         <Icon className="mt-0.5 size-5 shrink-0 text-primary" />
                         <span className="flex flex-col gap-0.5 text-sm">
-                          <span className="font-medium">{item.title}</span>
+                          <span className="font-medium">
+                            {item.newResidentKey && decisions[item.newResidentKey] && decisions[item.newResidentKey] !== "new"
+                              ? `Use ${shownNames[decisions[item.newResidentKey]]} (already in the CRM)`
+                              : item.title}
+                          </span>
                           {item.lines.map((line, i) => (
                             <span key={i} className="text-muted-foreground">
                               {line}
@@ -300,6 +354,13 @@ export function QuickLog() {
                           ))}
                         </span>
                       </label>
+                      {item.newResidentKey && on && proposal.matches[item.newResidentKey]?.length ? (
+                        <MaybeSamePerson
+                          matches={proposal.matches[item.newResidentKey]}
+                          choice={decisions[item.newResidentKey]}
+                          onChoose={(choice) => setDecisions((prev) => ({ ...prev, [item.newResidentKey!]: choice }))}
+                        />
+                      ) : null}
                     </li>
                   );
                 })}
@@ -307,7 +368,7 @@ export function QuickLog() {
             )}
 
             <div className="flex flex-wrap gap-2">
-              <Button onClick={save} disabled={saving || chosen === 0}>
+              <Button onClick={save} disabled={saving || chosen === 0 || undecided > 0}>
                 {saving ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
                 {saving ? "Saving…" : `Save ${chosen} ${chosen === 1 ? "item" : "items"}`}
               </Button>
@@ -315,9 +376,52 @@ export function QuickLog() {
                 Cancel
               </Button>
             </div>
+            {undecided > 0 ? (
+              <p className="text-sm font-medium text-[var(--tone-attention-fg)]">
+                Before saving, answer &ldquo;same person or someone new?&rdquo; above.
+              </p>
+            ) : null}
             <p className="text-xs text-muted-foreground">Untick anything that&apos;s wrong. You can fix details afterwards on the record itself.</p>
           </CardContent>
         </Card>
+      ) : null}
+    </div>
+  );
+}
+
+/** Under a "new resident" card whose name nearly matches someone already
+ * at that facility: the person must say which it is before saving, so a
+ * misspelling never quietly creates a second record. */
+function MaybeSamePerson({
+  matches,
+  choice,
+  onChoose,
+}: {
+  matches: { id: string; name: string }[];
+  choice: string | undefined;
+  onChoose: (choice: string) => void;
+}) {
+  return (
+    <div className="mt-1 rounded-lg border border-[var(--tone-attention-fg)]/30 bg-[var(--tone-attention-bg)] p-3 text-sm text-[var(--tone-attention-fg)]">
+      <p className="mb-2 font-semibold">This may be someone already in the CRM. Same person?</p>
+      <div className="flex flex-wrap gap-2">
+        {matches.map((m) => (
+          <Button
+            key={m.id}
+            type="button"
+            size="sm"
+            variant={choice === m.id ? "default" : "outline"}
+            onClick={() => onChoose(m.id)}
+          >
+            Yes, it&apos;s {m.name}
+          </Button>
+        ))}
+        <Button type="button" size="sm" variant={choice === "new" ? "default" : "outline"} onClick={() => onChoose("new")}>
+          No, someone new
+        </Button>
+      </div>
+      {choice && choice !== "new" ? (
+        <p className="mt-2 text-xs">Nobody new will be added; this note is logged on their record.</p>
       ) : null}
     </div>
   );
