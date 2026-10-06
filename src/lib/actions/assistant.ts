@@ -96,9 +96,15 @@ export async function analyzeNote(
     ],
   };
 
+  // Stop before the page's time limit (maxDuration = 300 on the pages
+  // that host Quick Log), so a slow read ends with a clear message
+  // instead of the server cutting it off with nothing on screen.
+  const deadline = Date.now() + 270_000;
+  const timeLeft = () => deadline - Date.now();
+
   let modelPlan: ModelPlan;
   try {
-    const client = new Anthropic();
+    const client = new Anthropic({ maxRetries: 1 });
     let useFallbackBeta = true;
     const ask = async (messages: Anthropic.Beta.BetaMessageParam[]) => {
       if (useFallbackBeta) {
@@ -110,7 +116,7 @@ export async function analyzeNote(
             messages,
             betas: ["server-side-fallback-2026-07-01"],
             fallbacks: "default",
-          });
+          }, { timeout: timeLeft() });
         } catch (error) {
           // Not every account has the fallback beta (e.g. a brand-new
           // one): ask again without it rather than failing the note.
@@ -119,7 +125,7 @@ export async function analyzeNote(
           useFallbackBeta = false;
         }
       }
-      return client.beta.messages.create({ ...base, messages });
+      return client.beta.messages.create({ ...base, messages }, { timeout: timeLeft() });
     };
     const textOf = (response: Anthropic.Beta.BetaMessage) =>
       response.content.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("\n");
@@ -130,7 +136,7 @@ export async function analyzeNote(
       return { ok: false, error: "The assistant couldn't read that note. Please reword it, or use the regular forms." };
     }
     let result = parsePlanText(textOf(response));
-    if ("problem" in result) {
+    if ("problem" in result && timeLeft() > 45_000) {
       // One chance to fix its own answer, with the exact problem.
       console.warn("Quick Log: asking for a corrected plan:", result.problem.slice(0, 300));
       messages.push(
@@ -146,6 +152,13 @@ export async function analyzeNote(
     }
     modelPlan = result.plan;
   } catch (error) {
+    if (error instanceof Anthropic.APIConnectionTimeoutError) {
+      console.error("Quick Log: assistant request timed out");
+      return {
+        ok: false,
+        error: "Reading that note took too long. Your note is still in the box -- tap Read my note again, or split it into two shorter notes.",
+      };
+    }
     if (error instanceof Anthropic.APIError) {
       console.error("Quick Log: assistant request failed", error.status, error.message.slice(0, 300));
       return { ok: false, error: assistantErrorMessage(error) };

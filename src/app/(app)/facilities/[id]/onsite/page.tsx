@@ -23,8 +23,9 @@ import { getCurrentProfile } from "@/lib/get-current-profile";
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 // Reading a note takes the assistant anywhere from a few seconds to
-// about a minute; give the server action room so it isn't cut off.
-export const maxDuration = 120;
+// a couple of minutes for a long one; give the server action room so
+// it isn't cut off.
+export const maxDuration = 300;
 
 function needsVisit(lastVisitAt: string | null) {
   if (!lastVisitAt) return true;

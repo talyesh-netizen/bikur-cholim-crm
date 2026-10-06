@@ -3,8 +3,9 @@ import { SectionIcon } from "@/components/section-icon";
 import { Sparkles } from "lucide-react";
 
 // Reading a note takes the assistant anywhere from a few seconds to
-// about a minute; give the server action room so it isn't cut off.
-export const maxDuration = 120;
+// a couple of minutes for a long one; give the server action room so
+// it isn't cut off.
+export const maxDuration = 300;
 
 export default function QuickLogPage() {
   return (
