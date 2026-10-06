@@ -74,29 +74,44 @@ export async function analyzeNote(
     new Date()
   );
 
+  const request = {
+    model: MODEL,
+    max_tokens: 16000,
+    thinking: { type: "adaptive" as const },
+    output_config: { effort: "medium" as const, format: betaZodOutputFormat(wirePlanSchema) },
+    system: [
+      { type: "text" as const, text: SYSTEM_PROMPT },
+      { type: "text" as const, text: `DIRECTORY\n\n${directory.text}`, cache_control: { type: "ephemeral" as const } },
+    ],
+    messages: [
+      {
+        role: "user" as const,
+        content: `Current time in Cleveland: ${weekday}, ${now.replace("T", " ")}.\nThe person writing is ${
+          directory.selfAlias ?? "a staff member"
+        }.${onSiteLine}\n\nNOTE:\n${trimmed}`,
+      },
+    ],
+  };
+
   let modelPlan: ModelPlan;
   try {
     const client = new Anthropic();
-    const response = await client.beta.messages.parse({
-      model: MODEL,
-      max_tokens: 16000,
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
-      thinking: { type: "adaptive" },
-      output_config: { effort: "medium", format: betaZodOutputFormat(wirePlanSchema) },
-      system: [
-        { type: "text", text: SYSTEM_PROMPT },
-        { type: "text", text: `DIRECTORY\n\n${directory.text}`, cache_control: { type: "ephemeral" } },
-      ],
-      messages: [
-        {
-          role: "user",
-          content: `Current time in Cleveland: ${weekday}, ${now.replace("T", " ")}.\nThe person writing is ${
-            directory.selfAlias ?? "a staff member"
-          }.${onSiteLine}\n\nNOTE:\n${trimmed}`,
-        },
-      ],
-    });
+    let response;
+    try {
+      // With the server-side fallback, a request one model declines is
+      // re-run on another inside the same call.
+      response = await client.beta.messages.parse({
+        ...request,
+        betas: ["server-side-fallback-2026-07-01"],
+        fallbacks: "default",
+      });
+    } catch (error) {
+      // Not every account has the fallback beta (e.g. a brand-new one):
+      // ask again without it rather than failing the note.
+      if (!(error instanceof Anthropic.BadRequestError)) throw error;
+      console.warn("Quick Log: retrying without the fallback beta:", error.message.slice(0, 200));
+      response = await client.beta.messages.parse(request);
+    }
 
     const plan = response.stop_reason === "refusal" ? null : fromWire(response.parsed_output);
     if (!plan) {
@@ -104,11 +119,34 @@ export async function analyzeNote(
     }
     modelPlan = plan;
   } catch (error) {
-    console.error("Quick Log: assistant request failed", error instanceof Anthropic.APIError ? error.status : "");
-    return { ok: false, error: "The assistant is unavailable right now. Please try again in a minute." };
+    if (error instanceof Anthropic.APIError) {
+      console.error("Quick Log: assistant request failed", error.status, error.message.slice(0, 300));
+      return { ok: false, error: assistantErrorMessage(error) };
+    }
+    console.error("Quick Log: assistant request failed", error);
+    return { ok: false, error: "Couldn't reach the assistant just now. Check the connection and try again." };
   }
 
   return { ok: true, ...resolvePlan(modelPlan, directory) };
+}
+
+/** A plain-English reason for a failed request, with the API's own
+ * short message so an admin can tell what to fix. Never includes the key. */
+function assistantErrorMessage(error: InstanceType<typeof Anthropic.APIError>): string {
+  const detail = ` (Anthropic said: ${error.status ?? "no status"} ${error.message.replace(/\s+/g, " ").slice(0, 160)})`;
+  if (error instanceof Anthropic.AuthenticationError || error instanceof Anthropic.PermissionDeniedError) {
+    return `Quick Log's Anthropic key wasn't accepted. An admin should check ANTHROPIC_API_KEY in Vercel.${detail}`;
+  }
+  if (error instanceof Anthropic.RateLimitError) {
+    return `Anthropic's limit for this account was reached for the moment. Wait a minute and tap Read my note again.${detail}`;
+  }
+  if (error.status === 402 || /credit|billing|balance/i.test(error.message)) {
+    return `The Anthropic account is out of credit. An admin should add credit at console.anthropic.com.${detail}`;
+  }
+  if (error.status === 529 || (error.status ?? 0) >= 500) {
+    return `The assistant is busy right now. Please try again in a minute.${detail}`;
+  }
+  return `The assistant couldn't take that note.${detail}`;
 }
 
 /** Appends a dated line to an existing free-text field instead of
