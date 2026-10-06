@@ -66,7 +66,16 @@ function actionsFor(pathname: string): { context: string | null; actions: QuickA
   };
 }
 
-export function QuickAddMenu({ className, fullWidth = false }: { className?: string; fullWidth?: boolean }) {
+export function QuickAddMenu({
+  className,
+  fullWidth = false,
+  quickLog = true,
+}: {
+  className?: string;
+  fullWidth?: boolean;
+  /** False until Quick Log is switched on (see lib/quick-log-enabled). */
+  quickLog?: boolean;
+}) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [openedAt, setOpenedAt] = useState(pathname);
@@ -74,7 +83,9 @@ export function QuickAddMenu({ className, fullWidth = false }: { className?: str
   // Quick Log first everywhere: one note can cover what several of the
   // forms below would.
   const actions: QuickAction[] = [
-    { href: "/quick-log", label: "Quick Log", hint: "Type or speak a note and it files everything", icon: Sparkles },
+    ...(quickLog
+      ? [{ href: "/quick-log", label: "Quick Log", hint: "Dictate or type it messy — it sorts it out", icon: Sparkles }]
+      : []),
     ...pageActions,
   ];
 

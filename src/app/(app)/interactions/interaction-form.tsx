@@ -202,6 +202,11 @@ export function InteractionForm({
             placeholder="General facility interaction (no specific resident)"
             allowEmpty
           />
+          {interactionType === "family_communication" ? (
+            <p className="text-xs text-muted-foreground">
+              Whose family? Pick the resident (or the family member under Contact) so it counts toward families supported.
+            </p>
+          ) : null}
         </Field>
       ) : null}
 
@@ -357,8 +362,11 @@ export function InteractionForm({
         </div>
       ) : null}
 
-      <Field label="Notes" htmlFor="notes" error={fieldErrors.notes}>
+      <Field label="What happened" htmlFor="notes" error={fieldErrors.notes}>
         <Textarea id="notes" name="notes" rows={4} defaultValue={values.notes} />
+        <p className="text-xs text-muted-foreground">
+          About this visit or call only. Lasting facts (like &ldquo;hard of hearing&rdquo;) go in Profile notes on their page.
+        </p>
       </Field>
 
       <Field label="Time spent" htmlFor="minutes_spent" error={fieldErrors.minutes_spent}>

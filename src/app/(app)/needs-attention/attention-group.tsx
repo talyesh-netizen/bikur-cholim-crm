@@ -11,12 +11,16 @@ export function AttentionGroup({
   explanation,
   residents,
   detail,
+  showAll = false,
 }: {
   title: string;
   explanation: string;
   residents: AttentionResident[];
   detail: (r: AttentionResident) => string;
+  /** Long lists stop at SHOW_AT_MOST with a link to see everyone. */
+  showAll?: boolean;
 }) {
+  const shown = showAll ? residents : residents.slice(0, SHOW_AT_MOST);
   return (
     <Card>
       <CardHeader>
@@ -31,7 +35,7 @@ export function AttentionGroup({
           <p className="text-sm text-muted-foreground">Nobody right now.</p>
         ) : (
           <div className="flex flex-col divide-y divide-border">
-            {residents.slice(0, SHOW_AT_MOST).map((r) => (
+            {shown.map((r) => (
               <Link
                 key={r.id}
                 href={`/residents/${r.id}`}
@@ -44,8 +48,10 @@ export function AttentionGroup({
                 <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
               </Link>
             ))}
-            {residents.length > SHOW_AT_MOST ? (
-              <p className="pt-2.5 text-sm text-muted-foreground">…and {residents.length - SHOW_AT_MOST} more.</p>
+            {residents.length > shown.length ? (
+              <Link href="/needs-attention?all=1" className="pt-2.5 text-sm font-medium text-primary hover:underline">
+                Show all {residents.length} &rarr;
+              </Link>
             ) : null}
           </div>
         )}

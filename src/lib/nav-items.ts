@@ -79,6 +79,11 @@ export function isActive(pathname: string, href: string, alsoActive: string[] = 
 
 /** The nav items that don't get a full-time slot in the mobile bottom
  * bar -- shown on the /more page instead. */
-export function mobileMoreItems() {
-  return NAV_ITEMS.filter((item) => !MOBILE_PRIMARY_HREFS.includes(item.href));
+export function mobileMoreItems({ quickLog = true }: { quickLog?: boolean } = {}) {
+  return navItems({ quickLog }).filter((item) => !MOBILE_PRIMARY_HREFS.includes(item.href));
+}
+
+/** The menu, minus Quick Log while it isn't switched on. */
+export function navItems({ quickLog = true }: { quickLog?: boolean } = {}) {
+  return quickLog ? NAV_ITEMS : NAV_ITEMS.filter((item) => item.href !== "/quick-log");
 }

@@ -20,6 +20,9 @@ const STALE_RESIDENT_VISIT_DAYS = 30;
 // the resident default, since visit_priority already signals urgency.
 const STALE_HIGH_PRIORITY_FACILITY_VISIT_DAYS = 14;
 
+/** Today shows only the first few of each list; Needs attention has them all. */
+export const TODAY_SNAPSHOT_SIZE = 5;
+
 function daysAgoIso(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() - days);
@@ -29,7 +32,10 @@ function daysAgoIso(days: number): string {
 export type DashboardSummary = {
   overdueTasks: TaskWithNames[];
   dueTodayTasks: TaskWithNames[];
+  /** The few longest-waiting, for the Today snapshot... */
   staleResidents: ResidentWithSummary[];
+  /** ...and how many there are in all (the full list is on Needs attention). */
+  staleResidentsTotal: number;
   facilitiesNeedingAttention: FacilityWithSummary[];
   recentActivity: Awaited<ReturnType<typeof listRecentInteractions>>;
   counts: {
@@ -43,14 +49,12 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
   const supabase = await createClient();
   const today = getLocalToday();
   const staleResidentCutoff = daysAgoIso(STALE_RESIDENT_VISIT_DAYS);
-  const staleFacilityCutoff = daysAgoIso(STALE_HIGH_PRIORITY_FACILITY_VISIT_DAYS);
 
   const [
     overdueTasks,
     dueTodayTasksRaw,
     staleResidentsRaw,
-    followUpFacilitiesRaw,
-    highPriorityFacilitiesRaw,
+    facilitiesNeedingAttention,
     recentActivity,
     openTasksCount,
     activeResidentsCount,
@@ -64,22 +68,12 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
       .in("status", OPEN_TASK_STATUSES as unknown as string[]),
     supabase
       .from("resident_summary")
-      .select("*")
+      .select("*", { count: "exact" })
       .in("status", ACTIVE_RESIDENT_STATUSES)
       .or(`last_visit_at.is.null,last_visit_at.lt.${staleResidentCutoff}`)
       .order("last_visit_at", { ascending: true, nullsFirst: true })
-      .limit(10),
-    supabase
-      .from("facility_summary")
-      .select("*")
-      .eq("active", true)
-      .eq("engagement_status", "follow_up_needed"),
-    supabase
-      .from("facility_summary")
-      .select("*")
-      .eq("active", true)
-      .eq("visit_priority", "high")
-      .or(`last_visit_at.is.null,last_visit_at.lt.${staleFacilityCutoff}`),
+      .limit(TODAY_SNAPSHOT_SIZE),
+    getFacilitiesNeedingAttention(),
     listRecentInteractions(8),
     supabase
       .from("tasks")
@@ -97,8 +91,6 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
 
   if (dueTodayTasksRaw.error) throw new Error(dueTodayTasksRaw.error.message);
   if (staleResidentsRaw.error) throw new Error(staleResidentsRaw.error.message);
-  if (followUpFacilitiesRaw.error) throw new Error(followUpFacilitiesRaw.error.message);
-  if (highPriorityFacilitiesRaw.error) throw new Error(highPriorityFacilitiesRaw.error.message);
 
   const dueTodayTasks = (dueTodayTasksRaw.data ?? []).map((row) => {
     const r = row as unknown as {
@@ -116,18 +108,12 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
     };
   });
 
-  // Merge the two "needs attention" facility queries and de-duplicate
-  // (a facility can be both follow-up-flagged and high-priority-stale).
-  const facilityById = new Map<string, FacilityWithSummary>();
-  for (const f of [...(followUpFacilitiesRaw.data ?? []), ...(highPriorityFacilitiesRaw.data ?? [])] as FacilityWithSummary[]) {
-    facilityById.set(f.id, f);
-  }
-
   return {
     overdueTasks,
     dueTodayTasks,
     staleResidents: (staleResidentsRaw.data ?? []) as ResidentWithSummary[],
-    facilitiesNeedingAttention: Array.from(facilityById.values()),
+    staleResidentsTotal: staleResidentsRaw.count ?? 0,
+    facilitiesNeedingAttention,
     recentActivity,
     counts: {
       openTasks: openTasksCount.count ?? 0,
@@ -135,4 +121,27 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
       activeFacilities: activeFacilitiesCount.count ?? 0,
     },
   };
+}
+
+/** Facilities flagged "follow up needed", plus high-priority ones with
+ * nothing logged in STALE_HIGH_PRIORITY_FACILITY_VISIT_DAYS -- one list,
+ * no duplicates, longest-quiet first. Used by Today (first few) and
+ * Needs attention (all). */
+export async function getFacilitiesNeedingAttention(): Promise<FacilityWithSummary[]> {
+  const supabase = await createClient();
+  const staleFacilityCutoff = daysAgoIso(STALE_HIGH_PRIORITY_FACILITY_VISIT_DAYS);
+  const [followUp, highPriority] = await Promise.all([
+    supabase.from("facility_summary").select("*").eq("active", true).eq("engagement_status", "follow_up_needed"),
+    supabase
+      .from("facility_summary")
+      .select("*")
+      .eq("active", true)
+      .eq("visit_priority", "high")
+      .or(`last_visit_at.is.null,last_visit_at.lt.${staleFacilityCutoff}`),
+  ]);
+  if (followUp.error) throw new Error(followUp.error.message);
+  if (highPriority.error) throw new Error(highPriority.error.message);
+  const byId = new Map<string, FacilityWithSummary>();
+  for (const f of [...(followUp.data ?? []), ...(highPriority.data ?? [])] as FacilityWithSummary[]) byId.set(f.id, f);
+  return [...byId.values()].sort((a, b) => (a.last_visit_at ?? "").localeCompare(b.last_visit_at ?? ""));
 }

@@ -17,7 +17,8 @@ export default function QuickLogPage() {
         <p className="text-sm text-muted-foreground">
           Type or dictate what happened, the way you&apos;d tell a colleague. The assistant works out who it&apos;s
           about, logs the visit or call, updates profiles, adds anyone new, and sets follow-ups. You check it
-          before anything is saved.
+          before anything is saved. Best for quick, messy notes or several things at once; to fill in one
+          entry step by step, use <span className="font-medium">New &rarr; Log a visit</span> instead.
         </p>
       </div>
       <QuickLog />
