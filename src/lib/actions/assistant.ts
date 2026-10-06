@@ -1,5 +1,6 @@
 "use server";
 
+import { createHash } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { revalidatePath } from "next/cache";
@@ -103,10 +104,27 @@ export async function analyzeNote(note: string): Promise<AnalyzeResult> {
  * overwriting it, so nothing already written is ever lost. */
 function appendNote(existing: string | null, addition: string, today: string) {
   const line = `[${today}] ${addition.trim()}`;
+  if (existing?.includes(line)) return existing; // already added by an earlier save of this note
   return existing?.trim() ? `${existing.trim()}\n${line}` : line;
 }
 
 const blankToNull = (value: string | null) => (value?.trim() ? value.trim() : null);
+
+/** Same letters, ignoring case, spacing and punctuation -- for spotting
+ * that a "new" person from this note was already saved. */
+const sameName = (a: string | null, b: string | null) =>
+  (a ?? "").toLowerCase().replace(/[^\p{L}]/gu, "") === (b ?? "").toLowerCase().replace(/[^\p{L}]/gu, "");
+
+/** A stable id for one logged interaction, built from what makes it
+ * that interaction (who logged it, when, where, with whom, what kind),
+ * so saving the same note twice -- or reading it again and saving --
+ * hits the client_submission_id unique index instead of logging it
+ * twice. The note text is left out on purpose: re-reading a note can
+ * word the summary slightly differently. */
+function quickLogSubmissionId(parts: (string | number | null)[]) {
+  const h = createHash("sha256").update(`quick-log:${parts.map((p) => p ?? "").join("|")}`).digest("hex");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-a${h.slice(17, 20)}-${h.slice(20, 32)}`;
+}
 
 /**
  * Step 2 of Quick Log: save a plan the staff member reviewed. Runs with
@@ -142,6 +160,17 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
 
   for (const r of plan.new_residents) {
     const label = `New resident: ${residentName(r)}`;
+    // Saved already (e.g. this note was saved before)? Use that record.
+    const { data: sameHere } = await supabase
+      .from("residents")
+      .select("id, first_name, last_name")
+      .eq("current_facility_id", r.facility);
+    const existing = (sameHere ?? []).find((x) => sameName(x.first_name, r.first_name) && sameName(x.last_name, r.last_name));
+    if (existing) {
+      newIds.set(r.key, existing.id);
+      steps.push({ label: `${residentName(r)} is already in the CRM -- not added again`, ok: true, href: `/residents/${existing.id}` });
+      continue;
+    }
     const { data, error } = await supabase
       .from("residents")
       .insert({
@@ -175,7 +204,15 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
       fail(label, "Not saved, because the new resident they belong to wasn't saved.");
       continue;
     }
-    const { data, error } = await supabase
+    const { data: sameNamed } = await supabase
+      .from("contacts")
+      .select("id, name")
+      .eq("contact_type", c.contact_type)
+      .ilike("name", c.name.trim());
+    const existingContact = (sameNamed ?? []).find((x) => sameName(x.name, c.name));
+    const { data, error } = existingContact
+      ? { data: { id: existingContact.id }, error: null }
+      : await supabase
       .from("contacts")
       .insert({
         name: capitalizeWords(c.name.trim()),
@@ -195,7 +232,10 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
     newIds.set(c.key, data.id);
 
     let linkFailed = false;
-    if (residentId) {
+    const alreadyLinked = async (table: "resident_contacts" | "facility_contacts", column: string, id: string) =>
+      !!existingContact &&
+      !!(await supabase.from(table).select("id").eq("contact_id", data.id).eq(column, id).eq("active", true).limit(1)).data?.length;
+    if (residentId && !(await alreadyLinked("resident_contacts", "resident_id", residentId))) {
       const { error: linkError } = await supabase.from("resident_contacts").insert({
         resident_id: residentId,
         contact_id: data.id,
@@ -206,7 +246,7 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
       linkFailed ||= !!linkError;
       touchedResidents.add(residentId);
     }
-    if (c.facility) {
+    if (c.facility && !(await alreadyLinked("facility_contacts", "facility_id", c.facility))) {
       const { error: linkError } = await supabase.from("facility_contacts").insert({
         facility_id: c.facility,
         contact_id: data.id,
@@ -220,7 +260,9 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
     steps.push(
       linkFailed
         ? { label, ok: false, href: `/contacts/${data.id}`, error: "Saved, but not linked to their resident/facility -- please link them by hand." }
-        : { label, ok: true, href: `/contacts/${data.id}` }
+        : existingContact
+          ? { label: `${capitalizeWords(c.name)} is already in the CRM -- not added again`, ok: true, href: `/contacts/${data.id}` }
+          : { label, ok: true, href: `/contacts/${data.id}` }
     );
   }
 
@@ -246,6 +288,10 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
     if (blankToNull(u.add_to_holiday_support_needs)) changes.holiday_support_needs = appendNote(current.holiday_support_needs, u.add_to_holiday_support_needs!, today);
     if (canWritePrivateNotes && blankToNull(u.add_to_private_notes)) changes.private_internal_notes = appendNote(current.private_internal_notes, u.add_to_private_notes!, today);
     const who = residentName(current);
+    const currentValues = current as Record<string, string | null>;
+    for (const key of ["kosher_food_needs", "visitation_needs", "holiday_support_needs", "private_internal_notes"]) {
+      if (key in changes && changes[key] === currentValues[key]) delete changes[key];
+    }
     if (Object.keys(changes).length === 0) continue;
     const { data: updated, error } = await supabase.from("residents").update(changes).eq("id", u.resident).select("id");
     if (error || !updated?.length) {
@@ -264,6 +310,10 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
       p_reason: blankToNull(t.reason),
       p_notes: null,
     });
+    if (error && /already at this facility/i.test(error.message)) {
+      steps.push({ label: "Already at that facility -- no move needed", ok: true, href: `/residents/${t.resident}` });
+      continue;
+    }
     if (error) {
       fail(label, "Not saved -- please use \"Move to another facility\" on their page.");
       continue;
@@ -289,6 +339,7 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
     if (u.kosher_food_availability) changes.kosher_food_availability = u.kosher_food_availability;
     if (blankToNull(u.main_phone)) changes.main_phone = u.main_phone!.trim();
     if (blankToNull(u.add_to_notes)) changes.notes = appendNote(current.notes, u.add_to_notes!, today);
+    if (changes.notes === current.notes) delete changes.notes;
     if (Object.keys(changes).length === 0) continue;
     const label = `Update facility: ${current.name}`;
     const { data: updated, error } = await supabase.from("facilities").update(changes).eq("id", u.facility).select("id");
@@ -332,9 +383,17 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
             ? occasionForHoliday(i.holiday)
             : null,
         staff_member_id: user.id,
+        client_submission_id: quickLogSubmissionId([
+          user.id, i.interaction_type, occurredAt, i.facility, residentId, contactId, i.holiday, i.family_need,
+          i.people_reached && i.people_reached > 0 ? i.people_reached : null,
+        ]),
       })
       .select("id")
       .single();
+    if (error?.code === "23505") {
+      steps.push({ label: `${label} -- already saved earlier, not added again`, ok: true, href: residentId ? `/residents/${residentId}` : i.facility ? `/facilities/${i.facility}` : "/interactions" });
+      continue;
+    }
     if (error || !data) {
       fail(label);
       continue;
@@ -363,6 +422,19 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
       continue;
     }
     const dueDate = t.due_date && /^\d{4}-\d{2}-\d{2}$/.test(t.due_date) ? t.due_date : null;
+    // The same open task saved from an earlier save of this note?
+    let sameTask = supabase
+      .from("tasks")
+      .select("id")
+      .eq("title", t.title.trim())
+      .eq("assigned_to", t.assigned_to ?? user.id)
+      .in("status", ["open", "in_progress", "waiting"]);
+    sameTask = residentId ? sameTask.eq("resident_id", residentId) : sameTask.is("resident_id", null);
+    sameTask = dueDate ? sameTask.eq("due_date", dueDate) : sameTask.is("due_date", null);
+    if ((await sameTask.limit(1)).data?.length) {
+      steps.push({ label: `${label} -- already on the task list, not added again`, ok: true, href: "/tasks" });
+      continue;
+    }
     const { data, error } = await supabase
       .from("tasks")
       .insert({

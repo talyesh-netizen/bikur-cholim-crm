@@ -1,5 +1,5 @@
 import type { Directory } from "@/lib/assistant/directory";
-import type { ModelPlan, Plan, PlanNames } from "@/lib/assistant/schema";
+import type { ModelPlan, Plan, PlanNames, PossibleMatches } from "@/lib/assistant/schema";
 import { orgLocalToIso } from "@/lib/format-date";
 import { capitalizeWords } from "@/lib/format-text";
 import { residentName } from "@/lib/domain/resident-name";
@@ -53,8 +53,12 @@ export function likelyExisting(
  * every "NR1"/"NC1" key for "new:NR1"), checking each alias is the right
  * kind of record for where it's used. Anything that doesn't check out
  * is dropped and turned into a question, never guessed at. */
-export function resolvePlan(model: ModelPlan, directory: Directory): { plan: Plan; names: PlanNames } {
+export function resolvePlan(
+  model: ModelPlan,
+  directory: Directory
+): { plan: Plan; names: PlanNames; matches: PossibleMatches } {
   const names: PlanNames = {};
+  const matches: PossibleMatches = {};
   const questions = [...model.questions];
   const newResidentKeys = new Set(model.new_residents.map((r) => r.key));
   const newContactKeys = new Set(model.new_contacts.map((c) => c.key));
@@ -103,11 +107,12 @@ export function resolvePlan(model: ModelPlan, directory: Directory): { plan: Pla
       unresolved(`the facility for new resident ${who}`);
       continue;
     }
-    for (const match of likelyExisting(r, facility, directory.residents)) {
-      questions.push(
-        `"${who}" may already be in the CRM as ${residentName(match)} at ${directory.nameFor.get(facility) ?? "the same facility"}. ` +
-          `If it's the same person, change the name in your note to "${residentName(match)}" so it's logged on their record instead of adding someone new.`
-      );
+    // Shown on the new-resident card, which then asks "same person or
+    // someone new?" before anything can be saved.
+    const found = likelyExisting(r, facility, directory.residents);
+    if (found.length) {
+      matches[r.key] = found.map((m) => ({ id: m.id, name: residentName(m) }));
+      for (const m of found) names[m.id] = residentName(m);
     }
     if (!r.last_name) {
       questions.push(`${who} will be added without a last name -- add it to their profile when you learn it.`);
@@ -189,5 +194,5 @@ export function resolvePlan(model: ModelPlan, directory: Directory): { plan: Pla
     plan.tasks.push({ ...t, assigned_to: assigned, resident, facility });
   }
 
-  return { plan, names };
+  return { plan, names, matches };
 }

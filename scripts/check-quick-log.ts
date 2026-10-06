@@ -74,6 +74,6 @@ console.log("system prompt length:", SYSTEM_PROMPT.length, "chars");
 
 const model = fromWire(wire);
 if (!model) throw new Error("fromWire rejected the sample");
-const { plan, names } = resolvePlan(model, directory);
+const { plan, names, matches } = resolvePlan(model, directory);
 console.log("resolved plan valid:", planSchema.safeParse(plan).success);
-console.log(JSON.stringify({ plan, names }, null, 2));
+console.log(JSON.stringify({ plan, names, matches }, null, 2));
