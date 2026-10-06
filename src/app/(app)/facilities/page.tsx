@@ -8,6 +8,7 @@ import { getCurrentProfile } from "@/lib/get-current-profile";
 import { FacilityFilters } from "./facility-filters";
 import { FacilityCard } from "./facility-card";
 import { SectionIcon } from "@/components/section-icon";
+import { clusterColorMap } from "@/lib/category-colors";
 
 export default async function FacilitiesPage({
   searchParams,
@@ -29,6 +30,8 @@ export default async function FacilitiesPage({
     }),
     listGeographicClusters(true),
   ]);
+
+  const areaColors = clusterColorMap(clusters);
 
   return (
     <div className="flex flex-col gap-4">
@@ -72,7 +75,11 @@ export default async function FacilitiesPage({
       ) : (
         <div className="flex flex-col gap-3">
           {facilities.map((facility) => (
-            <FacilityCard key={facility.id} facility={facility} />
+            <FacilityCard
+              key={facility.id}
+              facility={facility}
+              areaColor={facility.geographic_cluster_id ? areaColors.get(facility.geographic_cluster_id) : undefined}
+            />
           ))}
         </div>
       )}

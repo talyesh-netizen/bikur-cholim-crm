@@ -4,16 +4,34 @@ import type { Task, TaskWithNames } from "@/lib/domain/task";
 import { getLocalToday } from "@/lib/format-date";
 import { residentName } from "@/lib/domain/resident-name";
 
-const SELECT_WITH_NAMES =
-  "*, residents(first_name, last_name, preferred_name), facilities(name), profiles!tasks_assigned_to_fkey(full_name)";
+export const SELECT_WITH_NAMES =
+  "*, residents(first_name, last_name, preferred_name), facilities(name), profiles!tasks_assigned_to_fkey(full_name), " +
+  "contacts(name, contact_type, organization, facility_contacts(role_at_facility, is_primary_contact, facilities(name)))";
 
-function toTaskWithNames(row: {
+type ContactJoin = {
+  name: string;
+  contact_type: string;
+  organization: string | null;
+  facility_contacts: { role_at_facility: string | null; is_primary_contact: boolean; facilities: { name: string } | null }[] | null;
+} | null;
+
+/** "CEO, Kendal at Oberlin" from the contact's facility link (their main
+ * one first), else just their organization. */
+function contactDetail(contact: NonNullable<ContactJoin>): string | null {
+  const links = [...(contact.facility_contacts ?? [])].sort((a, b) => Number(b.is_primary_contact) - Number(a.is_primary_contact));
+  const link = links.find((l) => l.facilities?.name) ?? null;
+  if (link?.facilities?.name) return [link.role_at_facility, link.facilities.name].filter(Boolean).join(", ");
+  return contact.organization;
+}
+
+export function toTaskWithNames(row: {
   residents: { first_name: string | null; last_name: string | null; preferred_name: string | null } | null;
   facilities: { name: string } | null;
   profiles: { full_name: string } | null;
+  contacts?: ContactJoin;
   [key: string]: unknown;
 }): TaskWithNames {
-  const { residents: resident, facilities, profiles, ...task } = row;
+  const { residents: resident, facilities, profiles, contacts: contact, ...task } = row;
   return {
     ...(task as unknown as Task),
     resident_name: resident
@@ -21,6 +39,9 @@ function toTaskWithNames(row: {
       : null,
     facility_name: facilities?.name ?? null,
     assigned_to_name: profiles?.full_name ?? null,
+    contact_name: contact?.name ?? null,
+    contact_type: contact?.contact_type ?? null,
+    contact_detail: contact ? contactDetail(contact) : null,
   };
 }
 
