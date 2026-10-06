@@ -25,6 +25,7 @@ export default async function FacilitiesPage({
       visitPriority: params.priority,
       facilityType: params.type,
       showInactive: params.inactive === "1",
+      withResidents: params.residents === "1",
     }),
     listGeographicClusters(true),
   ]);
