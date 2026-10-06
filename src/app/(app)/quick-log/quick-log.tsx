@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { VoiceButton } from "@/components/voice-button";
 import { residentName } from "@/lib/domain/resident-name";
 import { analyzeNote, applyPlan } from "@/lib/actions/assistant";
 import type { ApplyResult, Plan, PlanNames, PossibleMatches } from "@/lib/assistant/schema";
@@ -289,9 +290,16 @@ export function QuickLog({
     <div className="flex flex-col gap-4">
       <Card>
         <CardContent className="flex flex-col gap-3 pt-6">
-          <label htmlFor="quick-log-note" className="text-sm font-medium">
+          <label htmlFor="quick-log-note" className="text-base font-semibold">
             {onSite ? "Who did you see, and what happened?" : "What happened?"}
           </label>
+          <VoiceButton
+            disabled={reading || saving}
+            onText={(text) => {
+              setNote((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text));
+              setProposal(null);
+            }}
+          />
           <Textarea
             id="quick-log-note"
             value={note}
@@ -305,11 +313,11 @@ export function QuickLog({
             disabled={reading || saving}
           />
           <p className="text-xs text-muted-foreground">
-            On a phone, tap the microphone on your keyboard to speak instead of typing. Names, rooms, phone
-            numbers and anything that needs following up all help.
+            Talk or type, the way you&apos;d tell a colleague. Names, rooms, family, phone numbers and anything
+            that needs following up all help. You can fix the words in the box before reading it.
           </p>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
-          <Button onClick={read} disabled={reading || saving || !note.trim()} className="self-start">
+          <Button onClick={read} disabled={reading || saving || !note.trim()} size="lg" className="w-full sm:w-auto sm:self-start">
             {reading ? <Loader2 className="animate-spin" /> : <Sparkles />}
             {reading ? "Reading your note…" : proposal ? "Read it again" : "Read my note"}
           </Button>
