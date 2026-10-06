@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { PriorityBadge, TaskStatusBadge } from "@/components/status-badge";
-import { labelFor, TASK_CATEGORIES, OPEN_TASK_STATUSES } from "@/lib/domain/task";
+import { OPEN_TASK_STATUSES } from "@/lib/domain/task";
 import type { TaskWithNames } from "@/lib/domain/task";
 import { formatDateOnly, getLocalToday } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
 import { CalendarClock } from "lucide-react";
+import { TASK_WHO, taskWho } from "@/lib/category-colors";
+import { taskAboutLine } from "@/lib/task-about";
 
 export function isTaskOverdue(task: Pick<TaskWithNames, "due_date" | "status">): boolean {
   if (!task.due_date) return false;
@@ -17,22 +19,22 @@ export function TaskCard({ task }: { task: TaskWithNames }) {
   const overdue = isTaskOverdue(task);
   const dueToday = task.due_date === getLocalToday();
   const dueDate = formatDateOnly(task.due_date);
+  const who = TASK_WHO[taskWho(task)];
 
   return (
     <Link href={`/tasks/${task.id}`} className="group block">
       <Card
-        className={cn(
-          "transition-colors group-hover:border-primary/50",
-          overdue && "border-l-4 border-l-destructive"
-        )}
+        className="overflow-hidden border-l-4 transition-colors group-hover:border-primary/50"
+        style={{ borderLeftColor: who.color }}
       >
         <CardContent className="flex flex-col gap-2 p-4 sm:p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-base font-semibold leading-snug">{task.title}</p>
-              <p className="text-sm text-muted-foreground">
-                {[task.resident_name, task.facility_name].filter(Boolean).join(" · ") ||
-                  labelFor(TASK_CATEGORIES, task.task_category)}
+              <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
+                <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ backgroundColor: who.color }} />
+                <span className="shrink-0 font-medium text-foreground">{who.label}</span>
+                <span className="truncate">· {taskAboutLine(task)}</span>
               </p>
             </div>
             <TaskStatusBadge status={task.status} className="shrink-0" />

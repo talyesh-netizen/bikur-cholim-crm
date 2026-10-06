@@ -4,10 +4,9 @@ import type { TaskWithNames } from "@/lib/domain/task";
 import type { FacilityWithSummary } from "@/lib/domain/facility";
 import { ACTIVE_RESIDENT_STATUSES } from "@/lib/domain/resident";
 import type { ResidentWithSummary } from "@/lib/domain/resident";
-import { listTasks } from "./tasks";
+import { listTasks, SELECT_WITH_NAMES, toTaskWithNames } from "./tasks";
 import { listRecentInteractions } from "./interactions";
 import { getLocalToday } from "@/lib/format-date";
-import { residentName } from "@/lib/domain/resident-name";
 
 // A resident with no logged visit in this many days shows up under
 // "residents without a recent visit." Phase One keeps this a single
@@ -63,7 +62,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
     listTasks({ overdueOnly: true }),
     supabase
       .from("tasks")
-      .select("*, residents(first_name, last_name, preferred_name), facilities(name), profiles!tasks_assigned_to_fkey(full_name)")
+      .select(SELECT_WITH_NAMES)
       .eq("due_date", today)
       .in("status", OPEN_TASK_STATUSES as unknown as string[]),
     supabase
@@ -92,21 +91,9 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
   if (dueTodayTasksRaw.error) throw new Error(dueTodayTasksRaw.error.message);
   if (staleResidentsRaw.error) throw new Error(staleResidentsRaw.error.message);
 
-  const dueTodayTasks = (dueTodayTasksRaw.data ?? []).map((row) => {
-    const r = row as unknown as {
-      residents: { first_name: string | null; last_name: string | null; preferred_name: string | null } | null;
-      facilities: { name: string } | null;
-      profiles: { full_name: string } | null;
-      [key: string]: unknown;
-    };
-    const { residents, facilities, profiles, ...task } = r;
-    return {
-      ...(task as unknown as TaskWithNames),
-      resident_name: residents ? residentName(residents) : null,
-      facility_name: facilities?.name ?? null,
-      assigned_to_name: profiles?.full_name ?? null,
-    };
-  });
+  const dueTodayTasks = (dueTodayTasksRaw.data ?? []).map((row) =>
+    toTaskWithNames(row as unknown as Parameters<typeof toTaskWithNames>[0])
+  );
 
   return {
     overdueTasks,

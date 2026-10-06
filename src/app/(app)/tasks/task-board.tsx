@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { TASK_STATUSES, labelFor, TASK_CATEGORIES, OPEN_TASK_STATUSES } from "@/lib/domain/task";
+import { TASK_STATUSES, OPEN_TASK_STATUSES } from "@/lib/domain/task";
 import type { TaskWithNames } from "@/lib/domain/task";
 import { TaskStatusSelect } from "./task-status-select";
+import { TASK_WHO, taskWho } from "@/lib/category-colors";
+import { taskAboutLine } from "@/lib/task-about";
 import { formatDateOnly, getLocalToday } from "@/lib/format-date";
 
 // Cancelled tasks aren't actionable, so they don't get a column here --
@@ -48,21 +50,24 @@ export function TaskBoard({ tasks }: { tasks: TaskWithNames[] }) {
               column.tasks.map((task) => {
                 const overdue = isOverdue(task);
                 const dueDate = formatDateOnly(task.due_date);
+                const who = TASK_WHO[taskWho(task)];
                 return (
                   <div
                     key={task.id}
                     className={
                       overdue
-                        ? "flex flex-col gap-2 rounded-md border border-destructive/50 bg-card p-3"
-                        : "flex flex-col gap-2 rounded-md border border-border bg-card p-3"
+                        ? "flex flex-col gap-2 rounded-md border border-l-4 border-destructive/50 bg-card p-3"
+                        : "flex flex-col gap-2 rounded-md border border-l-4 border-border bg-card p-3"
                     }
+                    style={{ borderLeftColor: who.color }}
                   >
                     <Link href={`/tasks/${task.id}`} className="flex flex-col gap-1 hover:underline">
                       <p className="text-sm font-medium leading-tight">{task.title}</p>
-                      <span className="text-xs text-muted-foreground">
-                        {[task.resident_name, task.facility_name].filter(Boolean).join(" · ") ||
-                          labelFor(TASK_CATEGORIES, task.task_category)}
+                      <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                        <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ backgroundColor: who.color }} />
+                        <span className="shrink-0 font-medium text-foreground">{who.label}</span>
                       </span>
+                      <span className="text-xs text-muted-foreground">{taskAboutLine(task)}</span>
                     </Link>
 
                     <div className="flex flex-wrap items-center gap-1.5">

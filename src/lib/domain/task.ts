@@ -62,4 +62,9 @@ export type TaskWithNames = Task & {
   resident_name: string | null;
   facility_name: string | null;
   assigned_to_name: string | null;
+  /** The contact the task is about, if any, with their type and where
+   * they fit in (e.g. "CEO, Kendal at Oberlin") -- for the task tile. */
+  contact_name?: string | null;
+  contact_type?: string | null;
+  contact_detail?: string | null;
 };
