@@ -12,10 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { signIn, type SignInState } from "@/lib/actions/auth";
+import { requestPasswordReset, signIn, type SignInState } from "@/lib/actions/auth";
 import { APP_NAME } from "@/lib/config";
-import { createClient } from "@/lib/supabase/client";
-import { getBrowserSiteUrl } from "@/lib/site-url";
 import { Eye, EyeOff } from "lucide-react";
 
 const initialState: SignInState = { error: null };
@@ -32,17 +30,10 @@ export default function SignInPage() {
       return;
     }
     setResetState("sending");
-    const supabase = createClient();
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      // Always send the reset link to the canonical domain (see
-      // lib/site-url.ts), not whichever preview URL this page happened
-      // to be opened on. That domain must also be listed under
-      // Authentication > URL Configuration > Redirect URLs in Supabase.
-      redirectTo: `${getBrowserSiteUrl()}/`,
-    });
+    const { ok } = await requestPasswordReset(email);
     // Same message either way -- confirming or denying that an email
     // exists in the system is its own small privacy leak.
-    setResetState(error ? "error" : "sent");
+    setResetState(ok ? "sent" : "error");
   }
 
   return (

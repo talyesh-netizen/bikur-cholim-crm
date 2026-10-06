@@ -5,6 +5,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendPasswordSetupEmail } from "@/lib/supabase/recovery";
 import { getCurrentProfile } from "@/lib/get-current-profile";
 import { capitalizeWords } from "@/lib/format-text";
 
@@ -212,10 +213,13 @@ export async function sendPasswordResetEmail(
     return { error: "Only an admin can send a password reset email." };
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase.auth.resetPasswordForEmail(email);
+  const { error } = await sendPasswordSetupEmail(email);
   if (error) {
-    return { error: "Something went wrong sending the reset email. Please try again." };
+    return {
+      error: /rate limit/i.test(error)
+        ? "Too many emails were sent in the last hour. Please wait a bit and try again."
+        : "Something went wrong sending the reset email. Please try again.",
+    };
   }
   return { error: null, sent: true };
 }
