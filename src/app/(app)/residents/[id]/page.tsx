@@ -242,7 +242,7 @@ export default async function ResidentDetailPage({
         </div>
       </Fold>
 
-      <Fold title="Notes" count={profileNotes.length}>
+      <Fold title="Profile notes" count={profileNotes.length}>
         <ProfileNotesCard targetType="resident" targetId={resident.id} notes={profileNotes} compact />
       </Fold>
 

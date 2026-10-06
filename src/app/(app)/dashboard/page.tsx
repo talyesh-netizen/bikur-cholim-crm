@@ -1,8 +1,9 @@
+import { quickLogEnabled } from "@/lib/quick-log-enabled";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getDashboardSummary } from "@/lib/queries/dashboard";
+import { getDashboardSummary, TODAY_SNAPSHOT_SIZE } from "@/lib/queries/dashboard";
 import { listFacilities } from "@/lib/queries/facilities";
 import { createClient } from "@/lib/supabase/server";
 import { TaskCard } from "../tasks/task-card";
@@ -164,12 +165,14 @@ export default async function DashboardPage() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Button asChild size="lg">
-          <Link href="/quick-log">
-            <Sparkles className="size-4" />
-            Quick Log
-          </Link>
-        </Button>
+        {quickLogEnabled() ? (
+          <Button asChild size="lg">
+            <Link href="/quick-log">
+              <Sparkles className="size-4" />
+              Quick Log
+            </Link>
+          </Button>
+        ) : null}
         <Button asChild size="lg" variant="outline">
           <Link href="/needs-attention">
             <BellRing className="size-4" />
@@ -202,7 +205,7 @@ export default async function DashboardPage() {
       />
 
       <SectionCard
-        title="Needs attention today"
+        title="Tasks due today or overdue"
         icon={AlertCircle}
         count={summary.overdueTasks.length + summary.dueTodayTasks.length}
         accent={summary.overdueTasks.length > 0 ? "destructive" : "warning"}
@@ -224,7 +227,7 @@ export default async function DashboardPage() {
         <SectionCard
           title="Residents without a recent visit"
           icon={UserRoundX}
-          count={summary.staleResidents.length}
+          count={summary.staleResidentsTotal}
           accent="warning"
           emptyMessage="Everyone active has had a visit logged in the last 30 days."
         >
@@ -249,6 +252,11 @@ export default async function DashboardPage() {
               </Link>
             ))}
           </div>
+          {summary.staleResidentsTotal > summary.staleResidents.length ? (
+            <Link href="/needs-attention" className="text-sm font-medium text-primary hover:underline">
+              See all {summary.staleResidentsTotal} on Needs attention &rarr;
+            </Link>
+          ) : null}
         </SectionCard>
 
         <SectionCard
@@ -259,7 +267,7 @@ export default async function DashboardPage() {
           emptyMessage="No facilities currently flagged as needing attention."
         >
           <div className="flex flex-col divide-y divide-border">
-            {summary.facilitiesNeedingAttention.map((facility) => (
+            {summary.facilitiesNeedingAttention.slice(0, TODAY_SNAPSHOT_SIZE).map((facility) => (
               <Link
                 key={facility.id}
                 href={`/facilities/${facility.id}`}
@@ -280,6 +288,11 @@ export default async function DashboardPage() {
               </Link>
             ))}
           </div>
+          {summary.facilitiesNeedingAttention.length > TODAY_SNAPSHOT_SIZE ? (
+            <Link href="/needs-attention" className="text-sm font-medium text-primary hover:underline">
+              See all {summary.facilitiesNeedingAttention.length} on Needs attention &rarr;
+            </Link>
+          ) : null}
         </SectionCard>
       </div>
 

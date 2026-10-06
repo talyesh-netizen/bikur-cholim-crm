@@ -51,8 +51,8 @@ export function ProfileNotesCard({
         onChange={(e) => setNote(e.target.value)}
         placeholder={
           targetType === "resident"
-            ? "Example: Great mood today, very talkative, asked about another group."
-            : "Example: New activities director starts Monday. Follow up about Chanukah."
+            ? "Something worth remembering, e.g. “Hard of hearing, sit on her left” or “Daughter Sarah visits Sundays”."
+            : "Something worth remembering, e.g. “Sign in at the front desk” or “Jen is the new activities director”."
         }
         rows={compact ? 3 : 4}
         disabled={pending}
@@ -69,27 +69,52 @@ export function ProfileNotesCard({
         ) : null}
       </div>
       <p className="text-xs text-muted-foreground">
-        Type or dictate naturally. The CRM shortens and cleans the note while keeping your original wording in the background.
+        For lasting facts that stay true. What happened on a particular visit or call goes in that visit&apos;s notes
+        instead, and anything still to do is a follow-up task.
       </p>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
     </div>
   ) : (
     <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
       <MessageSquarePlus className="size-4" />
-      Add note
+      {targetType === "resident" ? "Add profile note" : "Add facility note"}
     </Button>
   );
 
+  const list =
+    notes.length > 0 ? (
+      <ol className="flex flex-col divide-y divide-border border-t border-border">
+        {notes.map((item) => (
+          <li key={item.id} className="py-3 first:pt-3">
+            <p className="text-sm">{item.clean_note}</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {formatDateTime(item.created_at)}
+              {item.created_by_name ? " · " + item.created_by_name : ""}
+            </p>
+            {item.raw_note.trim() !== item.clean_note.trim() ? (
+              <details className="mt-1 text-xs text-muted-foreground">
+                <summary className="cursor-pointer">Original wording</summary>
+                <p className="mt-1 whitespace-pre-wrap">{item.raw_note}</p>
+              </details>
+            ) : null}
+          </li>
+        ))}
+      </ol>
+    ) : null;
+
   if (compact) {
+    // Saved notes are listed here too -- the resident page uses the
+    // compact form inside its "Profile notes" section.
     return (
-      <div className="mt-3">
+      <div className="mt-3 flex flex-col gap-3">
         {composer}
         {saved ? (
-          <p className="mt-2 flex items-start gap-1.5 text-xs text-success">
+          <p className="flex items-start gap-1.5 text-xs text-success">
             <CheckCircle2 className="mt-0.5 size-3.5 shrink-0" />
             Saved: {saved}
           </p>
         ) : null}
+        {list}
       </div>
     );
   }
@@ -113,23 +138,7 @@ export function ProfileNotesCard({
         ) : null}
 
         {notes.length > 0 ? (
-          <ol className="flex flex-col divide-y divide-border border-t border-border">
-            {notes.map((item) => (
-              <li key={item.id} className="py-3 first:pt-3">
-                <p className="text-sm">{item.clean_note}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {formatDateTime(item.created_at)}
-                  {item.created_by_name ? " · " + item.created_by_name : ""}
-                </p>
-                {item.raw_note.trim() !== item.clean_note.trim() ? (
-                  <details className="mt-1 text-xs text-muted-foreground">
-                    <summary className="cursor-pointer">Original wording</summary>
-                    <p className="mt-1 whitespace-pre-wrap">{item.raw_note}</p>
-                  </details>
-                ) : null}
-              </li>
-            ))}
-          </ol>
+          list
         ) : (
           <p className="text-sm text-muted-foreground">No profile notes have been added yet.</p>
         )}

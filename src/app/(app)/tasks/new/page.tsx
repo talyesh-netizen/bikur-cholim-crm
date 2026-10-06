@@ -13,9 +13,9 @@ import { getCurrentProfile } from "@/lib/get-current-profile";
 export default async function NewTaskPage({
   searchParams,
 }: {
-  searchParams: Promise<{ resident?: string; facility?: string; interaction?: string }>;
+  searchParams: Promise<{ resident?: string; facility?: string; interaction?: string; from?: string }>;
 }) {
-  const { resident: residentId, facility: facilityId, interaction: interactionId } =
+  const { resident: residentId, facility: facilityId, interaction: interactionId, from } =
     await searchParams;
 
   const [staff, facilities, resident, facility, interaction, me] = await Promise.all([
@@ -31,7 +31,10 @@ export default async function NewTaskPage({
   if (facilityId && !facility) notFound();
   if (interactionId && !interaction) notFound();
 
-  const redirectTo = residentId
+  // Opened from on-site mode: go back there, not to the resident page.
+  const redirectTo = from === "onsite" && facilityId
+    ? `/facilities/${facilityId}/onsite`
+    : residentId
     ? `/residents/${residentId}`
     : facilityId
       ? `/facilities/${facilityId}`

@@ -7,14 +7,15 @@ import { SectionIcon } from "@/components/section-icon";
 import { sectionVars } from "@/lib/sections";
 import {
   NAV_ITEMS,
+  navItems,
   MOBILE_PRIMARY_HREFS,
   MOBILE_MORE_ITEM,
   isActive,
 } from "@/lib/nav-items";
 
-export function SidebarNavLinks() {
+export function SidebarNavLinks({ quickLog = true }: { quickLog?: boolean }) {
   const pathname = usePathname();
-  const items = NAV_ITEMS;
+  const items = navItems({ quickLog });
 
   return (
     <nav className="flex flex-col gap-1">

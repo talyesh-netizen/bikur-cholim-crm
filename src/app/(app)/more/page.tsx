@@ -2,6 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getCurrentProfile } from "@/lib/get-current-profile";
 import { mobileMoreItems } from "@/lib/nav-items";
+import { quickLogEnabled } from "@/lib/quick-log-enabled";
 import { signOut } from "@/lib/actions/auth";
 import { LogOut } from "lucide-react";
 import { LinkList } from "@/components/link-list";
@@ -12,7 +13,7 @@ import { LinkList } from "@/components/link-list";
  * "Sign out" lives on a phone, away from anything tapped often. */
 export default async function MorePage() {
   const profile = await getCurrentProfile();
-  const items = mobileMoreItems();
+  const items = mobileMoreItems({ quickLog: quickLogEnabled() });
 
   return (
     <div className="flex flex-col gap-5">

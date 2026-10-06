@@ -13,9 +13,9 @@ import { residentName } from "@/lib/domain/resident-name";
 export default async function NewInteractionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ resident?: string; facility?: string; type?: string }>;
+  searchParams: Promise<{ resident?: string; facility?: string; type?: string; from?: string }>;
 }) {
-  const { resident: residentId, facility: facilityId, type } = await searchParams;
+  const { resident: residentId, facility: facilityId, type, from } = await searchParams;
   const defaultType = INTERACTION_TYPES.some((t) => t.value === type) ? type : undefined;
 
   const [facilities, resident, residentsAtFacility, allContacts, volunteers, residentFamily] = await Promise.all([
@@ -50,7 +50,10 @@ export default async function NewInteractionPage({
     if (!facility) notFound();
   }
 
-  const redirectTo = residentId
+  // Opened from on-site mode: go back there, not to the facility page.
+  const redirectTo = from === "onsite" && facilityId
+    ? `/facilities/${facilityId}/onsite`
+    : residentId
     ? `/residents/${residentId}`
     : facilityId
       ? `/facilities/${facilityId}`

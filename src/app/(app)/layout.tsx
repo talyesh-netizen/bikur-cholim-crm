@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { SidebarNavLinks, MobileBottomNavLinks } from "@/components/nav-links";
 import { GlobalSearchBar } from "@/components/global-search-bar";
 import { QuickAddMenu } from "@/components/quick-add-menu";
+import { quickLogEnabled } from "@/lib/quick-log-enabled";
 import { SaveToast } from "@/components/save-toast";
 import { BrandLogo, BrandMark } from "@/components/brand-mark";
 import { APP_NAME, ORGANIZATION_NAME } from "@/lib/config";
@@ -38,9 +39,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <span className="text-sm font-semibold leading-tight text-muted-foreground">{APP_NAME}</span>
         </Link>
 
-        <QuickAddMenu className="mb-4 px-1" fullWidth />
+        <QuickAddMenu className="mb-4 px-1" fullWidth quickLog={quickLogEnabled()} />
 
-        <SidebarNavLinks />
+        <SidebarNavLinks quickLog={quickLogEnabled()} />
 
         <div className="mt-auto flex flex-col gap-3 border-t border-border px-1 pt-4">
           <div className="px-2 text-sm">
@@ -66,7 +67,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <span className="block truncate text-xs text-muted-foreground">{ORGANIZATION_NAME}</span>
             </span>
           </Link>
-          <QuickAddMenu />
+          <QuickAddMenu quickLog={quickLogEnabled()} />
         </div>
       </header>
 
