@@ -207,6 +207,43 @@ export function fromWire(wirePlan: unknown): ModelPlan | null {
   return parsed.success ? parsed.data : null;
 }
 
+/** The plan's JSON Schema, given to Claude in the instructions. (It used
+ * to be enforced by the API's structured-output mode, but the plan grew
+ * past that mode's size limit -- so now the reply is checked here.) */
+export const PLAN_JSON_SCHEMA = JSON.stringify(z.toJSONSchema(wirePlanSchema));
+
+const PLAN_LISTS = Object.keys(wirePlanSchema.shape).filter((k) => k !== "summary");
+
+/** Reads Claude's text reply as a plan: finds the JSON object (ignoring
+ * any stray prose or code fences), fills in lists it left out, and
+ * checks every field. Says what's wrong when it doesn't fit, so Claude
+ * can be asked to correct it. */
+export function parsePlanText(text: string): { plan: ModelPlan } | { problem: string } {
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start === -1 || end <= start) return { problem: "There was no JSON object in the reply." };
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text.slice(start, end + 1));
+  } catch (error) {
+    return { problem: `The JSON couldn't be read: ${error instanceof Error ? error.message : "invalid JSON"}.` };
+  }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { problem: "The reply wasn't a JSON object." };
+  const filled: Record<string, unknown> = { ...(raw as Record<string, unknown>) };
+  if (typeof filled.summary !== "string" || !filled.summary.trim()) filled.summary = "Here's what I found in your note.";
+  for (const key of PLAN_LISTS) if (!Array.isArray(filled[key])) filled[key] = [];
+  const wire = wirePlanSchema.safeParse(filled);
+  if (!wire.success) {
+    const issues = wire.error.issues
+      .slice(0, 12)
+      .map((i) => `${i.path.join(".") || "(top)"}: ${i.message}`)
+      .join("; ");
+    return { problem: `Some fields didn't match the schema: ${issues}` };
+  }
+  const plan = fromWire(wire.data);
+  return plan ? { plan } : { problem: "The plan didn't fit the schema after cleaning." };
+}
+
 /** After alias resolution: an existing record's real ID, or "new:NR1"
  * for someone this same plan creates. */
 const resolvedRef = z.string().regex(/^([0-9a-f-]{36}|new:[A-Za-z0-9_-]+)$/i);
