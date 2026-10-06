@@ -164,6 +164,16 @@ export default async function DashboardPage() {
         <p className="text-sm text-muted-foreground">{today} &mdash; here&apos;s what needs attention.</p>
       </div>
 
+      <DashboardOnsiteLauncher
+        facilities={facilities.map((facility) => ({
+          id: facility.id,
+          name: facility.name,
+          address: facility.address,
+          city: facility.city,
+          zip: facility.zip,
+        }))}
+      />
+
       <div className="flex flex-wrap gap-2">
         {quickLogEnabled() ? (
           <Button asChild size="lg">
@@ -194,15 +204,7 @@ export default async function DashboardPage() {
         <StatCard label="Families supported this month" value={familiesThisMonth} href="/impact?period=month" icon={HeartHandshake} section="contacts" />
       </div>
 
-      <DashboardOnsiteLauncher
-        facilities={facilities.map((facility) => ({
-          id: facility.id,
-          name: facility.name,
-          address: facility.address,
-          city: facility.city,
-          zip: facility.zip,
-        }))}
-      />
+
 
       <SectionCard
         title="Tasks due today or overdue"

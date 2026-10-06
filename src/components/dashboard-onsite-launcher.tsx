@@ -101,8 +101,9 @@ export function DashboardOnsiteLauncher({
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base uppercase tracking-wide">
           <SectionIcon section="facilities" icon={ClipboardCheck} />
-          Start onsite visit
+          Start a visit
         </CardTitle>
+        <p className="text-sm text-muted-foreground">Pick the facility you&apos;re at, then tap to talk.</p>
       </CardHeader>
 
       <CardContent className="flex flex-col gap-3">

@@ -82,7 +82,7 @@ export default async function FacilityOnsitePage({
             Facility
           </Link>
         </Button>
-        <Badge variant="secondary">Onsite mode</Badge>
+        <Badge variant="secondary">You&apos;re on site</Badge>
       </div>
 
       <div>
@@ -156,6 +156,10 @@ export default async function FacilityOnsitePage({
         </Card>
       ) : null}
 
+      {/* Without the notes box, the older way: tick names, then
+          follow-ups per resident. With it, the note covers all of this. */}
+      {notesOn ? null : (
+        <>
       {/* The older quick way: tick names, no notes. Kept as a backup,
           folded away when the notes box is on. */}
       <Fold title={notesOn ? "Or just tick off who you saw" : "Who did you see today?"} open={!notesOn}>
@@ -238,6 +242,8 @@ export default async function FacilityOnsitePage({
         </Fold>
       ) : (
         <p className="text-sm text-muted-foreground">No current residents are on file for this facility.</p>
+      )}
+        </>
       )}
     </div>
   );
