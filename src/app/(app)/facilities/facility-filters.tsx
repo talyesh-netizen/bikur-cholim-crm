@@ -147,6 +147,17 @@ export function FacilityFilters({ clusters }: { clusters: GeographicCluster[] })
 
       <div className="flex items-center gap-2">
         <Checkbox
+          id="with-residents"
+          checked={searchParams.get("residents") === "1"}
+          onCheckedChange={(checked) => updateParam("residents", checked ? "1" : null)}
+        />
+        <Label htmlFor="with-residents" className="text-sm font-medium">
+          Only facilities with Jewish residents we serve
+        </Label>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Checkbox
           id="show-inactive"
           checked={searchParams.get("inactive") === "1"}
           onCheckedChange={(checked) => updateParam("inactive", checked ? "1" : null)}

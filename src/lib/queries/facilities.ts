@@ -9,6 +9,10 @@ export type FacilityFilters = {
   visitPriority?: string;
   facilityType?: string;
   showInactive?: boolean;
+  /** Only facilities where at least one active resident we serve lives
+   * now -- worked out live from the residents list, so it updates by
+   * itself when a resident is added, moves, or stops receiving services. */
+  withResidents?: boolean;
 };
 
 export async function listFacilities(filters: FacilityFilters = {}) {
@@ -37,6 +41,9 @@ export async function listFacilities(filters: FacilityFilters = {}) {
   }
   if (filters.facilityType) {
     query = query.eq("facility_type", filters.facilityType);
+  }
+  if (filters.withResidents) {
+    query = query.gt("active_resident_count", 0);
   }
 
   const { data, error } = await query;
