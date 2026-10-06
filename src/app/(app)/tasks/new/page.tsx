@@ -8,6 +8,7 @@ import { createTask } from "@/lib/actions/tasks";
 import { labelFor, INTERACTION_TYPES } from "@/lib/domain/interaction";
 import { TaskForm } from "../task-form";
 import { residentName } from "@/lib/domain/resident-name";
+import { getCurrentProfile } from "@/lib/get-current-profile";
 
 export default async function NewTaskPage({
   searchParams,
@@ -17,12 +18,13 @@ export default async function NewTaskPage({
   const { resident: residentId, facility: facilityId, interaction: interactionId } =
     await searchParams;
 
-  const [staff, facilities, resident, facility, interaction] = await Promise.all([
+  const [staff, facilities, resident, facility, interaction, me] = await Promise.all([
     listActiveStaff(),
     listFacilities(),
     residentId ? getResident(residentId) : Promise.resolve(null),
     facilityId ? getFacility(facilityId) : Promise.resolve(null),
     interactionId ? getInteraction(interactionId) : Promise.resolve(null),
+    getCurrentProfile(),
   ]);
 
   if (residentId && !resident) notFound();
@@ -69,7 +71,13 @@ export default async function NewTaskPage({
           <CardTitle className="text-base">Task details</CardTitle>
         </CardHeader>
         <CardContent>
-          <TaskForm action={action} staff={staff} facilities={facilities} fixedContext={fixedContext} />
+          <TaskForm
+            action={action}
+            staff={staff}
+            facilities={facilities}
+            fixedContext={fixedContext}
+            defaultAssigneeId={staff.some((s) => s.id === me?.id) ? me?.id : undefined}
+          />
         </CardContent>
       </Card>
     </div>

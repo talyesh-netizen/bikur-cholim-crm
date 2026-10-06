@@ -39,6 +39,7 @@ export function TaskForm({
   staff,
   facilities,
   fixedContext,
+  defaultAssigneeId,
 }: {
   action: Action;
   task?: Task;
@@ -47,6 +48,9 @@ export function TaskForm({
   /** Set when creating a task from a resident/facility/interaction page
    * — that connection is fixed rather than user-editable. */
   fixedContext?: { label: string; residentId?: string; facilityId?: string; interactionId?: string };
+  /** New tasks start assigned to whoever is creating them, so a task is
+   * never accidentally nobody's (and so gets due-date reminders). */
+  defaultAssigneeId?: string;
 }) {
   const [state, formAction, isPending] = useActionState<TaskFormState, FormData>(action, {
     error: null,
@@ -54,6 +58,7 @@ export function TaskForm({
   const fieldErrors = state.fieldErrors ?? {};
   const values = state.values ?? {
     ...taskToFormValues(task),
+    ...(!task && defaultAssigneeId ? { assigned_to: defaultAssigneeId } : {}),
     resident_id: fixedContext?.residentId ?? "",
     facility_id: fixedContext?.facilityId ?? "",
     interaction_id: fixedContext?.interactionId ?? "",
