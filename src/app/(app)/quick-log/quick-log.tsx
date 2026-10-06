@@ -194,6 +194,7 @@ export function QuickLog({
   const [decisions, setDecisions] = useState<Decisions>({});
   const [skipped, setSkipped] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [result, setResult] = useState<ApplyResult | null>(null);
   const [reading, startReading] = useTransition();
   const [saving, startSaving] = useTransition();
@@ -202,7 +203,15 @@ export function QuickLog({
     setError(null);
     setResult(null);
     startReading(async () => {
-      const response = await analyzeNote(note, onSite ? { facilityId: onSite.facilityId } : undefined);
+      let response: Awaited<ReturnType<typeof analyzeNote>>;
+      try {
+        response = await analyzeNote(note, onSite ? { facilityId: onSite.facilityId } : undefined);
+      } catch {
+        // The connection dropped or the server gave up -- say so, and
+        // keep the note in the box.
+        setError("Couldn't finish reading your note (the connection dropped or it took too long). Your note is still here -- tap Read my note again.");
+        return;
+      }
       if (!response.ok) {
         setError(response.error);
         setProposal(null);
@@ -216,8 +225,17 @@ export function QuickLog({
 
   const save = () => {
     if (!proposal) return;
+    setSaveError(null);
     startSaving(async () => {
-      const response = await applyPlan(withDecisions(withoutSkipped(proposal.plan, skipped), decisions));
+      let response: ApplyResult;
+      try {
+        response = await applyPlan(withDecisions(withoutSkipped(proposal.plan, skipped), decisions));
+      } catch {
+        // Saving twice is safe (each entry has a fixed id), so the list
+        // stays up for another try.
+        setSaveError("Couldn't confirm the save (the connection dropped). Tap Save again -- nothing will be logged twice.");
+        return;
+      }
       setResult(response);
       setProposal(null);
       // Refresh the rest of the page (e.g. on-site lists, last visits).
@@ -402,6 +420,7 @@ export function QuickLog({
               </ul>
             )}
 
+            {saveError ? <p className="text-sm text-destructive">{saveError}</p> : null}
             <div className="flex flex-wrap gap-2">
               <Button onClick={save} disabled={saving || chosen === 0 || undecided > 0}>
                 {saving ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
