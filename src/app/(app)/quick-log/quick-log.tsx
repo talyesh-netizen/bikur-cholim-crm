@@ -125,6 +125,7 @@ function describe(plan: Plan, names: PlanNames): Item[] {
     add("interactions", i, HeartHandshake, `Log: ${labelFor(INTERACTION_TYPES, x.interaction_type)}${x.holiday ? ` · ${labelFor(HOLIDAYS, x.holiday)}` : ""}${x.family_need ? ` · ${labelFor(FAMILY_NEEDS, x.family_need)}` : ""}`, [
       [n(x.resident), n(x.contact) && `with ${n(x.contact)}`, n(x.facility) && `at ${n(x.facility)}`].filter(Boolean).join(" "),
       x.volunteers.length > 0 && `Volunteers: ${x.volunteers.map(n).join(", ")}`,
+      x.also_by.length > 0 && `Also logged for ${x.also_by.map(n).join(", ")} (they were there too)`,
       iso && formatDateTimeWithTime(iso),
       x.minutes_spent ? `${x.minutes_spent} minutes` : null,
       x.people_reached ? `${x.people_reached} ${x.people_reached === 1 ? "person" : "people"} reached` : null,

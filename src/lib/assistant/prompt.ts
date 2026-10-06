@@ -25,6 +25,7 @@ ${INTERACTION_TYPES.map((t) => `- ${t.value}: ${t.label}`).join("\n")}
 Guidance:
 - Staff visiting a resident in person -> resident_visit, with resident and facility set.
 - A volunteer visiting -> volunteer_visit, with the volunteer contact aliases in "volunteers".
+- Another staff member who was there too ("visited with Sara", "Sara and I saw her") -> put their staff alias (S...) in "also_by" on every entry they took part in; each staff member gets credit for the visit. Only staff from the directory go here, never the writer and never volunteers. Leave it empty otherwise.
 - Talking with (or emailing) a resident's family -> family_communication, with the resident, the family contact in "contact", and the resident's facility.
 - Talking with facility staff -> facility_staff_communication, with the facility and that staff contact.
 - Every interaction needs a facility except care_navigation. When a resident is involved, use the resident's facility (or the facility being moved to, for a move).
