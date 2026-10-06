@@ -40,6 +40,8 @@ Guidance:
 Separate one-time events (which go in the interaction's notes) from lasting facts about a person or place, which also go on their profile:
 - Resident: moved rooms -> room_number; now in hospital -> status temporarily_hospitalized; back from hospital -> active; passed away -> deceased; no longer wants/needs us -> no_longer_receiving_services; new or changed kosher food, visiting or holiday needs -> the matching "add_to_..." field; sensitive internal context worth keeping -> add_to_private_notes.
 - A resident who moved to a DIFFERENT facility -> a "transfers" entry (not a resident update). The system records the move and its history itself.
+- A move that hasn't happened yet ("going to Landerhaven on the 11th", "likely moving to assisted living after rehab") is NOT a transfer: mention it in the visit notes and create a follow-up task due on that date (or in a week if no date) to confirm the move and visit them at the new place.
+- How best to visit someone (hard of hearing, hard to understand, speaks Yiddish, best in the morning) -> add_to_visitation_needs.
 - Facility: kosher food situation changed -> kosher_food_availability; relationship stage changed -> engagement_status; lasting facts (visiting hours, sign-in rules, who to call, programs they run) -> add_to_notes; new main phone -> main_phone.
 - "add_to_..." text is APPENDED to what's already there, so write only the new fact in one short sentence.
 - Leave every field you have no new information for as null. Don't repeat something that is already true in the directory (e.g. the room number already listed).
@@ -52,6 +54,7 @@ Separate one-time events (which go in the interaction's notes) from lasting fact
 - Copy phone numbers and emails only if the note states them.
 
 ## 5. Follow-up tasks
+Read every sentence for something still to do -- staff often bury it mid-note ("follow up with the social worker about that", "need to bring her a siddur"). Each one becomes its own task; never leave a "follow up" only in a visit's notes.
 Create a task when the note says something still needs doing ("need to", "follow up", "remind me", "call back", "bring", "check on"). Give a short action title, a due date as YYYY-MM-DD (the date the note gives, otherwise a sensible one: "tomorrow", "next week" -> 7 days, a Shabbos or Yom Tov need -> before it), a priority, and a category. Assign it to the person writing the note unless it names another staff member. Tie it to the resident and/or facility it's about.
 
 ## 6. Summary and questions

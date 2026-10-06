@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Sparkles,
   CheckCircle2,
@@ -45,6 +46,9 @@ type Decisions = Record<string, string>;
 
 const EXAMPLE =
   "Visited Mrs. Rivka Cohen at Menorah Park this afternoon, about 45 minutes. She moved to room 212. Her daughter Sarah Levine (216-555-0142) asked if we can bring grape juice for Shabbos — need to drop it off by Friday.";
+
+const ONSITE_EXAMPLE =
+  "Saw Rivka Cohen, room 212, in good spirits. Moshe Feldman is new here after hip surgery, a lot of pain; his son David asked us to call him. Follow up with the social worker about Bella's move to assisted living on the 15th.";
 
 /** Turns a plan into the plain-English cards shown for review. */
 function describe(plan: Plan, names: PlanNames): Item[] {
@@ -162,7 +166,13 @@ function withDecisions(plan: Plan, decisions: Decisions): Plan {
   };
 }
 
-export function QuickLog() {
+export function QuickLog({
+  onSite,
+}: {
+  /** On-site mode: the facility the person is at, so notes don't need to name it. */
+  onSite?: { facilityId: string; facilityName: string };
+} = {}) {
+  const router = useRouter();
   const [note, setNote] = useState("");
   const [proposal, setProposal] = useState<{ plan: Plan; names: PlanNames; matches: PossibleMatches } | null>(null);
   const [decisions, setDecisions] = useState<Decisions>({});
@@ -176,7 +186,7 @@ export function QuickLog() {
     setError(null);
     setResult(null);
     startReading(async () => {
-      const response = await analyzeNote(note);
+      const response = await analyzeNote(note, onSite ? { facilityId: onSite.facilityId } : undefined);
       if (!response.ok) {
         setError(response.error);
         setProposal(null);
@@ -194,6 +204,8 @@ export function QuickLog() {
       const response = await applyPlan(withDecisions(withoutSkipped(proposal.plan, skipped), decisions));
       setResult(response);
       setProposal(null);
+      // Refresh the rest of the page (e.g. on-site lists, last visits).
+      router.refresh();
     });
   };
 
@@ -236,7 +248,7 @@ export function QuickLog() {
             ))}
           </ul>
           <Button onClick={startOver} className="self-start">
-            <Sparkles /> Log something else
+            <Sparkles /> {onSite ? "Add more notes" : "Log something else"}
           </Button>
         </CardContent>
       </Card>
@@ -264,7 +276,7 @@ export function QuickLog() {
       <Card>
         <CardContent className="flex flex-col gap-3 pt-6">
           <label htmlFor="quick-log-note" className="text-sm font-medium">
-            What happened?
+            {onSite ? "Who did you see, and what happened?" : "What happened?"}
           </label>
           <Textarea
             id="quick-log-note"
@@ -273,7 +285,7 @@ export function QuickLog() {
               setNote(e.target.value);
               if (proposal) setProposal(null);
             }}
-            placeholder={EXAMPLE}
+            placeholder={onSite ? ONSITE_EXAMPLE : EXAMPLE}
             rows={6}
             className="min-h-40"
             disabled={reading || saving}
