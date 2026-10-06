@@ -24,7 +24,7 @@ import { capitalizeWords } from "@/lib/format-text";
 import { notifyTaskAssigned } from "@/lib/notify-task-assigned";
 import { residentName } from "@/lib/domain/resident-name";
 
-const MODEL = "claude-opus-5";
+const MODEL = "claude-opus-5-5";
 const MAX_NOTE_LENGTH = 6000;
 
 /**
@@ -32,7 +32,12 @@ const MAX_NOTE_LENGTH = 6000;
  * Nothing is written to the database here -- the plan goes back to the
  * review screen, and only step 2 (applyPlan) saves anything.
  */
-export async function analyzeNote(note: string): Promise<AnalyzeResult> {
+export async function analyzeNote(
+  note: string,
+  /** Set from on-site mode: the facility the person is standing in, so
+   * "saw Alan, just got here after surgery" needs no facility name. */
+  onSite?: { facilityId: string }
+): Promise<AnalyzeResult> {
   const trimmed = note.trim();
   if (!trimmed) return { ok: false, error: "Please type or dictate a note first." };
   if (trimmed.length > MAX_NOTE_LENGTH) {
@@ -59,6 +64,12 @@ export async function analyzeNote(note: string): Promise<AnalyzeResult> {
   }
 
   const now = toOrgDatetimeLocalValue(new Date());
+  const onSiteAlias = onSite
+    ? [...directory.idFor.entries()].find(([, id]) => id === onSite.facilityId)?.[0] ?? null
+    : null;
+  const onSiteLine = onSiteAlias
+    ? `\nThey are on site at ${onSiteAlias} right now (on-site mode): everything in the note happened at ${onSiteAlias} today unless it says otherwise, and anyone they saw who isn't in the directory is a resident of ${onSiteAlias}.`
+    : "";
   const weekday = new Intl.DateTimeFormat("en-US", { weekday: "long", timeZone: "America/New_York" }).format(
     new Date()
   );
@@ -82,7 +93,7 @@ export async function analyzeNote(note: string): Promise<AnalyzeResult> {
           role: "user",
           content: `Current time in Cleveland: ${weekday}, ${now.replace("T", " ")}.\nThe person writing is ${
             directory.selfAlias ?? "a staff member"
-          }.\n\nNOTE:\n${trimmed}`,
+          }.${onSiteLine}\n\nNOTE:\n${trimmed}`,
         },
       ],
     });
