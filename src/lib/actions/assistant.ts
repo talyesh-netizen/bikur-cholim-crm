@@ -77,7 +77,10 @@ export async function analyzeNote(
     model: MODEL,
     max_tokens: 16000,
     thinking: { type: "adaptive" as const },
-    output_config: { effort: "medium" as const },
+    // "low": field notes are short and everything is reviewed before
+    // saving, so speed matters more than extra deliberation (director,
+    // Oct 7). If misreadings creep in, step back up to "medium".
+    output_config: { effort: "low" as const },
     system: [
       { type: "text" as const, text: SYSTEM_PROMPT },
       { type: "text" as const, text: OUTPUT_INSTRUCTIONS },
