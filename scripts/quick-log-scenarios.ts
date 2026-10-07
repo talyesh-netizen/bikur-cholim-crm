@@ -316,6 +316,8 @@ async function guards() {
       { ...blank, interaction_type: "facility_visit", occurred_at: "2026-10-05T12:00", facility: alias(F.annaMaria.id), resident: null },
       // A different facility: a real facility visit, kept.
       { ...blank, interaction_type: "facility_visit", occurred_at: "2026-10-05T15:00", facility: alias(F.menorah.id), resident: null },
+      // A lunch delivered with Sara there: counts once, never copied to her.
+      { ...blank, interaction_type: "food_delivery", occurred_at: "2026-10-05T12:00", facility: alias(F.annaMaria.id), resident: alias(R.ileneAM.id), also_by: [alias(SARA.id)] },
       // Next year: can't have happened yet.
       { ...blank, interaction_type: "resident_visit", occurred_at: "2027-10-05T12:00", facility: alias(F.annaMaria.id), resident: alias(R.norma.id) },
     ],
@@ -326,6 +328,7 @@ async function guards() {
     ["the other facility's visit kept", plan.interactions.some((x) => x.interaction_type === "facility_visit" && x.facility === F.menorah.id)],
     ["dropping it is explained", plan.questions.some((q) => /already count/.test(q))],
     ["future date flagged for checking", !!plan.interactions.find((x) => x.resident === R.norma.id)?.date_unclear],
+    ["delivery not copied to a colleague", plan.interactions.find((x) => x.interaction_type === "food_delivery")?.also_by.length === 0],
     ["past date not flagged", !plan.interactions.find((x) => x.resident === R.ileneAM.id)?.date_unclear],
   ];
   for (const [label, ok] of results) console.log(`${ok ? "PASS" : "FAIL"} ${label}`);
