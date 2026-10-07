@@ -14,6 +14,7 @@ import {
   BellRing,
   ChartColumn,
   type LucideIcon,
+  KeyRound,
 } from "lucide-react";
 import type { Section } from "@/lib/sections";
 
@@ -44,7 +45,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/tasks", label: "Tasks", icon: ListChecks, section: "tasks" },
   { href: "/impact", label: "Impact", icon: ChartColumn, section: "dashboard" },
   { href: "/people", label: "People", icon: Contact, section: "contacts", alsoActive: ["/contacts", "/organizations"] },
-  { href: "/settings", label: "Settings", icon: Settings, section: "neutral", alsoActive: ["/data-quality"] },
+  { href: "/settings", label: "Settings", icon: Settings, section: "neutral", alsoActive: ["/data-quality", "/settings/password"] },
 ];
 
 /** What People opens. */
@@ -56,6 +57,7 @@ export const PEOPLE_ITEMS: NavItem[] = [
 /** What Settings opens for everyone. */
 export const SETTINGS_ITEMS: NavItem[] = [
   { href: "/data-quality", label: "Data Quality", icon: ClipboardCheck, section: "neutral" },
+  { href: "/settings/password", label: "Change password", icon: KeyRound, section: "neutral" },
 ];
 
 /** What Settings also opens for admins. */
