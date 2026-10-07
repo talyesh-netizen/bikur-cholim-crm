@@ -203,6 +203,23 @@ export function ResidentForm({
       </section>
       ) : null}
 
+      {resident ? null : (
+        <label className="flex items-start gap-3 rounded-lg border border-border bg-card p-3 text-sm">
+          {/* Shown so a failed save remembers an unticked box. */}
+          <input type="hidden" name="check_in_task_shown" value="1" />
+          <input
+            type="checkbox"
+            name="check_in_task"
+            defaultChecked={values.check_in_task_shown ? values.check_in_task === "on" : true}
+            className="mt-0.5 size-4 accent-[var(--primary)]"
+          />
+          <span>
+            <span className="font-medium">Remind me to check in on them</span>
+            <span className="block text-muted-foreground">Adds a follow-up task for a week from today.</span>
+          </span>
+        </label>
+      )}
+
       <div className="flex justify-end gap-2">
         <Button type="submit" disabled={isPending}>
           {isPending ? "Saving…" : resident ? "Save changes" : "Add resident"}

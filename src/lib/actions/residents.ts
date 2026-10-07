@@ -6,6 +6,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { capitalizeOptional, capitalizeWords } from "@/lib/format-text";
+import { getLocalToday } from "@/lib/format-date";
+import { residentName } from "@/lib/domain/resident-name";
 
 const statusValues = RESIDENT_STATUSES.map((o) => o.value) as [string, ...string[]];
 const emptyToUndefined = (val: unknown) => (val === "" ? undefined : val);
@@ -105,6 +107,26 @@ export async function createResident(
 
   if (error) {
     return { error: "Something went wrong saving this resident. Please try again.", values: raw };
+  }
+
+  // "Remind me to check in" on the new-resident form: a follow-up a week
+  // out, so nobody new is added and then forgotten.
+  if (raw.check_in_task === "on" && user) {
+    const [y, m, d] = getLocalToday().split("-").map(Number);
+    const due = new Date(Date.UTC(y, m - 1, d + 7)).toISOString().slice(0, 10);
+    const { error: taskError } = await supabase.from("tasks").insert({
+      title: `Check in on ${residentName(parsed.data)}`,
+      description: "New resident -- visit or call to see how they are settling in.",
+      due_date: due,
+      priority: "medium",
+      task_category: "visit",
+      assigned_to: user.id,
+      created_by: user.id,
+      resident_id: data.id,
+      facility_id: parsed.data.current_facility_id ?? null,
+    });
+    if (taskError) console.error("Check-in task for new resident failed:", taskError.message);
+    revalidatePath("/tasks");
   }
 
   revalidatePath("/residents");

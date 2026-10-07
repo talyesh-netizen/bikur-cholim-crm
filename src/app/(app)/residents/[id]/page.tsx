@@ -19,7 +19,7 @@ import { InfoRow } from "@/components/info-row";
 import { ProfileNotesCard } from "@/components/profile-notes-card";
 import { Fold } from "@/components/fold";
 import { listResidentProfileNotes } from "@/lib/queries/profile-notes";
-import { Pencil, ArrowRightLeft, Plus, UserX, Undo2, Star, HeartHandshake } from "lucide-react";
+import { Pencil, ArrowRightLeft, Plus, UserX, Undo2, Star, HeartHandshake, ListPlus } from "lucide-react";
 import { residentName } from "@/lib/domain/resident-name";
 import { getCurrentProfile } from "@/lib/get-current-profile";
 import { listChangesForRecord } from "@/lib/queries/change-log";
@@ -85,6 +85,14 @@ export default async function ResidentDetailPage({
             <Link href={`/interactions/new?resident=${resident.id}&type=family_communication`}>
               <HeartHandshake className="size-4" />
               Family support
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link
+              href={`/tasks/new?resident=${resident.id}${resident.current_facility_id ? `&facility=${resident.current_facility_id}` : ""}`}
+            >
+              <ListPlus className="size-4" />
+              Add a task
             </Link>
           </Button>
         </div>
