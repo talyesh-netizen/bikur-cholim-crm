@@ -533,7 +533,11 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
         contact_id: contactId,
         notes: blankToNull(i.notes),
         minutes_spent: i.minutes_spent && i.minutes_spent > 0 ? i.minutes_spent : null,
+        // A colleague's copy credits them for being there, but the people
+        // reached are counted once (on the writer's entry), so a lunch for
+        // three isn't reported as six.
         people_reached:
+          staffId === user.id &&
           i.people_reached && i.people_reached > 0 && SERVICE_FIELDS_BY_TYPE[i.interaction_type as InteractionType]?.includes("people_reached")
             ? i.people_reached
             : null,

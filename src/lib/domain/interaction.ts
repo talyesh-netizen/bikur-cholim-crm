@@ -13,7 +13,7 @@ export const INTERACTION_TYPES = [
   { value: "resident_phone_call", label: "Phone call with resident" },
   { value: "family_communication", label: "Family support" },
   { value: "care_navigation", label: "Care navigation (helping a family find care)" },
-  { value: "food_delivery", label: "Delivery (food, Shabbos & holiday packages)" },
+  { value: "food_delivery", label: "Food delivery" },
   { value: "kosher_food_coordination", label: "Kosher food coordination" },
   { value: "program", label: "Program / event" },
   { value: "school_engagement", label: "School & shul program" },
