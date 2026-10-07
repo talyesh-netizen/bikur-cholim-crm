@@ -1,5 +1,6 @@
 import { getImpactOverview } from "@/lib/queries/impact-overview";
 import { getStaffActivity, getVolunteerImpact, type ImpactPeriod } from "@/lib/queries/impact";
+import { getImpactGrowth } from "@/lib/queries/impact-growth";
 import { orgMonthStart } from "@/lib/format-date";
 import { ImpactView } from "./impact-view";
 
@@ -25,10 +26,11 @@ export default async function ImpactPage({ searchParams }: { searchParams: Promi
   const firstMonth = period === "quarter" ? Math.floor((month - 1) / 3) * 3 + 1 : month;
   const periodFrom = period === "all" ? null : `${year}-${String(firstMonth).padStart(2, "0")}-01`;
 
-  const [o, staff, volunteers] = await Promise.all([
+  const [o, staff, volunteers, growth] = await Promise.all([
     getImpactOverview(period),
     getStaffActivity(period),
     getVolunteerImpact(period),
+    getImpactGrowth(),
   ]);
-  return <ImpactView period={period} o={o} team={{ staff, volunteers, periodFrom }} fellBackToAllTime={fellBackToAllTime} />;
+  return <ImpactView period={period} o={o} growth={growth} team={{ staff, volunteers, periodFrom }} fellBackToAllTime={fellBackToAllTime} />;
 }

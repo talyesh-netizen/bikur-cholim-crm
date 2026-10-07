@@ -193,3 +193,83 @@ export function HeadlineTile({
     </div>
   );
 }
+
+/** A percentage over time as a 2px line with point markers, plus an
+ * optional dashed goal line. The line is SVG (stretched to fit); markers
+ * and labels are HTML so they never distort. Hover a point for its
+ * numbers. One series, so no legend -- the card title names it. */
+export function PercentLine({
+  data,
+  color,
+  goal,
+  goalLabel,
+}: {
+  data: { label: string; percent: number; detail: string }[];
+  color: string;
+  goal?: number;
+  goalLabel?: string;
+}) {
+  const top = Math.min(100, Math.max(10, Math.ceil((Math.max(goal ?? 0, ...data.map((d) => d.percent)) + 5) / 10) * 10));
+  const x = (i: number) => (data.length === 1 ? 50 : (i / (data.length - 1)) * 100);
+  const y = (v: number) => 100 - (v / top) * 100;
+  const gridSteps = [0, top / 2, top];
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="relative h-[190px] border-b border-border">
+        {gridSteps.map((g) => (
+          <div key={g} className="pointer-events-none absolute inset-x-0 flex items-center" style={{ top: `${y(g)}%` }}>
+            <span className="-mt-2.5 w-9 text-xs text-muted-foreground tabular-nums">{Math.round(g)}%</span>
+            {g > 0 ? <span className="h-px flex-1 bg-border/60" /> : null}
+          </div>
+        ))}
+        <div className="absolute inset-y-0 left-10 right-3">
+          {goal !== undefined ? (
+            <div className="pointer-events-none absolute inset-x-0" style={{ top: `${y(goal)}%` }}>
+              <div className="border-t-2 border-dashed border-foreground/50" />
+              <span className="absolute left-0 -top-5 rounded bg-card px-1 text-xs font-semibold text-foreground">
+                {goalLabel ?? `Goal ${goal}%`}
+              </span>
+            </div>
+          ) : null}
+          <svg className="absolute inset-0 h-full w-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+            <polyline
+              points={data.map((d, i) => `${x(i)},${y(d.percent)}`).join(" ")}
+              fill="none"
+              stroke={color}
+              strokeWidth={2}
+              vectorEffect="non-scaling-stroke"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+          </svg>
+          {data.map((d, i) => (
+            <div
+              key={d.label}
+              title={`${d.label}: ${d.percent}% (${d.detail})`}
+              className="group absolute -translate-x-1/2 -translate-y-1/2 p-2"
+              style={{ left: `${x(i)}%`, top: `${y(d.percent)}%` }}
+            >
+              <span className="block size-2.5 rounded-full ring-2 ring-card" style={{ backgroundColor: color }} />
+              {i === data.length - 1 ? (
+                <span className="absolute bottom-full left-1/2 -translate-x-1/2 text-xs font-semibold text-foreground tabular-nums">
+                  {d.percent}%
+                </span>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="relative ml-10 mr-3 h-4">
+        {data.map((d, i) => (
+          <span
+            key={d.label}
+            className={`absolute -translate-x-1/2 text-xs text-muted-foreground ${i % 2 === 1 && data.length > 7 ? "max-sm:invisible" : ""}`}
+            style={{ left: `${x(i)}%` }}
+          >
+            {d.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}

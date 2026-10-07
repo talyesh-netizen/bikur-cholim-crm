@@ -4,7 +4,10 @@ import type { ImpactOverview } from "@/lib/queries/impact-overview";
 import type { PersonImpactRow } from "@/lib/queries/impact";
 import { ImpactLeaderboard } from "@/components/impact-leaderboard";
 import type { ImpactPeriod } from "@/lib/queries/impact";
-import { ChartCard, HBars, HeadlineTile, Legend, MonthBars, SERIES, SplitBar } from "@/components/impact/charts";
+import { ChartCard, HBars, HeadlineTile, Legend, MonthBars, PercentLine, SERIES, SplitBar } from "@/components/impact/charts";
+import type { ImpactGrowth } from "@/lib/queries/impact-growth";
+import { IMPACT_GOALS } from "@/lib/impact-goals";
+import { formatDateOnly } from "@/lib/format-date";
 import { Download } from "lucide-react";
 
 const PERIODS: { value: ImpactPeriod; label: string; word: string | null }[] = [
@@ -33,9 +36,11 @@ function Section({ id, color, title, intro, children }: { id: string; color: str
 export function ImpactView({
   period,
   o,
+  growth,
   team,
   fellBackToAllTime = false,
 }: {
+  growth?: ImpactGrowth;
   fellBackToAllTime?: boolean;
   period: ImpactPeriod;
   o: ImpactOverview;
@@ -45,6 +50,9 @@ export function ImpactView({
   const h = o.headline;
   const prev = o.previous;
   const periodPhrase = period === "all" ? "so far" : `this ${p.word}`;
+  const famGoal = IMPACT_GOALS.familyConnection;
+  // Months before we'd met anyone have no percentage to show.
+  const famTrend = (growth?.familyConnection ?? []).filter((f) => f.known > 0);
 
   return (
     <div className="flex flex-col gap-8">
@@ -168,7 +176,7 @@ export function ImpactView({
             />
           </div>
           <p className="text-sm text-muted-foreground">
-            {n(o.activeResidents - o.withFamily)} residents have no family on file yet. Add family from each resident&apos;s page.
+            {n(o.activeResidents - o.withFamily)} {o.activeResidents - o.withFamily === 1 ? "resident has" : "residents have"} no family on file yet. Add family from each resident&apos;s page.
           </p>
         </ChartCard>
         <ChartCard title="What families needed" subtitle={`Family support conversations · ${p.label.toLowerCase()}`}>
@@ -180,7 +188,40 @@ export function ImpactView({
             </p>
           )}
         </ChartCard>
+        {famTrend.length > 1 ? (
+          <div className="lg:col-span-3">
+            <ChartCard
+              title="Family connection over time"
+              subtitle="Of the residents we'd met by each month, the share with family we're in touch with · last 12 months"
+            >
+              <PercentLine
+                data={famTrend.map((f) => ({
+                  label: f.label,
+                  percent: f.percent,
+                  detail: `${n(f.connected)} of ${n(f.known)} residents`,
+                }))}
+                color={SERIES.families}
+                goal={famGoal.percent}
+                goalLabel={famGoal.by ? `Goal ${famGoal.percent}% by ${formatDateOnly(famGoal.by)}` : `Goal ${famGoal.percent}%`}
+              />
+            </ChartCard>
+          </div>
+        ) : null}
       </Section>
+
+      {growth ? (
+        <Section id="growth" color={SERIES.reached} title="Growth" intro="New people and places we started working with each quarter (counted from the first time we logged working with them).">
+          <ChartCard title="New residents per quarter" subtitle="First visit or call logged">
+            <MonthBars data={growth.newResidents} colors={[SERIES.residents]} names={["new residents"]} />
+          </ChartCard>
+          <ChartCard title="New facilities per quarter" subtitle="First visit, call or meeting there logged">
+            <MonthBars data={growth.newFacilities} colors={[SERIES.staff]} names={["new facilities"]} />
+          </ChartCard>
+          <ChartCard title="New volunteers per quarter" subtitle="First visit or meeting logged">
+            <MonthBars data={growth.newVolunteers} colors={[SERIES.volunteers]} names={["new volunteers"]} />
+          </ChartCard>
+        </Section>
+      ) : null}
 
       <Section id="staff" color={SERIES.staff} title="Staff & facility support" intro="The relationships with facility teams that open the door to residents.">
         <ChartCard title="Staff touchpoints per month" subtitle="Meetings, check-ins, appreciation and first visits, last 6 months">
