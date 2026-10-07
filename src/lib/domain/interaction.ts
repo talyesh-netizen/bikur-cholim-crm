@@ -9,6 +9,7 @@ export { labelFor } from "./options";
 export const INTERACTION_TYPES = [
   { value: "resident_visit", label: "Resident visit" },
   { value: "volunteer_visit", label: "Volunteer visit" },
+  { value: "volunteer_meeting", label: "Meeting with a volunteer" },
   { value: "resident_phone_call", label: "Phone call with resident" },
   { value: "family_communication", label: "Family support" },
   { value: "care_navigation", label: "Care navigation (helping a family find care)" },
@@ -40,7 +41,14 @@ export const TYPE_BUTTONS: {
 }[] = [
   { key: "resident_visit", label: "Resident visit", choices: [{ value: "resident_visit", label: "Resident visit" }] },
   { key: "phone", label: "Phone call", choices: [{ value: "resident_phone_call", label: "Phone call" }] },
-  { key: "volunteer", label: "Volunteer visit", choices: [{ value: "volunteer_visit", label: "Volunteer visit" }] },
+  {
+    key: "volunteer",
+    label: "Volunteers",
+    choices: [
+      { value: "volunteer_visit", label: "Volunteer visit" },
+      { value: "volunteer_meeting", label: "Meeting with a volunteer" },
+    ],
+  },
   { key: "family", label: "Family support", choices: [{ value: "family_communication", label: "Family support" }] },
   {
     key: "facility",
@@ -149,7 +157,7 @@ export type InteractionWithNames = Interaction & {
 
 /** Types where the facility can be left blank -- e.g. a family calling
  * for help finding a facility for their father doesn't have one yet. */
-export const FACILITY_OPTIONAL_TYPES: readonly string[] = ["care_navigation"];
+export const FACILITY_OPTIONAL_TYPES: readonly string[] = ["care_navigation", "volunteer_meeting"];
 
 export const OCCASIONS = [
   { value: "regular", label: "Regular / weekday" },

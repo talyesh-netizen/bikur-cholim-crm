@@ -51,3 +51,5 @@ Decisions so far:
 - A family member who was there and spoken with gets their own family
   entry (they are the one supported); one only mentioned gets none.
 - "Family" support needs no sub-type; the kind of support is optional.
+- Staff meetings with volunteers (recruiting, onboarding, check-ins) are
+  "Meeting with a volunteer" entries, separate from volunteer visits.

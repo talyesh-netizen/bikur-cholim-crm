@@ -312,7 +312,7 @@ export function InteractionForm({
       ) : null}
 
       {contacts && contacts.length > 0 ? (
-        <Field label="Contact" htmlFor="contact_id" error={fieldErrors.contact_id}>
+        <Field label={interactionType === "volunteer_meeting" ? "Volunteer you met" : "Contact"} htmlFor="contact_id" error={fieldErrors.contact_id}>
           <SelectField
             name="contact_id"
             defaultValue={values.contact_id}
