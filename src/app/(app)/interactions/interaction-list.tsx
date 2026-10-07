@@ -4,6 +4,7 @@ import type { InteractionWithNames } from "@/lib/domain/interaction";
 import { ClusterBadge } from "@/components/cluster-badge";
 import { ListPlus, Pencil } from "lucide-react";
 import { formatDateTimeWithTime } from "@/lib/format-date";
+import { withContactLabel } from "@/lib/domain/contact";
 
 /** Recent-interactions list shown on both resident and facility pages —
  * the "other side" of the record (facility name on a resident page,
@@ -25,7 +26,17 @@ export function InteractionList({
     <ol className="flex flex-col gap-3">
       {interactions.map((interaction) => {
         const isVolunteerVisit = interaction.interaction_type === "volunteer_visit";
-        const otherParty = variant === "facility" ? interaction.resident_name : null;
+        const isFamily = interaction.interaction_type === "family_communication";
+        const residentPart =
+          variant === "facility" && interaction.resident_name
+            ? isFamily
+              ? `about ${interaction.resident_name}`
+              : interaction.resident_name
+            : null;
+        // Who it was with ("With Bob Gottfried (spouse)"), so a family
+        // conversation doesn't read as support for the resident.
+        const withPart = isVolunteerVisit ? null : withContactLabel(interaction.contact_name, interaction.contact_relationship);
+        const otherParty = [withPart, residentPart].filter(Boolean).join(" · ") || null;
         return (
           <li key={interaction.id} className="relative flex flex-col gap-0.5 text-sm">
             <Link

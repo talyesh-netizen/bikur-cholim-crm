@@ -194,6 +194,18 @@ const SCENARIOS: Scenario[] = [
       noFacilityVisit(plan),
     ],
   },
+  {
+    // Director, Oct 7: when family is there, the family member is the one
+    // supported -- a separate family entry, not just a name on the visit.
+    note: "Visited Norma at Anna Maria today with her husband Sam, we talked for a while. Ilene is married to Phil.",
+    expect: "Norma's visit plus a family entry for Sam; nothing for Phil (only mentioned).",
+    checks: (plan) => [
+      ["Norma visit", plan.interactions.some((x) => x.interaction_type === "resident_visit" && x.resident === R.norma.id)],
+      ["family entry for Sam, about Norma", plan.interactions.some((x) => x.interaction_type === "family_communication" && x.resident === R.norma.id && !!x.contact)],
+      ["no entry about Ilene", !plan.interactions.some((x) => x.resident === R.ileneAM.id)],
+      noFacilityVisit(plan),
+    ],
+  },
 ];
 
 async function directory(): Promise<Directory> {
@@ -236,7 +248,7 @@ async function writePrompts(dir: string) {
       OUTPUT_INSTRUCTIONS,
       `DIRECTORY\n\n${d.text}`,
       "=== USER ===",
-      buildUserMessage({ now: NOW, selfAlias: d.selfAlias, onSiteAlias: null, note: s.note }),
+      buildUserMessage({ now: NOW, selfAlias: d.selfAlias, note: s.note }),
     ].join("\n\n");
     writeFileSync(join(dir, `case-${i + 1}.txt`), text);
   });

@@ -133,3 +133,12 @@ export type FacilityContact = {
   active: boolean;
   contact: Contact;
 };
+
+/** "With Bob Gottfried (spouse)" -- who an interaction was with, so a
+ * family conversation filed under a resident reads as support for the
+ * family member, not the resident. */
+export function withContactLabel(name: string | null, relationship: string | null): string | null {
+  if (!name) return null;
+  const rel = RESIDENT_CONTACT_RELATIONSHIPS.find((r) => r.value === relationship)?.label;
+  return `With ${name}${rel ? ` (${rel.toLowerCase()})` : ""}`;
+}

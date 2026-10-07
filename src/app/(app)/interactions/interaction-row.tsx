@@ -5,6 +5,7 @@ import type { InteractionWithNames } from "@/lib/domain/interaction";
 import { formatDateTime } from "@/lib/format-date";
 import { ClusterBadge } from "@/components/cluster-badge";
 import { Pencil } from "lucide-react";
+import { withContactLabel } from "@/lib/domain/contact";
 
 /** One row in the global interactions log — unlike the embedded
  * InteractionList (which already has a resident/facility as context), this
@@ -18,14 +19,25 @@ import { Pencil } from "lucide-react";
 export function InteractionRow({ interaction }: { interaction: InteractionWithNames }) {
   const isVolunteerVisit = interaction.interaction_type === "volunteer_visit";
 
-  const parties = [
+  // A family conversation is support for the family member, so they
+  // come first: "With Bob Gottfried (spouse) · about Linda Gottfried".
+  const isFamily = interaction.interaction_type === "family_communication";
+  const residentParty =
     interaction.resident_id && interaction.resident_name
-      ? { href: `/residents/${interaction.resident_id}`, label: interaction.resident_name }
-      : null,
+      ? { href: `/residents/${interaction.resident_id}`, label: isFamily ? `about ${interaction.resident_name}` : interaction.resident_name }
+      : null;
+  const contactParty =
     !isVolunteerVisit && interaction.contact_id && interaction.contact_name
-      ? { href: `/contacts/${interaction.contact_id}`, label: interaction.contact_name }
-      : null,
-  ].filter((p): p is { href: string; label: string } => p !== null);
+      ? {
+          href: `/contacts/${interaction.contact_id}`,
+          label: isFamily
+            ? withContactLabel(interaction.contact_name, interaction.contact_relationship)!
+            : interaction.contact_name,
+        }
+      : null;
+  const parties = (isFamily ? [contactParty, residentParty] : [residentParty, contactParty]).filter(
+    (p): p is { href: string; label: string } => p !== null
+  );
 
   return (
     <li className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 text-sm transition-colors hover:border-primary/50">
