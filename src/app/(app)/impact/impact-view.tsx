@@ -201,7 +201,7 @@ export function ImpactView({
                   detail: `${n(f.connected)} of ${n(f.known)} residents`,
                 }))}
                 color={SERIES.families}
-                goal={famGoal.percent}
+                goal={famGoal.percent ?? undefined}
                 goalLabel={famGoal.by ? `Goal ${famGoal.percent}% by ${formatDateOnly(famGoal.by)}` : `Goal ${famGoal.percent}%`}
               />
             </ChartCard>
