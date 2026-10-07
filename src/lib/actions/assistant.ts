@@ -8,10 +8,9 @@ import { getCurrentProfile } from "@/lib/get-current-profile";
 import { HOLIDAY_TYPES, FAMILY_NEED_TYPES, SERVICE_FIELDS_BY_TYPE, occasionForHoliday, type InteractionType } from "@/lib/domain/interaction";
 import { loadDirectory, type Directory } from "@/lib/assistant/directory";
 import { resolvePlan } from "@/lib/assistant/resolve";
-import { SYSTEM_PROMPT } from "@/lib/assistant/prompt";
+import { SYSTEM_PROMPT, OUTPUT_INSTRUCTIONS, buildUserMessage } from "@/lib/assistant/prompt";
 import {
   parsePlanText,
-  PLAN_JSON_SCHEMA,
   planSchema,
   type AnalyzeResult,
   type ApplyResult,
@@ -25,14 +24,6 @@ import { residentName } from "@/lib/domain/resident-name";
 
 const MODEL = "claude-opus-5-5";
 const MAX_NOTE_LENGTH = 6000;
-
-/** How to answer: the plan as plain JSON (the API's strict structured-
- * output mode can't take a schema this size). Never changes between
- * requests, so it's cached with the instructions. */
-const OUTPUT_INSTRUCTIONS = `## Your answer
-Reply with ONLY one JSON object -- no other words, no code fences -- that matches this JSON Schema exactly. Include every key. Use "" for "nothing" in text and choice fields, 0 for numbers not given, and [] for empty lists. Choice fields must use exactly one of the listed values.
-
-${PLAN_JSON_SCHEMA}`;
 
 /**
  * Step 1 of Quick Log: read a free-form note and propose what to save.
@@ -70,20 +61,15 @@ export async function analyzeNote(
     return { ok: false, error: "Couldn't load the CRM's records just now. Please try again." };
   }
 
-  const now = toOrgDatetimeLocalValue(new Date());
   const onSiteAlias = onSite
     ? [...directory.idFor.entries()].find(([, id]) => id === onSite.facilityId)?.[0] ?? null
     : null;
-  const onSiteLine = onSiteAlias
-    ? `\nThey are on site at ${onSiteAlias} right now (on-site mode): everything in the note happened at ${onSiteAlias} today unless it says otherwise, and anyone they saw who isn't in the directory is a resident of ${onSiteAlias}.`
-    : "";
-  const weekday = new Intl.DateTimeFormat("en-US", { weekday: "long", timeZone: "America/New_York" }).format(
-    new Date()
-  );
-
-  const userMessage = `Current time in Cleveland: ${weekday}, ${now.replace("T", " ")}.\nThe person writing is ${
-    directory.selfAlias ?? "a staff member"
-  }.${onSiteLine}\n\nNOTE:\n${trimmed}`;
+  const userMessage = buildUserMessage({
+    now: toOrgDatetimeLocalValue(new Date()),
+    selfAlias: directory.selfAlias,
+    onSiteAlias,
+    note: trimmed,
+  });
   const base = {
     model: MODEL,
     max_tokens: 16000,
@@ -226,6 +212,10 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
   const parsed = planSchema.safeParse(input);
   if (!parsed.success) return { ok: false, steps: [{ label: "Nothing was saved: the plan looked wrong.", ok: false }] };
   const plan = parsed.data;
+  // The review screen clears this once the person confirms or fixes the date.
+  if (plan.interactions.some((x) => x.date_unclear)) {
+    return { ok: false, steps: [{ label: "Nothing was saved: please confirm the dates marked \"check the date\" first.", ok: false }] };
+  }
 
   const supabase = await createClient();
   const {

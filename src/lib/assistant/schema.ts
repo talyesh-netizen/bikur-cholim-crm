@@ -151,6 +151,10 @@ function buildPlanSchema<Ref extends z.ZodType>(ref: Ref, wire: boolean) {
       z.object({
         interaction_type: required(interactionType),
         occurred_at: z.string(),
+        /** Why the date or time is uncertain ("Monday" when today is
+         * Monday...); empty when the note made it clear. The review
+         * screen makes the person confirm or fix the date first. */
+        date_unclear: text,
         facility: optionalRef,
         resident: optionalRef,
         contact: optionalRef,
@@ -195,6 +199,11 @@ export type ModelPlan = z.infer<typeof modelPlanSchema>;
  * string anywhere in the plan means "nothing", and for the only numbers
  * (minutes_spent, people_reached) 0 means "not said". */
 export function fromWire(wirePlan: unknown): ModelPlan | null {
+  const parsed = parseWire(wirePlan);
+  return parsed.success ? parsed.data : null;
+}
+
+function parseWire(wirePlan: unknown) {
   const nullify = (value: unknown): unknown => {
     if (value === "" || value === 0) return null;
     if (Array.isArray(value)) return value.map(nullify).filter((v) => v !== null);
@@ -203,9 +212,14 @@ export function fromWire(wirePlan: unknown): ModelPlan | null {
     }
     return typeof value === "string" ? value.trim() || null : value;
   };
-  const parsed = modelPlanSchema.safeParse(nullify(wirePlan));
-  return parsed.success ? parsed.data : null;
+  return modelPlanSchema.safeParse(nullify(wirePlan));
 }
+
+const describeIssues = (issues: z.core.$ZodIssue[]) =>
+  issues
+    .slice(0, 12)
+    .map((i) => `${i.path.join(".") || "(top)"}: ${i.message}`)
+    .join("; ");
 
 /** The plan's JSON Schema, given to Claude in the instructions. (It used
  * to be enforced by the API's structured-output mode, but the plan grew
@@ -233,15 +247,12 @@ export function parsePlanText(text: string): { plan: ModelPlan } | { problem: st
   if (typeof filled.summary !== "string" || !filled.summary.trim()) filled.summary = "Here's what I found in your note.";
   for (const key of PLAN_LISTS) if (!Array.isArray(filled[key])) filled[key] = [];
   const wire = wirePlanSchema.safeParse(filled);
-  if (!wire.success) {
-    const issues = wire.error.issues
-      .slice(0, 12)
-      .map((i) => `${i.path.join(".") || "(top)"}: ${i.message}`)
-      .join("; ");
-    return { problem: `Some fields didn't match the schema: ${issues}` };
-  }
-  const plan = fromWire(wire.data);
-  return plan ? { plan } : { problem: "The plan didn't fit the schema after cleaning." };
+  if (!wire.success) return { problem: `Some fields didn't match the schema: ${describeIssues(wire.error.issues)}` };
+  // "" means "nothing" -- so a required reference left as "" lands here.
+  const plan = parseWire(wire.data);
+  return plan.success
+    ? { plan: plan.data }
+    : { problem: `Some required fields were empty: ${describeIssues(plan.error.issues)}` };
 }
 
 /** After alias resolution: an existing record's real ID, or "new:NR1"

@@ -16,10 +16,9 @@ export default function QuickLogPage() {
             Quick Log
           </h1>
         <p className="text-sm text-muted-foreground">
-          Type or dictate what happened, the way you&apos;d tell a colleague. The assistant works out who it&apos;s
-          about, logs the visit or call, updates profiles, adds anyone new, and sets follow-ups. You check it
-          before anything is saved. Best for quick, messy notes or several things at once; to fill in one
-          entry step by step, use <span className="font-medium">New &rarr; Log a visit</span> instead.
+          The easiest way to put anything in the CRM. Tap the microphone and say what happened or what you need to
+          remember &mdash; a visit (today or earlier), a reminder, a room change, someone new. It works out where each
+          thing goes, and you check it before anything is saved.
         </p>
       </div>
       <QuickLog />
