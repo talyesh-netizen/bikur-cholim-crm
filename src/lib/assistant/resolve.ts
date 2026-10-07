@@ -207,6 +207,9 @@ export function resolvePlan(
     }
     // Something can't have happened in the future: make the person check it.
     const inFuture = i.occurred_at.slice(0, 16) > toOrgDatetimeLocalValue(new Date(Date.now() + 60 * 60 * 1000));
+    // A delivery is one delivery, however many staff were there -- it's a
+    // byproduct of the visit, so only the writer logs it (director, Oct 7).
+    const shared = i.interaction_type === "food_delivery" ? [] : alsoBy.filter((a): a is string => !!a);
     plan.interactions.push({
       ...i,
       date_unclear: i.date_unclear ?? (inFuture ? "This date is in the future." : null),
@@ -214,7 +217,7 @@ export function resolvePlan(
       resident,
       contact,
       volunteers: volunteers as string[],
-      also_by: alsoBy.filter((a): a is string => !!a),
+      also_by: shared,
     });
   }
 

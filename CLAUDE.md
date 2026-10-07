@@ -53,3 +53,5 @@ Decisions so far:
 - "Family" support needs no sub-type; the kind of support is optional.
 - Staff meetings with volunteers (recruiting, onboarding, check-ins) are
   "Meeting with a volunteer" entries, separate from volunteer visits.
+- Food deliveries count once and are never copied to a colleague who was
+  there; visits, calls and family entries are.
