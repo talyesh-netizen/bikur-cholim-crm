@@ -1,8 +1,11 @@
 import type { Directory } from "@/lib/assistant/directory";
 import type { ModelPlan, Plan, PlanNames, PossibleMatches } from "@/lib/assistant/schema";
-import { orgLocalToIso } from "@/lib/format-date";
+import { orgLocalToIso, toOrgDatetimeLocalValue } from "@/lib/format-date";
 import { capitalizeWords } from "@/lib/format-text";
 import { residentName } from "@/lib/domain/resident-name";
+
+/** Interaction types that mean someone was physically at the facility. */
+const IN_PERSON_TYPES = new Set(["resident_visit", "volunteer_visit", "program", "facility_discovery_visit", "food_delivery"]);
 
 const cap = (value: string | null) => (value ? capitalizeWords(value) : null);
 const letters = (value: string | null) => (value ?? "").toLowerCase().replace(/[^a-z]/g, "");
@@ -202,8 +205,11 @@ export function resolvePlan(
       questions.push(`I couldn't work out when the ${i.interaction_type.replace(/_/g, " ")} happened, so I left it out.`);
       continue;
     }
+    // Something can't have happened in the future: make the person check it.
+    const inFuture = i.occurred_at.slice(0, 16) > toOrgDatetimeLocalValue(new Date(Date.now() + 60 * 60 * 1000));
     plan.interactions.push({
       ...i,
+      date_unclear: i.date_unclear ?? (inFuture ? "This date is in the future." : null),
       facility,
       resident,
       contact,
@@ -211,6 +217,21 @@ export function resolvePlan(
       also_by: alsoBy.filter((a): a is string => !!a),
     });
   }
+
+  // Resident visits, programs and the like already count as visiting the
+  // facility that day, so a separate "facility visit" would count it twice.
+  const visitedThatDay = new Set(
+    plan.interactions
+      .filter((x) => IN_PERSON_TYPES.has(x.interaction_type) && x.facility)
+      .map((x) => `${x.facility}|${x.occurred_at.slice(0, 10)}`)
+  );
+  plan.interactions = plan.interactions.filter((x) => {
+    if (x.interaction_type !== "facility_visit" || !visitedThatDay.has(`${x.facility}|${x.occurred_at.slice(0, 10)}`)) return true;
+    questions.push(
+      `I didn't add a separate facility visit to ${names[x.facility!] ?? "the facility"} -- the visits logged there that day already count.`
+    );
+    return false;
+  });
 
   for (const t of model.tasks) {
     const assigned = resolve(t.assigned_to, "staff");

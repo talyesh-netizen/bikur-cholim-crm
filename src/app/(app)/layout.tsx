@@ -10,7 +10,7 @@ import { quickLogEnabled } from "@/lib/quick-log-enabled";
 import { SaveToast } from "@/components/save-toast";
 import { BrandLogo, BrandMark } from "@/components/brand-mark";
 import { APP_NAME, ORGANIZATION_NAME } from "@/lib/config";
-import { LogOut } from "lucide-react";
+import { LogOut, Mic } from "lucide-react";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -67,7 +67,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <span className="block truncate text-xs text-muted-foreground">{ORGANIZATION_NAME}</span>
             </span>
           </Link>
-          <QuickAddMenu quickLog={quickLogEnabled()} />
+          <div className="flex shrink-0 items-center gap-2">
+            {/* One tap from anywhere to the easiest way to capture something. */}
+            {quickLogEnabled() ? (
+              <Button asChild size="sm" variant="outline" className="h-10 gap-1.5 px-3">
+                <Link href="/quick-log">
+                  <Mic className="size-4" />
+                  Quick Log
+                </Link>
+              </Button>
+            ) : null}
+            <QuickAddMenu quickLog={quickLogEnabled()} />
+          </div>
         </div>
       </header>
 

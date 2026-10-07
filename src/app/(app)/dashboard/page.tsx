@@ -8,7 +8,7 @@ import { listFacilities } from "@/lib/queries/facilities";
 import { createClient } from "@/lib/supabase/server";
 import { TaskCard } from "../tasks/task-card";
 import { DashboardOnsiteLauncher } from "@/components/dashboard-onsite-launcher";
-import { Sparkles, BellRing, ChartColumn, HeartHandshake } from "lucide-react";
+import { Mic, BellRing, ChartColumn, HeartHandshake } from "lucide-react";
 import { labelFor, INTERACTION_TYPES } from "@/lib/domain/interaction";
 import { ENGAGEMENT_STATUSES } from "@/lib/domain/facility";
 import { formatRelative, formatDateTime, orgMonthStart, orgDayStartIso } from "@/lib/format-date";
@@ -164,6 +164,20 @@ export default async function DashboardPage() {
         <p className="text-sm text-muted-foreground">{today} &mdash; here&apos;s what needs attention.</p>
       </div>
 
+      {/* The easiest way to capture anything: first on the screen. */}
+      {quickLogEnabled() ? (
+        <Link
+          href="/quick-log"
+          className="flex items-center gap-3 rounded-xl bg-primary p-4 text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
+        >
+          <Mic className="size-7 shrink-0" />
+          <span className="min-w-0">
+            <span className="block text-lg font-semibold leading-tight">Quick Log</span>
+            <span className="block text-sm opacity-90">Tell me what happened, or what you need to remember.</span>
+          </span>
+        </Link>
+      ) : null}
+
       <DashboardOnsiteLauncher
         facilities={facilities.map((facility) => ({
           id: facility.id,
@@ -175,14 +189,6 @@ export default async function DashboardPage() {
       />
 
       <div className="flex flex-wrap gap-2">
-        {quickLogEnabled() ? (
-          <Button asChild size="lg">
-            <Link href="/quick-log">
-              <Sparkles className="size-4" />
-              Quick Log
-            </Link>
-          </Button>
-        ) : null}
         <Button asChild size="lg" variant="outline">
           <Link href="/needs-attention">
             <BellRing className="size-4" />

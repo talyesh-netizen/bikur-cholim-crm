@@ -69,11 +69,11 @@ const wire = {
     { resident: "R1", facility: "F1", note: "bad" },
   ],
   interactions: [
-    { interaction_type: "resident_visit", occurred_at: "2026-09-25T15:00", facility: "F1", resident: "R1", contact: "",
+    { interaction_type: "resident_visit", occurred_at: "2026-09-25T15:00", date_unclear: "", facility: "F1", resident: "R1", contact: "",
       volunteers: [], also_by: ["S2", "S1", "S2", "C1"], notes: "Friendly visit; moved to room 212.", minutes_spent: 45, people_reached: 0, holiday: "", family_need: "" },
-    { interaction_type: "food_delivery", occurred_at: "2026-09-08T12:00", facility: "F1", resident: "", contact: "",
+    { interaction_type: "food_delivery", occurred_at: "2026-09-08T12:00", date_unclear: "", facility: "F1", resident: "", contact: "",
       volunteers: [], also_by: [], notes: "Rosh Hashana packages", minutes_spent: 0, people_reached: 15, holiday: "rosh_hashana", family_need: "" },
-    { interaction_type: "family_communication", occurred_at: "2026-09-25T15:30", facility: "F1", resident: "R1", contact: "NC1",
+    { interaction_type: "family_communication", occurred_at: "2026-09-25T15:30", date_unclear: "", facility: "F1", resident: "R1", contact: "NC1",
       volunteers: ["C99"], also_by: [], notes: "", minutes_spent: 0, people_reached: 0, holiday: "", family_need: "update" },
   ],
   tasks: [
