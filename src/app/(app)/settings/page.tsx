@@ -12,6 +12,7 @@ export default async function SettingsPage() {
         items={isAdmin ? [...SETTINGS_ITEMS, ...ADMIN_NAV_ITEMS] : SETTINGS_ITEMS}
         descriptions={{
           "/data-quality": "Records that need a second look",
+          "/settings/password": "Set your own password",
           "/settings/staff": "Accounts, roles and facility access",
           "/settings/backup": "Download a full copy of the CRM",
           "/settings/changes": "Who changed what, and when",
