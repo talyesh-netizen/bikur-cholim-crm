@@ -32,9 +32,10 @@ const MAX_NOTE_LENGTH = 6000;
  */
 export async function analyzeNote(
   note: string,
-  /** Set from on-site mode: the facility the person is standing in, so
-   * "saw Alan, just got here after surgery" needs no facility name. */
-  onSite?: { facilityId: string }
+  /** Where it happened, when the person said so up front: a facility
+   * in the CRM (`here` = on-site mode, standing in it right now), or the
+   * name of a place that isn't in the CRM yet. Saves naming it in the note. */
+  place?: { facilityId?: string; here?: boolean; newFacilityName?: string }
 ): Promise<AnalyzeResult> {
   const trimmed = note.trim();
   if (!trimmed) return { ok: false, error: "Please type or dictate a note first." };
@@ -61,13 +62,15 @@ export async function analyzeNote(
     return { ok: false, error: "Couldn't load the CRM's records just now. Please try again." };
   }
 
-  const onSiteAlias = onSite
-    ? [...directory.idFor.entries()].find(([, id]) => id === onSite.facilityId)?.[0] ?? null
+  const placeAlias = place?.facilityId
+    ? [...directory.idFor.entries()].find(([, id]) => id === place.facilityId)?.[0] ?? null
     : null;
   const userMessage = buildUserMessage({
     now: toOrgDatetimeLocalValue(new Date()),
     selfAlias: directory.selfAlias,
-    onSiteAlias,
+    placeAlias,
+    here: !!place?.here,
+    newPlace: place?.newFacilityName?.replace(/[\r\n"]+/g, " ").trim().slice(0, 120) || null,
     note: trimmed,
   });
   const base = {

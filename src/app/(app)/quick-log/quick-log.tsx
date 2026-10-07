@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { VoiceButton } from "@/components/voice-button";
+import { PlacePicker, type Place, type PlaceFacility } from "./place-picker";
 import { residentName } from "@/lib/domain/resident-name";
 import { analyzeNote, applyPlan } from "@/lib/actions/assistant";
 import type { ApplyResult, Plan, PlanNames, PossibleMatches } from "@/lib/assistant/schema";
@@ -270,12 +271,16 @@ function withDecisions(plan: Plan, decisions: Decisions): Plan {
 
 export function QuickLog({
   onSite,
+  facilities,
 }: {
   /** On-site mode: the facility the person is at, so notes don't need to name it. */
   onSite?: { facilityId: string; facilityName: string };
+  /** When given (and not on site), Quick Log first asks where it happened. */
+  facilities?: PlaceFacility[];
 } = {}) {
   const router = useRouter();
   const [note, setNote] = useState("");
+  const [place, setPlace] = useState<Place | null>(null);
   const [proposal, setProposal] = useState<{ plan: Plan; names: PlanNames; matches: PossibleMatches } | null>(null);
   const [decisions, setDecisions] = useState<Decisions>({});
   const [dateFixes, setDateFixes] = useState<DateFixes>({});
@@ -335,7 +340,16 @@ export function QuickLog({
     startReading(async () => {
       let response: Awaited<ReturnType<typeof analyzeNote>>;
       try {
-        response = await analyzeNote(note, onSite ? { facilityId: onSite.facilityId } : undefined);
+        response = await analyzeNote(
+          note,
+          onSite
+            ? { facilityId: onSite.facilityId, here: true }
+            : place?.kind === "facility"
+              ? { facilityId: place.id }
+              : place?.kind === "new"
+                ? { newFacilityName: place.name }
+                : undefined
+        );
       } catch {
         // The connection dropped or the server gave up -- say so, and
         // keep the note in the box.
@@ -377,6 +391,7 @@ export function QuickLog({
 
   const startOver = () => {
     setNote("");
+    setPlace(null);
     setProposal(null);
     setResult(null);
     setError(null);
@@ -421,6 +436,12 @@ export function QuickLog({
     );
   }
 
+  // First question: where did it happen? (Skipped on site -- the
+  // facility is already known.)
+  if (facilities && !onSite && !place) {
+    return <PlacePicker facilities={facilities} onChoose={setPlace} />;
+  }
+
   // Cards read "Shirly", not "Shirley (new)", once the person says it's her.
   const shownNames: PlanNames = proposal ? { ...proposal.names } : {};
   for (const [key, choice] of Object.entries(decisions)) {
@@ -448,6 +469,27 @@ export function QuickLog({
           <label htmlFor="quick-log-note" className="text-base font-semibold">
             {onSite ? "Tell me what happened here, or what you need to remember." : "Tell me what happened, or what you need to remember."}
           </label>
+          {!onSite && place ? (
+            <p className="-mt-1 flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
+              <span>
+                Where:{" "}
+                <span className="font-medium text-foreground">
+                  {place.kind === "facility" ? place.name : place.kind === "new" ? `${place.name} (new facility)` : "not one place"}
+                </span>
+              </span>
+              <button
+                type="button"
+                className="font-medium text-primary underline-offset-2 hover:underline"
+                disabled={reading || saving}
+                onClick={() => {
+                  setPlace(null);
+                  setProposal(null);
+                }}
+              >
+                Change
+              </button>
+            </p>
+          ) : null}
           <VoiceButton
             disabled={reading || saving}
             onText={(text) => {
@@ -462,14 +504,14 @@ export function QuickLog({
               setNote(e.target.value);
               if (proposal) setProposal(null);
             }}
-            placeholder={onSite ? ONSITE_EXAMPLE : EXAMPLE}
+            placeholder={onSite || place?.kind === "facility" || place?.kind === "new" ? ONSITE_EXAMPLE : EXAMPLE}
             rows={6}
             className="min-h-40"
             disabled={reading || saving}
           />
           <p className="text-xs text-muted-foreground">
-            Just talk, the way you&apos;d tell a colleague: visits (today or catching up on earlier ones),
-            reminders, room changes, new residents or facilities. You don&apos;t need to say where it goes.
+            Talk, or type in the box, the way you&apos;d tell a colleague: visits (today or catching up on
+            earlier ones), reminders, room changes, new residents. You don&apos;t need to say where it goes.
             Nothing is saved until you check it.
           </p>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}

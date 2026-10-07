@@ -21,7 +21,7 @@ function toInteractionWithNames(row: ServiceDetails & {
   created_at: string;
   residents: { first_name: string | null; last_name: string | null; preferred_name: string | null } | null;
   facilities: { name: string; geographic_cluster_id: string | null } | null;
-  contacts: { name: string } | null;
+  contacts: { name: string; resident_contacts: { resident_id: string; relationship_to_resident: string }[] | null } | null;
   profiles: { full_name: string } | null;
   interaction_volunteers: { contacts: { id: string; name: string } | null }[] | null;
 }): InteractionWithNames {
@@ -53,6 +53,8 @@ function toInteractionWithNames(row: ServiceDetails & {
     facility_name: row.facilities?.name ?? null,
     facility_cluster_id: row.facilities?.geographic_cluster_id ?? null,
     contact_name: row.contacts?.name ?? null,
+    contact_relationship:
+      row.contacts?.resident_contacts?.find((link) => link.resident_id === row.resident_id)?.relationship_to_resident ?? null,
     staff_member_name: row.profiles?.full_name ?? null,
     volunteers: (row.interaction_volunteers ?? [])
       .map((iv) => iv.contacts)
@@ -69,7 +71,7 @@ function toInteractionWithNames(row: ServiceDetails & {
 // having been on a volunteer_visit -- see the type comment on
 // InteractionWithNames for why this must stay distinct from contact_id.
 const SELECT_WITH_NAMES =
-  "id, occurred_at, interaction_type, facility_id, resident_id, contact_id, staff_member_id, notes, created_at, occasion, holiday, family_need, program_partner, quantity, people_reached, participants, minutes_spent, unmet_need, unmet_need_reason, funder_story, residents(first_name, last_name, preferred_name), facilities(name, geographic_cluster_id), contacts!interactions_contact_id_fkey(name), profiles(full_name), interaction_volunteers(contacts(id, name))";
+  "id, occurred_at, interaction_type, facility_id, resident_id, contact_id, staff_member_id, notes, created_at, occasion, holiday, family_need, program_partner, quantity, people_reached, participants, minutes_spent, unmet_need, unmet_need_reason, funder_story, residents(first_name, last_name, preferred_name), facilities(name, geographic_cluster_id), contacts!interactions_contact_id_fkey(name, resident_contacts(resident_id, relationship_to_resident)), profiles(full_name), interaction_volunteers(contacts(id, name))";
 
 export async function listInteractionsForResident(residentId: string) {
   const supabase = await createClient();

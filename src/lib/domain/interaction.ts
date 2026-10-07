@@ -140,6 +140,9 @@ export type InteractionWithNames = Interaction & {
   facility_cluster_id: string | null;
   contact_id: string | null;
   contact_name: string | null;
+  /** How the contact is related to this interaction's resident
+   * ("spouse"), when they're linked as family. */
+  contact_relationship: string | null;
   staff_member_name: string | null;
   volunteers: { id: string; name: string }[];
 };

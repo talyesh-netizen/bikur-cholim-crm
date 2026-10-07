@@ -34,7 +34,8 @@ Guidance:
 - Staff visiting a resident in person -> resident_visit, with resident and facility set.
 - A volunteer visiting -> volunteer_visit, with the volunteer contact aliases in "volunteers".
 - Another staff member who was there too ("visited with Sara", "Sara and I saw her") -> put their staff alias (S...) in "also_by" on every entry they took part in; each staff member gets credit for the visit. Only staff from the directory go here, never the writer and never volunteers. Leave it empty otherwise.
-- Talking with (or emailing) a resident's family -> family_communication, with the resident, the family contact in "contact", and the resident's facility.
+- Talking with (or emailing) a resident's family -> family_communication, with the resident it's about, the family contact in "contact", and the resident's facility. This entry is the support the FAMILY MEMBER received (it counts as family support in reports), so it is separate from the resident's visit.
+- A family member who was there during a visit ("visited Linda with her husband Bob", "her daughter was there and we talked") -> the resident_visit AND a separate family_communication with that family member at the same time. A family member who is only mentioned ("she's married to Bob") gets no entry of their own.
 - Talking with facility staff -> facility_staff_communication, with the facility and that staff contact.
 - "facility_visit" is ONLY for being at a facility without a more specific entry for that visit (e.g. "Stopped in at Menorah Park, dropped off flyers, didn't see anyone"), or the tracking sheet's "Facility Visit" rows. When the note logs resident visits, a program or staff conversations at a facility on that day, those already count as visiting the facility -- never add a facility_visit on top.
 - Every interaction needs a facility except care_navigation. When a resident is involved, use the resident's facility (or the facility being moved to, for a move).
@@ -88,22 +89,33 @@ ${PLAN_JSON_SCHEMA}`;
 export function buildUserMessage({
   now,
   selfAlias,
-  onSiteAlias,
+  placeAlias = null,
+  here = false,
+  newPlace = null,
   note,
 }: {
   /** Cleveland local time, YYYY-MM-DDTHH:mm. */
   now: string;
   selfAlias: string | null;
-  onSiteAlias: string | null;
+  /** The facility the person said it happened at (alias), if any. */
+  placeAlias?: string | null;
+  /** On-site mode: they are standing in placeAlias right now. */
+  here?: boolean;
+  /** A place they named up front that isn't in the CRM yet. */
+  newPlace?: string | null;
   note: string;
 }) {
   const today = now.slice(0, 10);
   const [y, m, d] = today.split("-").map(Number);
   const weekday = new Intl.DateTimeFormat("en-US", { weekday: "long", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, d)));
-  const onSiteLine = onSiteAlias
-    ? `\nThey are on site at ${onSiteAlias} right now (on-site mode): whatever the note says happened, happened at ${onSiteAlias} today unless it says otherwise, and anyone they saw who isn't in the directory is a resident of ${onSiteAlias}.`
-    : "";
+  const placeLine = placeAlias
+    ? here
+      ? `\nThey are on site at ${placeAlias} right now (on-site mode): whatever the note says happened, happened at ${placeAlias} today unless it says otherwise, and anyone they saw who isn't in the directory is a resident of ${placeAlias}.`
+      : `\nBefore writing, they said this happened at ${placeAlias}: whatever the note says happened, happened at ${placeAlias} unless it says otherwise, and anyone they saw who isn't in the directory is a resident of ${placeAlias}. (It may have been on an earlier day -- take the date from the note.)`
+    : newPlace
+      ? `\nBefore writing, they said this happened at a place called "${newPlace}" that they believe isn't in the CRM yet. If the directory has it (under that name, a former name or a near spelling), use that facility; otherwise propose it as a new facility (NF1) and use it for whatever the note says happened there and for anyone they saw who isn't in the directory.`
+      : "";
   return `Current time in Cleveland: ${weekday}, ${now.replace("T", " ")}.\n${calendarAround(today)}\nThe person writing is ${
     selfAlias ?? "a staff member"
-  }.${onSiteLine}\n\nNOTE:\n${note}`;
+  }.${placeLine}\n\nNOTE:\n${note}`;
 }

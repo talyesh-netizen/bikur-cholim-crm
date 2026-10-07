@@ -31,3 +31,23 @@ must pass, and the Vercel check on the pull request must be green.
 - Live site deploys from lowercase `main` (see `LAUNCH_READINESS.md`).
 - Real resident data is in production; see `PRIVACY_AND_SECURITY.md`
   before sending any data anywhere new.
+
+## Quick Log rules (keep updating)
+
+The director asked (Oct 7, 2026) that Quick Log's rules keep being
+updated as field use shows misreadings. When they report one:
+1. Add or adjust the rule in `src/lib/assistant/prompt.ts` (plain
+   words, with the director's own example).
+2. Add a matching scenario to `scripts/quick-log-scenarios.ts`.
+3. Note the decision below.
+
+Decisions so far:
+- Only log an interaction when the note says one happened; only make a
+  task for a stated future action (task-only and update-only notes are
+  fine).
+- Past visits use the day they happened; unclear dates are flagged for
+  the person to confirm, never guessed.
+- No separate "facility visit" on top of resident visits that day.
+- A family member who was there and spoken with gets their own family
+  entry (they are the one supported); one only mentioned gets none.
+- "Family" support needs no sub-type; the kind of support is optional.

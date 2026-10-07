@@ -36,11 +36,16 @@ export function VoiceButton({
   onText,
   disabled,
   className,
+  compact = false,
+  label = "Tap to talk",
 }: {
   /** Called with each finished phrase, to append to the note. */
   onText: (text: string) => void;
   disabled?: boolean;
   className?: string;
+  /** A smaller button, for a short answer like a place name. */
+  compact?: boolean;
+  label?: string;
 }) {
   // null on the server (it can't know the browser), then the real answer.
   const supported = useSyncExternalStore(
@@ -131,15 +136,15 @@ export function VoiceButton({
     <div className={cn("flex flex-col gap-2", className)}>
       <Button
         type="button"
-        size="lg"
-        variant={listening ? "destructive" : "default"}
-        className="h-16 w-full gap-3 rounded-2xl text-lg"
+        size={compact ? "default" : "lg"}
+        variant={listening ? "destructive" : compact ? "outline" : "default"}
+        className={compact ? "h-11 w-full gap-2 rounded-xl" : "h-16 w-full gap-3 rounded-2xl text-lg"}
         disabled={disabled || supported === null}
         onClick={listening ? stop : start}
         aria-pressed={listening}
       >
-        {listening ? <Square className="size-6" /> : <Mic className="size-6" />}
-        {listening ? "Stop" : "Tap to talk"}
+        {listening ? <Square className={compact ? "size-4" : "size-6"} /> : <Mic className={compact ? "size-4" : "size-6"} />}
+        {listening ? "Stop" : label}
       </Button>
       {listening ? (
         <p className="flex items-center gap-2 text-sm text-muted-foreground" aria-live="polite">
