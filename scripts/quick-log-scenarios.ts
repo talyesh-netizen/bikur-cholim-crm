@@ -195,6 +195,16 @@ const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    // Director, Oct 7: meetings with volunteers (recruiting, check-ins)
+    // are their own kind of entry, not a volunteer visit.
+    note: "Met with Lisa Fenn today about volunteering on Sundays.",
+    expect: "One volunteer meeting -- not a volunteer visit, no task.",
+    checks: (plan) => [
+      ["one volunteer meeting", plan.interactions.length === 1 && plan.interactions[0].interaction_type === "volunteer_meeting"],
+      ["no task", plan.tasks.length === 0],
+    ],
+  },
+  {
     // Director, Oct 7: when family is there, the family member is the one
     // supported -- a separate family entry, not just a name on the visit.
     note: "Visited Norma at Anna Maria today with her husband Sam, we talked for a while. Ilene is married to Phil.",
