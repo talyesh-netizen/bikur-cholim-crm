@@ -7,8 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { InteractionWithNames } from "@/lib/domain/interaction";
-import type { FacilityMedia, MediaUsageScope } from "@/lib/queries/facility-media";
-import { MEDIA_USAGE_SCOPES } from "@/lib/queries/facility-media";
+import { MEDIA_USAGE_SCOPES, type FacilityMedia, type MediaUsageScope } from "@/lib/domain/facility-media";
 import { formatDateTime } from "@/lib/format-date";
 
 const MAX_BYTES = 10 * 1024 * 1024;
