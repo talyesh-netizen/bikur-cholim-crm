@@ -29,7 +29,7 @@ export type NavItem = {
   icon: LucideIcon;
   section: Section;
   /** Other paths that count as "this menu item" (e.g. People covers
-   * Contacts and Shuls & Partners). */
+   * Contacts). */
   alsoActive?: string[];
 };
 
@@ -44,14 +44,17 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/interactions", label: "Interactions", icon: History, section: "log" },
   { href: "/tasks", label: "Tasks", icon: ListChecks, section: "tasks" },
   { href: "/impact", label: "Impact", icon: ChartColumn, section: "dashboard" },
-  { href: "/people", label: "People", icon: Contact, section: "contacts", alsoActive: ["/contacts", "/organizations"] },
+  { href: "/people", label: "People", icon: Contact, section: "contacts", alsoActive: ["/contacts"] },
+  // Shuls, schools and other community organizations -- their own menu
+  // item so they're one tap away, not tucked under People.
+  { href: "/organizations", label: "Strategic Partners", icon: Landmark, section: "contacts" },
   { href: "/settings", label: "Settings", icon: Settings, section: "neutral", alsoActive: ["/data-quality", "/settings/password"] },
 ];
 
 /** What People opens. */
 export const PEOPLE_ITEMS: NavItem[] = [
   { href: "/contacts", label: "Contacts", icon: Contact, section: "contacts" },
-  { href: "/organizations", label: "Shuls & Partners", icon: Landmark, section: "contacts" },
+  { href: "/organizations", label: "Strategic Partners", icon: Landmark, section: "contacts" },
 ];
 
 /** What Settings opens for everyone. */

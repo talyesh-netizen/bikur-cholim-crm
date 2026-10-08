@@ -27,10 +27,10 @@ export default async function OrganizationsPage({
         <div>
           <h1 className="flex items-center gap-2.5 text-2xl font-semibold">
             <SectionIcon section="contacts" icon={Landmark} />
-            Shuls & Partners
+            Strategic Partners
           </h1>
           <p className="text-sm text-muted-foreground">
-            {organizations.length} organization{organizations.length === 1 ? "" : "s"}
+            Shuls, schools and organizations · {organizations.length} on file
           </p>
         </div>
         <Button asChild>
