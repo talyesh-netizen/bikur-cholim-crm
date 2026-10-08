@@ -41,9 +41,8 @@ export async function listFacilityMedia(facilityId: string): Promise<FacilityMed
 
   if (error) throw new Error(error.message);
 
-  const rows = (data ?? []) as unknown as Omit<FacilityMedia, "signed_url" | "interaction">[] & never[];
   return Promise.all(
-    rows.map(async (row) => {
+    (data ?? []).map(async (row) => {
       const raw = row as unknown as Omit<FacilityMedia, "signed_url" | "interaction"> & {
         interactions: FacilityMedia["interaction"];
       };
