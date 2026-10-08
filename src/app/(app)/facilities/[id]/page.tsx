@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { ChainNav } from "@/components/chain-nav";
+import { findHealthcareGroup } from "@/lib/queries/organizations";
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -73,11 +75,18 @@ export default async function FacilityDetailPage({
     { includeClosed: true }
   );
 
+  const owner = await findHealthcareGroup(facility.parent_healthcare_group);
   const toggleActive = setFacilityActive.bind(null, facility.id, !facility.active);
   const mainContact = facilityContacts.find((fc) => fc.is_primary_contact) ?? null;
 
   return (
     <div className="flex flex-col gap-4">
+      <ChainNav
+        steps={[
+          { label: facility.parent_healthcare_group ?? "", href: owner ? `/facilities/groups/${owner.id}` : undefined },
+          { label: facility.name },
+        ]}
+      />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
@@ -173,7 +182,7 @@ export default async function FacilityDetailPage({
             <InfoRow label="Address" value={formatAddress(facility)} href={mapsHref(formatAddress(facility))} />
             <InfoRow label="Main phone" value={facility.main_phone} href={telHref(facility.main_phone)} />
             <InfoRow label="Website" value={facility.website} href={websiteHref(facility.website)} />
-            <InfoRow label="Parent healthcare group" value={facility.parent_healthcare_group} />
+            <InfoRow label="Owned by" value={facility.parent_healthcare_group} href={owner ? `/facilities/groups/${owner.id}` : undefined} />
           </CardContent>
         </Card>
 

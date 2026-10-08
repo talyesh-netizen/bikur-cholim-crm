@@ -9,6 +9,8 @@ import type { OrganizationType } from "@/lib/domain/organization";
 const ORGANIZATION_TYPE_COLORS: Record<OrganizationType, string> = {
   synagogue: "#5b5fc7",
   school: "#eda100",
+  jewish_organization: "#2e9d62",
+  healthcare_group: "#2a78d6",
   outreach_center: "#2e9d62",
   community_partner: "#eb6834",
   other: "#898781",

@@ -12,15 +12,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ORGANIZATION_TYPES } from "@/lib/domain/organization";
+import { ORGANIZATION_TYPES, OFFERED_PARTNER_TYPES, HEALTHCARE_GROUP } from "@/lib/domain/organization";
+import { offeredOptions } from "@/lib/domain/offered";
 import type { Organization } from "@/lib/domain/organization";
 import type { OrganizationFormState } from "@/lib/actions/organizations";
 import { capitalizeAsYouType } from "@/lib/format-text";
 
 type Action = (state: OrganizationFormState, formData: FormData) => Promise<OrganizationFormState>;
 
-function organizationToFormValues(organization?: Organization): Record<string, string> {
-  if (!organization) return { organization_type: "synagogue" };
+function organizationToFormValues(organization?: Organization, defaultType?: string): Record<string, string> {
+  if (!organization) return { organization_type: defaultType ?? "synagogue" };
   return {
     name: organization.name,
     organization_type: organization.organization_type,
@@ -37,15 +38,18 @@ function organizationToFormValues(organization?: Organization): Record<string, s
 export function OrganizationForm({
   action,
   organization,
+  defaultType,
 }: {
   action: Action;
   organization?: Organization;
+  /** "healthcare_group" when adding from Healthcare groups. */
+  defaultType?: string;
 }) {
   const [state, formAction, isPending] = useActionState<OrganizationFormState, FormData>(action, {
     error: null,
   });
   const fieldErrors = state.fieldErrors ?? {};
-  const values = state.values ?? organizationToFormValues(organization);
+  const values = state.values ?? organizationToFormValues(organization, defaultType);
   const formKey = JSON.stringify(values);
 
   return (
@@ -61,7 +65,7 @@ export function OrganizationForm({
       </Field>
 
       <Field label="Type" htmlFor="organization_type" error={fieldErrors.organization_type} required>
-        <SelectField name="organization_type" defaultValue={values.organization_type} options={ORGANIZATION_TYPES} />
+        <SelectField name="organization_type" defaultValue={values.organization_type} options={offeredOptions(ORGANIZATION_TYPES, [...OFFERED_PARTNER_TYPES, HEALTHCARE_GROUP], values.organization_type)} />
       </Field>
 
       <div className="grid gap-4 sm:grid-cols-2">

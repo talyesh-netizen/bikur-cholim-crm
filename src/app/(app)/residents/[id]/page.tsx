@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { ChainNav } from "@/components/chain-nav";
+import { findHealthcareGroup } from "@/lib/queries/organizations";
+import { getFacility } from "@/lib/queries/facilities";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -50,9 +53,18 @@ export default async function ResidentDetailPage({
   if (!resident) notFound();
 
   const displayName = residentName(resident);
+  const facility = resident.current_facility_id ? await getFacility(resident.current_facility_id) : null;
+  const owner = await findHealthcareGroup(facility?.parent_healthcare_group);
 
   return (
     <div className="flex flex-col gap-4">
+      <ChainNav
+        steps={[
+          { label: facility?.parent_healthcare_group ?? "", href: owner ? `/facilities/groups/${owner.id}` : undefined },
+          { label: facility?.name ?? "", href: facility ? `/facilities/${facility.id}` : undefined },
+          { label: displayName },
+        ]}
+      />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">{displayName}</h1>
