@@ -36,12 +36,36 @@ import { labelFor, INTERACTION_TYPES, HOLIDAYS, FAMILY_NEEDS } from "@/lib/domai
 import { RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { CONTACT_TYPES, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
 import { ENGAGEMENT_STATUSES, VISIT_PRIORITIES, KOSHER_FOOD_OPTIONS, FACILITY_TYPES } from "@/lib/domain/facility";
-import { TASK_CATEGORIES } from "@/lib/domain/task";
 import { formatDateOnly, formatDateTimeWithTime, getLocalToday, orgLocalToIso } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
 
 type Section = keyof Omit<Plan, "summary" | "questions">;
+/** Where a line on the check screen will be saved -- one plain label
+ * per line, so it's never a guess (decided Oct 8, 2026). */
+type Dest = "today" | "earlier" | "food" | "profile" | "followup" | "new" | "move";
+const DEST_LABEL: Record<Dest, string> = {
+  today: "Today's log",
+  earlier: "Log (earlier day)",
+  food: "Food",
+  profile: "Their profile",
+  followup: "Follow-up",
+  new: "New in the CRM",
+  move: "Moving",
+};
+const DEST_STYLE: Record<Dest, string> = {
+  today: "text-[#2a78d6]",
+  earlier: "text-[#2a78d6]",
+  food: "text-[#b26a00]",
+  profile: "text-[#8a4fbf]",
+  followup: "text-[#1a8a5c]",
+  new: "text-muted-foreground",
+  move: "text-muted-foreground",
+};
+
 type Item = {
+  /** Who it's about -- the check screen groups lines under this name. */
+  who: string;
+  dest: Dest;
   section: Section;
   index: number;
   icon: LucideIcon;
@@ -130,10 +154,12 @@ function editFieldsFor(plan: Plan, section: Section, index: number): EditField[]
 }
 
 /** Turns a plan into the plain-English cards shown for review. */
-function describe(plan: Plan, names: PlanNames, today: string): Item[] {
+export function describe(plan: Plan, names: PlanNames, today: string): Item[] {
   const n = (ref: string | null) => (ref ? names[ref] ?? "someone" : null);
   const items: Item[] = [];
   const add = (
+    who: string | null,
+    dest: Dest,
     section: Section,
     index: number,
     icon: LucideIcon,
@@ -141,17 +167,18 @@ function describe(plan: Plan, names: PlanNames, today: string): Item[] {
     lines: (string | null | false)[],
     newResidentKey?: string,
     dateIssue?: string
-  ) => items.push({ section, index, icon, title, lines: lines.filter(Boolean) as string[], newResidentKey, dateIssue });
+  ) =>
+    items.push({ who: who || "General", dest, section, index, icon, title, lines: lines.filter(Boolean) as string[], newResidentKey, dateIssue });
 
   plan.new_facilities.forEach((f, i) =>
-    add("new_facilities", i, Building2, `Add new facility: ${f.name}`, [
+    add(f.name, "new", "new_facilities", i, Building2, `New facility: ${f.name}`, [
       labelFor(FACILITY_TYPES, f.facility_type),
       [f.address, f.city].filter(Boolean).join(", ") || null,
       f.notes && `Note: ${f.notes}`,
     ])
   );
   plan.new_residents.forEach((r, i) =>
-    add("new_residents", i, UserPlus, `Add new resident: ${residentName(r)}`, [
+    add(residentName(r), "new", "new_residents", i, UserPlus, `New resident: ${residentName(r)}`, [
       `At ${n(r.facility)}${r.room_number ? `, room ${r.room_number}` : ""}`,
       r.status !== "active" && `Status: ${labelFor(RESIDENT_STATUSES, r.status)}`,
       r.kosher_food_needs && `Kosher food: ${r.kosher_food_needs}`,
@@ -161,7 +188,7 @@ function describe(plan: Plan, names: PlanNames, today: string): Item[] {
     ], r.key)
   );
   plan.new_contacts.forEach((c, i) =>
-    add("new_contacts", i, UserPlus, `Add new contact: ${c.name}`, [
+    add(n(c.resident) ?? n(c.facility) ?? c.name, c.resident ? "profile" : "new", "new_contacts", i, UserPlus, c.resident ? `Family: ${c.name}` : `New contact: ${c.name}`, [
       labelFor(CONTACT_TYPES, c.contact_type),
       c.resident &&
         `${c.relationship_to_resident ? labelFor(RESIDENT_CONTACT_RELATIONSHIPS, c.relationship_to_resident) : "Contact"} of ${n(c.resident)}`,
@@ -173,7 +200,7 @@ function describe(plan: Plan, names: PlanNames, today: string): Item[] {
     ])
   );
   plan.resident_updates.forEach((u, i) =>
-    add("resident_updates", i, PencilLine, `Update ${n(u.resident)}'s profile`, [
+    add(n(u.resident), "profile", "resident_updates", i, PencilLine, "Update their details", [
       u.status && `Status → ${labelFor(RESIDENT_STATUSES, u.status)}`,
       u.room_number && `Room → ${u.room_number}`,
       u.phone_number && `Phone → ${u.phone_number}`,
@@ -184,10 +211,10 @@ function describe(plan: Plan, names: PlanNames, today: string): Item[] {
     ])
   );
   plan.transfers.forEach((t, i) =>
-    add("transfers", i, ArrowRightLeft, `Move ${n(t.resident)} to ${n(t.new_facility)}`, [t.reason && `Reason: ${t.reason}`])
+    add(n(t.resident), "move", "transfers", i, ArrowRightLeft, `Moves to ${n(t.new_facility)}`, [t.reason && `Reason: ${t.reason}`])
   );
   plan.facility_updates.forEach((u, i) =>
-    add("facility_updates", i, Building2, `Update ${n(u.facility)}`, [
+    add(n(u.facility), "profile", "facility_updates", i, Building2, "Update the facility", [
       u.engagement_status && `Engagement → ${labelFor(ENGAGEMENT_STATUSES, u.engagement_status)}`,
       u.visit_priority && `Visit priority → ${labelFor(VISIT_PRIORITIES, u.visit_priority)}`,
       u.kosher_food_availability && `Kosher food → ${labelFor(KOSHER_FOOD_OPTIONS, u.kosher_food_availability)}`,
@@ -196,32 +223,45 @@ function describe(plan: Plan, names: PlanNames, today: string): Item[] {
     ])
   );
   plan.profile_notes.forEach((p, i) =>
-    add("profile_notes", i, StickyNote, `Profile note for ${n(p.resident) ?? n(p.facility)}`, [p.note])
+    add(n(p.resident) ?? n(p.facility), "profile", "profile_notes", i, StickyNote, p.note, [])
   );
   plan.interactions.forEach((x, i) => {
     const iso = orgLocalToIso(x.occurred_at);
-    add("interactions", i, HeartHandshake, `Log: ${labelFor(INTERACTION_TYPES, x.interaction_type)}${x.holiday ? ` · ${labelFor(HOLIDAYS, x.holiday)}` : ""}${x.family_need ? ` · ${labelFor(FAMILY_NEEDS, x.family_need)}` : ""}`, [
-      [n(x.resident), n(x.contact) && `with ${n(x.contact)}`, n(x.facility) && `at ${n(x.facility)}`].filter(Boolean).join(" "),
+    add(
+      n(x.resident) ?? n(x.contact) ?? n(x.facility),
+      x.interaction_type === "food_delivery" ? "food" : x.occurred_at.slice(0, 10) === today ? "today" : "earlier",
+      "interactions", i, HeartHandshake, `${TYPE_BUTTONS.find((b) => b.choices.some((c) => c.value === x.interaction_type))?.label ?? labelFor(INTERACTION_TYPES, x.interaction_type)}${x.holiday ? ` · ${labelFor(HOLIDAYS, x.holiday)}` : ""}${x.family_need ? ` · ${labelFor(FAMILY_NEEDS, x.family_need)}` : ""}`, [
+      // The person is the heading above; say only who else and where.
+      [n(x.contact) && `with ${n(x.contact)}`, x.resident && n(x.facility) && `at ${n(x.facility)}`].filter(Boolean).join(" ") || null,
       // The date comes first: a past entry ("catching up from Monday")
       // must be visibly on the right day.
       iso && `${x.occurred_at.slice(0, 10) === today ? "Today" : "Earlier"} · ${formatDateTimeWithTime(iso)}`,
       x.volunteers.length > 0 && `Volunteers: ${x.volunteers.map(n).join(", ")}`,
-      x.also_by.length > 0 && `Also logged for ${x.also_by.map(n).join(", ")} (they were there too)`,
+      x.also_by.length > 0 && `With ${x.also_by.map(n).join(", ")}`,
       x.minutes_spent ? `${x.minutes_spent} minutes` : null,
       x.people_reached ? `${x.people_reached} ${x.people_reached === 1 ? "person" : "people"} reached` : null,
       x.notes,
     ], undefined, x.date_unclear ?? undefined);
   });
   plan.tasks.forEach((t, i) =>
-    add("tasks", i, ListPlus, `Follow-up: ${t.title}`, [
-      [labelFor(TASK_CATEGORIES, t.task_category), t.priority === "high" && "high priority"].filter(Boolean).join(" · "),
+    add(n(t.resident) ?? n(t.contact) ?? n(t.facility), "followup", "tasks", i, ListPlus, t.title, [
+      t.priority === "high" && "Urgent",
       t.due_date && `Due ${formatDateOnly(t.due_date)}`,
       `For ${n(t.assigned_to) ?? "you"}`,
-      [n(t.contact) && `with ${n(t.contact)}`, n(t.resident), n(t.facility)].filter(Boolean).join(" · "),
+      n(t.contact) && t.resident ? `with ${n(t.contact)}` : null,
       t.description,
     ])
   );
   return items;
+}
+
+/** Lines grouped under the person (or place) they're about, in the
+ * order each person first appears. */
+export function groupByWho(items: Item[]): [string, Item[]][] {
+  const groups = new Map<string, Item[]>();
+  const order: Dest[] = ["today", "earlier", "food", "profile", "move", "followup", "new"];
+  for (const item of items) groups.set(item.who, [...(groups.get(item.who) ?? []), item]);
+  return [...groups.entries()].map(([who, group]) => [who, group.sort((a, b) => order.indexOf(a.dest) - order.indexOf(b.dest))]);
 }
 
 /** Dates the person confirmed or corrected on the review screen. */
@@ -528,7 +568,7 @@ export function QuickLog({
       {proposal ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Here&apos;s what I&apos;ll save</CardTitle>
+            <CardTitle className="text-base">Check before saving</CardTitle>
             <p className="text-sm text-muted-foreground">{proposal.plan.summary}</p>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
@@ -549,8 +589,14 @@ export function QuickLog({
             {items.length === 0 ? (
               <p className="text-sm text-muted-foreground">Nothing to save from this note.</p>
             ) : (
-              <ul className="flex flex-col gap-2">
-                {items.map((item) => {
+              <div className="flex flex-col gap-4">
+                {/* Grouped by person, so everything about Ruth sits together;
+                    each line says exactly where it will be saved. */}
+                {groupByWho(items).map(([who, group]) => (
+                <section key={who} className="flex flex-col gap-2 rounded-xl border border-border bg-card p-3">
+                <h3 className="text-base font-semibold">{who}</h3>
+                <ul className="flex flex-col gap-2">
+                {group.map((item) => {
                   const id = `${item.section}:${item.index}`;
                   const on = !skipped.has(id);
                   const Icon = item.icon;
@@ -577,6 +623,9 @@ export function QuickLog({
                         />
                         <Icon className="mt-0.5 size-5 shrink-0 text-primary" />
                         <span className="flex flex-col gap-0.5 text-sm">
+                          <span className={cn("text-xs font-bold uppercase tracking-wide", DEST_STYLE[item.dest])}>
+                            {DEST_LABEL[item.dest]}
+                          </span>
                           <span className="font-medium">
                             {item.newResidentKey && decisions[item.newResidentKey] && decisions[item.newResidentKey] !== "new"
                               ? `Use ${shownNames[decisions[item.newResidentKey]]} (already in the CRM)`
@@ -625,14 +674,17 @@ export function QuickLog({
                     </li>
                   );
                 })}
-              </ul>
+                </ul>
+                </section>
+                ))}
+              </div>
             )}
 
             {saveError ? <p className="text-sm text-destructive">{saveError}</p> : null}
             <div className="flex flex-wrap gap-2">
               <Button onClick={save} disabled={saving || chosen === 0 || undecided > 0 || uncheckedDates > 0 || editing !== null}>
                 {saving ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
-                {saving ? "Saving…" : `Save ${chosen} ${chosen === 1 ? "item" : "items"}`}
+                {saving ? "Saving…" : chosen === items.length ? `Save all ${chosen}` : `Save ${chosen} of ${items.length}`}
               </Button>
               <Button variant="outline" onClick={() => setProposal(null)} disabled={saving}>
                 Cancel
