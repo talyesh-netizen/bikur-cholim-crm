@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { CONTACT_QUICK_FILTERS } from "@/lib/domain/contact";
 import type { Contact, ResidentContact, FacilityContact } from "@/lib/domain/contact";
-import { escapeIlikeTerm, sanitizeForOrFilter } from "@/lib/supabase-filters";
+import { searchWords, everyWordInAny } from "@/lib/supabase-filters";
 import { residentName } from "@/lib/domain/resident-name";
 import { selectAllPages } from "@/lib/queries/impact";
 
@@ -49,8 +49,8 @@ export async function listContacts(filters: ContactFilters = {}): Promise<Contac
       : query.eq("contact_type", filters.contactType);
   }
   if (filters.search) {
-    const term = `%${escapeIlikeTerm(sanitizeForOrFilter(filters.search))}%`;
-    query = query.or(`name.ilike.${term},organization.ilike.${term}`);
+    const match = everyWordInAny(searchWords(filters.search), ["name", "organization"]);
+    if (match) query = query.or(match);
   }
 
   const { data, error } = await query;

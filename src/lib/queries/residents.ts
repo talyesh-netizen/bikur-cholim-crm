@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { ResidentWithSummary, ResidentFacilityHistoryEntry } from "@/lib/domain/resident";
-import { escapeIlikeTerm, sanitizeForOrFilter } from "@/lib/supabase-filters";
+import { searchWords, everyWordInAny } from "@/lib/supabase-filters";
 
 // Hidden from the list by default (a "closed out" record), same idea as
 // facilities defaulting to active-only — staff can reveal them with the
@@ -29,8 +29,8 @@ export async function listResidents(filters: ResidentFilters = {}) {
   }
 
   if (filters.search) {
-    const term = `%${escapeIlikeTerm(sanitizeForOrFilter(filters.search))}%`;
-    query = query.or(`first_name.ilike.${term},last_name.ilike.${term},preferred_name.ilike.${term}`);
+    const match = everyWordInAny(searchWords(filters.search), ["first_name", "last_name", "preferred_name"]);
+    if (match) query = query.or(match);
   }
   if (filters.facilityId) {
     query = query.eq("current_facility_id", filters.facilityId);

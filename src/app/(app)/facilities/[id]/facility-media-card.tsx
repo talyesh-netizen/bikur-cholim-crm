@@ -178,6 +178,7 @@ export function FacilityMediaCard({
               <input
                 className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                 value={caption}
+                autoCapitalize="sentences"
                 onChange={(event) => setCaption(event.target.value)}
                 placeholder="What is happening in these photos?"
               />

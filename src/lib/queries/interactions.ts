@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { InteractionWithNames, ServiceDetails } from "@/lib/domain/interaction";
-import { escapeIlikeTerm } from "@/lib/supabase-filters";
+import { escapeIlikeTerm, sanitizeForOrFilter, searchWords, everyWordInAny } from "@/lib/supabase-filters";
 import { orgDayStartIso, nextDay } from "@/lib/format-date";
 import { residentName } from "@/lib/domain/resident-name";
 
@@ -157,7 +157,30 @@ export async function listInteractions(filters: InteractionListFilters = {}) {
     query = query.eq(filters.flag, true);
   }
   if (filters.search) {
-    query = query.ilike("notes", `%${escapeIlikeTerm(filters.search)}%`);
+    // The note text, or the resident / person it was with -- so typing
+    // "Jacobs" finds Ruth Jacobs's visits even when the note doesn't
+    // mention her by name.
+    const words = searchWords(filters.search);
+    let residentMatch = supabase.from("residents").select("id").limit(60);
+    const nameMatch = everyWordInAny(words, ["first_name", "last_name", "preferred_name"]);
+    if (nameMatch) residentMatch = residentMatch.or(nameMatch);
+    let contactMatch = supabase.from("contacts").select("id").limit(60);
+    for (const w of words) contactMatch = contactMatch.ilike("name", `%${w}%`);
+    const [matchedResidents, matchedContacts] = words.length
+      ? await Promise.all([residentMatch, contactMatch])
+      : [{ data: [] }, { data: [] }];
+    const residentIds = (matchedResidents.data ?? []).map((r) => r.id);
+    const contactIds = (matchedContacts.data ?? []).map((c) => c.id);
+    const noteTerm = `%${escapeIlikeTerm(sanitizeForOrFilter(filters.search))}%`;
+    query = query.or(
+      [
+        `notes.ilike.${noteTerm}`,
+        residentIds.length ? `resident_id.in.(${residentIds.join(",")})` : null,
+        contactIds.length ? `contact_id.in.(${contactIds.join(",")})` : null,
+      ]
+        .filter(Boolean)
+        .join(",")
+    );
   }
 
   const { data, error, count } = await query;

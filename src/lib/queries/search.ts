@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { escapeIlikeTerm, sanitizeForOrFilter } from "@/lib/supabase-filters";
+import { searchWords, everyWordInAny } from "@/lib/supabase-filters";
 import { residentName } from "@/lib/domain/resident-name";
 import { CONTACT_TYPES, labelFor } from "@/lib/domain/contact";
 import { ORGANIZATION_TYPES } from "@/lib/domain/organization";
@@ -25,36 +25,32 @@ const RESULTS_PER_GROUP = 10;
  * list, just a fast "take me there" across the whole app. */
 export async function searchAll(query: string): Promise<SearchResults> {
   const supabase = await createClient();
-  const term = `%${escapeIlikeTerm(query)}%`;
-  const cleaned = sanitizeForOrFilter(query);
-  const orTerm = `%${escapeIlikeTerm(cleaned)}%`;
-  // "Joan B" or "Joan Boyko": first word starts the first name, the rest
-  // starts the last name -- names are stored in two columns, so a plain
-  // match on either column alone never finds a typed full name.
-  const words = cleaned.split(/\s+/).filter(Boolean);
-  const fullName =
-    words.length >= 2
-      ? `,and(first_name.ilike.${escapeIlikeTerm(words[0])}%,last_name.ilike.${escapeIlikeTerm(words.slice(1).join(" "))}%)` +
-        `,and(preferred_name.ilike.${escapeIlikeTerm(words[0])}%,last_name.ilike.${escapeIlikeTerm(words.slice(1).join(" "))}%)`
-      : "";
+  // Each word on its own, in any column: "Jacobs", "Ruth Jacobs" and
+  // "jacobs ruth" all find Ruth Jacobs.
+  const words = searchWords(query);
+  if (words.length === 0) return { residents: [], facilities: [], contacts: [], organizations: [] };
 
-  const [residents, facilities, contacts, organizations] = await Promise.all([
-    supabase
-      .from("residents")
-      .select("id, first_name, last_name, preferred_name, current_facility_id, facilities(name)")
-      .or(`first_name.ilike.${orTerm},last_name.ilike.${orTerm},preferred_name.ilike.${orTerm}${fullName}`)
-      .limit(RESULTS_PER_GROUP),
-    supabase.from("facilities").select("id, name, city").ilike("name", term).limit(RESULTS_PER_GROUP),
-    supabase
-      .from("contacts")
-      .select("id, name, contact_type")
-      .ilike("name", term)
-      .limit(RESULTS_PER_GROUP),
-    supabase.from("organizations").select("id, name, organization_type").ilike("name", term).limit(RESULTS_PER_GROUP),
+  let residents = supabase
+    .from("residents")
+    .select("id, first_name, last_name, preferred_name, current_facility_id, facilities(name)")
+    .limit(RESULTS_PER_GROUP);
+  const nameMatch = everyWordInAny(words, ["first_name", "last_name", "preferred_name"]);
+  if (nameMatch) residents = residents.or(nameMatch);
+  let facilities = supabase.from("facilities").select("id, name, city").limit(RESULTS_PER_GROUP);
+  let contacts = supabase.from("contacts").select("id, name, contact_type").limit(RESULTS_PER_GROUP);
+  let organizations = supabase.from("organizations").select("id, name, organization_type").limit(RESULTS_PER_GROUP);
+  for (const w of words) {
+    facilities = facilities.ilike("name", `%${w}%`);
+    contacts = contacts.ilike("name", `%${w}%`);
+    organizations = organizations.ilike("name", `%${w}%`);
+  }
+
+  const [residentRows, facilityRows, contactRows, organizationRows] = await Promise.all([
+    residents, facilities, contacts, organizations,
   ]);
 
   return {
-    residents: (residents.data ?? []).map((r) => {
+    residents: (residentRows.data ?? []).map((r) => {
       const facility = r.facilities as unknown as { name: string } | null;
       return {
         id: r.id,
@@ -63,19 +59,19 @@ export async function searchAll(query: string): Promise<SearchResults> {
         href: `/residents/${r.id}`,
       };
     }),
-    facilities: (facilities.data ?? []).map((f) => ({
+    facilities: (facilityRows.data ?? []).map((f) => ({
       id: f.id,
       label: f.name,
       sublabel: f.city,
       href: `/facilities/${f.id}`,
     })),
-    contacts: (contacts.data ?? []).map((c) => ({
+    contacts: (contactRows.data ?? []).map((c) => ({
       id: c.id,
       label: c.name,
       sublabel: labelFor(CONTACT_TYPES, c.contact_type),
       href: `/contacts/${c.id}`,
     })),
-    organizations: (organizations.data ?? []).map((o) => ({
+    organizations: (organizationRows.data ?? []).map((o) => ({
       id: o.id,
       label: o.name,
       sublabel: o.organization_type ? labelFor(ORGANIZATION_TYPES, o.organization_type) : null,
