@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, Plus, ClipboardList } from "lucide-react";
+import { Search, Plus, ClipboardList, Cookie, StickyNote } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,10 +29,17 @@ export function ResidentDirectory({ facilityId, residents }: { facilityId: strin
       <CardContent className="space-y-3">
         <div className="relative"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input aria-label="Search residents by name or room" placeholder="Search name or room" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" /></div>
         {filtered.length === 0 ? <p className="text-sm text-muted-foreground">{query ? "No matching residents." : residents.length ? "Everyone here has been seen today." : "No current residents on file."}</p> :
-          <ul className="divide-y rounded-md border">{filtered.map((resident) => <li key={resident.id} className="flex items-center justify-between gap-2 px-3 py-3">
-            <Link href={`/residents/${resident.id}`} className="min-w-0 flex-1 hover:underline"><span className="block font-medium">{resident.name}</span><span className="block text-sm text-muted-foreground">{resident.room ? `Room / Apt ${resident.room}` : "Room not recorded"} · {resident.seenToday ? "Seen today" : resident.lastVisit}{resident.needsVisit ? " · Visit due" : ""}</span></Link>
-            <Button size="sm" variant="outline" asChild><Link href={`/interactions/new?facility=${facilityId}&resident=${resident.id}&from=onsite`}><ClipboardList className="size-4" /> Log</Link></Button>
-          </li>)}</ul>}
+          <ul className="divide-y rounded-md border">{filtered.map((resident) => {
+            const logHref = `/interactions/new?facility=${facilityId}&resident=${resident.id}&from=onsite`;
+            return <li key={resident.id} className="flex flex-col gap-2 px-3 py-3">
+              <Link href={`/residents/${resident.id}`} className="min-w-0 hover:underline"><span className="block font-medium">{resident.name}</span><span className="block text-sm text-muted-foreground">{resident.room ? `Room / Apt ${resident.room}` : "Room not recorded"} · {resident.seenToday ? "Seen today" : resident.lastVisit}{resident.needsVisit ? " · Visit due" : ""}</span></Link>
+              <div className="grid grid-cols-3 gap-2">
+                <Button size="sm" variant="outline" asChild><Link href={logHref}><ClipboardList className="size-4" /> Log</Link></Button>
+                <Button size="sm" variant="outline" asChild><Link href={`${logHref}&type=food_delivery`}><Cookie className="size-4" /> Food</Link></Button>
+                <Button size="sm" variant="outline" asChild><Link href={`${logHref}&type=other`}><StickyNote className="size-4" /> Note</Link></Button>
+              </div>
+            </li>;
+          })}</ul>}
         {seenCount > 0 && !query ? (
           <button type="button" onClick={() => setShowSeen(!showSeen)} className="text-sm text-muted-foreground underline underline-offset-2">
             {showSeen ? "Hide" : "Show"} {seenCount} seen today

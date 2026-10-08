@@ -68,7 +68,8 @@ export default async function NewInteractionPage({
     : undefined;
 
   const isVisit = defaultType === "resident_visit";
-  const heading = isVisit ? "Log a visit" : defaultType ? `Log: ${labelFor(INTERACTION_TYPES, defaultType)}` : "Log an interaction";
+  // "Note" on the onsite directory opens this as type "other".
+  const heading = isVisit ? "Log a visit" : defaultType === "other" ? "Add a note" : defaultType ? `Log: ${labelFor(INTERACTION_TYPES, defaultType)}` : "Log an interaction";
 
   return (
     <div className="flex flex-col gap-5">
