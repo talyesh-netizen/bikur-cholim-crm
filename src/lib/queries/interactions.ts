@@ -120,6 +120,10 @@ export type InteractionListFilters = {
   dateTo?: string;
   search?: string;
   flag?: "funder_story" | "unmet_need";
+  /** Several kinds at once (e.g. the Impact page's "families" number). */
+  interactionTypes?: string[];
+  holiday?: string;
+  familyNeed?: string;
 };
 
 export async function listInteractions(filters: InteractionListFilters = {}) {
@@ -133,6 +137,15 @@ export async function listInteractions(filters: InteractionListFilters = {}) {
 
   if (filters.interactionType) {
     query = query.eq("interaction_type", filters.interactionType);
+  }
+  if (filters.interactionTypes?.length) {
+    query = query.in("interaction_type", filters.interactionTypes);
+  }
+  if (filters.holiday) {
+    query = query.eq("holiday", filters.holiday);
+  }
+  if (filters.familyNeed) {
+    query = query.eq("family_need", filters.familyNeed);
   }
   if (filters.facilityId) {
     query = query.eq("facility_id", filters.facilityId);

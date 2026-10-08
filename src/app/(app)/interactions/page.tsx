@@ -9,6 +9,8 @@ import { listActiveStaff } from "@/lib/queries/profiles";
 import { InteractionFilters } from "./interaction-filters";
 import { InteractionRow } from "./interaction-row";
 import { SectionIcon } from "@/components/section-icon";
+import { FAMILY_NEEDS, HOLIDAYS, INTERACTION_TYPES, labelFor } from "@/lib/domain/interaction";
+import { formatDateOnly } from "@/lib/format-date";
 
 export default async function InteractionsPage({
   searchParams,
@@ -16,6 +18,16 @@ export default async function InteractionsPage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const params = await searchParams;
+  // Set by the Impact page's tiles and bars ("see the entries behind
+  // this number"); unknown values are ignored rather than trusted.
+  const types = (params.types ?? "").split(",").filter((t) => INTERACTION_TYPES.some((x) => x.value === t));
+  const holiday = HOLIDAYS.find((h) => h.value === params.holiday);
+  const need = FAMILY_NEEDS.find((f) => f.value === params.need);
+  const showing = [
+    types.length ? types.map((t) => labelFor(INTERACTION_TYPES, t)).join(", ") : null,
+    holiday ? `For ${holiday.label}` : null,
+    need ? `Family need: ${need.label}` : null,
+  ].filter(Boolean);
 
   const [{ interactions, totalCount, pageSize }, facilities, staff] = await Promise.all([
     listInteractions({
@@ -26,6 +38,9 @@ export default async function InteractionsPage({
       dateTo: params.to,
       search: params.search,
       flag: params.flag === "funder_story" || params.flag === "unmet_need" ? params.flag : undefined,
+      interactionTypes: types,
+      holiday: holiday?.value,
+      familyNeed: need?.value,
     }),
     listFacilityOptions(),
     listActiveStaff(),
@@ -53,6 +68,20 @@ export default async function InteractionsPage({
       </div>
 
       <InteractionFilters facilities={facilities} staff={staff} />
+
+      {showing.length ? (
+        <p className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted px-3 py-2 text-sm">
+          <span>
+            <span className="text-muted-foreground">Showing: </span>
+            {showing.join(" · ")}
+            {params.from ? <span className="text-muted-foreground"> · since {formatDateOnly(params.from)}</span> : null}
+            {params.to ? <span className="text-muted-foreground"> · to {formatDateOnly(params.to)}</span> : null}
+          </span>
+          <Link href="/interactions" className="font-medium underline underline-offset-2">
+            Show all
+          </Link>
+        </p>
+      ) : null}
 
       {interactions.length === 0 ? (
         <EmptyState
