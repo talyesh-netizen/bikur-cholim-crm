@@ -32,6 +32,8 @@ import { getImpactBreakdown, getServicesDelivered, type ImpactPeriod } from "@/l
 import { DonutChart } from "@/components/donut-chart";
 import { ServicesDeliveredTiles } from "@/components/services-delivered";
 import { residentName } from "@/lib/domain/resident-name";
+import { listFacilityMedia } from "@/lib/queries/facility-media";
+import { FacilityMediaCard } from "./facility-media-card";
 
 const IMPACT_PERIODS: { value: ImpactPeriod; label: string }[] = [
   { value: "month", label: "This month" },
@@ -50,7 +52,7 @@ export default async function FacilityDetailPage({
   const { impact: impactParam } = await searchParams;
   const impactPeriod: ImpactPeriod = impactParam === "month" || impactParam === "all" ? impactParam : "quarter";
   const periodLabel = IMPACT_PERIODS.find((p) => p.value === impactPeriod)?.label ?? "This quarter";
-  const [facility, residents, interactions, facilityContacts, profileNotes, impact, services] = await Promise.all([
+  const [facility, residents, interactions, facilityContacts, profileNotes, impact, services, media] = await Promise.all([
     getFacility(id),
     listResidents({ facilityId: id, showAllStatuses: true }),
     listInteractionsForFacility(id),
@@ -58,6 +60,7 @@ export default async function FacilityDetailPage({
     listFacilityProfileNotes(id),
     getImpactBreakdown(impactPeriod, id),
     getServicesDelivered(impactPeriod, id),
+    listFacilityMedia(id),
   ]);
 
   if (!facility) notFound();
@@ -341,6 +344,8 @@ export default async function FacilityDetailPage({
           <TaskList tasks={tasks} showResident />
         </CardContent>
       </Card>
+
+      <FacilityMediaCard facilityId={facility.id} media={media} interactions={interactions} />
 
       <Card>
         <CardHeader className="flex-row flex-wrap items-center justify-between gap-2 space-y-0">
