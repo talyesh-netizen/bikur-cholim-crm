@@ -97,6 +97,7 @@ export function ImpactView({
         <HeadlineTile
           color={SERIES.residents}
           label="Residents served one-on-one"
+          href={o.headlineLinks.residents}
           value={n(h.residents)}
           detail={`different residents · ${n(h.residentContacts)} visits & calls`}
           current={h.residents}
@@ -106,6 +107,7 @@ export function ImpactView({
         <HeadlineTile
           color={SERIES.families}
           label="Families supported"
+          href={o.headlineLinks.families}
           value={n(h.families)}
           detail={`families · ${n(h.familyConversations)} conversations`}
           current={h.families}
@@ -115,6 +117,7 @@ export function ImpactView({
         <HeadlineTile
           color={SERIES.staff}
           label="Facility staff supported"
+          href={o.headlineLinks.staff}
           value={n(h.staffTouchpoints)}
           detail={`staff touchpoints · ${n(h.staffFacilities)} facilities`}
           current={h.staffTouchpoints}
@@ -124,6 +127,7 @@ export function ImpactView({
         <HeadlineTile
           color={SERIES.reached}
           label="Reached at programs & deliveries"
+          href={o.headlineLinks.reached}
           value={h.reached > 0 ? `~${n(h.reached)}` : "0"}
           detail={`approx. attendance · ${n(h.programs)} programs, ${n(h.deliveries)} deliveries`}
           current={h.reached}

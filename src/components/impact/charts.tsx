@@ -49,8 +49,14 @@ export function MonthBars({ data, colors, names }: { data: MonthBar[]; colors: s
         {data.map((d) => {
           const total = d.values.reduce((a, b) => a + b, 0);
           const tip = `${d.label}: ${d.values.map((v, i) => `${v} ${names[i]}`).join(", ")}`;
+          const Column = d.href ? Link : "div";
           return (
-            <div key={d.label} title={tip} className="flex h-full flex-1 flex-col items-center justify-end gap-1.5">
+            <Column
+              key={d.label}
+              href={d.href as string}
+              title={d.href ? `${tip} -- tap to see them` : tip}
+              className={`flex h-full flex-1 flex-col items-center justify-end gap-1.5${d.href ? " rounded-t-md hover:bg-muted/60" : ""}`}
+            >
               <span className="text-xs font-semibold text-muted-foreground tabular-nums">{total}</span>
               <div className="flex w-full max-w-[46px] flex-col-reverse gap-[2px]">
                 {d.values.map((v, i) =>
@@ -66,7 +72,7 @@ export function MonthBars({ data, colors, names }: { data: MonthBar[]; colors: s
                   ) : null
                 )}
               </div>
-            </div>
+            </Column>
           );
         })}
       </div>
@@ -157,6 +163,7 @@ export function HeadlineTile({
   current,
   previous,
   periodWord,
+  href,
 }: {
   color: string;
   label: string;
@@ -165,6 +172,8 @@ export function HeadlineTile({
   current: number;
   previous: number | null;
   periodWord: string | null;
+  /** Where tapping the tile goes -- the entries behind the number. */
+  href?: string;
 }) {
   let change: { text: string; good: boolean } | null = null;
   if (previous !== null && periodWord) {
@@ -177,8 +186,12 @@ export function HeadlineTile({
           : { text: `${pct > 0 ? "▲" : "▼"} ${Math.abs(pct)}% vs last ${periodWord}`, good: pct > 0 };
     }
   }
+  const Tile = href ? Link : "div";
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-border bg-card p-5">
+    <Tile
+      href={href as string}
+      className={`flex flex-col gap-2 rounded-xl border border-border bg-card p-5${href ? " transition-colors hover:border-foreground/30 hover:bg-muted/40" : ""}`}
+    >
       <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
         <span aria-hidden className="size-2.5 rounded-full" style={{ backgroundColor: color }} />
         {label}
@@ -190,7 +203,8 @@ export function HeadlineTile({
           {change.text}
         </p>
       ) : null}
-    </div>
+      {href ? <p className="m-0 mt-auto text-xs font-medium text-muted-foreground">See the latest →</p> : null}
+    </Tile>
   );
 }
 

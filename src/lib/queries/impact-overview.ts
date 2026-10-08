@@ -12,6 +12,31 @@ const FAMILY = new Set(["family_communication", "care_navigation"]);
 const STAFF_SUPPORT = new Set(["facility_staff_communication", "facility_discovery_visit"]);
 const PROGRAMS = new Set(["program", "school_engagement"]);
 
+/** Where each headline number's entries live: the Interactions list,
+ * filtered to the same kinds of entry the number counts. */
+export const HEADLINE_TYPES = {
+  residents: [...ONE_ON_ONE],
+  families: [...FAMILY],
+  staff: [...STAFF_SUPPORT],
+  reached: [...PROGRAMS, "food_delivery"],
+} as const;
+
+/** "/interactions?types=a,b&from=2026-10-01&to=2026-10-31" -- the list
+ * of entries behind a number or a bar. */
+function interactionsHref(params: Record<string, string | null | undefined>): string {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) if (v) q.set(k, v);
+  return `/interactions?${q.toString()}`;
+}
+
+/** First Cleveland calendar day of the period ("2026-10-01"), or null for all time. */
+function periodFromDate(period: ImpactPeriod): string | null {
+  if (period === "all") return null;
+  const { year, month } = orgMonthStart();
+  const first = period === "month" ? month : Math.floor((month - 1) / 3) * 3 + 1;
+  return `${year}-${pad2(first)}-01`;
+}
+
 type Row = {
   interaction_type: string;
   occurred_at: string;
@@ -83,11 +108,13 @@ function previousRange(period: ImpactPeriod): { start: string; end: string } | n
   };
 }
 
-export type MonthBar = { label: string; values: number[] };
+export type MonthBar = { label: string; values: number[]; href?: string };
 export type LabeledValue = { label: string; value: number; href?: string; color?: string };
 
 export type ImpactOverview = {
   headline: Headline;
+  /** The entries behind each headline number, for the period. */
+  headlineLinks: Record<keyof typeof HEADLINE_TYPES, string>;
   previous: Headline | null;
   visitsByMonth: MonthBar[]; // [staff, volunteer]
   familyByMonth: MonthBar[];
@@ -138,18 +165,23 @@ export async function getImpactOverview(period: ImpactPeriod): Promise<ImpactOve
   const inPrev = prev ? rows.filter((r) => r.occurred_at >= prev.start && r.occurred_at < prev.end) : null;
 
   // Last 6 Cleveland months, oldest first.
-  const months: { key: string; label: string }[] = [];
+  const months: { key: string; label: string; from: string; to: string }[] = [];
   for (let i = 5; i >= 0; i--) {
     const { year, month } = orgMonthStart(i);
+    const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
     months.push({
       key: `${year}-${pad2(month)}`,
+      from: `${year}-${pad2(month)}-01`,
+      to: `${year}-${pad2(month)}-${pad2(lastDay)}`,
       label: new Date(Date.UTC(year, month - 1, 15)).toLocaleDateString("en-US", { month: "short", timeZone: "UTC" }),
     });
   }
   const monthIndex = new Map(months.map((m, i) => [m.key, i]));
-  const visitsByMonth = months.map((m) => ({ label: m.label, values: [0, 0] }));
-  const familyByMonth = months.map((m) => ({ label: m.label, values: [0] }));
-  const staffByMonth = months.map((m) => ({ label: m.label, values: [0] }));
+  const monthHref = (m: { from: string; to: string }, types: readonly string[]) =>
+    interactionsHref({ types: types.join(","), from: m.from, to: m.to });
+  const visitsByMonth = months.map((m) => ({ label: m.label, values: [0, 0], href: monthHref(m, HEADLINE_TYPES.residents) }));
+  const familyByMonth = months.map((m) => ({ label: m.label, values: [0], href: monthHref(m, HEADLINE_TYPES.families) }));
+  const staffByMonth = months.map((m) => ({ label: m.label, values: [0], href: monthHref(m, HEADLINE_TYPES.staff) }));
   for (const r of rows) {
     const i = monthIndex.get(orgMonthKey(r.occurred_at));
     if (i === undefined) continue;
@@ -173,6 +205,8 @@ export async function getImpactOverview(period: ImpactPeriod): Promise<ImpactOve
   const recency = ["Under 30 days", "30–90 days", "90+ days", "Never visited"].map((label, i) => ({
     label,
     value: recencyCounts[i],
+    // Anyone 30+ days (or never) is exactly the Needs attention list.
+    href: i === 0 ? "/residents" : "/needs-attention",
   }));
 
   const activeIds = new Set(active.map((r) => r.id));
@@ -185,9 +219,11 @@ export async function getImpactOverview(period: ImpactPeriod): Promise<ImpactOve
     const reached = r.people_reached ?? (r.resident_id ? 1 : 0);
     holidayCounts.set(r.holiday, (holidayCounts.get(r.holiday) ?? 0) + reached);
   }
+  const from = periodFromDate(period);
   const holidays = HOLIDAYS.filter((h) => holidayCounts.has(h.value)).map((h) => ({
     label: h.label,
     value: holidayCounts.get(h.value)!,
+    href: interactionsHref({ holiday: h.value, from }),
   }));
 
   // What families needed, in the period (only entries where it was picked).
@@ -198,6 +234,7 @@ export async function getImpactOverview(period: ImpactPeriod): Promise<ImpactOve
   const familyNeeds = FAMILY_NEEDS.filter((f) => needCounts.has(f.value)).map((f) => ({
     label: f.label,
     value: needCounts.get(f.value)!,
+    href: interactionsHref({ need: f.value, from }),
   }));
 
   // Facility relationship stage (active facilities).
@@ -237,6 +274,12 @@ export async function getImpactOverview(period: ImpactPeriod): Promise<ImpactOve
 
   return {
     headline: headlineFor(inPeriod),
+    headlineLinks: {
+      residents: interactionsHref({ types: HEADLINE_TYPES.residents.join(","), from }),
+      families: interactionsHref({ types: HEADLINE_TYPES.families.join(","), from }),
+      staff: interactionsHref({ types: HEADLINE_TYPES.staff.join(","), from }),
+      reached: interactionsHref({ types: HEADLINE_TYPES.reached.join(","), from }),
+    },
     previous: inPrev ? headlineFor(inPrev) : null,
     visitsByMonth,
     familyByMonth,
