@@ -6,6 +6,14 @@ import { ListPlus, Pencil } from "lucide-react";
 import { formatDateTimeWithTime } from "@/lib/format-date";
 import { withContactLabel } from "@/lib/domain/contact";
 
+/** Who the staff member was on an entry: the one who made a visit or
+ * call ("Visited by Rabbi Alyesh") -- except a volunteer visit, where the
+ * volunteers did the visiting and staff only logged it. */
+export function staffLabel(interactionType: string) {
+  if (interactionType === "volunteer_visit") return "Logged by";
+  return interactionType === "resident_visit" ? "Visited by" : "By";
+}
+
 /** Recent-interactions list shown on both resident and facility pages —
  * the "other side" of the record (facility name on a resident page,
  * resident name on a facility page) is shown as context, when present. */
@@ -64,7 +72,7 @@ export function InteractionList({
               ) : null}
               {otherParty || interaction.staff_member_name ? (
                 <p className="text-xs text-muted-foreground">
-                  {[otherParty, interaction.staff_member_name && `logged by ${interaction.staff_member_name}`]
+                  {[otherParty, interaction.staff_member_name && `${staffLabel(interaction.interaction_type)} ${interaction.staff_member_name}`]
                     .filter(Boolean)
                     .join(" · ")}
                 </p>

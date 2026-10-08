@@ -15,7 +15,7 @@ import {
   UNMET_NEED_REASONS,
 } from "@/lib/domain/interaction";
 import { formatDateTime } from "@/lib/format-date";
-import { InteractionList } from "../interaction-list";
+import { InteractionList, staffLabel } from "../interaction-list";
 import { ClusterBadge } from "@/components/cluster-badge";
 import { Pencil, ListPlus } from "lucide-react";
 
@@ -145,7 +145,9 @@ export default async function InteractionDetailPage({
           ) : null}
           {interaction.staff_member_name ? (
             <p>
-              <span className="text-muted-foreground">Logged by: </span>
+              <span className="text-muted-foreground">
+                {staffLabel(interaction.interaction_type)}:{" "}
+              </span>
               <span className="font-medium">{interaction.staff_member_name}</span>
             </p>
           ) : null}
