@@ -93,7 +93,7 @@ export default async function FacilityOnsitePage({
           <div>
             <h1 className="text-2xl font-semibold leading-tight">{facility.name}</h1>
             <p className="text-sm text-muted-foreground">
-              {facility.city ?? "City not recorded"} · {currentResidents.length} current resident{currentResidents.length === 1 ? "" : "s"}
+              {currentResidents.length} resident{currentResidents.length === 1 ? "" : "s"} live here
             </p>
           </div>
         </div>
@@ -104,6 +104,7 @@ export default async function FacilityOnsitePage({
         name: residentName(resident),
         room: resident.room_number,
         lastVisit: formatRelative(resident.last_visit_at) ?? "Not visited yet",
+        lastVisitAt: resident.last_visit_at,
         needsVisit: needsVisit(resident.last_visit_at),
         // Visited today (Cleveland time) -- drops off the list once logged.
         seenToday: !!resident.last_visit_at && toOrgDatetimeLocalValue(resident.last_visit_at).slice(0, 10) === today,
