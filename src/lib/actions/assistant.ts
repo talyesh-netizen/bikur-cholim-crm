@@ -544,6 +544,12 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
           i.people_reached && i.people_reached > 0 && SERVICE_FIELDS_BY_TYPE[i.interaction_type as InteractionType]?.includes("people_reached")
             ? i.people_reached
             : null,
+        // Food: one number -- how many packages, also how many people got
+        // one (the funder report counts this one, Impact the one above).
+        quantity:
+          staffId === user.id && i.interaction_type === "food_delivery" && i.people_reached && i.people_reached > 0
+            ? i.people_reached
+            : null,
         holiday: i.holiday && HOLIDAY_TYPES.includes(i.interaction_type) ? i.holiday : null,
         family_need: i.family_need && FAMILY_NEED_TYPES.includes(i.interaction_type) ? i.family_need : null,
         occasion:
