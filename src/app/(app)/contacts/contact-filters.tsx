@@ -1,5 +1,6 @@
 "use client";
 
+import { OFFERED_CONTACT_TYPES } from "@/lib/domain/contact";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Input } from "@/components/ui/input";
@@ -69,7 +70,7 @@ export function ContactFilters() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All types</SelectItem>
-            {CONTACT_TYPES.map((t) => (
+            {CONTACT_TYPES.filter((t) => (OFFERED_CONTACT_TYPES as readonly string[]).includes(t.value)).map((t) => (
               <SelectItem key={t.value} value={t.value}>
                 {t.label}
               </SelectItem>

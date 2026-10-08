@@ -1,5 +1,6 @@
 "use client";
 
+import { OFFERED_RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Input } from "@/components/ui/input";
@@ -94,7 +95,7 @@ export function ResidentFilters({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All statuses</SelectItem>
-              {RESIDENT_STATUSES.map((s) => (
+              {RESIDENT_STATUSES.filter((s) => (OFFERED_RESIDENT_STATUSES as readonly string[]).includes(s.value)).map((s) => (
                 <SelectItem key={s.value} value={s.value}>
                   {s.label}
                 </SelectItem>

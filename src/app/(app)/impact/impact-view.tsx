@@ -183,15 +183,6 @@ export function ImpactView({
             {n(o.activeResidents - o.withFamily)} {o.activeResidents - o.withFamily === 1 ? "resident has" : "residents have"} no family on file yet. Add family from each resident&apos;s page.
           </p>
         </ChartCard>
-        <ChartCard title="What families needed" subtitle={`Family support conversations · ${p.label.toLowerCase()}`}>
-          {o.familyNeeds.length > 0 ? (
-            <HBars data={o.familyNeeds} color={SERIES.families} labelWidth={170} />
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Shows here once family support is logged with “What did the family need?” picked.
-            </p>
-          )}
-        </ChartCard>
         {famTrend.length > 1 ? (
           <div className="lg:col-span-3">
             <ChartCard

@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TASK_STATUSES } from "@/lib/domain/task";
+import { TASK_STATUSES, OFFERED_TASK_STATUSES } from "@/lib/domain/task";
 
 export function TaskFilters({ staff }: { staff: { id: string; full_name: string }[] }) {
   const router = useRouter();
@@ -45,7 +45,7 @@ export function TaskFilters({ staff }: { staff: { id: string; full_name: string 
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Open tasks</SelectItem>
-              {TASK_STATUSES.map((s) => (
+              {TASK_STATUSES.filter((s) => (OFFERED_TASK_STATUSES as readonly string[]).includes(s.value)).map((s) => (
                 <SelectItem key={s.value} value={s.value}>
                   {s.label}
                 </SelectItem>

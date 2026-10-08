@@ -1,5 +1,7 @@
 "use client";
 
+import { offeredOptions } from "@/lib/domain/offered";
+import { OFFERED_FACILITY_TYPES, OFFERED_ENGAGEMENT_STATUSES } from "@/lib/domain/facility";
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +19,6 @@ import {
   FACILITY_TYPES,
   ENGAGEMENT_STATUSES,
   VISIT_PRIORITIES,
-  KOSHER_FOOD_OPTIONS,
 } from "@/lib/domain/facility";
 import type { Facility, GeographicCluster } from "@/lib/domain/facility";
 import type { FacilityFormState } from "@/lib/actions/facilities";
@@ -90,7 +91,7 @@ export function FacilityForm({
         </Field>
 
         <Field label="Facility type" htmlFor="facility_type" error={fieldErrors.facility_type} required>
-          <SelectField name="facility_type" defaultValue={values.facility_type} options={FACILITY_TYPES} />
+          <SelectField name="facility_type" defaultValue={values.facility_type} options={offeredOptions(FACILITY_TYPES, OFFERED_FACILITY_TYPES, values.facility_type)} />
         </Field>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -161,7 +162,7 @@ export function FacilityForm({
             <SelectField
               name="engagement_status"
               defaultValue={values.engagement_status}
-              options={ENGAGEMENT_STATUSES}
+              options={offeredOptions(ENGAGEMENT_STATUSES, OFFERED_ENGAGEMENT_STATUSES, values.engagement_status)}
             />
           </Field>
           <Field label="Visit priority" htmlFor="visit_priority" required>
@@ -179,14 +180,8 @@ export function FacilityForm({
               defaultValue={values.recommended_visit_frequency}
             />
           </Field>
-          <Field label="Kosher food availability" htmlFor="kosher_food_availability">
-            <SelectField
-              name="kosher_food_availability"
-              defaultValue={values.kosher_food_availability}
-              options={KOSHER_FOOD_OPTIONS}
-              placeholder="Not noted yet"
-            />
-          </Field>
+          {/* Not asked any more (rarely known); a saved value is kept. */}
+          <input type="hidden" name="kosher_food_availability" value={values.kosher_food_availability ?? ""} readOnly />
         </div>
       </section>
 

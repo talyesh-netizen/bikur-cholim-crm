@@ -12,7 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TASK_CATEGORIES, TASK_PRIORITIES } from "@/lib/domain/task";
 import type { Task } from "@/lib/domain/task";
 import type { TaskFormState } from "@/lib/actions/tasks";
 
@@ -63,6 +62,7 @@ export function TaskForm({
     facility_id: fixedContext?.facilityId ?? "",
     interaction_id: fixedContext?.interactionId ?? "",
   };
+  const [urgent, setUrgent] = useState(values.priority === "high");
   const formKey = JSON.stringify(values);
 
   return (
@@ -93,19 +93,15 @@ export function TaskForm({
         <Textarea id="description" name="description" rows={3} defaultValue={values.description} />
       </Field>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Category" htmlFor="task_category" error={fieldErrors.task_category} required>
-          <SelectField
-            name="task_category"
-            defaultValue={values.task_category}
-            options={TASK_CATEGORIES}
-            placeholder="Choose a category…"
-          />
-        </Field>
-        <Field label="Priority" htmlFor="priority" error={fieldErrors.priority} required>
-          <SelectField name="priority" defaultValue={values.priority} options={TASK_PRIORITIES} />
-        </Field>
-      </div>
+      {/* No category to pick (decided Oct 8, 2026): the task says what
+          it's about. An older task keeps the category it had. */}
+      <input type="hidden" name="task_category" value={values.task_category || "other"} readOnly />
+      {/* Priority is one switch: urgent or not. */}
+      <input type="hidden" name="priority" value={urgent ? "high" : values.priority && values.priority !== "high" ? values.priority : "medium"} readOnly />
+      <label className="flex items-center gap-3 rounded-md border border-border px-3 py-3 text-sm">
+        <input type="checkbox" checked={urgent} onChange={(e) => setUrgent(e.target.checked)} className="size-5 accent-primary" />
+        <span className="font-medium">Urgent</span>
+      </label>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Due date" htmlFor="due_date" error={fieldErrors.due_date}>

@@ -1,5 +1,7 @@
 "use client";
 
+import { offeredOptions } from "@/lib/domain/offered";
+import { OFFERED_CONTACT_TYPES } from "@/lib/domain/contact";
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,8 +16,6 @@ import {
 } from "@/components/ui/select";
 import {
   CONTACT_TYPES,
-  PREFERRED_COMMUNICATION_METHODS,
-  PRIMARY_PROFILE_KINDS,
   BACKGROUND_CHECK_STATUSES,
 } from "@/lib/domain/contact";
 import type { Contact } from "@/lib/domain/contact";
@@ -80,15 +80,6 @@ export function ContactForm({
   const [backgroundCheckDate, setBackgroundCheckDate] = useState(values.background_check_date ?? "");
   const [availabilityNotes, setAvailabilityNotes] = useState(values.availability_notes ?? "");
 
-  const primaryProfileOptions = PRIMARY_PROFILE_KINDS.filter((o) => {
-    if (o.value === "facility") return Boolean(primaryFacilityName);
-    if (o.value === "organization") return Boolean(primaryOrganizationName);
-    return true;
-  }).map((o) => {
-    if (o.value === "facility") return { ...o, label: `Their facility (${primaryFacilityName})` };
-    if (o.value === "organization") return { ...o, label: `Their shul/school/partner (${primaryOrganizationName})` };
-    return o;
-  });
   // A saved "facility"/"organization" kind whose link has since been
   // deactivated has nothing to show here (it's filtered out above) --
   // without this, the picker would render blank instead of showing what
@@ -116,25 +107,14 @@ export function ContactForm({
             name="contact_type"
             value={contactType}
             onValueChange={setContactType}
-            options={CONTACT_TYPES}
+            options={offeredOptions(CONTACT_TYPES, OFFERED_CONTACT_TYPES, values.contact_type)}
             placeholder="Choose a type…"
           />
         </Field>
       </div>
 
-      {contact ? (
-        <Field
-          label="Main color / identity"
-          htmlFor="primary_profile_kind"
-          error={fieldErrors.primary_profile_kind}
-        >
-          <SelectField
-            name="primary_profile_kind"
-            defaultValue={primaryProfileValue}
-            options={primaryProfileOptions}
-          />
-        </Field>
-      ) : null}
+      {/* Not asked any more; whatever was saved is kept. */}
+      {contact ? <input type="hidden" name="primary_profile_kind" value={primaryProfileValue} readOnly /> : null}
 
       {isVolunteer ? (
         <div className="flex flex-col gap-4 rounded-md border border-border p-3">
@@ -212,15 +192,8 @@ export function ContactForm({
         </Field>
       </div>
 
-      <Field label="Preferred communication method" htmlFor="preferred_communication_method">
-        <SelectField
-          name="preferred_communication_method"
-          defaultValue={values.preferred_communication_method}
-          options={PREFERRED_COMMUNICATION_METHODS}
-          placeholder="No preference on file"
-          allowEmpty
-        />
-      </Field>
+      {/* Not asked any more (kept simple); a saved value is kept. */}
+      <input type="hidden" name="preferred_communication_method" value={values.preferred_communication_method ?? ""} readOnly />
 
       <Field label="Notes" htmlFor="notes">
         <Textarea id="notes" name="notes" rows={3} defaultValue={values.notes} />

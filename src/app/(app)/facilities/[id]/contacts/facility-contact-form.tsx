@@ -1,5 +1,7 @@
 "use client";
 
+import { offeredOptions } from "@/lib/domain/offered";
+import { OFFERED_CONTACT_TYPES } from "@/lib/domain/contact";
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CONTACT_TYPES, PREFERRED_COMMUNICATION_METHODS } from "@/lib/domain/contact";
+import { CONTACT_TYPES } from "@/lib/domain/contact";
 import type { FacilityContactFormState } from "@/lib/actions/facility-contacts";
 import { capitalizeAsYouType } from "@/lib/format-text";
 
@@ -46,7 +48,7 @@ export function FacilityContactForm({ action }: { action: Action }) {
           <SelectField
             name="contact_type"
             defaultValue={values.contact_type}
-            options={CONTACT_TYPES}
+            options={offeredOptions(CONTACT_TYPES, OFFERED_CONTACT_TYPES, values.contact_type)}
             placeholder="Choose a type…"
           />
         </Field>
@@ -70,15 +72,8 @@ export function FacilityContactForm({ action }: { action: Action }) {
         </Field>
       </div>
 
-      <Field label="Preferred communication method" htmlFor="preferred_communication_method">
-        <SelectField
-          name="preferred_communication_method"
-          defaultValue={values.preferred_communication_method}
-          options={PREFERRED_COMMUNICATION_METHODS}
-          placeholder="No preference on file"
-          allowEmpty
-        />
-      </Field>
+      {/* Not asked any more (kept simple); a saved value is kept. */}
+      <input type="hidden" name="preferred_communication_method" value={values.preferred_communication_method ?? ""} readOnly />
 
       <div className="flex items-center gap-2">
         <Checkbox

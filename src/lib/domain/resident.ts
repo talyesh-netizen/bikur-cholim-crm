@@ -9,14 +9,18 @@ export { labelFor } from "./options";
 
 export const RESIDENT_STATUSES = [
   { value: "active", label: "Active" },
-  { value: "temporarily_hospitalized", label: "Temporarily hospitalized" },
+  { value: "temporarily_hospitalized", label: "In hospital" },
   { value: "location_unknown", label: "Location unknown" },
   { value: "moved_to_another_facility", label: "Moved to another facility" },
   { value: "returned_home", label: "Returned home" },
-  { value: "deceased", label: "Deceased" },
+  { value: "deceased", label: "Passed away" },
   { value: "unable_to_reach", label: "Unable to reach" },
   { value: "no_longer_receiving_services", label: "No longer receiving services" },
 ] as const;
+
+/** The statuses a form offers. "Moved" happens through Move; returned
+ * home and unable to reach fold into "no longer receiving services". */
+export const OFFERED_RESIDENT_STATUSES = ["active", "temporarily_hospitalized", "location_unknown", "deceased", "no_longer_receiving_services"] as const;
 
 export type ResidentStatus = (typeof RESIDENT_STATUSES)[number]["value"];
 

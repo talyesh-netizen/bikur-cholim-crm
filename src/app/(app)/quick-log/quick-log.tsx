@@ -1,5 +1,9 @@
 "use client";
 
+import { offeredOptions } from "@/lib/domain/offered";
+import { OFFERED_FACILITY_TYPES } from "@/lib/domain/facility";
+import { OFFERED_CONTACT_TYPES, OFFERED_RELATIONSHIPS } from "@/lib/domain/contact";
+import { TYPE_BUTTONS } from "@/lib/domain/interaction";
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -67,8 +71,6 @@ type EditField = {
   options?: readonly { value: string; label: string }[];
 };
 
-const opt = (options: readonly { value: string; label: string }[]) => options;
-
 /** What can be corrected on each kind of card -- the details people
  * actually get wrong (a spelling, a relationship, a date), not every
  * field. Anything else is fixed on the record after saving. */
@@ -77,7 +79,7 @@ function editFieldsFor(plan: Plan, section: Section, index: number): EditField[]
     case "new_facilities":
       return [
         { key: "name", label: "Name" },
-        { key: "facility_type", label: "Type", kind: "select", options: opt(FACILITY_TYPES) },
+        { key: "facility_type", label: "Type", kind: "select", options: offeredOptions(FACILITY_TYPES, OFFERED_FACILITY_TYPES, plan.new_facilities[index].facility_type) },
         { key: "city", label: "City" },
       ];
     case "new_residents":
@@ -91,9 +93,9 @@ function editFieldsFor(plan: Plan, section: Section, index: number): EditField[]
       const c = plan.new_contacts[index];
       return [
         { key: "name", label: "Name" },
-        { key: "contact_type", label: "Who they are", kind: "select", options: opt(CONTACT_TYPES) },
+        { key: "contact_type", label: "Who they are", kind: "select", options: offeredOptions(CONTACT_TYPES, OFFERED_CONTACT_TYPES, c.contact_type) },
         ...(c.resident
-          ? [{ key: "relationship_to_resident", label: "Relationship", kind: "select" as const, options: opt(RESIDENT_CONTACT_RELATIONSHIPS) }]
+          ? [{ key: "relationship_to_resident", label: "Relationship", kind: "select" as const, options: offeredOptions(RESIDENT_CONTACT_RELATIONSHIPS, OFFERED_RELATIONSHIPS, c.relationship_to_resident) }]
           : []),
         ...(c.facility ? [{ key: "role_at_facility", label: "Role at the facility" }] : []),
         { key: "phone", label: "Phone" },
@@ -112,9 +114,10 @@ function editFieldsFor(plan: Plan, section: Section, index: number): EditField[]
       return [{ key: "note", label: "Note", kind: "textarea" }];
     case "interactions":
       return [
-        { key: "interaction_type", label: "Type", kind: "select", options: opt(INTERACTION_TYPES) },
+        // The same 8 choices as the log form (an unusual type it read
+        // stays selectable so it isn't silently changed).
+        { key: "interaction_type", label: "Type", kind: "select", options: offeredOptions(INTERACTION_TYPES, TYPE_BUTTONS.flatMap((b) => b.choices.map((c) => c.value)), plan.interactions[index].interaction_type) },
         { key: "occurred_at", label: "When", kind: "datetime" },
-        { key: "minutes_spent", label: "Minutes", kind: "number" },
         { key: "notes", label: "Notes", kind: "textarea" },
       ];
     case "tasks":
