@@ -68,7 +68,7 @@ export default async function SearchPage({
           <ResultGroup title="Residents" results={results.residents} />
           <ResultGroup title="Facilities" results={results.facilities} />
           <ResultGroup title="Contacts" results={results.contacts} />
-          <ResultGroup title="Shuls & Partners" results={results.organizations} />
+          <ResultGroup title="Strategic Partners" results={results.organizations} />
         </>
       ) : null}
     </div>

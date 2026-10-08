@@ -7,7 +7,7 @@ export type Suggestion = SearchResult & { kind: string };
 // How many of each type the dropdown under the search box shows. The
 // full results page (Enter) still shows up to 10 of each.
 const PER_KIND = { residents: 4, facilities: 3, contacts: 3, organizations: 2 } as const;
-const KIND_LABEL = { residents: "Resident", facilities: "Facility", contacts: "Contact", organizations: "Organization" } as const;
+const KIND_LABEL = { residents: "Resident", facilities: "Facility", contacts: "Contact", organizations: "Partner" } as const;
 
 /** Suggestions for the global search box as the user types. Uses the
  * same search (and the same per-user access rules) as the results page. */
