@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { TASK_STATUSES, OPEN_TASK_STATUSES } from "@/lib/domain/task";
+import { TASK_STATUSES, OPEN_TASK_STATUSES, OFFERED_TASK_STATUSES } from "@/lib/domain/task";
 import type { TaskWithNames } from "@/lib/domain/task";
 import { TaskStatusSelect } from "./task-status-select";
 import { TASK_WHO, taskWho } from "@/lib/category-colors";
@@ -9,7 +9,9 @@ import { formatDateOnly, getLocalToday } from "@/lib/format-date";
 
 // Cancelled tasks aren't actionable, so they don't get a column here --
 // same idea as hiding inactive facilities/contacts from the main list.
-const BOARD_STATUSES = TASK_STATUSES.filter((s) => s.value !== "cancelled");
+// Two columns: Open and Done. An older "in progress" / "waiting" task
+// shows under Open.
+const BOARD_STATUSES = TASK_STATUSES.filter((s) => (OFFERED_TASK_STATUSES as readonly string[]).includes(s.value));
 
 function priorityVariant(priority: string): "destructive" | "warning" | "secondary" {
   if (priority === "high") return "destructive";
@@ -29,7 +31,9 @@ function isOverdue(task: TaskWithNames): boolean {
 export function TaskBoard({ tasks }: { tasks: TaskWithNames[] }) {
   const columns = BOARD_STATUSES.map((s) => ({
     ...s,
-    tasks: tasks.filter((t) => t.status === s.value),
+    tasks: tasks.filter((t) =>
+      s.value === "open" ? (OPEN_TASK_STATUSES as readonly string[]).includes(t.status) : t.status === s.value
+    ),
   }));
 
   return (

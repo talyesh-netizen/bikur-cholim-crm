@@ -7,8 +7,8 @@
 export { labelFor } from "./options";
 
 export const TASK_PRIORITIES = [
-  { value: "high", label: "High" },
-  { value: "medium", label: "Medium" },
+  { value: "high", label: "Urgent" },
+  { value: "medium", label: "Normal" },
   { value: "low", label: "Low" },
 ] as const;
 
@@ -16,9 +16,13 @@ export const TASK_STATUSES = [
   { value: "open", label: "Open" },
   { value: "in_progress", label: "In progress" },
   { value: "waiting", label: "Waiting" },
-  { value: "completed", label: "Completed" },
+  { value: "completed", label: "Done" },
   { value: "cancelled", label: "Cancelled" },
 ] as const;
+
+/** The two statuses offered: a task is open or done. Older "in
+ * progress" / "waiting" / "cancelled" tasks still show their status. */
+export const OFFERED_TASK_STATUSES = ["open", "completed"] as const;
 
 /** Statuses that still represent open, unfinished work — used to
  * decide what counts toward "overdue" and default list filtering. */

@@ -1,5 +1,7 @@
 "use client";
 
+import { offeredOptions } from "@/lib/domain/offered";
+import { OFFERED_RELATIONSHIPS } from "@/lib/domain/contact";
 import { FormActions, FormError } from "@/components/form-actions";
 import { useActionState, useState } from "react";
 import { Input } from "@/components/ui/input";
@@ -55,7 +57,7 @@ export function RelationshipForm({
           name="relationship_to_resident"
           value={relationship}
           onValueChange={setRelationship}
-          options={RESIDENT_CONTACT_RELATIONSHIPS}
+          options={offeredOptions(RESIDENT_CONTACT_RELATIONSHIPS, OFFERED_RELATIONSHIPS, values.relationship_to_resident)}
           placeholder="Choose a relationship…"
         />
       </Field>

@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useTransition } from "react";
-import { TASK_STATUSES } from "@/lib/domain/task";
+import { TASK_STATUSES, OFFERED_TASK_STATUSES } from "@/lib/domain/task";
+import { offeredOptions } from "@/lib/domain/offered";
 import { setTaskStatus } from "@/lib/actions/tasks";
 
 /** A compact status dropdown that saves immediately on change -- the
@@ -24,7 +25,7 @@ export function TaskStatusSelect({ taskId, status }: { taskId: string; status: s
         disabled={isPending}
         className="w-full rounded border border-border bg-card px-1.5 py-1 text-xs disabled:opacity-60"
       >
-        {TASK_STATUSES.map((s) => (
+        {offeredOptions(TASK_STATUSES, OFFERED_TASK_STATUSES, status).map((s) => (
           <option key={s.value} value={s.value}>
             {s.label}
           </option>

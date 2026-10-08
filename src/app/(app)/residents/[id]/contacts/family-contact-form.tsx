@@ -1,5 +1,7 @@
 "use client";
 
+import { offeredOptions } from "@/lib/domain/offered";
+import { OFFERED_RELATIONSHIPS } from "@/lib/domain/contact";
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PREFERRED_COMMUNICATION_METHODS, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
+import { RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
 import type { FamilyContactFormState } from "@/lib/actions/resident-contacts";
 import { capitalizeAsYouType } from "@/lib/format-text";
 
@@ -52,7 +54,7 @@ export function FamilyContactForm({ action }: { action: Action }) {
           <SelectField
             name="relationship_to_resident"
             defaultValue={values.relationship_to_resident}
-            options={RESIDENT_CONTACT_RELATIONSHIPS}
+            options={offeredOptions(RESIDENT_CONTACT_RELATIONSHIPS, OFFERED_RELATIONSHIPS, values.relationship_to_resident)}
             placeholder="Choose a relationship…"
           />
         </Field>
@@ -94,15 +96,8 @@ export function FamilyContactForm({ action }: { action: Action }) {
         </Field>
       </div>
 
-      <Field label="Preferred communication method" htmlFor="preferred_communication_method">
-        <SelectField
-          name="preferred_communication_method"
-          defaultValue={values.preferred_communication_method}
-          options={PREFERRED_COMMUNICATION_METHODS}
-          placeholder="No preference on file"
-          allowEmpty
-        />
-      </Field>
+      {/* Not asked any more (kept simple); a saved value is kept. */}
+      <input type="hidden" name="preferred_communication_method" value={values.preferred_communication_method ?? ""} readOnly />
 
       <Field label="Notes about this relationship" htmlFor="relationship_notes">
         <Textarea

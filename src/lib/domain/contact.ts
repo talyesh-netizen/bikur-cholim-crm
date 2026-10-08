@@ -9,13 +9,17 @@ export { labelFor } from "./options";
 
 export const CONTACT_TYPES = [
   { value: "family_member", label: "Family member" },
-  { value: "rabbi", label: "Rabbi" },
+  { value: "rabbi", label: "Rabbi / Shul" },
   { value: "synagogue_contact", label: "Synagogue contact" },
   { value: "facility_staff", label: "Facility staff" },
   { value: "community_partner", label: "Community partner" },
   { value: "volunteer", label: "Volunteer" },
   { value: "other_referral_source", label: "Other referral source" },
 ] as const;
+
+/** The short lists a form offers (older values still display). */
+export const OFFERED_CONTACT_TYPES = ["family_member", "facility_staff", "volunteer", "rabbi", "community_partner"] as const;
+export const OFFERED_RELATIONSHIPS = ["son", "daughter", "spouse", "grandchild", "friend", "other"] as const;
 
 export type ContactType = (typeof CONTACT_TYPES)[number]["value"];
 

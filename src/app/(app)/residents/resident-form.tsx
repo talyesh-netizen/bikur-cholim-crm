@@ -1,5 +1,7 @@
 "use client";
 
+import { offeredOptions } from "@/lib/domain/offered";
+import { OFFERED_RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -121,7 +123,7 @@ export function ResidentForm({
         </Field>
 
         <Field label="Status" htmlFor="status" required>
-          <SelectField name="status" defaultValue={values.status} options={RESIDENT_STATUSES} />
+          <SelectField name="status" defaultValue={values.status} options={offeredOptions(RESIDENT_STATUSES, OFFERED_RESIDENT_STATUSES, values.status)} />
         </Field>
 
         <Field label="How we found this resident" htmlFor="referral_source">

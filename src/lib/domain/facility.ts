@@ -8,11 +8,11 @@
  */
 
 export const FACILITY_TYPES = [
-  { value: "nursing_home", label: "Nursing home" },
+  { value: "nursing_home", label: "Nursing home / rehab" },
   { value: "assisted_living", label: "Assisted living" },
   { value: "rehabilitation_center", label: "Rehabilitation center" },
   { value: "memory_care", label: "Memory care" },
-  { value: "independent_living", label: "Independent living" },
+  { value: "independent_living", label: "Independent / senior apartments" },
   { value: "senior_apartment", label: "Senior apartment building" },
   // Several levels on one campus (independent, assisted, memory care,
   // nursing), e.g. the Judson campuses -- a.k.a. "life plan community".
@@ -24,15 +24,19 @@ export const FACILITY_TYPES = [
 export type FacilityType = (typeof FACILITY_TYPES)[number]["value"];
 
 export const ENGAGEMENT_STATUSES = [
-  { value: "not_contacted", label: "Not contacted" },
-  { value: "initial_contact", label: "Initial contact made" },
+  { value: "not_contacted", label: "Not started" },
+  { value: "initial_contact", label: "Getting to know them" },
   { value: "staff_relationship_developing", label: "Staff relationship developing" },
   { value: "active_facility", label: "Active facility" },
-  { value: "recurring_visits", label: "Recurring visits" },
+  { value: "recurring_visits", label: "Active (we visit)" },
   { value: "recurring_programming", label: "Recurring programming" },
-  { value: "no_known_jewish_residents", label: "No Jewish residents currently known" },
+  { value: "no_known_jewish_residents", label: "No Jewish residents" },
   { value: "follow_up_needed", label: "Follow up needed" },
 ] as const;
+
+/** The short lists a form offers (older values still display). */
+export const OFFERED_FACILITY_TYPES = ["nursing_home", "assisted_living", "memory_care", "independent_living", "hospital", "other"] as const;
+export const OFFERED_ENGAGEMENT_STATUSES = ["not_contacted", "initial_contact", "recurring_visits", "no_known_jewish_residents"] as const;
 
 export type EngagementStatus = (typeof ENGAGEMENT_STATUSES)[number]["value"];
 

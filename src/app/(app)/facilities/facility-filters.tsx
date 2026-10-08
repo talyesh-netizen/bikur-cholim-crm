@@ -1,5 +1,6 @@
 "use client";
 
+import { OFFERED_FACILITY_TYPES, OFFERED_ENGAGEMENT_STATUSES } from "@/lib/domain/facility";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Input } from "@/components/ui/input";
@@ -95,7 +96,7 @@ export function FacilityFilters({ clusters }: { clusters: GeographicCluster[] })
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All types</SelectItem>
-              {FACILITY_TYPES.map((t) => (
+              {FACILITY_TYPES.filter((t) => (OFFERED_FACILITY_TYPES as readonly string[]).includes(t.value)).map((t) => (
                 <SelectItem key={t.value} value={t.value}>
                   {t.label}
                 </SelectItem>
@@ -115,7 +116,7 @@ export function FacilityFilters({ clusters }: { clusters: GeographicCluster[] })
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All statuses</SelectItem>
-              {ENGAGEMENT_STATUSES.map((s) => (
+              {ENGAGEMENT_STATUSES.filter((s) => (OFFERED_ENGAGEMENT_STATUSES as readonly string[]).includes(s.value)).map((s) => (
                 <SelectItem key={s.value} value={s.value}>
                   {s.label}
                 </SelectItem>
