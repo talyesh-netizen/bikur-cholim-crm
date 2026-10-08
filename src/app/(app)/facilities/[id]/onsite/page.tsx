@@ -12,7 +12,7 @@ import { SectionIcon } from "@/components/section-icon";
 import { StatusBadge } from "@/components/status-badge";
 import { ProfileNotesCard } from "@/components/profile-notes-card";
 import { ACTIVE_RESIDENT_STATUSES } from "@/lib/domain/resident";
-import { formatDateOnly, formatRelative, getLocalToday } from "@/lib/format-date";
+import { formatDateOnly, formatRelative, getLocalToday, toOrgDatetimeLocalValue } from "@/lib/format-date";
 import { residentName } from "@/lib/domain/resident-name";
 
 import { VisitChecklist } from "./visit-checklist";
@@ -105,6 +105,8 @@ export default async function FacilityOnsitePage({
         room: resident.room_number,
         lastVisit: formatRelative(resident.last_visit_at) ?? "Not visited yet",
         needsVisit: needsVisit(resident.last_visit_at),
+        // Visited today (Cleveland time) -- drops off the list once logged.
+        seenToday: !!resident.last_visit_at && toOrgDatetimeLocalValue(resident.last_visit_at).slice(0, 10) === today,
       }))} />
 
       {/* The main way to log a visit: write it all down once; the
