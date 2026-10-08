@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ORGANIZATION_TYPES } from "@/lib/domain/organization";
+import { ORGANIZATION_TYPES, OFFERED_PARTNER_TYPES } from "@/lib/domain/organization";
 import { Search } from "lucide-react";
 
 export function OrganizationFilters() {
@@ -69,7 +69,7 @@ export function OrganizationFilters() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All types</SelectItem>
-            {ORGANIZATION_TYPES.map((t) => (
+            {ORGANIZATION_TYPES.filter((t) => (OFFERED_PARTNER_TYPES as readonly string[]).includes(t.value)).map((t) => (
               <SelectItem key={t.value} value={t.value}>
                 {t.label}
               </SelectItem>

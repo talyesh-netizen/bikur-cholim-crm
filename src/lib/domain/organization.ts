@@ -8,12 +8,21 @@
 export { labelFor } from "./options";
 
 export const ORGANIZATION_TYPES = [
-  { value: "synagogue", label: "Synagogue" },
+  { value: "synagogue", label: "Shul" },
   { value: "school", label: "School" },
+  { value: "jewish_organization", label: "Jewish organization" },
+  { value: "healthcare_group", label: "Healthcare group" },
+  // Older values, still valid (see 20261008000001_healthcare_groups.sql).
   { value: "outreach_center", label: "Outreach center" },
   { value: "community_partner", label: "Community partner" },
   { value: "other", label: "Other" },
 ] as const;
+
+/** Two worlds (decided Oct 8, 2026): Strategic Partners are the Jewish
+ * community that helps us; healthcare groups own the facilities we
+ * serve and sit at the top of Group > Facility > Residents > Family. */
+export const OFFERED_PARTNER_TYPES = ["synagogue", "school", "jewish_organization"] as const;
+export const HEALTHCARE_GROUP = "healthcare_group";
 
 export type OrganizationType = (typeof ORGANIZATION_TYPES)[number]["value"];
 

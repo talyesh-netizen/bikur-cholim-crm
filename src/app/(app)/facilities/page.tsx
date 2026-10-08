@@ -45,7 +45,10 @@ export default async function FacilitiesPage({
             {facilities.length} facilit{facilities.length === 1 ? "y" : "ies"}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/facilities/groups">Healthcare groups</Link>
+          </Button>
           {profile?.role === "admin" ? (
             <Button variant="outline" asChild>
               <Link href="/settings/clusters">

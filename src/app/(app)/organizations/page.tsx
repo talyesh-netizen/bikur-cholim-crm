@@ -16,6 +16,7 @@ export default async function OrganizationsPage({
   const params = await searchParams;
 
   const organizations = await listOrganizations({
+    world: "partners",
     search: params.search,
     organizationType: params.type,
     showInactive: params.all === "1",
@@ -30,13 +31,13 @@ export default async function OrganizationsPage({
             Strategic Partners
           </h1>
           <p className="text-sm text-muted-foreground">
-            Shuls, schools and organizations · {organizations.length} on file
+            Shuls, schools and Jewish organizations that partner with us · {organizations.length}
           </p>
         </div>
         <Button asChild>
           <Link href="/organizations/new">
             <Plus className="size-4" />
-            Add organization
+            Add partner
           </Link>
         </Button>
       </div>
