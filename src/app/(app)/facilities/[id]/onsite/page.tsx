@@ -16,6 +16,7 @@ import { formatDateOnly, formatRelative, getLocalToday } from "@/lib/format-date
 import { residentName } from "@/lib/domain/resident-name";
 
 import { VisitChecklist } from "./visit-checklist";
+import { ResidentDirectory } from "./resident-directory";
 import { logOnsiteVisits } from "@/lib/actions/onsite";
 import { QuickLog } from "../../../quick-log/quick-log";
 import { quickLogEnabled } from "@/lib/quick-log-enabled";
@@ -97,6 +98,14 @@ export default async function FacilityOnsitePage({
           </div>
         </div>
       </div>
+
+      <ResidentDirectory facilityId={facility.id} residents={currentResidents.map((resident) => ({
+        id: resident.id,
+        name: residentName(resident),
+        room: resident.room_number,
+        lastVisit: formatRelative(resident.last_visit_at) ?? "Not visited yet",
+        needsVisit: needsVisit(resident.last_visit_at),
+      }))} />
 
       {/* The main way to log a visit: write it all down once; the
           assistant works out the visits, new people, follow-ups and
