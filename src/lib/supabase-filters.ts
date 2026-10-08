@@ -24,3 +24,21 @@ export function escapeIlikeTerm(value: string): string {
 export function sanitizeForOrFilter(value: string): string {
   return value.replace(/[,()]/g, " ");
 }
+
+/** The separate words of a search, ready for `.or()` / `.ilike()`. Each
+ * word is matched on its own, so "Ruth Jacobs", "Jacobs" and "jacobs
+ * ruth" all find the same person -- first name, last name or both, in
+ * any order. */
+export function searchWords(value: string): string[] {
+  return sanitizeForOrFilter(value).split(/\s+/).filter(Boolean).map(escapeIlikeTerm);
+}
+
+/** A single `.or()` filter meaning "every search word appears in at
+ * least one of these columns" -- e.g. "Ruth Jacobs" matches first name
+ * Ruth and last name Jacobs, in either order. Null when there are no
+ * words. */
+export function everyWordInAny(words: string[], columns: string[]): string | null {
+  if (words.length === 0) return null;
+  const perWord = words.map((w) => `or(${columns.map((c) => `${c}.ilike.%${w}%`).join(",")})`);
+  return `and(${perWord.join(",")})`;
+}

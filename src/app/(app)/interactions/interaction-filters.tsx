@@ -63,7 +63,7 @@ export function InteractionFilters({
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search notes…"
+            placeholder="Search names or notes…"
             className="pl-9"
           />
         </div>
