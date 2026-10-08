@@ -17,15 +17,14 @@ import {
   FACILITY_OPTIONAL_TYPES,
   GROUP_VISIT_TYPES,
   PROGRAM_PARTNERS,
-  UNMET_NEED_REASONS,
-  TIME_SPENT_OPTIONS,
   SERVICE_FIELDS_BY_TYPE,
   TYPE_BUTTONS,
   MORE_TYPES,
   HOLIDAYS,
   HOLIDAY_TYPES,
-  FAMILY_NEEDS,
-  FAMILY_NEED_TYPES,
+  FOOD_KINDS,
+  OFFERED_HOLIDAYS,
+  foodKindFor,
   type InteractionType,
 } from "@/lib/domain/interaction";
 import type { InteractionFormState } from "@/lib/actions/interactions";
@@ -107,7 +106,17 @@ export function InteractionForm({
   const facilityRequired = !FACILITY_OPTIONAL_TYPES.includes(interactionType);
   const serviceFields = SERVICE_FIELDS_BY_TYPE[interactionType as InteractionType] ?? [];
   const service: ServiceFormValues = { ...EMPTY_SERVICE_VALUES, ...values };
-  const [unmetNeed, setUnmetNeed] = useState(service.unmet_need === "on");
+  const isFood = interactionType === "food_delivery";
+  // Food asks one question -- Snack, Shabbos delivery or Holiday delivery
+  // -- stored in the existing holiday field (see FOOD_KINDS).
+  const [foodKind, setFoodKind] = useState(foodKindFor(service.holiday));
+  const [foodHoliday, setFoodHoliday] = useState(service.holiday && service.holiday !== "shabbos" ? service.holiday : "");
+  const [foodCount, setFoodCount] = useState(service.people_reached || service.quantity);
+  // The holidays offered: Shabbos plus the main six, and whatever an
+  // older entry already has so editing it never loses it.
+  const holidayOptions = HOLIDAYS.filter(
+    (h) => h.value === "shabbos" || (OFFERED_HOLIDAYS as readonly string[]).includes(h.value) || h.value === service.holiday
+  );
   // On a failed submit (e.g. a missing Facility), state.checkedVolunteerIds
   // carries back what was actually checked, so re-picking volunteers isn't
   // lost along with the rest of the form -- only fall back to the
@@ -231,7 +240,7 @@ export function InteractionForm({
       </Field>
 
       <Field
-        label="Interaction type"
+        label="What happened?"
         htmlFor="interaction_type"
         error={fieldErrors.interaction_type}
         required
@@ -239,25 +248,56 @@ export function InteractionForm({
         <TypePicker value={interactionType} onChange={handleInteractionTypeChange} />
       </Field>
 
-      {FAMILY_NEED_TYPES.includes(interactionType) ? (
-        <Field label="What did the family need?" htmlFor="family_need" error={fieldErrors.family_need}>
-          <SelectField
-            name="family_need"
-            defaultValue={service.family_need}
-            options={FAMILY_NEEDS}
-            placeholder="Choose (optional)"
-            allowEmpty
-          />
-        </Field>
-      ) : null}
+      {/* Not asked any more (kept simple); an older entry keeps its value. */}
+      <input type="hidden" name="family_need" value={service.family_need} readOnly />
 
-      {HOLIDAY_TYPES.includes(interactionType) ? (
-        <Field label="For a holiday?" htmlFor="holiday" error={fieldErrors.holiday}>
+      {isFood ? (
+        <Field label="What kind?" htmlFor="food_kind">
+          <input type="hidden" name="holiday" value={foodKind === "snack" ? "" : foodKind === "shabbos" ? "shabbos" : foodHoliday} readOnly />
+          <div id="food_kind" className="grid grid-cols-3 gap-2">
+            {FOOD_KINDS.map((k) => (
+              <button
+                key={k.value}
+                type="button"
+                aria-pressed={foodKind === k.value}
+                onClick={() => setFoodKind(k.value)}
+                className={
+                  foodKind === k.value
+                    ? "rounded-md border-2 border-primary bg-primary/10 px-2 py-2.5 text-sm font-semibold"
+                    : "rounded-md border border-border bg-card px-2 py-2.5 text-sm font-medium hover:border-primary/50"
+                }
+              >
+                {k.label}
+              </button>
+            ))}
+          </div>
+          {foodKind === "holiday" ? (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {holidayOptions.filter((h) => h.value !== "shabbos").map((h) => (
+                <button
+                  key={h.value}
+                  type="button"
+                  aria-pressed={foodHoliday === h.value}
+                  onClick={() => setFoodHoliday(h.value)}
+                  className={
+                    foodHoliday === h.value
+                      ? "rounded-full bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground"
+                      : "rounded-full bg-card px-3 py-1.5 text-sm font-medium ring-1 ring-border"
+                  }
+                >
+                  {h.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </Field>
+      ) : HOLIDAY_TYPES.includes(interactionType) ? (
+        <Field label="For Shabbos or a holiday?" htmlFor="holiday" error={fieldErrors.holiday}>
           <SelectField
             name="holiday"
             defaultValue={service.holiday}
-            options={HOLIDAYS}
-            placeholder="No holiday"
+            options={holidayOptions}
+            placeholder="No"
             allowEmpty
           />
         </Field>
@@ -278,14 +318,24 @@ export function InteractionForm({
           {/* The holiday (below) now sets the Shabbos / Yom Tov occasion on
               save; an occasion already on an older entry rides along. */}
           {serviceFields.includes("occasion") ? <input type="hidden" name="occasion" value={service.occasion} readOnly /> : null}
-          {serviceFields.includes("quantity") ? (
-            <NumberField
-              name="quantity"
-              label="How many items?"
-              hint="e.g. 12 challahs, 30 meals — what they were goes in the notes"
-              defaultValue={service.quantity}
-              error={fieldErrors.quantity}
-            />
+          {isFood ? (
+            // One number for food: how many packages, which is also how
+            // many people got one (the funder report counts the first,
+            // Impact the second).
+            <div className="flex flex-col gap-1.5 sm:col-span-2">
+              <Label htmlFor="people_reached">How many?</Label>
+              <Input
+                id="people_reached"
+                name="people_reached"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                value={foodCount}
+                onChange={(e) => setFoodCount(e.target.value)}
+              />
+              <input type="hidden" name="quantity" value={foodCount} readOnly />
+              {fieldErrors.people_reached ? <p className="text-sm text-destructive">{fieldErrors.people_reached}</p> : null}
+            </div>
           ) : null}
           {serviceFields.includes("participants") ? (
             <NumberField
@@ -295,7 +345,7 @@ export function InteractionForm({
               error={fieldErrors.participants}
             />
           ) : null}
-          {serviceFields.includes("people_reached") ? (
+          {serviceFields.includes("people_reached") && !isFood ? (
             <NumberField
               name="people_reached"
               label="Residents reached (about)"
@@ -362,64 +412,18 @@ export function InteractionForm({
         </div>
       ) : null}
 
-      <Field label="What happened" htmlFor="notes" error={fieldErrors.notes}>
+      <Field label="Notes" htmlFor="notes" error={fieldErrors.notes}>
         <Textarea id="notes" name="notes" rows={4} defaultValue={values.notes} />
         <p className="text-xs text-muted-foreground">
           About this visit or call only. Lasting facts (like &ldquo;hard of hearing&rdquo;) go in Profile notes on their page.
         </p>
       </Field>
 
-      <Field label="Time spent" htmlFor="minutes_spent" error={fieldErrors.minutes_spent}>
-        <SelectField
-          name="minutes_spent"
-          defaultValue={service.minutes_spent}
-          options={withCurrentOption(TIME_SPENT_OPTIONS, service.minutes_spent)}
-          placeholder="Not recorded"
-          allowEmpty
-        />
-      </Field>
-
-      <div className="flex flex-col gap-3 rounded-md border border-border p-3">
-        <label className="flex items-start gap-2 text-sm">
-          <input
-            type="checkbox"
-            name="unmet_need"
-            checked={unmetNeed}
-            onChange={(e) => setUnmetNeed(e.target.checked)}
-            className="mt-0.5 accent-primary"
-          />
-          <span>
-            <span className="font-medium">We couldn&apos;t fully meet this request</span>
-            <span className="block text-xs text-muted-foreground">
-              Counted in the funder report as need we had to turn away.
-            </span>
-          </span>
-        </label>
-        {unmetNeed ? (
-          <Field label="Why not?" htmlFor="unmet_need_reason" error={fieldErrors.unmet_need_reason}>
-            <SelectField
-              name="unmet_need_reason"
-              defaultValue={service.unmet_need_reason}
-              options={UNMET_NEED_REASONS}
-              placeholder="Choose a reason…"
-            />
-          </Field>
-        ) : null}
-        <label className="flex items-start gap-2 text-sm">
-          <input
-            type="checkbox"
-            name="funder_story"
-            defaultChecked={service.funder_story === "on"}
-            className="mt-0.5 accent-primary"
-          />
-          <span>
-            <span className="font-medium">Good story for funders</span>
-            <span className="block text-xs text-muted-foreground">
-              Flags these notes to share (without names) at report time.
-            </span>
-          </span>
-        </label>
-      </div>
+      {/* No longer asked (kept simple); an older entry keeps what it had. */}
+      <input type="hidden" name="minutes_spent" value={service.minutes_spent} readOnly />
+      {service.unmet_need === "on" ? <input type="hidden" name="unmet_need" value="on" readOnly /> : null}
+      <input type="hidden" name="unmet_need_reason" value={service.unmet_need_reason} readOnly />
+      {service.funder_story === "on" ? <input type="hidden" name="funder_story" value="on" readOnly /> : null}
 
       {state.error ? (
         <p className="text-sm font-medium text-destructive">Not saved yet — see the message at the top of the form.</p>
@@ -463,13 +467,6 @@ const EMPTY_SERVICE_VALUES: ServiceFormValues = {
   unmet_need_reason: "",
   funder_story: "",
 };
-
-/** Keeps a saved value selectable even if it isn't one of the standard
- * dropdown choices, so re-saving an entry never silently drops it. */
-function withCurrentOption(options: readonly { value: string; label: string }[], current: string) {
-  if (!current || options.some((o) => o.value === current)) return options;
-  return [...options, { value: current, label: `${current} minutes` }];
-}
 
 function NumberField({
   name,
@@ -624,11 +621,11 @@ function TypePicker({ value, onChange }: { value: string; onChange: (value: stri
             </button>
           ))}
         </div>
-      ) : (
+      ) : moreOptions.length > 0 ? (
         <button type="button" className="w-fit text-xs text-muted-foreground underline" onClick={() => setShowMore(true)}>
           More types…
         </button>
-      )}
+      ) : null}
     </div>
   );
 }

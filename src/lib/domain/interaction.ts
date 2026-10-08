@@ -30,52 +30,47 @@ export const INTERACTION_TYPES = [
 
 export type InteractionType = (typeof INTERACTION_TYPES)[number]["value"];
 
-/** The simple picker on the log form: 8 big buttons. A button that
- * covers more than one stored type asks a short follow-up (its
- * `choices`); the first choice is the default. Every stored type stays
- * valid for old records and reports -- this only changes what's offered. */
+/** The log form's one fixed list: 8 choices, one tap each, no
+ * follow-up questions. Decided by the director (Oct 8, 2026): fewer,
+ * clearer choices beat a long list. Every stored type stays valid for
+ * old records and reports -- this only changes what's offered. */
 export const TYPE_BUTTONS: {
   key: string;
   label: string;
   choices: { value: InteractionType; label: string }[];
 }[] = [
-  { key: "resident_visit", label: "Resident visit", choices: [{ value: "resident_visit", label: "Resident visit" }] },
+  { key: "resident_visit", label: "Visit", choices: [{ value: "resident_visit", label: "Visit" }] },
+  { key: "volunteer", label: "Volunteer visit", choices: [{ value: "volunteer_visit", label: "Volunteer visit" }] },
   { key: "phone", label: "Phone call", choices: [{ value: "resident_phone_call", label: "Phone call" }] },
-  {
-    key: "volunteer",
-    label: "Volunteers",
-    choices: [
-      { value: "volunteer_visit", label: "Volunteer visit" },
-      { value: "volunteer_meeting", label: "Meeting with a volunteer" },
-    ],
-  },
-  { key: "family", label: "Family support", choices: [{ value: "family_communication", label: "Family support" }] },
-  {
-    key: "facility",
-    label: "Facility staff",
-    choices: [
-      { value: "facility_staff_communication", label: "Meeting, touchpoint or appreciation" },
-      { value: "facility_visit", label: "Visit to the facility" },
-      { value: "facility_discovery_visit", label: "First visit to a new facility" },
-    ],
-  },
-  { key: "program", label: "Program / event", choices: [{ value: "program", label: "Program / event" }] },
-  { key: "delivery", label: "Delivery", choices: [{ value: "food_delivery", label: "Delivery" }] },
-  {
-    key: "referral",
-    label: "Referral",
-    choices: [
-      { value: "medical_referral", label: "Medical" },
-      { value: "ride_arranged", label: "Ride" },
-      { value: "referral", label: "Other" },
-    ],
-  },
+  { key: "family", label: "Family", choices: [{ value: "family_communication", label: "Family" }] },
+  { key: "delivery", label: "Food", choices: [{ value: "food_delivery", label: "Food" }] },
+  { key: "referral", label: "Referral", choices: [{ value: "medical_referral", label: "Referral" }] },
+  { key: "facility", label: "Staff", choices: [{ value: "facility_staff_communication", label: "Staff" }] },
+  { key: "program", label: "Program", choices: [{ value: "program", label: "Program" }] },
 ];
 
-/** Offered under "More types". Types not listed here or in TYPE_BUTTONS
- * (school & shul, care navigation, hospital, email) are no longer
- * offered for new entries, but still show for old ones. */
-export const MORE_TYPES: InteractionType[] = ["kosher_food_coordination", "other"];
+/** No "more types": the 8 above are the whole list. An older entry with
+ * another type still shows (and keeps) it when edited. */
+export const MORE_TYPES: InteractionType[] = [];
+
+/** What kind of food, the one question a Food entry asks. Stored in the
+ * existing holiday field: Snack = none, Shabbos = "shabbos", Holiday =
+ * the holiday picked. */
+export const FOOD_KINDS = [
+  { value: "snack", label: "Snack" },
+  { value: "shabbos", label: "Shabbos delivery" },
+  { value: "holiday", label: "Holiday delivery" },
+] as const;
+
+/** The holidays offered when picking one. The full HOLIDAYS list below
+ * stays for older entries and reports. */
+export const OFFERED_HOLIDAYS = ["rosh_hashana", "sukkos", "chanukah", "purim", "pesach", "shavuos"] as const;
+
+/** Food kind from a stored holiday value. */
+export function foodKindFor(holiday: string | null | undefined): "snack" | "shabbos" | "holiday" {
+  if (!holiday) return "snack";
+  return holiday === "shabbos" ? "shabbos" : "holiday";
+}
 
 /** Which holiday an activity was for. The year comes from the date, so
  * "Purim program '26" is just Program + Purim -- the list never grows. */
