@@ -9,13 +9,14 @@ import { createInteraction } from "@/lib/actions/interactions";
 import { InteractionForm } from "../interaction-form";
 import { INTERACTION_TYPES, labelFor } from "@/lib/domain/interaction";
 import { residentName } from "@/lib/domain/resident-name";
+import { onsiteHref } from "@/lib/onsite-links";
 
 export default async function NewInteractionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ resident?: string; facility?: string; type?: string; from?: string }>;
+  searchParams: Promise<{ resident?: string; facility?: string; type?: string; from?: string; contact?: string }>;
 }) {
-  const { resident: residentId, facility: facilityId, type, from } = await searchParams;
+  const { resident: residentId, facility: facilityId, type, from, contact: contactId } = await searchParams;
   const defaultType = INTERACTION_TYPES.some((t) => t.value === type) ? type : undefined;
 
   const [facilities, resident, residentsAtFacility, allContacts, volunteers, residentFamily] = await Promise.all([
@@ -43,6 +44,9 @@ export default async function NewInteractionPage({
     }));
   const familyIds = new Set(family.map((f) => f.id));
   const contacts = [...family, ...allContacts.filter((c) => !familyIds.has(c.id))];
+  // Tapped a staff member or family member on site: they're already
+  // chosen (only ever someone already in the list).
+  const chosenContact = contactId ? contacts.find((c) => c.id === contactId) : undefined;
 
   if (residentId && !resident) notFound();
   if (facilityId) {
@@ -51,8 +55,18 @@ export default async function NewInteractionPage({
   }
 
   // Opened from on-site mode: go back there, not to the facility page.
-  const redirectTo = from === "onsite" && facilityId
-    ? `/facilities/${facilityId}/onsite`
+  // Back to the tab it was started from: staff to Staff, anything
+  // about a resident to that resident, still open.
+  const onsiteReturn =
+    from === "onsite"
+      ? onsiteHref(
+          facilityId,
+          defaultType === "facility_staff_communication" ? "staff" : "residents",
+          defaultType === "family_communication" ? residentId : undefined
+        )
+      : undefined;
+  const redirectTo = onsiteReturn
+    ? onsiteReturn
     : residentId
     ? `/residents/${residentId}`
     : facilityId
@@ -69,7 +83,7 @@ export default async function NewInteractionPage({
 
   const isVisit = defaultType === "resident_visit";
   // "Note" on the onsite directory opens this as type "other".
-  const heading = isVisit ? "Log a visit" : defaultType === "other" ? "Add a note" : defaultType ? `Log: ${labelFor(INTERACTION_TYPES, defaultType)}` : "Log an interaction";
+  const heading = chosenContact ? `Log: talked with ${chosenContact.name}` : isVisit ? "Log a visit" : defaultType === "other" ? "Add a note" : defaultType ? `Log: ${labelFor(INTERACTION_TYPES, defaultType)}` : "Log an interaction";
 
   return (
     <div className="flex flex-col gap-5">
@@ -92,6 +106,7 @@ export default async function NewInteractionPage({
             facilities={facilities}
             defaultFacilityId={facilityId ?? resident?.current_facility_id ?? undefined}
             defaultInteractionType={defaultType}
+            defaultContactId={chosenContact?.id}
             fixedResident={fixedResident}
             residents={residentsAtFacility.map((r) => ({
               id: r.id,

@@ -40,6 +40,7 @@ export function InteractionForm({
   facilities,
   defaultFacilityId,
   defaultInteractionType,
+  defaultContactId,
   fixedResident,
   residents,
   contacts,
@@ -54,6 +55,8 @@ export function InteractionForm({
   defaultFacilityId?: string;
   /** Pre-selects the type for a new entry, such as Resident visit. */
   defaultInteractionType?: string;
+  /** Pre-selects who it was with (a staff or family member tapped on site). */
+  defaultContactId?: string;
   /** Set when logging from a resident's page — the resident is fixed
    * and shown as plain text rather than a picker. */
   fixedResident?: { id: string; name: string };
@@ -94,7 +97,7 @@ export function InteractionForm({
     initialValues ?? {
       facility_id: defaultFacilityId ?? "",
       resident_id: fixedResident?.id ?? "",
-      contact_id: "",
+      contact_id: defaultContactId ?? "",
       occurred_at: defaultOccurredAt,
       interaction_type: defaultInteractionType ?? "",
       notes: "",

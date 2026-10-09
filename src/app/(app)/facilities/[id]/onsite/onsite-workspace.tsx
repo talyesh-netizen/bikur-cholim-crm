@@ -7,13 +7,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { QuickLog } from "../../../quick-log/quick-log";
 import { ResidentDirectory, type DirectoryResident } from "./resident-directory";
-
-export type LoggedToday = { id: string; what: string; who: string | null; time: string; by: string | null };
+import { StaffList, type OnsiteStaff } from "./staff-list";
+import { TodayList, type LoggedToday } from "./today-list";
+import type { OnsiteTab } from "@/lib/onsite-links";
+import { cn } from "@/lib/utils";
 
 /**
- * The on-site page's working area (decided Oct 9, 2026): the residents,
- * the one notes box, and "Finish visit" -- all on one page, so a round
- * of visits never goes back and forth.
+ * The on-site page's working area (decided Oct 9, 2026): three tabs --
+ * Residents, Staff, Today -- with the one notes box and "Finish visit"
+ * underneath, all on one page, so a round of visits never goes back and
+ * forth between sections of the CRM. The facility stays chosen for
+ * everything started here.
  */
 export function OnsiteWorkspace({
   facilityId,
@@ -22,6 +26,9 @@ export function OnsiteWorkspace({
   notesOn,
   loggedToday,
   followUpsDue,
+  staff,
+  initialTab = "residents",
+  openResidentId,
 }: {
   facilityId: string;
   facilityName: string;
@@ -29,10 +36,30 @@ export function OnsiteWorkspace({
   notesOn: boolean;
   loggedToday: LoggedToday[];
   followUpsDue: number;
+  staff: OnsiteStaff[];
+  initialTab?: OnsiteTab;
+  /** A resident to show opened on the Residents tab. */
+  openResidentId?: string;
 }) {
+  const [tab, setTab] = useState<OnsiteTab>(initialTab);
   const [line, setLine] = useState<{ text: string; key: number } | undefined>(undefined);
   const [finishing, setFinishing] = useState(false);
   const [unsavedNote, setUnsavedNote] = useState(false);
+
+  // The tab is kept in the address (without reloading), so coming back
+  // from a form or the back button lands on the same tab.
+  const chooseTab = (next: OnsiteTab) => {
+    setTab(next);
+    try {
+      const url = new URL(window.location.href);
+      if (next === "residents") url.searchParams.delete("tab");
+      else url.searchParams.set("tab", next);
+      url.searchParams.delete("open");
+      window.history.replaceState(window.history.state, "", url);
+    } catch {
+      // The tab still changes; only the address doesn't.
+    }
+  };
 
   const visit = (r: DirectoryResident) =>
     setLine((prev) => ({ text: `Visited ${r.name}${r.room ? ` (room ${r.room})` : ""}. `, key: (prev?.key ?? 0) + 1 }));
@@ -61,7 +88,36 @@ export function OnsiteWorkspace({
         </Link>
       </Button>
 
-      <ResidentDirectory facilityId={facilityId} residents={residents} onVisit={notesOn ? visit : undefined} />
+      <div role="tablist" aria-label="On site" className="sticky top-[calc(3.75rem+env(safe-area-inset-top))] z-20 grid grid-cols-3 gap-1 rounded-lg bg-muted p-1 shadow-sm md:top-2">
+        {([
+          ["residents", "Residents", notSeen.length > 0 ? `${notSeen.length} to see` : "all seen"],
+          ["staff", "Staff", String(staff.length)],
+          ["today", "Today", String(loggedToday.length)],
+        ] as const).map(([key, label, count]) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={tab === key}
+            onClick={() => chooseTab(key)}
+            className={cn(
+              "flex min-h-11 flex-col items-center justify-center rounded-md px-1 text-sm font-medium",
+              tab === key ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+            )}
+          >
+            {label}
+            <span className="text-xs font-normal text-muted-foreground">{count}</span>
+          </button>
+        ))}
+      </div>
+
+      {tab === "residents" ? (
+        <ResidentDirectory facilityId={facilityId} residents={residents} onVisit={notesOn ? visit : undefined} initiallyOpen={openResidentId} />
+      ) : tab === "staff" ? (
+        <StaffList facilityId={facilityId} staff={staff} />
+      ) : (
+        <TodayList loggedToday={loggedToday} />
+      )}
 
       {notesOn ? <QuickLog onSite={{ facilityId, facilityName }} addLine={line} /> : null}
 
@@ -138,25 +194,17 @@ export function OnsiteWorkspace({
               )}
             </section>
 
-            <section>
-              <h3 className="mb-2 font-semibold">Logged here today ({loggedToday.length})</h3>
-              {loggedToday.length === 0 ? (
-                <p className="text-muted-foreground">Nothing yet.</p>
-              ) : (
-                <ul className="flex flex-col gap-1">
-                  {loggedToday.map((x) => (
-                    <li key={x.id} className="flex gap-2">
-                      <span className="w-16 shrink-0 text-muted-foreground">{x.time}</span>
-                      <Link href={`/interactions/${x.id}`} className="min-w-0 hover:underline">
-                        {x.what}
-                        {x.who ? ` · ${x.who}` : ""}
-                        {x.by ? <span className="text-muted-foreground"> · {x.by}</span> : null}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+            <button
+              type="button"
+              onClick={() => {
+                chooseTab("today");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              className="flex min-h-11 items-center justify-between rounded-md border px-3 text-left font-medium"
+            >
+              <span>Check what was logged here today ({loggedToday.length})</span>
+              <span className="text-primary">Today</span>
+            </button>
 
             <Button size="lg" variant="outline" className="h-12 w-full text-base" asChild>
               <Link href="/dashboard">Done</Link>

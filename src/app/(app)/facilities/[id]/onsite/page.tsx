@@ -23,6 +23,9 @@ import { logOnsiteVisits } from "@/lib/actions/onsite";
 import { RememberOnsite } from "@/components/remember-onsite";
 import { quickLogEnabled } from "@/lib/quick-log-enabled";
 import { getCurrentProfile } from "@/lib/get-current-profile";
+import { listFacilityContacts, listFamilyForResidents } from "@/lib/queries/contacts";
+import { listRecentNotesForResidents } from "@/lib/queries/profile-notes";
+import type { OnsiteTab } from "@/lib/onsite-links";
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 // Reading a note takes the assistant anywhere from a few seconds to
@@ -37,26 +40,36 @@ function needsVisit(lastVisitAt: string | null) {
 
 export default async function FacilityOnsitePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string; open?: string }>;
 }) {
   const { id } = await params;
+  const { tab, open } = await searchParams;
+  const initialTab: OnsiteTab = tab === "staff" || tab === "today" ? tab : "residents";
 
-  const [facility, residents, profile] = await Promise.all([
+  const [facility, residents, profile, facilityContacts] = await Promise.all([
     getFacility(id),
     listResidents({ facilityId: id, showAllStatuses: true }),
     getCurrentProfile(),
+    listFacilityContacts(id),
   ]);
   const notesOn = quickLogEnabled();
 
   if (!facility) notFound();
 
-  const [tasks, loggedToday] = await Promise.all([
+  const currentIds = residents
+    .filter((resident) => ACTIVE_RESIDENT_STATUSES.includes(resident.status))
+    .map((resident) => resident.id);
+  const [tasks, loggedToday, family, notesByResident] = await Promise.all([
     listTasksForFacility(
       id,
       residents.map((resident) => resident.id)
     ),
     listInteractionsAtFacilityOnDay(id, getLocalToday()),
+    listFamilyForResidents(currentIds),
+    listRecentNotesForResidents(currentIds),
   ]);
 
   const currentResidents = residents
@@ -151,7 +164,19 @@ export default async function FacilityOnsitePage({
         facilityName={facility.name}
         notesOn={notesOn}
         followUpsDue={urgentTasks.length}
-        loggedToday={loggedToday.map((x) => ({
+        initialTab={initialTab}
+        openResidentId={open}
+        staff={facilityContacts
+          .filter((fc) => fc.active && fc.contact)
+          .map((fc) => ({
+            contactId: fc.contact_id,
+            name: fc.contact.name,
+            role: fc.role_at_facility,
+            phone: fc.contact.phone,
+            primary: fc.is_primary_contact,
+          }))}
+        // Newest first, to check (and fix) what was just saved.
+        loggedToday={[...loggedToday].reverse().map((x) => ({
           id: x.id,
           what: labelFor(INTERACTION_TYPES, x.interaction_type) + (x.quantity ? ` (${x.quantity})` : ""),
           who: x.resident_name ?? x.contact_name,
@@ -167,6 +192,11 @@ export default async function FacilityOnsitePage({
           needsVisit: needsVisit(resident.last_visit_at),
           // Visited today (Cleveland time) -- drops off the list once logged.
           seenToday: !!resident.last_visit_at && toOrgDatetimeLocalValue(resident.last_visit_at).slice(0, 10) === today,
+          notes: (notesByResident.get(resident.id) ?? []).map((n) => ({ text: n.text, date: formatRelative(n.created_at) ?? "" })),
+          family: family
+            .filter((f) => f.resident_id === resident.id)
+            .map((f) => ({ contactId: f.contact_id, name: f.name, relationship: f.relationship, phone: f.phone })),
+          openTasks: tasksByResident.get(resident.id)?.length ?? 0,
         }))}
       />
 

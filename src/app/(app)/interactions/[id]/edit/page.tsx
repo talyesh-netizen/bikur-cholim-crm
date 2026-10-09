@@ -9,24 +9,26 @@ import { updateInteraction } from "@/lib/actions/interactions";
 import { InteractionForm } from "../../interaction-form";
 import { toOrgDatetimeLocalValue } from "@/lib/format-date";
 import { residentName } from "@/lib/domain/resident-name";
+import { onsiteHref } from "@/lib/onsite-links";
 
 export default async function EditInteractionPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ volunteersError?: string }>;
+  searchParams: Promise<{ volunteersError?: string; from?: string }>;
 }) {
   const { id } = await params;
-  const { volunteersError } = await searchParams;
+  const { volunteersError, from } = await searchParams;
   const interaction = await getInteraction(id);
   if (!interaction) notFound();
 
-  const redirectTo = interaction.resident_id
+  // Fixed from on-site mode's Today list: back to that list.
+  const redirectTo = (from === "onsite" ? onsiteHref(interaction.facility_id, "today") : undefined) ?? (interaction.resident_id
     ? `/residents/${interaction.resident_id}`
     : interaction.facility_id
       ? `/facilities/${interaction.facility_id}`
-      : "/interactions";
+      : "/interactions");
 
   const [facilities, residentsAtFacility, contacts, activeVolunteers, volunteerIds] = await Promise.all([
     listFacilities(),

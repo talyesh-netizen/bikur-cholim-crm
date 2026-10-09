@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { redirect } from "next/navigation";
+import { withSaved } from "@/lib/saved-flash";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { PREFERRED_COMMUNICATION_METHODS, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
@@ -80,6 +81,8 @@ const relationshipSchema = z
 
 export async function addFamilyContact(
   residentId: string,
+  /** Where to go after saving -- on-site mode passes its own page. */
+  returnTo: string | undefined,
   _prevState: FamilyContactFormState,
   formData: FormData
 ): Promise<FamilyContactFormState> {
@@ -157,7 +160,7 @@ export async function addFamilyContact(
 
   revalidatePath(`/residents/${residentId}`);
   revalidatePath("/contacts");
-  redirect(`/residents/${residentId}`);
+  redirect(returnTo ? withSaved(returnTo, "family-contact-added") : `/residents/${residentId}`);
 }
 
 export type RelationshipFormState = {

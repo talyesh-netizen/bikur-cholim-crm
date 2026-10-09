@@ -2,36 +2,58 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, Plus, HandHeart } from "lucide-react";
+import { Search, Plus, HandHeart, ChevronDown, Phone, MessageCircle, ListChecks, UserRound, ClipboardPen } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/status-badge";
+import { cn } from "@/lib/utils";
 
-export type DirectoryResident = { id: string; name: string; room: string | null; lastVisit: string; lastVisitAt: string | null; needsVisit: boolean; seenToday: boolean };
+export type DirectoryFamily = { contactId: string; name: string; relationship: string; phone: string | null };
+
+export type DirectoryResident = {
+  id: string;
+  name: string;
+  room: string | null;
+  lastVisit: string;
+  lastVisitAt: string | null;
+  needsVisit: boolean;
+  seenToday: boolean;
+  /** Newest "About them" notes, shown when the resident is opened. */
+  notes?: { text: string; date: string }[];
+  family?: DirectoryFamily[];
+  openTasks?: number;
+};
 
 /** Each resident has one button, Visit (decided Oct 9, 2026). With the
  * notes box on, it starts a line in the note on this same page, so a
- * whole round of visits never leaves the page; without it, the form. */
+ * whole round of visits never leaves the page; without it, the form.
+ * Tapping the name opens what to know before going in -- their notes,
+ * their family -- and the other things to do for them, all on site. */
 export function ResidentDirectory({
   facilityId,
   residents,
   onVisit,
+  initiallyOpen,
 }: {
   facilityId: string;
   residents: DirectoryResident[];
   onVisit?: (resident: DirectoryResident) => void;
+  /** A resident to show opened (coming back from adding their family). */
+  initiallyOpen?: string;
 }) {
   const [search, setSearch] = useState("");
   const [showSeen, setShowSeen] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(initiallyOpen ?? null);
   const query = search.trim().toLowerCase();
   const seenCount = residents.filter((r) => r.seenToday).length;
   const toSee = residents.length - seenCount;
   // Anyone visited today drops off the list; a search still finds them,
-  // so a second note for someone already seen is never out of reach.
+  // so a second note for someone already seen is never out of reach. A
+  // resident who's opened stays put.
   const filtered = useMemo(() => residents.filter((r) =>
-    (query || showSeen || !r.seenToday) && (r.name + " " + (r.room ?? "")).toLowerCase().includes(query)
-  ).sort((a, b) => (a.room ?? "ZZZZ").localeCompare(b.room ?? "ZZZZ", undefined, { numeric: true })), [residents, query, showSeen]);
+    (query || showSeen || !r.seenToday || r.id === openId) && (r.name + " " + (r.room ?? "")).toLowerCase().includes(query)
+  ).sort((a, b) => (a.room ?? "ZZZZ").localeCompare(b.room ?? "ZZZZ", undefined, { numeric: true })), [residents, query, showSeen, openId]);
 
   return (
     <Card>
@@ -52,26 +74,38 @@ export function ResidentDirectory({
         ) : (
           <ul className="divide-y rounded-lg border">{filtered.map((resident) => {
             const formHref = `/interactions/new?facility=${facilityId}&resident=${resident.id}&from=onsite&type=resident_visit`;
-            return <li key={resident.id} className="flex items-center gap-3 p-3">
-              <Link href={`/residents/${resident.id}`} className="flex min-w-0 flex-1 items-center gap-3">
-                {/* The room, big, so the list can be walked door by door. */}
-                <span className={`flex h-12 w-14 shrink-0 items-center justify-center rounded-md px-1 [overflow-wrap:anywhere] text-center font-semibold leading-tight ${resident.room ? "bg-secondary text-base" : "border border-dashed text-xs text-muted-foreground"}`}>
-                  {resident.room ?? "No room"}
-                </span>
-                <span className="min-w-0">
-                  <span className="block font-medium leading-snug">{resident.name}</span>
-                  <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
-                    {resident.seenToday ? <StatusBadge tone="good">Seen today</StatusBadge>
-                      : resident.needsVisit ? <StatusBadge tone="attention">Visit due</StatusBadge> : null}
-                    {resident.seenToday ? null : <span>{resident.lastVisitAt ? `Last visit ${resident.lastVisit.replace("Yesterday", "yesterday")}` : "Never visited"}</span>}
+            const isOpen = openId === resident.id;
+            return <li key={resident.id}>
+              <div className="flex items-center gap-3 p-3">
+                <button
+                  type="button"
+                  onClick={() => setOpenId(isOpen ? null : resident.id)}
+                  aria-expanded={isOpen}
+                  className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                >
+                  {/* The room, big, so the list can be walked door by door. */}
+                  <span className={`flex h-12 w-14 shrink-0 items-center justify-center rounded-md px-1 [overflow-wrap:anywhere] text-center font-semibold leading-tight ${resident.room ? "bg-secondary text-base" : "border border-dashed text-xs text-muted-foreground"}`}>
+                    {resident.room ?? "No room"}
                   </span>
-                </span>
-              </Link>
-              {onVisit ? (
-                <Button className="h-11 shrink-0 px-4" onClick={() => onVisit(resident)}><HandHeart /> Visit</Button>
-              ) : (
-                <Button className="h-11 shrink-0 px-4" asChild><Link href={formHref}><HandHeart /> Visit</Link></Button>
-              )}
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-1 font-medium leading-snug">
+                      {resident.name}
+                      <ChevronDown aria-hidden className={cn("size-4 shrink-0 text-muted-foreground transition-transform", isOpen && "rotate-180")} />
+                    </span>
+                    <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+                      {resident.seenToday ? <StatusBadge tone="good">Seen today</StatusBadge>
+                        : resident.needsVisit ? <StatusBadge tone="attention">Visit due</StatusBadge> : null}
+                      {resident.seenToday ? null : <span>{resident.lastVisitAt ? `Last visit ${resident.lastVisit.replace("Yesterday", "yesterday")}` : "Never visited"}</span>}
+                    </span>
+                  </span>
+                </button>
+                {onVisit ? (
+                  <Button className="h-11 shrink-0 px-4" onClick={() => onVisit(resident)}><HandHeart /> Visit</Button>
+                ) : (
+                  <Button className="h-11 shrink-0 px-4" asChild><Link href={formHref}><HandHeart /> Visit</Link></Button>
+                )}
+              </div>
+              {isOpen ? <ResidentPanel facilityId={facilityId} resident={resident} formHref={formHref} notesOn={!!onVisit} /> : null}
             </li>;
           })}</ul>
         )}
@@ -85,5 +119,83 @@ export function ResidentDirectory({
         </Button>
       </CardContent>
     </Card>
+  );
+}
+
+function ResidentPanel({
+  facilityId,
+  resident,
+  formHref,
+  notesOn,
+}: {
+  facilityId: string;
+  resident: DirectoryResident;
+  formHref: string;
+  notesOn: boolean;
+}) {
+  const notes = resident.notes ?? [];
+  const family = resident.family ?? [];
+  return (
+    <div className="flex flex-col gap-4 border-t bg-muted/40 px-3 pb-4 pt-3 text-sm">
+      <section>
+        <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">About them</h3>
+        {notes.length === 0 ? (
+          <p className="text-muted-foreground">No notes yet.</p>
+        ) : (
+          <ul className="flex flex-col gap-1">
+            {notes.map((n, i) => (
+              <li key={i}>
+                {n.text} <span className="text-xs text-muted-foreground">· {n.date}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section>
+        <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Family</h3>
+        {family.length === 0 ? <p className="mb-2 text-muted-foreground">No family on file.</p> : null}
+        <ul className="flex flex-col gap-2">
+          {family.map((f) => (
+            <li key={f.contactId} className="flex items-center gap-2 rounded-md border bg-card p-2">
+              <span className="min-w-0 flex-1">
+                <span className="block font-medium">{f.name}</span>
+                <span className="block text-xs text-muted-foreground">{f.relationship}</span>
+              </span>
+              {f.phone ? (
+                <Button variant="ghost" size="icon" className="size-11 shrink-0" asChild>
+                  <a href={`tel:${f.phone}`} aria-label={`Call ${f.name}`}><Phone /></a>
+                </Button>
+              ) : null}
+              <Button variant="outline" className="h-11 shrink-0" asChild>
+                <Link href={`/interactions/new?facility=${facilityId}&resident=${resident.id}&contact=${f.contactId}&type=family_communication&from=onsite`}>
+                  <MessageCircle /> Talked
+                </Link>
+              </Button>
+            </li>
+          ))}
+        </ul>
+        <Button variant="ghost" size="sm" className="mt-1 -ml-2" asChild>
+          <Link href={`/residents/${resident.id}/contacts/new?from=onsite`}><Plus /> Add a family member</Link>
+        </Button>
+      </section>
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {/* The form always works, notes box or not. */}
+        {notesOn ? (
+          <Button variant="outline" className="h-11" asChild>
+            <Link href={formHref}><ClipboardPen /> Log on a form</Link>
+          </Button>
+        ) : null}
+        <Button variant="outline" className="h-11" asChild>
+          <Link href={`/tasks/new?facility=${facilityId}&resident=${resident.id}&from=onsite`}>
+            <ListChecks /> Follow-up{resident.openTasks ? ` (${resident.openTasks} open)` : ""}
+          </Link>
+        </Button>
+        <Button variant="ghost" className="h-11" asChild>
+          <Link href={`/residents/${resident.id}`}><UserRound /> Full profile</Link>
+        </Button>
+      </div>
+    </div>
   );
 }

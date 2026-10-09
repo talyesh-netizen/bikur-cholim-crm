@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { redirect } from "next/navigation";
+import { withSaved } from "@/lib/saved-flash";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { CONTACT_TYPES, PREFERRED_COMMUNICATION_METHODS } from "@/lib/domain/contact";
@@ -49,6 +50,9 @@ function flattenErrors(error: z.ZodError): Record<string, string> {
 
 export async function addFacilityContact(
   facilityId: string,
+  /** Where to go after saving -- on-site mode passes its own page, so
+   * adding a staff member never leaves the visit. */
+  returnTo: string | undefined,
   _prevState: FacilityContactFormState,
   formData: FormData
 ): Promise<FacilityContactFormState> {
@@ -107,8 +111,9 @@ export async function addFacilityContact(
   }
 
   revalidatePath(`/facilities/${facilityId}`);
+  revalidatePath(`/facilities/${facilityId}/onsite`);
   revalidatePath("/contacts");
-  redirect(`/facilities/${facilityId}`);
+  redirect(returnTo ? withSaved(returnTo, "facility-contact-added", contact.id) : `/facilities/${facilityId}`);
 }
 
 /** Links an existing contact to this facility -- for the common case of
