@@ -8,8 +8,9 @@
 export type OnsiteDraft = { notes: string; submissionId: string; updatedAt: number };
 
 const PREFIX = "onsite-entry:";
-// A draft older than this is from another day's visit; it's dropped.
-const MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+// Unsaved notes are kept a long while (a month): a past visit is never
+// treated as current, but what was typed during it isn't thrown away.
+const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 export function draftKey(facilityId: string, kind: string, personId: string) {
   return `${PREFIX}${facilityId}:${kind}:${personId}`;
