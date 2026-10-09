@@ -11,8 +11,8 @@ import { searchSuggestions, type Suggestion } from "@/app/(app)/search/actions";
 const SUGGEST_DELAY_MS = 200;
 
 /** A single search box, present on every page (see layout.tsx), for
- * jumping straight to a resident/facility/contact/organization by name
- * instead of navigating to that section first. Matches appear under the
+ * jumping straight to anything -- a person, a place, a visit or program
+ * note, a task -- instead of navigating to that section first. Matches appear under the
  * box as you type; Enter (with nothing highlighted) opens the full
  * results page. */
 export function GlobalSearchBar() {
@@ -116,8 +116,8 @@ export function GlobalSearchBar() {
         aria-controls={listId}
         aria-autocomplete="list"
         aria-activedescendant={showList && active >= 0 ? `${listId}-${active}` : undefined}
-        aria-label="Search residents, facilities, and contacts"
-        placeholder="Search residents, facilities, contacts…"
+        aria-label="Search everything in the CRM"
+        placeholder="Search everything: names, notes, tasks…"
         className="pl-9"
       />
       {showList ? (
@@ -146,7 +146,11 @@ export function GlobalSearchBar() {
             >
               <span className="min-w-0">
                 <span className="block truncate font-medium">{s.label}</span>
-                {s.sublabel ? <span className="block truncate text-xs text-muted-foreground">{s.sublabel}</span> : null}
+                {s.sublabel || s.date ? (
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {[s.date, s.sublabel].filter(Boolean).join(" · ")}
+                  </span>
+                ) : null}
               </span>
               <span className="shrink-0 text-xs text-muted-foreground">{s.kind}</span>
             </li>

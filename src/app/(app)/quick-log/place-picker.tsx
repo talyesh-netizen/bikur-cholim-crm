@@ -5,6 +5,7 @@ import { Building2, MapPinOff, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { VoiceButton } from "@/components/voice-button";
+import { matchFacilities } from "@/lib/facility-match";
 
 export type PlaceFacility = { id: string; name: string; city: string | null };
 
@@ -13,8 +14,6 @@ export type Place =
   | { kind: "facility"; id: string; name: string }
   | { kind: "new"; name: string }
   | { kind: "none" };
-
-const words = (text: string) => text.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter(Boolean);
 
 /**
  * Quick Log's first question: "Where did it happen?" Type or say the
@@ -25,16 +24,8 @@ export function PlacePicker({ facilities, onChoose }: { facilities: PlaceFacilit
   const [query, setQuery] = useState("");
   const typed = query.trim();
 
-  const matches = useMemo(() => {
-    const wanted = words(typed);
-    if (wanted.length === 0) return [];
-    return facilities
-      .filter((f) => {
-        const have = words(`${f.name} ${f.city ?? ""}`);
-        return wanted.every((w) => have.some((h) => h.startsWith(w)));
-      })
-      .slice(0, 6);
-  }, [facilities, typed]);
+  // The same matching as every other facility picker (lib/facility-match).
+  const matches = useMemo(() => (typed ? matchFacilities(facilities, typed, 6) : []), [facilities, typed]);
 
   const exact = matches.some((f) => f.name.toLowerCase() === typed.toLowerCase());
 

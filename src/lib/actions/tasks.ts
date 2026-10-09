@@ -148,3 +148,76 @@ export async function setTaskStatus(taskId: string, formData: FormData) {
   if (task?.resident_id) revalidatePath(`/residents/${task.resident_id}`);
   if (task?.facility_id) revalidatePath(`/facilities/${task.facility_id}`);
 }
+
+const OPEN_STATUS_VALUES = ["open", "in_progress", "waiting"] as const;
+
+/** Only the task list's own settings survive the trip to a task and
+ * back (tab, search, person) -- and the result always stays on /tasks,
+ * so a crafted link can't send anyone elsewhere. */
+function taskListQuery(back: string | null | undefined): URLSearchParams {
+  const from = new URLSearchParams(back ?? "");
+  const kept = new URLSearchParams();
+  for (const key of ["tab", "q", "assigned"]) {
+    const value = from.get(key);
+    if (value) kept.set(key, value);
+  }
+  return kept;
+}
+
+async function changeStatus(taskId: string, status: string, completionNotes?: string) {
+  const supabase = await createClient();
+  const { data: before } = await supabase.from("tasks").select("status").eq("id", taskId).maybeSingle();
+  const update: { status: string; completion_notes?: string | null } = { status };
+  // Undo and one-tap Done leave any completion notes as they were.
+  if (completionNotes !== undefined) update.completion_notes = completionNotes || null;
+  const { data: task, error } = await supabase
+    .from("tasks")
+    .update(update)
+    .eq("id", taskId)
+    .select("resident_id, facility_id")
+    .maybeSingle();
+  if (error || !task || !before) return null;
+
+  revalidatePath("/tasks");
+  revalidatePath(`/tasks/${taskId}`);
+  revalidatePath("/dashboard");
+  if (task.resident_id) revalidatePath(`/residents/${task.resident_id}`);
+  if (task.facility_id) revalidatePath(`/facilities/${task.facility_id}`);
+  return { previousStatus: before.status as string };
+}
+
+export type QuickStatusResult = { ok: true; previousStatus: string } | { ok: false; error: string };
+
+/** One tap on the task list: Done, staying on the list. Returns what
+ * the task was before, so Undo can put it back exactly. */
+export async function completeTaskQuick(taskId: string): Promise<QuickStatusResult> {
+  const result = await changeStatus(taskId, "completed");
+  if (!result) return { ok: false, error: "This task was NOT marked done. Please reload and try again." };
+  return { ok: true, previousStatus: result.previousStatus };
+}
+
+/** Undo a Done: back to the open status it had before. */
+export async function undoTaskCompletion(taskId: string, previousStatus: string): Promise<QuickStatusResult> {
+  const status = (OPEN_STATUS_VALUES as readonly string[]).includes(previousStatus) ? previousStatus : "open";
+  const result = await changeStatus(taskId, status);
+  if (!result) return { ok: false, error: "This task could NOT be reopened. Please reload and try again." };
+  return { ok: true, previousStatus: result.previousStatus };
+}
+
+const finishSchema = z.object({ status: z.enum(["completed", "cancelled"]), completion_notes: optionalText() });
+
+/** Complete (or cancel) from a task's own page, then straight back to
+ * the task list as it was -- same tab, same search -- where a short
+ * message offers Undo. */
+export async function finishTaskAndReturn(taskId: string, back: string, formData: FormData) {
+  const parsed = finishSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!parsed.success) throw new Error("That task status isn't valid.");
+  const result = await changeStatus(taskId, parsed.data.status, parsed.data.completion_notes ?? "");
+  if (!result) throw new Error("This task's status was NOT changed. Please reload the page and try again.");
+
+  const query = taskListQuery(back);
+  query.set("done", taskId);
+  query.set("was", result.previousStatus);
+  if (parsed.data.status === "cancelled") query.set("cancelled", "1");
+  redirect(`/tasks?${query.toString()}`);
+}

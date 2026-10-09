@@ -1,5 +1,6 @@
 "use client";
 
+import { FacilityPicker } from "@/components/facility-picker";
 import { OFFERED_RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -66,22 +67,12 @@ export function ResidentFilters({
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <div className="flex flex-col gap-1">
           <Label className="text-xs text-muted-foreground">Facility</Label>
-          <Select
-            value={searchParams.get("facility") ?? "all"}
-            onValueChange={(v) => updateParam("facility", v === "all" ? null : v)}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All facilities</SelectItem>
-              {facilities.map((f) => (
-                <SelectItem key={f.id} value={f.id}>
-                  {f.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <FacilityPicker
+            facilities={facilities}
+            value={searchParams.get("facility") ?? ""}
+            onChange={(v) => updateParam("facility", v || null)}
+            emptyLabel="All facilities"
+          />
         </div>
 
         <div className="flex flex-col gap-1">
