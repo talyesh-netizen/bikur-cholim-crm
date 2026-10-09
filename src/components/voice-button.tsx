@@ -79,6 +79,9 @@ export function VoiceButton({
     r.lang = "en-US";
     r.continuous = true;
     r.interimResults = true;
+    // Words heard but not yet final -- kept if listening ends early
+    // (phone locked, call came in) so the last sentence isn't lost.
+    let pending = "";
     r.onresult = (event) => {
       let heard = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -86,16 +89,24 @@ export function VoiceButton({
         if (result.isFinal) onTextRef.current(result[0].transcript.trim());
         else heard += result[0].transcript;
       }
+      pending = heard.trim();
       setInterim(heard);
     };
     r.onerror = (event) => {
       if (event.error === "not-allowed" || event.error === "service-not-allowed") {
         wantOn.current = false;
         setProblem("The microphone is blocked. Allow it for this site in your browser settings, or use the keyboard's microphone.");
+      } else if (event.error === "network" || event.error === "audio-capture") {
+        wantOn.current = false;
+        setProblem("Listening stopped (no connection or microphone). What you said before is in the box -- tap the button to keep going.");
       }
     };
     r.onend = () => {
       setInterim("");
+      if (pending) {
+        onTextRef.current(pending);
+        pending = "";
+      }
       // Phones end after a pause; keep going until Stop is tapped.
       if (wantOn.current) {
         try {
@@ -103,6 +114,7 @@ export function VoiceButton({
           return;
         } catch {
           wantOn.current = false;
+          setProblem("Listening stopped. What you said is in the box -- tap the button to keep going.");
         }
       }
       setListening(false);

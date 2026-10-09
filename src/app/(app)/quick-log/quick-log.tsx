@@ -4,7 +4,7 @@ import { offeredOptions } from "@/lib/domain/offered";
 import { OFFERED_FACILITY_TYPES } from "@/lib/domain/facility";
 import { OFFERED_CONTACT_TYPES, OFFERED_RELATIONSHIPS } from "@/lib/domain/contact";
 import { TYPE_BUTTONS } from "@/lib/domain/interaction";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -330,6 +330,36 @@ export function QuickLog({
   const router = useRouter();
   const [note, setNote] = useState("");
   const [place, setPlace] = useState<Place | null>(initialPlace ?? null);
+  // The note is kept on this phone until it's saved, so a reload, a
+  // locked phone or a dropped connection never loses it.
+  const draftKey = `quick-log-draft:${onSite?.facilityId ?? about?.residentId ?? (initialPlace?.kind === "facility" ? initialPlace.id : "any")}`;
+  const [restored, setRestored] = useState(false);
+  const [draftLoaded, setDraftLoaded] = useState(false);
+  useEffect(() => {
+    // Read after the first paint (the server can't see this phone's storage).
+    const timer = window.setTimeout(() => {
+      try {
+        const saved = window.localStorage.getItem(draftKey);
+        if (saved?.trim()) {
+          setNote((current) => current || saved);
+          setRestored(true);
+        }
+      } catch {
+        // Private browsing or blocked storage: carry on without drafts.
+      }
+      setDraftLoaded(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [draftKey]);
+  useEffect(() => {
+    if (!draftLoaded) return;
+    try {
+      if (note.trim()) window.localStorage.setItem(draftKey, note);
+      else window.localStorage.removeItem(draftKey);
+    } catch {
+      // See above.
+    }
+  }, [draftKey, draftLoaded, note]);
   const [proposal, setProposal] = useState<{ plan: Plan; names: PlanNames; matches: PossibleMatches } | null>(null);
   const [decisions, setDecisions] = useState<Decisions>({});
   const [dateFixes, setDateFixes] = useState<DateFixes>({});
@@ -436,6 +466,8 @@ export function QuickLog({
       }
       setResult(response);
       setProposal(null);
+      // Saved: the draft is done with (kept if anything failed).
+      if (response.ok) setNote("");
       // Refresh the rest of the page (e.g. on-site lists, last visits).
       router.refresh();
     });
@@ -443,7 +475,8 @@ export function QuickLog({
 
   const startOver = () => {
     setNote("");
-    setPlace(null);
+    setRestored(false);
+    setPlace(initialPlace ?? null);
     setProposal(null);
     setResult(null);
     setError(null);
@@ -480,9 +513,20 @@ export function QuickLog({
               </li>
             ))}
           </ul>
-          <Button onClick={startOver} className="self-start">
-            <Sparkles /> {onSite ? "Add more notes" : "Log something else"}
-          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button onClick={startOver} size="lg">
+              <Sparkles /> {onSite ? "Add more notes" : "Log something else"}
+            </Button>
+            {about ? (
+              <Button asChild size="lg" variant="outline">
+                <Link href={`/residents/${about.residentId}`}>Back to {about.residentName}</Link>
+              </Button>
+            ) : !onSite && initialPlace?.kind === "facility" ? (
+              <Button asChild size="lg" variant="outline">
+                <Link href={`/facilities/${initialPlace.id}/onsite`}>Back to {initialPlace.name}</Link>
+              </Button>
+            ) : null}
+          </div>
         </CardContent>
       </Card>
     );
@@ -571,6 +615,9 @@ export function QuickLog({
             className="min-h-40"
             disabled={reading || saving}
           />
+          {restored && note.trim() && !proposal ? (
+            <p className="text-sm text-muted-foreground">Your unsaved note was kept. Carry on, or tap Read my note.</p>
+          ) : null}
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <Button onClick={read} disabled={reading || saving || !note.trim()} size="lg" className="w-full sm:w-auto sm:self-start">
             {reading ? <Loader2 className="animate-spin" /> : <Sparkles />}

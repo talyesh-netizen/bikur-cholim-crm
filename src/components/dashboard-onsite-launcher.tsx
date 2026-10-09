@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, Check, ClipboardCheck, MapPin, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { LAST_ONSITE_KEY } from "@/components/remember-onsite";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SectionIcon } from "@/components/section-icon";
 import { mapsHref } from "@/lib/link-helpers";
@@ -35,6 +36,21 @@ export function DashboardOnsiteLauncher({
   const [facilityId, setFacilityId] = useState("");
   const [showResults, setShowResults] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
+  // The facility visited last today, offered as one tap to carry on.
+  const [lastVisit, setLastVisit] = useState<{ id: string; name: string } | null>(null);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        const saved = JSON.parse(window.localStorage.getItem(LAST_ONSITE_KEY) ?? "null") as { id: string; name: string; at: number } | null;
+        if (saved && Date.now() - saved.at < 12 * 60 * 60 * 1000 && facilities.some((f) => f.id === saved.id)) {
+          setLastVisit({ id: saved.id, name: saved.name });
+        }
+      } catch {
+        // Nothing remembered.
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [facilities]);
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent | TouchEvent) {
@@ -107,6 +123,12 @@ export function DashboardOnsiteLauncher({
       </CardHeader>
 
       <CardContent className="flex flex-col gap-3">
+        {lastVisit && !selectedFacility ? (
+          <Button size="lg" className="h-12 justify-start text-base" onClick={() => router.push(`/facilities/${lastVisit.id}/onsite`)}>
+            <ClipboardCheck className="size-5" />
+            <span className="truncate">Continue at {lastVisit.name}</span>
+          </Button>
+        ) : null}
         <div ref={pickerRef} className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -122,7 +144,7 @@ export function DashboardOnsiteLauncher({
               if (e.key === "Escape") setShowResults(false);
             }}
             placeholder="Type a facility name or address"
-            className="h-11 w-full rounded-md border border-input bg-background pl-9 pr-9 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-11 w-full rounded-md border border-input bg-background pl-9 pr-9 text-base outline-none sm:text-sm placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Search for facility for onsite visit"
             autoComplete="off"
           />
