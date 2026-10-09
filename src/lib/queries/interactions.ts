@@ -348,3 +348,23 @@ export async function listResidentsVisitedByVolunteer(contactId: string): Promis
     return { id: i.resident_id, name: residentName(r).trim() };
   });
 }
+
+/** Everything logged at one facility on one Cleveland day, oldest
+ * first -- the "Finish visit" check on the on-site page. */
+export async function listInteractionsAtFacilityOnDay(facilityId: string, day: string) {
+  const from = orgDayStartIso(day);
+  const to = orgDayStartIso(nextDay(day));
+  if (!from || !to) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("interactions")
+    .select(SELECT_WITH_NAMES)
+    .eq("facility_id", facilityId)
+    .gte("occurred_at", from)
+    .lt("occurred_at", to)
+    .order("occurred_at", { ascending: true })
+    .limit(200);
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => toInteractionWithNames(row as unknown as Parameters<typeof toInteractionWithNames>[0]));
+}
