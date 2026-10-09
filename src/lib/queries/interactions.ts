@@ -368,3 +368,23 @@ export async function listInteractionsAtFacilityOnDay(facilityId: string, day: s
   if (error) throw new Error(error.message);
   return (data ?? []).map((row) => toInteractionWithNames(row as unknown as Parameters<typeof toInteractionWithNames>[0]));
 }
+
+/** What one staff member logged on one Cleveland day, newest first --
+ * "What I logged today" on Today. */
+export async function listInteractionsByStaffOnDay(staffId: string, day: string) {
+  const from = orgDayStartIso(day);
+  const to = orgDayStartIso(nextDay(day));
+  if (!from || !to) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("interactions")
+    .select(SELECT_WITH_NAMES)
+    .eq("staff_member_id", staffId)
+    .gte("occurred_at", from)
+    .lt("occurred_at", to)
+    .order("occurred_at", { ascending: false })
+    .limit(100);
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => toInteractionWithNames(row as unknown as Parameters<typeof toInteractionWithNames>[0]));
+}
