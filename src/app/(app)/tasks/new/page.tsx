@@ -9,22 +9,25 @@ import { labelFor, INTERACTION_TYPES } from "@/lib/domain/interaction";
 import { TaskForm } from "../task-form";
 import { residentName } from "@/lib/domain/resident-name";
 import { getCurrentProfile } from "@/lib/get-current-profile";
+import { listTasks } from "@/lib/queries/tasks";
+import { OPEN_TASK_STATUSES } from "@/lib/domain/task";
 
 export default async function NewTaskPage({
   searchParams,
 }: {
-  searchParams: Promise<{ resident?: string; facility?: string; interaction?: string; from?: string }>;
+  searchParams: Promise<{ resident?: string; facility?: string; interaction?: string; from?: string; title?: string }>;
 }) {
-  const { resident: residentId, facility: facilityId, interaction: interactionId, from } =
+  const { resident: residentId, facility: facilityId, interaction: interactionId, from, title } =
     await searchParams;
 
-  const [staff, facilities, resident, facility, interaction, me] = await Promise.all([
+  const [staff, facilities, resident, facility, interaction, me, allTasks] = await Promise.all([
     listActiveStaff(),
     listFacilities(),
     residentId ? getResident(residentId) : Promise.resolve(null),
     facilityId ? getFacility(facilityId) : Promise.resolve(null),
     interactionId ? getInteraction(interactionId) : Promise.resolve(null),
     getCurrentProfile(),
+    listTasks({ showAllStatuses: true }),
   ]);
 
   if (residentId && !resident) notFound();
@@ -66,7 +69,7 @@ export default async function NewTaskPage({
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-2xl font-semibold">Add a follow-up task</h1>
+        <h1 className="text-2xl font-semibold">Add a task</h1>
       </div>
 
       <Card>
@@ -80,6 +83,14 @@ export default async function NewTaskPage({
             facilities={facilities}
             fixedContext={fixedContext}
             defaultAssigneeId={staff.some((s) => s.id === me?.id) ? me?.id : undefined}
+            defaultTitle={title?.slice(0, 200)}
+            existingTasks={allTasks.map((t) => ({
+              id: t.id,
+              title: t.title,
+              open: (OPEN_TASK_STATUSES as readonly string[]).includes(t.status),
+              about: [t.resident_name ?? t.contact_name, t.facility_name].filter(Boolean).join(", ") || null,
+              resident_id: t.resident_id,
+            }))}
           />
         </CardContent>
       </Card>
