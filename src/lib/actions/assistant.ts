@@ -8,6 +8,7 @@ import { getCurrentProfile } from "@/lib/get-current-profile";
 import { HOLIDAY_TYPES, FAMILY_NEED_TYPES, SERVICE_FIELDS_BY_TYPE, occasionForHoliday, type InteractionType } from "@/lib/domain/interaction";
 import { loadDirectory, type Directory } from "@/lib/assistant/directory";
 import { resolvePlan } from "@/lib/assistant/resolve";
+import { aboutThemNotes } from "@/lib/assistant/about-them";
 import { SYSTEM_PROMPT, OUTPUT_INSTRUCTIONS, buildUserMessage } from "@/lib/assistant/prompt";
 import {
   parsePlanText,
@@ -162,7 +163,8 @@ export async function analyzeNote(
     return { ok: false, error: "Couldn't reach the assistant just now. Check the connection and try again." };
   }
 
-  return { ok: true, ...resolvePlan(modelPlan, directory) };
+  const resolved = resolvePlan(modelPlan, directory);
+  return { ok: true, ...resolved, plan: aboutThemNotes(resolved.plan) };
 }
 
 /** A plain-English reason for a failed request, with the API's own
@@ -217,10 +219,11 @@ function quickLogSubmissionId(parts: (string | number | null)[]) {
  * one by one -- if one part fails, the rest still save, and the screen
  * says exactly which part didn't.
  */
+
 export async function applyPlan(input: unknown): Promise<ApplyResult> {
   const parsed = planSchema.safeParse(input);
   if (!parsed.success) return { ok: false, steps: [{ label: "Nothing was saved: the plan looked wrong.", ok: false }] };
-  const plan = parsed.data;
+  const plan = aboutThemNotes(parsed.data);
   // The review screen clears this once the person confirms or fixes the date.
   if (plan.interactions.some((x) => x.date_unclear)) {
     return { ok: false, steps: [{ label: "Nothing was saved: please confirm the dates marked \"check the date\" first.", ok: false }] };

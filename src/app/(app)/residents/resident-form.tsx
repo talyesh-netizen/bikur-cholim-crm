@@ -126,70 +126,32 @@ export function ResidentForm({
           <SelectField name="status" defaultValue={values.status} options={offeredOptions(RESIDENT_STATUSES, OFFERED_RESIDENT_STATUSES, values.status)} />
         </Field>
 
-        <Field label="How we found this resident" htmlFor="referral_source">
-          <Input
-            id="referral_source"
-            name="referral_source"
-            placeholder="e.g., Rabbi Kirsch, Jewish Federation Chaplaincy"
-            defaultValue={values.referral_source}
-          />
-        </Field>
       </section>
 
-      <section className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold text-muted-foreground">
-          Jewish background &amp; needs
-        </h2>
-
-        <Field label="Rabbi or synagogue connection" htmlFor="rabbi_synagogue_connection">
-          <Input
-            id="rabbi_synagogue_connection"
-            name="rabbi_synagogue_connection"
-            defaultValue={values.rabbi_synagogue_connection}
-          />
-        </Field>
-        <Field label="Jewish interests or background" htmlFor="jewish_interests_background">
-          <Textarea
-            id="jewish_interests_background"
-            name="jewish_interests_background"
-            rows={2}
-            defaultValue={values.jewish_interests_background}
-          />
-        </Field>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Kosher food needs" htmlFor="kosher_food_needs">
-            <Input id="kosher_food_needs" name="kosher_food_needs" defaultValue={values.kosher_food_needs} />
-          </Field>
-          <Field label="Preferred visit frequency" htmlFor="preferred_visit_frequency">
-            <Input
-              id="preferred_visit_frequency"
-              name="preferred_visit_frequency"
-              placeholder="e.g., Weekly, Monthly"
-              defaultValue={values.preferred_visit_frequency}
-            />
-          </Field>
-        </div>
-        <Field label="Holiday support needs" htmlFor="holiday_support_needs">
-          <Textarea
-            id="holiday_support_needs"
-            name="holiday_support_needs"
-            rows={2}
-            defaultValue={values.holiday_support_needs}
-          />
-        </Field>
-        <Field label="Visitation needs" htmlFor="visitation_needs">
-          <Textarea
-            id="visitation_needs"
-            name="visitation_needs"
-            rows={2}
-            defaultValue={values.visitation_needs}
-          />
-        </Field>
-      </section>
+      {/* The old "needs" boxes moved into About them notes on the
+          resident's page (Oct 9, 2026). Sent unchanged so a save keeps
+          what they held. */}
+      {(
+        [
+          "referral_source",
+          "rabbi_synagogue_connection",
+          "jewish_interests_background",
+          "kosher_food_needs",
+          "preferred_visit_frequency",
+          "holiday_support_needs",
+          "visitation_needs",
+        ] as const
+      ).map((name) => (
+        <input key={name} type="hidden" name={name} value={values[name]} readOnly />
+      ))}
+      <p className="text-xs text-muted-foreground">
+        Background, kosher food, holidays, how often to visit: add these as notes under{" "}
+        <span className="font-medium">About them</span> on their page.
+      </p>
 
       {showPrivateNotes ? (
       <section className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold text-muted-foreground">Private internal notes</h2>
+        <h2 className="text-sm font-semibold text-muted-foreground">Private</h2>
         <p className="text-xs text-muted-foreground">
           For sensitive details you wouldn&apos;t want shared outside the
           department — never visible to facilities or family members.

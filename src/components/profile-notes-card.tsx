@@ -77,7 +77,7 @@ export function ProfileNotesCard({
   ) : (
     <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
       <MessageSquarePlus className="size-4" />
-      {targetType === "resident" ? "Add profile note" : "Add facility note"}
+      {targetType === "resident" ? "Add a note about them" : "Add facility note"}
     </Button>
   );
 
@@ -104,7 +104,7 @@ export function ProfileNotesCard({
 
   if (compact) {
     // Saved notes are listed here too -- the resident page uses the
-    // compact form inside its "Profile notes" section.
+    // compact form inside its "About them" section.
     return (
       <div className="mt-3 flex flex-col gap-3">
         {composer}
