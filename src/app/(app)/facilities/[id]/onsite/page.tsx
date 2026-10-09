@@ -12,13 +12,14 @@ import { SectionIcon } from "@/components/section-icon";
 import { StatusBadge } from "@/components/status-badge";
 import { ProfileNotesCard } from "@/components/profile-notes-card";
 import { ACTIVE_RESIDENT_STATUSES } from "@/lib/domain/resident";
-import { formatDateOnly, formatRelative, getLocalToday, toOrgDatetimeLocalValue } from "@/lib/format-date";
+import { formatDateOnly, formatRelative, formatTimeOfDay, getLocalToday, toOrgDatetimeLocalValue } from "@/lib/format-date";
 import { residentName } from "@/lib/domain/resident-name";
 
 import { VisitChecklist } from "./visit-checklist";
-import { ResidentDirectory } from "./resident-directory";
+import { OnsiteWorkspace } from "./onsite-workspace";
+import { listInteractionsAtFacilityOnDay } from "@/lib/queries/interactions";
+import { INTERACTION_TYPES, labelFor } from "@/lib/domain/interaction";
 import { logOnsiteVisits } from "@/lib/actions/onsite";
-import { QuickLog } from "../../../quick-log/quick-log";
 import { RememberOnsite } from "@/components/remember-onsite";
 import { quickLogEnabled } from "@/lib/quick-log-enabled";
 import { getCurrentProfile } from "@/lib/get-current-profile";
@@ -50,10 +51,13 @@ export default async function FacilityOnsitePage({
 
   if (!facility) notFound();
 
-  const tasks = await listTasksForFacility(
-    id,
-    residents.map((resident) => resident.id)
-  );
+  const [tasks, loggedToday] = await Promise.all([
+    listTasksForFacility(
+      id,
+      residents.map((resident) => resident.id)
+    ),
+    listInteractionsAtFacilityOnDay(id, getLocalToday()),
+  ]);
 
   const currentResidents = residents
     .filter((resident) => ACTIVE_RESIDENT_STATUSES.includes(resident.status))
@@ -101,41 +105,12 @@ export default async function FacilityOnsitePage({
         </div>
       </div>
 
-      <ResidentDirectory facilityId={facility.id} residents={currentResidents.map((resident) => ({
-        id: resident.id,
-        name: residentName(resident),
-        room: resident.room_number,
-        lastVisit: formatRelative(resident.last_visit_at) ?? "Not visited yet",
-        lastVisitAt: resident.last_visit_at,
-        needsVisit: needsVisit(resident.last_visit_at),
-        // Visited today (Cleveland time) -- drops off the list once logged.
-        seenToday: !!resident.last_visit_at && toOrgDatetimeLocalValue(resident.last_visit_at).slice(0, 10) === today,
-      }))} />
-
-      {/* The main way to log a visit: write it all down once; the
-          assistant works out the visits, new people, follow-ups and
-          moves, and nothing is saved until it's checked. */}
-      {notesOn ? (
-        <QuickLog onSite={{ facilityId: facility.id, facilityName: facility.name }} />
-      ) : (
-        <Card>
-          <CardContent className="pt-6 text-sm text-muted-foreground">
-            <p className="font-medium text-foreground">The notes box isn&apos;t switched on yet.</p>
-            <p className="mt-1">
-              {profile?.role === "admin"
-                ? "Add the ANTHROPIC_API_KEY setting in Vercel to write your whole visit in one note. Until then, tick off visits below."
-                : "Ask an admin to switch it on. Until then, tick off visits below."}
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
       {(urgentTasks.length > 0 || residentsMissingRoom.length > 0) ? (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <ClipboardCheck className="size-4" />
-              Confirm while you are here
+              Due here
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-2 text-sm">
@@ -170,6 +145,43 @@ export default async function FacilityOnsitePage({
           </CardContent>
         </Card>
       ) : null}
+
+      <OnsiteWorkspace
+        facilityId={facility.id}
+        facilityName={facility.name}
+        notesOn={notesOn}
+        followUpsDue={urgentTasks.length}
+        loggedToday={loggedToday.map((x) => ({
+          id: x.id,
+          what: labelFor(INTERACTION_TYPES, x.interaction_type) + (x.quantity ? ` (${x.quantity})` : ""),
+          who: x.resident_name ?? x.contact_name,
+          time: formatTimeOfDay(x.occurred_at) ?? "",
+          by: x.staff_member_name,
+        }))}
+        residents={currentResidents.map((resident) => ({
+          id: resident.id,
+          name: residentName(resident),
+          room: resident.room_number,
+          lastVisit: formatRelative(resident.last_visit_at) ?? "Not visited yet",
+          lastVisitAt: resident.last_visit_at,
+          needsVisit: needsVisit(resident.last_visit_at),
+          // Visited today (Cleveland time) -- drops off the list once logged.
+          seenToday: !!resident.last_visit_at && toOrgDatetimeLocalValue(resident.last_visit_at).slice(0, 10) === today,
+        }))}
+      />
+
+      {notesOn ? null : (
+        <Card>
+          <CardContent className="pt-6 text-sm text-muted-foreground">
+            <p className="font-medium text-foreground">The notes box isn&apos;t switched on yet.</p>
+            <p className="mt-1">
+              {profile?.role === "admin"
+                ? "Add the ANTHROPIC_API_KEY setting in Vercel to write your whole visit in one note. Until then, tick off visits below."
+                : "Ask an admin to switch it on. Until then, tick off visits below."}
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Without the notes box, the older way: tick names, then
           follow-ups per resident. With it, the note covers all of this. */}

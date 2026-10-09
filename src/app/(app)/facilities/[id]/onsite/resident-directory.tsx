@@ -2,15 +2,26 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, Plus, HandHeart, Cookie, StickyNote } from "lucide-react";
+import { Search, Plus, HandHeart } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/status-badge";
 
-type Resident = { id: string; name: string; room: string | null; lastVisit: string; lastVisitAt: string | null; needsVisit: boolean; seenToday: boolean };
+export type DirectoryResident = { id: string; name: string; room: string | null; lastVisit: string; lastVisitAt: string | null; needsVisit: boolean; seenToday: boolean };
 
-export function ResidentDirectory({ facilityId, residents }: { facilityId: string; residents: Resident[] }) {
+/** Each resident has one button, Visit (decided Oct 9, 2026). With the
+ * notes box on, it starts a line in the note on this same page, so a
+ * whole round of visits never leaves the page; without it, the form. */
+export function ResidentDirectory({
+  facilityId,
+  residents,
+  onVisit,
+}: {
+  facilityId: string;
+  residents: DirectoryResident[];
+  onVisit?: (resident: DirectoryResident) => void;
+}) {
   const [search, setSearch] = useState("");
   const [showSeen, setShowSeen] = useState(false);
   const query = search.trim().toLowerCase();
@@ -40,9 +51,9 @@ export function ResidentDirectory({ facilityId, residents }: { facilityId: strin
           </p>
         ) : (
           <ul className="divide-y rounded-lg border">{filtered.map((resident) => {
-            const logHref = `/interactions/new?facility=${facilityId}&resident=${resident.id}&from=onsite`;
-            return <li key={resident.id} className="flex flex-col gap-3 p-3">
-              <Link href={`/residents/${resident.id}`} className="flex min-w-0 items-center gap-3">
+            const formHref = `/interactions/new?facility=${facilityId}&resident=${resident.id}&from=onsite&type=resident_visit`;
+            return <li key={resident.id} className="flex items-center gap-3 p-3">
+              <Link href={`/residents/${resident.id}`} className="flex min-w-0 flex-1 items-center gap-3">
                 {/* The room, big, so the list can be walked door by door. */}
                 <span className={`flex h-12 w-14 shrink-0 items-center justify-center rounded-md px-1 [overflow-wrap:anywhere] text-center font-semibold leading-tight ${resident.room ? "bg-secondary text-base" : "border border-dashed text-xs text-muted-foreground"}`}>
                   {resident.room ?? "No room"}
@@ -56,11 +67,11 @@ export function ResidentDirectory({ facilityId, residents }: { facilityId: strin
                   </span>
                 </span>
               </Link>
-              <div className="grid grid-cols-3 gap-2">
-                <Button className="h-11 min-w-0 px-2" asChild><Link href={`${logHref}&type=resident_visit`}><HandHeart /> Visit</Link></Button>
-                <Button variant="outline" className="h-11 min-w-0 px-2" asChild><Link href={`${logHref}&type=food_delivery`}><Cookie /> Food</Link></Button>
-                <Button variant="outline" className="h-11 min-w-0 px-2" asChild><Link href={`${logHref}&type=other`}><StickyNote /> Note</Link></Button>
-              </div>
+              {onVisit ? (
+                <Button className="h-11 shrink-0 px-4" onClick={() => onVisit(resident)}><HandHeart /> Visit</Button>
+              ) : (
+                <Button className="h-11 shrink-0 px-4" asChild><Link href={formHref}><HandHeart /> Visit</Link></Button>
+              )}
             </li>;
           })}</ul>
         )}

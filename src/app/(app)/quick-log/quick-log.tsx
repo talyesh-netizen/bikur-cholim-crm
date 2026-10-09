@@ -317,7 +317,11 @@ export function QuickLog({
   facilities,
   about,
   initialPlace,
+  addLine,
 }: {
+  /** On site: a line to add to the note (e.g. "Visited Ruth (room 112). ")
+   * when Visit is tapped next to a resident; a new key adds it again. */
+  addLine?: { text: string; key: number };
   /** Opened from a resident's page (+ Log): the note is about them. */
   about?: { residentId: string; residentName: string };
   /** Where it happened, when "+ Log" was tapped on a facility or resident. */
@@ -412,6 +416,24 @@ export function QuickLog({
   const [result, setResult] = useState<ApplyResult | null>(null);
   const [reading, startReading] = useTransition();
   const [saving, startSaving] = useTransition();
+  // A Visit tap on the same page adds its line to the note (picked up
+  // during render, React's pattern for state that follows a prop).
+  const [lineKey, setLineKey] = useState<number | null>(null);
+  if (addLine && addLine.key !== lineKey) {
+    setLineKey(addLine.key);
+    setNote((prev) => (prev.trim() ? `${prev.trimEnd()}\n${addLine.text}` : addLine.text));
+    setProposal(null);
+    setResult(null);
+  }
+  // ...then brings the note box into view, ready to talk or type.
+  useEffect(() => {
+    if (!addLine) return;
+    const box = document.getElementById("quick-log-note") as HTMLTextAreaElement | null;
+    if (!box) return;
+    box.scrollIntoView({ behavior: "smooth", block: "center" });
+    box.focus({ preventScroll: true });
+    box.setSelectionRange(box.value.length, box.value.length);
+  }, [addLine]);
 
   const read = () => {
     setError(null);

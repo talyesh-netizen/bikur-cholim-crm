@@ -132,6 +132,12 @@ export function formatDateTimeWithTime(value: string | null | undefined): string
   });
 }
 
+/** Just the Cleveland time of day ("2:10 PM"). */
+export function formatTimeOfDay(value: string | null | undefined): string | null {
+  if (!value) return null;
+  return new Date(value).toLocaleTimeString("en-US", { timeZone: ORGANIZATION_TIMEZONE, hour: "numeric", minute: "2-digit" });
+}
+
 export function formatDateOnly(value: string | null | undefined): string | null {
   if (!value) return null;
   const [year, month, day] = value.split("-").map(Number);
