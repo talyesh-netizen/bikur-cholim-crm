@@ -691,6 +691,16 @@ export function QuickLog({
             {reading ? <Loader2 className="animate-spin" /> : <Sparkles />}
             {reading ? "Reading your note…" : proposal ? "Read it again" : "Read my note"}
           </Button>
+          {/* The long form, for the rare entry that needs every field. */}
+          <Link
+            href={`/interactions/new?${new URLSearchParams({
+              ...(onSite ? { facility: onSite.facilityId, from: "onsite" } : place?.kind === "facility" ? { facility: place.id } : {}),
+              ...(about ? { resident: about.residentId } : {}),
+            }).toString()}`}
+            className="flex min-h-11 items-center self-start text-sm text-muted-foreground underline underline-offset-2"
+          >
+            Use the full form instead
+          </Link>
         </CardContent>
       </Card>
 
