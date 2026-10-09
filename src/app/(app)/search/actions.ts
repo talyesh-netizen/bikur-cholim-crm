@@ -4,18 +4,19 @@ import { searchAll, type SearchResult } from "@/lib/queries/search";
 
 export type Suggestion = SearchResult & { kind: string };
 
-// How many of each type the dropdown under the search box shows. The
-// full results page (Enter) still shows up to 10 of each.
-const PER_KIND = { residents: 4, facilities: 3, contacts: 3, organizations: 2 } as const;
-const KIND_LABEL = { residents: "Resident", facilities: "Facility", contacts: "Contact", organizations: "Partner" } as const;
+// The dropdown under the search box is a quick "take me there": a few
+// of each kind, at most this many in all. Enter (or "See all results")
+// opens the full, grouped results page.
+const PER_KIND = 3;
+const MAX_SUGGESTIONS = 10;
 
 /** Suggestions for the global search box as the user types. Uses the
  * same search (and the same per-user access rules) as the results page. */
 export async function searchSuggestions(query: string): Promise<Suggestion[]> {
   const q = query.trim();
   if (q.length < 2) return [];
-  const results = await searchAll(q);
-  return (Object.keys(PER_KIND) as (keyof typeof PER_KIND)[]).flatMap((k) =>
-    results[k].slice(0, PER_KIND[k]).map((r) => ({ ...r, kind: KIND_LABEL[k] }))
-  );
+  const groups = await searchAll(q);
+  return groups
+    .flatMap((g) => g.results.slice(0, PER_KIND).map((r) => ({ ...r, kind: g.kind })))
+    .slice(0, MAX_SUGGESTIONS);
 }
