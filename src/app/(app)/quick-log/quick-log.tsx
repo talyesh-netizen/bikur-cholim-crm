@@ -29,6 +29,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { VoiceButton } from "@/components/voice-button";
 import { PlacePicker, type Place, type PlaceFacility } from "./place-picker";
+import { carryOver } from "./carry-over";
 import { residentName } from "@/lib/domain/resident-name";
 import { analyzeNote, applyPlan } from "@/lib/actions/assistant";
 import { repeatVisitKey, type AlreadyLogged, type ApplyResult, type Plan, type PlanNames, type PossibleMatches } from "@/lib/assistant/schema";
@@ -364,7 +365,18 @@ export function QuickLog({
       // See above.
     }
   }, [draftKey, draftLoaded, note]);
-  const [proposal, setProposal] = useState<{ plan: Plan; names: PlanNames; matches: PossibleMatches; alreadyLogged: AlreadyLogged } | null>(null);
+  const [proposal, setProposal] = useState<{
+    plan: Plan;
+    /** The plan as the assistant first proposed it, before any Edit. */
+    original: Plan;
+    names: PlanNames;
+    matches: PossibleMatches;
+    alreadyLogged: AlreadyLogged;
+  } | null>(null);
+  // The note changed since it was read: the check screen stays, with the
+  // person's choices, until it's read again (decided Oct 9, 2026).
+  const [stale, setStale] = useState(false);
+  const [edited, setEdited] = useState<Set<string>>(new Set());
   // "Already logged today" answers, by interaction index.
   const [repeatAnswers, setRepeatAnswers] = useState<Record<number, "second" | "same">>({});
   const [decisions, setDecisions] = useState<Decisions>({});
@@ -410,6 +422,7 @@ export function QuickLog({
         return next;
       });
     }
+    setEdited((prev) => new Set(prev).add(`${section}:${index}`));
     setEditing(null);
   };
   const [skipped, setSkipped] = useState<Set<string>>(new Set());
@@ -424,7 +437,7 @@ export function QuickLog({
   if (addLine && addLine.key !== lineKey) {
     setLineKey(addLine.key);
     setNote((prev) => (prev.trim() ? `${prev.trimEnd()}\n${addLine.text}` : addLine.text));
-    setProposal(null);
+    setStale(true);
     setResult(null);
   }
   // ...then brings the note box into view, ready to talk or type.
@@ -463,16 +476,32 @@ export function QuickLog({
         return;
       }
       if (!response.ok) {
+        // Any check screen already up stays, with the person's choices.
         setError(response.error);
-        setProposal(null);
         return;
       }
-      setProposal({ plan: response.plan, names: response.names, matches: response.matches, alreadyLogged: response.alreadyLogged });
+      setEditing(null);
+      setStale(false);
+      if (proposal) {
+        // Read again after adding to the note: keep what was already fixed.
+        const carried = carryOver(
+          { original: proposal.original, plan: proposal.plan, names: proposal.names, choices: { skipped, decisions, dateFixes, repeatAnswers, edited } },
+          { plan: response.plan, names: response.names }
+        );
+        setProposal({ plan: carried.plan, original: response.plan, names: response.names, matches: response.matches, alreadyLogged: response.alreadyLogged });
+        setSkipped(carried.choices.skipped);
+        setDecisions(carried.choices.decisions);
+        setDateFixes(carried.choices.dateFixes);
+        setRepeatAnswers(carried.choices.repeatAnswers);
+        setEdited(carried.choices.edited);
+        return;
+      }
+      setProposal({ plan: response.plan, original: response.plan, names: response.names, matches: response.matches, alreadyLogged: response.alreadyLogged });
       setRepeatAnswers({});
       setSkipped(new Set());
       setDecisions({});
       setDateFixes({});
-      setEditing(null);
+      setEdited(new Set());
     });
   };
 
@@ -495,6 +524,7 @@ export function QuickLog({
       }
       setResult(response);
       setProposal(null);
+      setStale(false);
       // Saved: the draft is done with (kept if anything failed).
       if (response.ok) setNote("");
       // Refresh the rest of the page (e.g. on-site lists, last visits).
@@ -507,6 +537,7 @@ export function QuickLog({
     setRestored(false);
     setPlace(initialPlace ?? null);
     setProposal(null);
+    setStale(false);
     setResult(null);
     setError(null);
   };
@@ -631,7 +662,7 @@ export function QuickLog({
             disabled={reading || saving}
             onText={(text) => {
               setNote((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text));
-              setProposal(null);
+              if (proposal) setStale(true);
             }}
           />
           <Textarea
@@ -639,7 +670,7 @@ export function QuickLog({
             value={note}
             onChange={(e) => {
               setNote(e.target.value);
-              if (proposal) setProposal(null);
+              if (proposal) setStale(true);
             }}
             placeholder={
               about
@@ -795,15 +826,26 @@ export function QuickLog({
 
             {saveError ? <p className="text-sm text-destructive">{saveError}</p> : null}
             <div className="flex flex-wrap gap-2">
-              <Button onClick={save} disabled={saving || chosen === 0 || undecided > 0 || uncheckedDates > 0 || unansweredRepeats > 0 || editing !== null}>
+              <Button onClick={save} disabled={saving || stale || chosen === 0 || undecided > 0 || uncheckedDates > 0 || unansweredRepeats > 0 || editing !== null}>
                 {saving ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
                 {saving ? "Saving…" : chosen === items.length ? `Save all ${chosen}` : `Save ${chosen} of ${items.length}`}
               </Button>
-              <Button variant="outline" onClick={() => setProposal(null)} disabled={saving}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setProposal(null);
+                  setStale(false);
+                }}
+                disabled={saving}
+              >
                 Cancel
               </Button>
             </div>
-            {editing !== null ? (
+            {stale ? (
+              <p className="text-sm font-medium text-[var(--tone-attention-fg)]">
+                Your note changed. Tap &ldquo;Read it again&rdquo; above to include the new part. What you already fixed here is kept.
+              </p>
+            ) : editing !== null ? (
               <p className="text-sm font-medium text-[var(--tone-attention-fg)]">Tap Done on the card you&apos;re editing, then Save.</p>
             ) : undecided > 0 || uncheckedDates > 0 || unansweredRepeats > 0 ? (
               <p className="text-sm font-medium text-[var(--tone-attention-fg)]">

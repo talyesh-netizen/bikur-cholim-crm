@@ -25,6 +25,7 @@ import { SYSTEM_PROMPT, OUTPUT_INSTRUCTIONS, buildUserMessage } from "@/lib/assi
 import { parsePlanText, type ModelPlan, type Plan } from "@/lib/assistant/schema";
 import { resolvePlan } from "@/lib/assistant/resolve";
 import { aboutThemNotes } from "@/lib/assistant/about-them";
+import { carryOver } from "@/app/(app)/quick-log/carry-over";
 
 const NOW = "2026-10-07T14:30";
 
@@ -362,6 +363,24 @@ async function guards() {
     ["old kosher box left alone", plan.resident_updates.every((u) => !u.add_to_kosher_food_needs)],
     ["past date not flagged", !plan.interactions.find((x) => x.resident === R.ileneAM.id)?.date_unclear],
   ];
+  // Adding to a note and reading it again keeps what was fixed on the
+  // check screen, matched by entry, not by position.
+  const visit = (resident: string, at: string, notes: string | null = null) => ({
+    ...blank, interaction_type: "resident_visit" as const, occurred_at: at, facility: F.annaMaria.id, resident, notes, volunteers: [], also_by: [],
+  });
+  const firstRead = { ...plan, tasks: [], interactions: [visit(R.ileneAM.id, "2026-10-05T12:00"), visit(R.norma.id, "2026-10-07T14:00")] } as Plan;
+  const afterEdit = { ...firstRead, interactions: [visit(R.ileneAM.id, "2026-10-05T12:00", "edited"), firstRead.interactions[1]] } as Plan;
+  const reread = { ...firstRead, interactions: [visit(R.norma.id, "2026-10-07T14:01"), visit(R.ileneAM.id, "2026-10-05T12:00"), visit(R.rivka.id, "2026-10-07T14:01")] } as Plan;
+  const carried = carryOver(
+    { original: firstRead, plan: afterEdit, names: {}, choices: { skipped: new Set(), decisions: {}, dateFixes: { 0: "2026-10-05T10:30" }, repeatAnswers: { 1: "second" }, edited: new Set(["interactions:0"]) } },
+    { plan: reread, names: {} }
+  );
+  results.push(
+    ["re-read keeps an edit", carried.plan.interactions[1].notes === "edited"],
+    ["re-read keeps a confirmed date", carried.choices.dateFixes[1] === "2026-10-05T10:30"],
+    ["re-read keeps a second-visit answer", carried.choices.repeatAnswers[0] === "second"],
+    ["re-read gives a new entry no old answers", !carried.choices.dateFixes[2] && !carried.choices.repeatAnswers[2]],
+  );
   for (const [label, ok] of results) console.log(`${ok ? "PASS" : "FAIL"} ${label}`);
   process.exitCode = results.every(([, ok]) => ok) ? 0 : 1;
 }
