@@ -31,7 +31,7 @@ import { VoiceButton } from "@/components/voice-button";
 import { PlacePicker, type Place, type PlaceFacility } from "./place-picker";
 import { residentName } from "@/lib/domain/resident-name";
 import { analyzeNote, applyPlan } from "@/lib/actions/assistant";
-import type { ApplyResult, Plan, PlanNames, PossibleMatches } from "@/lib/assistant/schema";
+import { repeatVisitKey, type AlreadyLogged, type ApplyResult, type Plan, type PlanNames, type PossibleMatches } from "@/lib/assistant/schema";
 import { labelFor, INTERACTION_TYPES, HOLIDAYS, FAMILY_NEEDS } from "@/lib/domain/interaction";
 import { RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { CONTACT_TYPES, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
@@ -364,7 +364,9 @@ export function QuickLog({
       // See above.
     }
   }, [draftKey, draftLoaded, note]);
-  const [proposal, setProposal] = useState<{ plan: Plan; names: PlanNames; matches: PossibleMatches } | null>(null);
+  const [proposal, setProposal] = useState<{ plan: Plan; names: PlanNames; matches: PossibleMatches; alreadyLogged: AlreadyLogged } | null>(null);
+  // "Already logged today" answers, by interaction index.
+  const [repeatAnswers, setRepeatAnswers] = useState<Record<number, "second" | "same">>({});
   const [decisions, setDecisions] = useState<Decisions>({});
   const [dateFixes, setDateFixes] = useState<DateFixes>({});
   const [editing, setEditing] = useState<string | null>(null);
@@ -465,7 +467,8 @@ export function QuickLog({
         setProposal(null);
         return;
       }
-      setProposal({ plan: response.plan, names: response.names, matches: response.matches });
+      setProposal({ plan: response.plan, names: response.names, matches: response.matches, alreadyLogged: response.alreadyLogged });
+      setRepeatAnswers({});
       setSkipped(new Set());
       setDecisions({});
       setDateFixes({});
@@ -479,7 +482,11 @@ export function QuickLog({
     startSaving(async () => {
       let response: ApplyResult;
       try {
-        response = await applyPlan(withDecisions(withoutSkipped(withDateFixes(proposal.plan, dateFixes), skipped), decisions));
+        const dated = withDateFixes(proposal.plan, dateFixes);
+        const secondVisits = Object.entries(repeatAnswers)
+          .filter(([, answer]) => answer === "second")
+          .map(([index]) => repeatVisitKey(dated.interactions[Number(index)]));
+        response = await applyPlan(withDecisions(withoutSkipped(dated, skipped), decisions), secondVisits);
       } catch {
         // Saving twice is safe (each entry has a fixed id), so the list
         // stays up for another try.
@@ -578,6 +585,14 @@ export function QuickLog({
   // ...and so does a ticked entry whose date the assistant wasn't sure of.
   const uncheckedDates = items.filter(
     (item) => item.dateIssue && !skipped.has(`${item.section}:${item.index}`)
+  ).length;
+  // ...and so does one that looks like a visit already logged that day.
+  const unansweredRepeats = items.filter(
+    (item) =>
+      item.section === "interactions" &&
+      proposal?.alreadyLogged[item.index] &&
+      !skipped.has(`${item.section}:${item.index}`) &&
+      repeatAnswers[item.index] !== "second"
   ).length;
 
   return (
@@ -747,6 +762,21 @@ export function QuickLog({
                           onConfirm={(value) => setDateFixes((prev) => ({ ...prev, [item.index]: value }))}
                         />
                       ) : null}
+                      {item.section === "interactions" && on && proposal.alreadyLogged[item.index] && repeatAnswers[item.index] !== "second" ? (
+                        <AlreadyLoggedCheck
+                          who={item.who}
+                          time={proposal.alreadyLogged[item.index].time}
+                          by={proposal.alreadyLogged[item.index].by}
+                          onSecond={() => setRepeatAnswers((prev) => ({ ...prev, [item.index]: "second" }))}
+                          onSame={() => {
+                            setRepeatAnswers((prev) => ({ ...prev, [item.index]: "same" }));
+                            setSkipped((prev) => new Set(prev).add(id));
+                          }}
+                        />
+                      ) : null}
+                      {item.section === "interactions" && on && repeatAnswers[item.index] === "second" ? (
+                        <p className="mt-1 text-sm text-muted-foreground">Saved as a second visit.</p>
+                      ) : null}
                       {item.newResidentKey && on && proposal.matches[item.newResidentKey]?.length ? (
                         <MaybeSamePerson
                           matches={proposal.matches[item.newResidentKey]}
@@ -765,7 +795,7 @@ export function QuickLog({
 
             {saveError ? <p className="text-sm text-destructive">{saveError}</p> : null}
             <div className="flex flex-wrap gap-2">
-              <Button onClick={save} disabled={saving || chosen === 0 || undecided > 0 || uncheckedDates > 0 || editing !== null}>
+              <Button onClick={save} disabled={saving || chosen === 0 || undecided > 0 || uncheckedDates > 0 || unansweredRepeats > 0 || editing !== null}>
                 {saving ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
                 {saving ? "Saving…" : chosen === items.length ? `Save all ${chosen}` : `Save ${chosen} of ${items.length}`}
               </Button>
@@ -775,9 +805,9 @@ export function QuickLog({
             </div>
             {editing !== null ? (
               <p className="text-sm font-medium text-[var(--tone-attention-fg)]">Tap Done on the card you&apos;re editing, then Save.</p>
-            ) : undecided > 0 || uncheckedDates > 0 ? (
+            ) : undecided > 0 || uncheckedDates > 0 || unansweredRepeats > 0 ? (
               <p className="text-sm font-medium text-[var(--tone-attention-fg)]">
-                Before saving, answer the highlighted {undecided > 0 && uncheckedDates > 0 ? "questions" : undecided > 0 ? "\u201csame person or someone new?\u201d" : "\u201ccheck the date\u201d"} above, or untick that item.
+                Before saving, answer the highlighted {(undecided > 0 ? 1 : 0) + (uncheckedDates > 0 ? 1 : 0) + (unansweredRepeats > 0 ? 1 : 0) > 1 ? "questions" : undecided > 0 ? "\u201csame person or someone new?\u201d" : uncheckedDates > 0 ? "\u201ccheck the date\u201d" : "\u201calready logged\u201d question"} above, or untick that item.
               </p>
             ) : null}
             <p className="text-xs text-muted-foreground">Untick anything that&apos;s wrong, or tap Edit to fix a spelling, date or detail.</p>
@@ -879,6 +909,39 @@ function CheckDate({
         />
         <Button type="button" size="sm" disabled={!date} onClick={() => onConfirm(date)}>
           This date is right
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/** Under an entry that looks like one already saved that day (same
+ * person, same kind): the person says which it is. Never decided for
+ * them -- two real visits in a day both count. */
+function AlreadyLoggedCheck({
+  who,
+  time,
+  by,
+  onSecond,
+  onSame,
+}: {
+  who: string;
+  time: string;
+  by: string | null;
+  onSecond: () => void;
+  onSame: () => void;
+}) {
+  return (
+    <div className="mt-1 rounded-lg border border-[var(--tone-attention-fg)]/30 bg-[var(--tone-attention-bg)] p-3 text-sm text-[var(--tone-attention-fg)]">
+      <p className="mb-2 font-semibold">
+        Already logged for {who} that day{time ? ` at ${time}` : ""}{by ? ` by ${by}` : ""}. Is this a second visit?
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" className="h-11" onClick={onSecond}>
+          Yes, a second visit
+        </Button>
+        <Button type="button" variant="outline" className="h-11 bg-background" onClick={onSame}>
+          No, same one
         </Button>
       </div>
     </div>

@@ -270,8 +270,19 @@ export type PlanNames = Record<string, string>;
  * review screen makes the person choose before saving. */
 export type PossibleMatches = Record<string, { id: string; name: string }[]>;
 
+/** Interactions in a plan (by index) that look like one already in the
+ * CRM: same person, same kind, same day. The person says whether it's a
+ * second visit or the same one; nothing is dropped or added on its own. */
+export type AlreadyLogged = Record<number, { time: string; by: string | null }>;
+
+/** "resident|occurred_at|type" for an interaction the person confirmed
+ * is a second, separate visit. */
+export function repeatVisitKey(i: { resident: string | null; occurred_at: string; interaction_type: string }): string {
+  return `${i.resident ?? ""}|${i.occurred_at}|${i.interaction_type}`;
+}
+
 export type AnalyzeResult =
-  | { ok: true; plan: Plan; names: PlanNames; matches: PossibleMatches }
+  | { ok: true; plan: Plan; names: PlanNames; matches: PossibleMatches; alreadyLogged: AlreadyLogged }
   | { ok: false; error: string };
 
 export type ApplyStep = { label: string; ok: boolean; href?: string; error?: string };

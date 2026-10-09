@@ -17,8 +17,11 @@ import {
   type ApplyResult,
   type ApplyStep,
   type ModelPlan,
+  type Plan,
+  type AlreadyLogged,
+  repeatVisitKey,
 } from "@/lib/assistant/schema";
-import { getLocalToday, orgLocalToIso, toOrgDatetimeLocalValue } from "@/lib/format-date";
+import { formatTimeOfDay, getLocalToday, nextDay, orgDayStartIso, orgLocalToIso, toOrgDatetimeLocalValue } from "@/lib/format-date";
 import { capitalizeWords } from "@/lib/format-text";
 import { notifyTaskAssigned } from "@/lib/notify-task-assigned";
 import { residentName } from "@/lib/domain/resident-name";
@@ -164,7 +167,50 @@ export async function analyzeNote(
   }
 
   const resolved = resolvePlan(modelPlan, directory);
-  return { ok: true, ...resolved, plan: aboutThemNotes(resolved.plan) };
+  const plan = aboutThemNotes(resolved.plan);
+  return { ok: true, ...resolved, plan, alreadyLogged: await findAlreadyLogged(plan) };
+}
+
+/** Entries in the plan that look like one already saved: the same
+ * resident, the same kind, the same Cleveland day (by anyone). Only
+ * flagged for the person to answer -- a lookup failure flags nothing. */
+async function findAlreadyLogged(plan: Plan): Promise<AlreadyLogged> {
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const wanted = plan.interactions
+    .map((x, index) => ({ index, x, day: x.occurred_at.slice(0, 10) }))
+    .filter((w) => w.x.resident && uuid.test(w.x.resident) && /^\d{4}-\d{2}-\d{2}$/.test(w.day));
+  if (wanted.length === 0) return {};
+  const days = wanted.map((w) => w.day).sort();
+  const from = orgDayStartIso(days[0]);
+  const to = orgDayStartIso(nextDay(days[days.length - 1]));
+  if (!from || !to) return {};
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("interactions")
+      .select("occurred_at, interaction_type, resident_id, profiles(full_name)")
+      .in("resident_id", [...new Set(wanted.map((w) => w.x.resident!))])
+      .gte("occurred_at", from)
+      .lt("occurred_at", to)
+      .order("occurred_at", { ascending: false });
+    if (error || !data) return {};
+    const found: AlreadyLogged = {};
+    for (const w of wanted) {
+      const row = data.find(
+        (r) =>
+          r.resident_id === w.x.resident &&
+          r.interaction_type === w.x.interaction_type &&
+          toOrgDatetimeLocalValue(r.occurred_at).slice(0, 10) === w.day
+      );
+      if (row) {
+        const profile = row.profiles as unknown as { full_name: string } | null;
+        found[w.index] = { time: formatTimeOfDay(row.occurred_at) ?? "", by: profile?.full_name ?? null };
+      }
+    }
+    return found;
+  } catch {
+    return {};
+  }
 }
 
 /** A plain-English reason for a failed request, with the API's own
@@ -220,7 +266,7 @@ function quickLogSubmissionId(parts: (string | number | null)[]) {
  * says exactly which part didn't.
  */
 
-export async function applyPlan(input: unknown): Promise<ApplyResult> {
+export async function applyPlan(input: unknown, secondVisits: string[] = []): Promise<ApplyResult> {
   const parsed = planSchema.safeParse(input);
   if (!parsed.success) return { ok: false, steps: [{ label: "Nothing was saved: the plan looked wrong.", ok: false }] };
   const plan = aboutThemNotes(parsed.data);
@@ -538,6 +584,9 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
       staffId, i.interaction_type, occurredAt, facilityId, residentId, contactId, i.holiday, i.family_need,
       i.people_reached && i.people_reached > 0 ? i.people_reached : null,
     ];
+    // Confirmed as a second, separate visit (it looked like one already
+    // saved): its own id, so it can't be mistaken for that one.
+    const confirmedSecond = secondVisits.includes(repeatVisitKey(i));
     const sameKey = idParts(user.id).join("|");
     const repeat = (repeats.get(sameKey) ?? 0) + 1;
     repeats.set(sameKey, repeat);
@@ -574,7 +623,11 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
             ? occasionForHoliday(i.holiday)
             : null,
         staff_member_id: staffId,
-        client_submission_id: quickLogSubmissionId(repeat > 1 ? [...idParts(staffId), repeat] : idParts(staffId)),
+        client_submission_id: quickLogSubmissionId([
+          ...idParts(staffId),
+          ...(repeat > 1 ? [repeat] : []),
+          ...(confirmedSecond ? ["second visit"] : []),
+        ]),
       })
         .select("id")
         .single();
