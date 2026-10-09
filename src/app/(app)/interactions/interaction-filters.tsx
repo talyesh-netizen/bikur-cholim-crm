@@ -1,5 +1,6 @@
 "use client";
 
+import { FacilityPicker } from "@/components/facility-picker";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Input } from "@/components/ui/input";
@@ -95,22 +96,12 @@ export function InteractionFilters({
 
         <div className="flex flex-col gap-1">
           <Label className="text-xs text-muted-foreground">Facility</Label>
-          <Select
-            value={searchParams.get("facility") ?? "all"}
-            onValueChange={(v) => updateParam("facility", v === "all" ? null : v)}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All facilities</SelectItem>
-              {facilities.map((f) => (
-                <SelectItem key={f.id} value={f.id}>
-                  {f.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <FacilityPicker
+            facilities={facilities}
+            value={searchParams.get("facility") ?? ""}
+            onChange={(v) => updateParam("facility", v || null)}
+            emptyLabel="All facilities"
+          />
         </div>
 
         <div className="flex flex-col gap-1">

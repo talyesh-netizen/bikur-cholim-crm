@@ -8,6 +8,7 @@ import { LAST_ONSITE_KEY } from "@/components/remember-onsite";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SectionIcon } from "@/components/section-icon";
 import { mapsHref } from "@/lib/link-helpers";
+import { matchFacilities } from "@/lib/facility-match";
 
 type OnsiteFacility = {
   id: string;
@@ -71,26 +72,9 @@ export function DashboardOnsiteLauncher({
 
   const selectedFacility = facilities.find((facility) => facility.id === facilityId) ?? null;
 
-  const matches = useMemo(() => {
-    const term = query.trim().toLowerCase();
-    if (!term) return facilities.slice(0, 10);
-
-    return facilities
-      .filter((facility) => {
-        const searchable = [
-          facility.name,
-          facility.address,
-          facility.city,
-          facility.zip,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-
-        return searchable.includes(term);
-      })
-      .slice(0, 10);
-  }, [facilities, query]);
+  // Name, street, city or ZIP -- the same matching as every other
+  // facility picker (lib/facility-match).
+  const matches = useMemo(() => matchFacilities(facilities, query, 10), [facilities, query]);
 
   function chooseFacility(facility: OnsiteFacility) {
     setFacilityId(facility.id);

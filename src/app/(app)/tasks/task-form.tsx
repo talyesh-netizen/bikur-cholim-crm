@@ -3,6 +3,7 @@
 import { FormActions, FormError } from "@/components/form-actions";
 import { useActionState, useMemo, useState } from "react";
 import Link from "next/link";
+import { FacilityPicker } from "@/components/facility-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -164,13 +165,7 @@ export function TaskForm({
 
       {!fixedContext ? (
         <Field label="Facility" htmlFor="facility_id" error={fieldErrors.facility_id}>
-          <SelectField
-            name="facility_id"
-            defaultValue={values.facility_id}
-            options={facilities.map((f) => ({ value: f.id, label: f.name }))}
-            placeholder="Not tied to a facility"
-            allowEmpty
-          />
+          <FacilityPicker id="facility_id" name="facility_id" facilities={facilities} defaultValue={values.facility_id} emptyLabel="Not tied to a facility" />
         </Field>
       ) : null}
         </div>

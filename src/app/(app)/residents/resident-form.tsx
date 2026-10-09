@@ -1,5 +1,6 @@
 "use client";
 
+import { FacilityPicker } from "@/components/facility-picker";
 import { offeredOptions } from "@/lib/domain/offered";
 import { OFFERED_RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { useActionState, useState } from "react";
@@ -99,12 +100,12 @@ export function ResidentForm({
             htmlFor="current_facility_id"
             error={fieldErrors.current_facility_id}
           >
-            <SelectField
+            <FacilityPicker
+              id="current_facility_id"
               name="current_facility_id"
+              facilities={facilities}
               defaultValue={values.current_facility_id ?? defaultFacilityId}
-              options={facilities.map((f) => ({ value: f.id, label: f.name }))}
-              placeholder="Current location unknown"
-              blankOptionLabel="Current location unknown"
+              emptyLabel="Current location unknown"
             />
           </Field>
         ) : null}
