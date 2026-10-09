@@ -5,12 +5,12 @@ import { signOut } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
 import { SidebarNavLinks, MobileBottomNavLinks } from "@/components/nav-links";
 import { GlobalSearchBar } from "@/components/global-search-bar";
-import { QuickAddMenu } from "@/components/quick-add-menu";
+import { LogButton } from "@/components/log-button";
 import { quickLogEnabled } from "@/lib/quick-log-enabled";
 import { SaveToast } from "@/components/save-toast";
 import { BrandLogo, BrandMark } from "@/components/brand-mark";
 import { APP_NAME, ORGANIZATION_NAME } from "@/lib/config";
-import { LogOut, Mic } from "lucide-react";
+import { LogOut } from "lucide-react";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -39,7 +39,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <span className="text-sm font-semibold leading-tight text-muted-foreground">{APP_NAME}</span>
         </Link>
 
-        <QuickAddMenu className="mb-4 px-1" fullWidth quickLog={quickLogEnabled()} />
+        <div className="mb-4 px-1">
+          <LogButton quickLog={quickLogEnabled()} className="w-full" />
+        </div>
 
         <SidebarNavLinks quickLog={quickLogEnabled()} />
 
@@ -68,16 +70,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </span>
           </Link>
           <div className="flex shrink-0 items-center gap-2">
-            {/* One tap from anywhere to the easiest way to capture something. */}
-            {quickLogEnabled() ? (
-              <Button asChild size="sm" variant="outline" className="h-10 gap-1.5 px-3">
-                <Link href="/quick-log">
-                  <Mic className="size-4" />
-                  Quick Log
-                </Link>
-              </Button>
-            ) : null}
-            <QuickAddMenu quickLog={quickLogEnabled()} />
+            {/* The one way to log anything, from every page. */}
+            <LogButton quickLog={quickLogEnabled()} />
           </div>
         </div>
       </header>

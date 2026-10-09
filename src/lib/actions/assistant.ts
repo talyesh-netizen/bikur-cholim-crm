@@ -35,7 +35,7 @@ export async function analyzeNote(
   /** Where it happened, when the person said so up front: a facility
    * in the CRM (`here` = on-site mode, standing in it right now), or the
    * name of a place that isn't in the CRM yet. Saves naming it in the note. */
-  place?: { facilityId?: string; here?: boolean; newFacilityName?: string }
+  place?: { facilityId?: string; here?: boolean; newFacilityName?: string; residentId?: string }
 ): Promise<AnalyzeResult> {
   const trimmed = note.trim();
   if (!trimmed) return { ok: false, error: "Please type or dictate a note first." };
@@ -71,6 +71,9 @@ export async function analyzeNote(
     placeAlias,
     here: !!place?.here,
     newPlace: place?.newFacilityName?.replace(/[\r\n"]+/g, " ").trim().slice(0, 120) || null,
+    aboutAlias: place?.residentId
+      ? [...directory.idFor.entries()].find(([, id]) => id === place.residentId)?.[0] ?? null
+      : null,
     note: trimmed,
   });
   const base = {
