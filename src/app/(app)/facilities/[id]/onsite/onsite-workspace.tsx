@@ -11,6 +11,7 @@ import { StaffList, type OnsiteStaff } from "./staff-list";
 import { TodayList, type LoggedToday } from "./today-list";
 import type { OnsiteTab } from "@/lib/onsite-links";
 import { cn } from "@/lib/utils";
+import { endVisitSession } from "@/lib/visit-session";
 
 /**
  * The on-site page's working area (decided Oct 9, 2026): three tabs --
@@ -215,8 +216,9 @@ export function OnsiteWorkspace({
               <span className="text-primary">Today</span>
             </button>
 
+            {/* Done ends this visit: Today stops offering to resume it. */}
             <Button size="lg" variant="outline" className="h-12 w-full text-base" asChild>
-              <Link href="/dashboard">Done</Link>
+              <Link href="/dashboard" onClick={() => endVisitSession()}>Done — end this visit</Link>
             </Button>
           </CardContent>
         </Card>

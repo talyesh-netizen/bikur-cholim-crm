@@ -1,18 +1,14 @@
 "use client";
 
 import { useEffect } from "react";
+import { startVisitSession } from "@/lib/visit-session";
 
-export const LAST_ONSITE_KEY = "last-onsite-facility";
-
-/** Notes which facility's visit page was open last, so Today can offer
- * "Continue at …" after the phone was locked or the app was closed. */
+/** Opening a facility's on-site page starts (or continues) today's
+ * visit there, so Today can offer "Resume visit" until it's finished --
+ * see lib/visit-session.ts. */
 export function RememberOnsite({ facilityId, facilityName }: { facilityId: string; facilityName: string }) {
   useEffect(() => {
-    try {
-      window.localStorage.setItem(LAST_ONSITE_KEY, JSON.stringify({ id: facilityId, name: facilityName, at: Date.now() }));
-    } catch {
-      // Blocked storage: nothing to remember.
-    }
+    startVisitSession(facilityId, facilityName);
   }, [facilityId, facilityName]);
   return null;
 }

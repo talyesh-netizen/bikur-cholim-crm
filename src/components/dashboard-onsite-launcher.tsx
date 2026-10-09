@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Building2, Check, ClipboardCheck, MapPin, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { LAST_ONSITE_KEY } from "@/components/remember-onsite";
+import { endVisitSession, facilitiesWithUnsavedNotes, readActiveVisitSession, type VisitSession } from "@/lib/visit-session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SectionIcon } from "@/components/section-icon";
 import { mapsHref } from "@/lib/link-helpers";
@@ -37,21 +38,28 @@ export function DashboardOnsiteLauncher({
   const [facilityId, setFacilityId] = useState("");
   const [showResults, setShowResults] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
-  // The facility visited last today, offered as one tap to carry on.
-  const [lastVisit, setLastVisit] = useState<{ id: string; name: string } | null>(null);
+  // Only a visit genuinely still open -- started today, not finished --
+  // is offered to resume, and only as a second choice (decided Oct 9,
+  // 2026). Where you were last is never assumed to be where you are.
+  const [openVisit, setOpenVisit] = useState<VisitSession | null>(null);
+  // Notes typed on site but never saved, from any visit, so none are lost.
+  const [unsaved, setUnsaved] = useState<{ id: string; name: string; count: number }[]>([]);
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      try {
-        const saved = JSON.parse(window.localStorage.getItem(LAST_ONSITE_KEY) ?? "null") as { id: string; name: string; at: number } | null;
-        if (saved && Date.now() - saved.at < 12 * 60 * 60 * 1000 && facilities.some((f) => f.id === saved.id)) {
-          setLastVisit({ id: saved.id, name: saved.name });
-        }
-      } catch {
-        // Nothing remembered.
-      }
+      const session = readActiveVisitSession();
+      setOpenVisit(session && facilities.some((f) => f.id === session.facilityId) ? session : null);
+      const counts = facilitiesWithUnsavedNotes();
+      setUnsaved(
+        facilities.flatMap((f) => (counts.get(f.id) ? [{ id: f.id, name: f.name, count: counts.get(f.id) as number }] : []))
+      );
     }, 0);
     return () => window.clearTimeout(timer);
   }, [facilities]);
+
+  function endOpenVisit() {
+    endVisitSession();
+    setOpenVisit(null);
+  }
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent | TouchEvent) {
@@ -103,16 +111,10 @@ export function DashboardOnsiteLauncher({
           <SectionIcon section="facilities" icon={ClipboardCheck} />
           Start a visit
         </CardTitle>
-        <p className="text-sm text-muted-foreground">Pick the facility you&apos;re at, then tap to talk.</p>
+        <p className="text-sm text-muted-foreground">Pick the facility you&apos;re at.</p>
       </CardHeader>
 
       <CardContent className="flex flex-col gap-3">
-        {lastVisit && !selectedFacility ? (
-          <Button size="lg" className="h-12 justify-start text-base" onClick={() => router.push(`/facilities/${lastVisit.id}/onsite`)}>
-            <ClipboardCheck className="size-5" />
-            <span className="truncate">Continue at {lastVisit.name}</span>
-          </Button>
-        ) : null}
         <div ref={pickerRef} className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -185,9 +187,9 @@ export function DashboardOnsiteLauncher({
                   </a>
                 </Button>
               ) : null}
-              <Button onClick={startOnsite} className="flex-1 uppercase tracking-wide sm:flex-none">
+              <Button onClick={startOnsite} className="flex-1 sm:flex-none">
                 <ClipboardCheck className="size-4" />
-                Start onsite
+                Start visit
               </Button>
             </div>
           </div>
@@ -196,6 +198,36 @@ export function DashboardOnsiteLauncher({
             Search by facility name, street, city, or ZIP.
           </p>
         )}
+
+        {openVisit && !selectedFacility ? (
+          <div className="flex flex-col gap-1 border-t pt-3">
+            <Button variant="outline" className="h-11 justify-start" onClick={() => router.push(`/facilities/${openVisit.facilityId}/onsite`)}>
+              <ClipboardCheck className="size-4" />
+              <span className="truncate">Resume visit at {openVisit.facilityName}</span>
+              <span className="ml-auto shrink-0 text-xs font-normal text-muted-foreground">
+                started {new Date(openVisit.startedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+              </span>
+            </Button>
+            <button type="button" onClick={endOpenVisit} className="min-h-11 self-start px-1 text-sm text-muted-foreground underline underline-offset-2">
+              I&apos;m not there any more — end that visit
+            </button>
+          </div>
+        ) : null}
+
+        {unsaved.length > 0 ? (
+          <div className="rounded-md border border-[var(--tone-attention-fg)]/30 bg-[var(--tone-attention-bg)] p-3 text-sm">
+            <p className="font-medium text-[var(--tone-attention-fg)]">Notes not saved yet</p>
+            <ul className="mt-1 flex flex-col">
+              {unsaved.map((u) => (
+                <li key={u.id}>
+                  <Link href={`/facilities/${u.id}/onsite`} className="flex min-h-11 items-center underline underline-offset-2">
+                    {u.count} unsaved note{u.count === 1 ? "" : "s"} from {u.name} — open to save
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );
