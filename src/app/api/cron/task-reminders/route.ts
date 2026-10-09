@@ -34,7 +34,7 @@ function renderEmail(staffId: string, staffName: string, overdue: number, dueTod
     overdue > 0 ? `<li style="color:#b91c1c;">${plural(overdue, "overdue follow-up")}</li>` : "",
     dueToday > 0 ? `<li>${plural(dueToday, "follow-up")} due today</li>` : "",
   ].join("");
-  const tasksLink = `${base}/tasks?view=list&assigned=${encodeURIComponent(staffId)}`;
+  const tasksLink = `${base}/tasks?tab=today&assigned=${encodeURIComponent(staffId)}`;
 
   return {
     subject: `${APP_NAME}: you have follow-ups waiting`,
