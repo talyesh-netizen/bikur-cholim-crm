@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { CONTACT_QUICK_FILTERS } from "@/lib/domain/contact";
+import { CONTACT_QUICK_FILTERS, RESIDENT_CONTACT_RELATIONSHIPS, labelFor } from "@/lib/domain/contact";
 import type { Contact, ResidentContact, FacilityContact } from "@/lib/domain/contact";
 import { searchWords, everyWordInAny } from "@/lib/supabase-filters";
 import { residentName } from "@/lib/domain/resident-name";
@@ -291,5 +291,46 @@ export async function listResidentsForContact(contactId: string) {
         ? residentName(resident)
         : "Unknown resident",
     };
+  });
+}
+
+export type FamilyForResident = {
+  resident_id: string;
+  contact_id: string;
+  name: string;
+  phone: string | null;
+  relationship: string;
+  is_primary_contact: boolean;
+};
+
+/** The current family members of several residents at once -- on-site
+ * mode shows each resident's family without opening their page. */
+export async function listFamilyForResidents(residentIds: string[]): Promise<FamilyForResident[]> {
+  if (residentIds.length === 0) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("resident_contacts")
+    .select("resident_id, contact_id, relationship_to_resident, relationship_other_description, is_primary_contact, contacts(name, phone)")
+    .in("resident_id", residentIds)
+    .eq("active", true)
+    .order("is_primary_contact", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).flatMap((row) => {
+    const contact = row.contacts as unknown as { name: string; phone: string | null } | null;
+    if (!contact) return [];
+    return [
+      {
+        resident_id: row.resident_id,
+        contact_id: row.contact_id,
+        name: contact.name,
+        phone: contact.phone,
+        relationship:
+          row.relationship_to_resident === "other"
+            ? row.relationship_other_description || "family"
+            : labelFor(RESIDENT_CONTACT_RELATIONSHIPS, row.relationship_to_resident).toLowerCase(),
+        is_primary_contact: row.is_primary_contact,
+      },
+    ];
   });
 }
