@@ -95,7 +95,13 @@ const fakeSupabase = {
 };
 
 type Check = [string, boolean];
-type Scenario = { note: string; expect: string; checks: (plan: Plan, questions: string[]) => Check[] };
+type Scenario = {
+  note: string;
+  expect: string;
+  /** Logged from this resident's page ("+ Log" there): their id. */
+  about?: string;
+  checks: (plan: Plan, questions: string[]) => Check[];
+};
 
 const dates = (plan: Plan) => plan.interactions.map((x) => x.occurred_at.slice(0, 10));
 const none = (plan: Plan, ...sections: (keyof Plan)[]) =>
@@ -106,6 +112,18 @@ const noFacilityVisit = (plan: Plan): Check => [
 ];
 
 const SCENARIOS: Scenario[] = [
+  {
+    // Oct 8, 2026: "+ Log" on a resident's page -- "her" means that
+    // resident, even with two Ilenes in the directory.
+    note: "Visited her today, she was in good spirits. She moved to room 112.",
+    about: R.ileneAM.id,
+    expect: "From the Anna Maria Ilene's page: her visit today and her room change, no question about which Ilene.",
+    checks: (plan, q) => [
+      ["visit with the Anna Maria Ilene today", plan.interactions.some((x) => x.interaction_type === "resident_visit" && x.resident === R.ileneAM.id && x.occurred_at.startsWith("2026-10-07"))],
+      ["room 112 for her", plan.resident_updates.some((u) => u.resident === R.ileneAM.id && u.room_number === "112")],
+      ["doesn't ask which Ilene", !q.some((x) => /ilene/i.test(x))],
+    ],
+  },
   {
     note: "Remind me to call Lisa next week about Chanukah.",
     expect: "Task only.",
@@ -258,7 +276,12 @@ async function writePrompts(dir: string) {
       OUTPUT_INSTRUCTIONS,
       `DIRECTORY\n\n${d.text}`,
       "=== USER ===",
-      buildUserMessage({ now: NOW, selfAlias: d.selfAlias, note: s.note }),
+      buildUserMessage({
+        now: NOW,
+        selfAlias: d.selfAlias,
+        aboutAlias: s.about ? [...d.idFor.entries()].find(([, id]) => id === s.about)?.[0] ?? null : null,
+        note: s.note,
+      }),
     ].join("\n\n");
     writeFileSync(join(dir, `case-${i + 1}.txt`), text);
   });

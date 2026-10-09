@@ -315,7 +315,13 @@ function withDecisions(plan: Plan, decisions: Decisions): Plan {
 export function QuickLog({
   onSite,
   facilities,
+  about,
+  initialPlace,
 }: {
+  /** Opened from a resident's page (+ Log): the note is about them. */
+  about?: { residentId: string; residentName: string };
+  /** Where it happened, when "+ Log" was tapped on a facility or resident. */
+  initialPlace?: Place;
   /** On-site mode: the facility the person is at, so notes don't need to name it. */
   onSite?: { facilityId: string; facilityName: string };
   /** When given (and not on site), Quick Log first asks where it happened. */
@@ -323,7 +329,7 @@ export function QuickLog({
 } = {}) {
   const router = useRouter();
   const [note, setNote] = useState("");
-  const [place, setPlace] = useState<Place | null>(null);
+  const [place, setPlace] = useState<Place | null>(initialPlace ?? null);
   const [proposal, setProposal] = useState<{ plan: Plan; names: PlanNames; matches: PossibleMatches } | null>(null);
   const [decisions, setDecisions] = useState<Decisions>({});
   const [dateFixes, setDateFixes] = useState<DateFixes>({});
@@ -385,13 +391,16 @@ export function QuickLog({
       try {
         response = await analyzeNote(
           note,
-          onSite
-            ? { facilityId: onSite.facilityId, here: true }
-            : place?.kind === "facility"
-              ? { facilityId: place.id }
-              : place?.kind === "new"
-                ? { newFacilityName: place.name }
-                : undefined
+          {
+            ...(onSite
+              ? { facilityId: onSite.facilityId, here: true }
+              : place?.kind === "facility"
+                ? { facilityId: place.id }
+                : place?.kind === "new"
+                  ? { newFacilityName: place.name }
+                  : {}),
+            ...(about ? { residentId: about.residentId } : {}),
+          }
         );
       } catch {
         // The connection dropped or the server gave up -- say so, and
@@ -510,7 +519,11 @@ export function QuickLog({
       <Card>
         <CardContent className="flex flex-col gap-3 pt-6">
           <label htmlFor="quick-log-note" className="text-base font-semibold">
-            {onSite ? "Tell me what happened here, or what you need to remember." : "Tell me what happened, or what you need to remember."}
+            {about
+              ? `What happened with ${about.residentName}?`
+              : onSite
+                ? "Tell me what happened here, or what you need to remember."
+                : "Tell me what happened, or what you need to remember."}
           </label>
           {!onSite && place ? (
             <p className="-mt-1 flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
@@ -547,16 +560,17 @@ export function QuickLog({
               setNote(e.target.value);
               if (proposal) setProposal(null);
             }}
-            placeholder={onSite || place?.kind === "facility" || place?.kind === "new" ? ONSITE_EXAMPLE : EXAMPLE}
+            placeholder={
+              about
+                ? "e.g. Visited her, she was upbeat. Gave her a snack. Bring a large-print siddur next week."
+                : onSite || place?.kind === "facility" || place?.kind === "new"
+                  ? ONSITE_EXAMPLE
+                  : EXAMPLE
+            }
             rows={6}
             className="min-h-40"
             disabled={reading || saving}
           />
-          <p className="text-xs text-muted-foreground">
-            Talk, or type in the box, the way you&apos;d tell a colleague: visits (today or catching up on
-            earlier ones), reminders, room changes, new residents. You don&apos;t need to say where it goes.
-            Nothing is saved until you check it.
-          </p>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <Button onClick={read} disabled={reading || saving || !note.trim()} size="lg" className="w-full sm:w-auto sm:self-start">
             {reading ? <Loader2 className="animate-spin" /> : <Sparkles />}

@@ -93,6 +93,7 @@ export function buildUserMessage({
   placeAlias = null,
   here = false,
   newPlace = null,
+  aboutAlias = null,
   note,
 }: {
   /** Cleveland local time, YYYY-MM-DDTHH:mm. */
@@ -104,6 +105,8 @@ export function buildUserMessage({
   here?: boolean;
   /** A place they named up front that isn't in the CRM yet. */
   newPlace?: string | null;
+  /** The resident whose page they logged from (alias), if any. */
+  aboutAlias?: string | null;
   note: string;
 }) {
   const today = now.slice(0, 10);
@@ -116,7 +119,11 @@ export function buildUserMessage({
     : newPlace
       ? `\nBefore writing, they said this happened at a place called "${newPlace}" that they believe isn't in the CRM yet. If the directory has it (under that name, a former name or a near spelling), use that facility; otherwise propose it as a new facility (NF1) and use it for whatever the note says happened there and for anyone they saw who isn't in the directory.`
       : "";
+  // Logged from a resident's page: "visited her" / "she" means them.
+  const aboutLine = aboutAlias
+    ? `\nThey started this note from ${aboutAlias}'s page: unless the note names someone else, it is about ${aboutAlias} ("visited her", "he's in the hospital", "his room changed" all mean ${aboutAlias}).`
+    : "";
   return `Current time in Cleveland: ${weekday}, ${now.replace("T", " ")}.\n${calendarAround(today)}\nThe person writing is ${
     selfAlias ?? "a staff member"
-  }.${placeLine}\n\nNOTE:\n${note}`;
+  }.${placeLine}${aboutLine}\n\nNOTE:\n${note}`;
 }

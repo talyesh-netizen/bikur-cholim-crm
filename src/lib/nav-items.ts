@@ -10,7 +10,6 @@ import {
   ClipboardCheck,
   MoreHorizontal,
   DatabaseBackup,
-  Sparkles,
   BellRing,
   ChartColumn,
   type LucideIcon,
@@ -37,7 +36,6 @@ export type NavItem = {
 // tap deeper under People and Settings.
 export const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Today", icon: LayoutDashboard, section: "dashboard" },
-  { href: "/quick-log", label: "Quick Log", icon: Sparkles, section: "log" },
   { href: "/needs-attention", label: "Needs attention", icon: BellRing, section: "residents" },
   { href: "/residents", label: "Residents", icon: Users, section: "residents" },
   { href: "/facilities", label: "Facilities", icon: Building2, section: "facilities" },

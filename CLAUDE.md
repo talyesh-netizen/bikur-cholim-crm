@@ -55,3 +55,6 @@ Decisions so far:
   "Meeting with a volunteer" entries, separate from volunteer visits.
 - Food deliveries count once and are never copied to a colleague who was
   there; visits, calls and family entries are.
+- A note started with "+ Log" on a resident's page is about that
+  resident unless it names someone else ("visited her" = them), even
+  when another resident shares the first name (Oct 8, 2026).

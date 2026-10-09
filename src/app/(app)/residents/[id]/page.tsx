@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { quickLogEnabled } from "@/lib/quick-log-enabled";
 import { ChainNav } from "@/components/chain-nav";
 import { findHealthcareGroup } from "@/lib/queries/organizations";
 import { getFacility } from "@/lib/queries/facilities";
@@ -22,7 +23,7 @@ import { InfoRow } from "@/components/info-row";
 import { ProfileNotesCard } from "@/components/profile-notes-card";
 import { Fold } from "@/components/fold";
 import { listResidentProfileNotes } from "@/lib/queries/profile-notes";
-import { Pencil, ArrowRightLeft, Plus, UserX, Undo2, Star, HeartHandshake, ListPlus } from "lucide-react";
+import { Pencil, ArrowRightLeft, Plus, UserX, Undo2, Star, ListPlus } from "lucide-react";
 import { residentName } from "@/lib/domain/resident-name";
 import { getCurrentProfile } from "@/lib/get-current-profile";
 import { listChangesForRecord } from "@/lib/queries/change-log";
@@ -87,16 +88,12 @@ export default async function ResidentDetailPage({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button asChild>
-            <Link href={`/interactions/new?resident=${resident.id}`}>
-              <Plus className="size-4" />
-              Log an interaction
-            </Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href={`/interactions/new?resident=${resident.id}&type=family_communication`}>
-              <HeartHandshake className="size-4" />
-              Family support
+          {/* One way to log (decided Oct 8, 2026): visits, family, food,
+              notes about them and follow-ups all start here. */}
+          <Button asChild size="lg" className="text-base">
+            <Link href={`${quickLogEnabled() ? "/quick-log" : "/interactions/new"}?resident=${resident.id}`}>
+              <Plus className="size-5" />
+              Log
             </Link>
           </Button>
           <Button variant="outline" asChild>
@@ -104,7 +101,7 @@ export default async function ResidentDetailPage({
               href={`/tasks/new?resident=${resident.id}${resident.current_facility_id ? `&facility=${resident.current_facility_id}` : ""}`}
             >
               <ListPlus className="size-4" />
-              Add a task
+              Follow-up
             </Link>
           </Button>
         </div>
