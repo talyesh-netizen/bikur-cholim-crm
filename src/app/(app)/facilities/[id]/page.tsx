@@ -104,32 +104,17 @@ export default async function FacilityDetailPage({
             ) : null}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" asChild>
-            <Link href={`/facilities/${facility.id}/onsite`}>
-              <ClipboardCheck className="size-4" />
-              Onsite mode
-            </Link>
-          </Button>
-          <Button asChild>
-            <Link href={`/interactions/new?facility=${facility.id}`}>
-              <Plus className="size-4" />
-              Log an interaction
-            </Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href={`/facilities/${facility.id}/edit`}>
-              <Pencil className="size-4" />
-              Edit
-            </Link>
-          </Button>
-          <form action={toggleActive}>
-            <Button variant="outline" type="submit">
-              {facility.active ? "Mark inactive" : "Mark active"}
-            </Button>
-          </form>
-        </div>
       </div>
+
+      {/* One way in (decided Oct 9, 2026): the visit page has the
+          residents, the notes box and Finish visit. Logging from anywhere
+          else is the red + Log; edit and inactive sit at the bottom. */}
+      <Button asChild size="lg" className="h-12 w-full text-base sm:w-auto sm:self-start">
+        <Link href={`/facilities/${facility.id}/onsite`}>
+          <ClipboardCheck className="size-5" />
+          Start visit here
+        </Link>
+      </Button>
 
       <div className="flex flex-wrap gap-2">
         <Badge>{labelFor(ENGAGEMENT_STATUSES, facility.engagement_status)}</Badge>
@@ -418,6 +403,18 @@ export default async function FacilityDetailPage({
           </CardContent>
         </Card>
       ) : null}
+
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-1 border-t pt-4 text-sm">
+        <Link href={`/facilities/${facility.id}/edit`} className="flex min-h-11 items-center gap-1.5 text-muted-foreground hover:text-foreground">
+          <Pencil className="size-4" />
+          Edit facility details
+        </Link>
+        <form action={toggleActive}>
+          <button type="submit" className="flex min-h-11 items-center text-muted-foreground hover:text-foreground">
+            {facility.active ? "Mark inactive" : "Mark active"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
