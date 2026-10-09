@@ -1,17 +1,11 @@
 "use client";
 
+import { FacilityPicker } from "@/components/facility-picker";
 import { FormActions, FormError } from "@/components/form-actions";
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import type { TransferFormState } from "@/lib/actions/transfer-resident";
 import { Undo2 } from "lucide-react";
 
@@ -61,19 +55,14 @@ export function TransferForm({
             </>
           )}
         </Label>
-        <input type="hidden" name="new_facility_id" value={facilityId} readOnly />
-        <Select value={facilityId} onValueChange={setFacilityId}>
-          <SelectTrigger id="new_facility_id">
-            <SelectValue placeholder="Choose the new facility…" />
-          </SelectTrigger>
-          <SelectContent>
-            {facilities.map((f) => (
-              <SelectItem key={f.id} value={f.id}>
-                {f.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <FacilityPicker
+          id="new_facility_id"
+          name="new_facility_id"
+          facilities={facilities}
+          value={facilityId}
+          onChange={setFacilityId}
+          placeholder="Type the new facility's name…"
+        />
       </div>
 
       <div className="flex flex-col gap-1.5">

@@ -1,5 +1,6 @@
 "use client";
 
+import { FacilityPicker } from "@/components/facility-picker";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -220,12 +221,12 @@ export function InteractionForm({
       ) : null}
 
       <Field label="Facility" htmlFor="facility_id" error={fieldErrors.facility_id} required={facilityRequired}>
-        <SelectField
+        <FacilityPicker
+          id="facility_id"
           name="facility_id"
+          facilities={facilities}
           defaultValue={values.facility_id}
-          options={facilities.map((f) => ({ value: f.id, label: f.name }))}
-          placeholder={facilityRequired ? "Choose a facility…" : "No facility yet"}
-          allowEmpty={!facilityRequired}
+          emptyLabel={facilityRequired ? undefined : "No facility yet"}
         />
       </Field>
 
