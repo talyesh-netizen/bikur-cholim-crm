@@ -58,3 +58,7 @@ Decisions so far:
 - A note started with "+ Log" on a resident's page is about that
   resident unless it names someone else ("visited her" = them), even
   when another resident shares the first name (Oct 8, 2026).
+- One place for notes about a person (Oct 9, 2026): kosher food,
+  holiday and visiting needs are saved as labelled "About them" notes
+  ("Kosher food: only eats Glatt"), not the old resident boxes; anything
+  sensitive still goes to Private.

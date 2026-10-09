@@ -19,7 +19,6 @@ import { formatDateOnly, formatDateTime } from "@/lib/format-date";
 import { telHref } from "@/lib/link-helpers";
 import { InteractionList } from "@/app/(app)/interactions/interaction-list";
 import { TaskList } from "@/app/(app)/tasks/task-list";
-import { InfoRow } from "@/components/info-row";
 import { ProfileNotesCard } from "@/components/profile-notes-card";
 import { Fold } from "@/components/fold";
 import { listResidentProfileNotes } from "@/lib/queries/profile-notes";
@@ -144,6 +143,10 @@ export default async function ResidentDetailPage({
         </div>
       </dl>
 
+      <Fold title="About them" count={profileNotes.length} open>
+        <ProfileNotesCard targetType="resident" targetId={resident.id} notes={profileNotes} compact />
+      </Fold>
+
       <Fold title="Recent interactions" count={interactions.length} open>
         <InteractionList interactions={interactions} variant="resident" />
       </Fold>
@@ -246,22 +249,6 @@ export default async function ResidentDetailPage({
         <TaskList tasks={tasks} />
       </Fold>
 
-      <Fold title="About">
-        <div className="grid gap-x-8 gap-y-2 text-sm md:grid-cols-2">
-          <InfoRow label="Sex" value={resident.sex ? resident.sex.charAt(0).toUpperCase() + resident.sex.slice(1) : null} />
-          <InfoRow label="Preferred visit frequency" value={resident.preferred_visit_frequency} />
-          <InfoRow label="Visitation needs" value={resident.visitation_needs} />
-          <InfoRow label="How we found them" value={resident.referral_source} />
-          <InfoRow label="Rabbi / synagogue" value={resident.rabbi_synagogue_connection} />
-          <InfoRow label="Interests / background" value={resident.jewish_interests_background} />
-          <InfoRow label="Kosher food needs" value={resident.kosher_food_needs} />
-          <InfoRow label="Holiday support needs" value={resident.holiday_support_needs} />
-        </div>
-      </Fold>
-
-      <Fold title="Profile notes" count={profileNotes.length}>
-        <ProfileNotesCard targetType="resident" targetId={resident.id} notes={profileNotes} compact />
-      </Fold>
 
 
       <Fold title="Facility history" count={history.length}>
@@ -300,7 +287,7 @@ export default async function ResidentDetailPage({
       </Fold>
 
       {resident.private_internal_notes ? (
-        <Fold title="Private internal notes">
+        <Fold title="Private">
           <p className="whitespace-pre-wrap text-sm text-muted-foreground">{resident.private_internal_notes}</p>
         </Fold>
       ) : null}

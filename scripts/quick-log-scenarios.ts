@@ -24,6 +24,7 @@ import { loadDirectory, type Directory } from "@/lib/assistant/directory";
 import { SYSTEM_PROMPT, OUTPUT_INSTRUCTIONS, buildUserMessage } from "@/lib/assistant/prompt";
 import { parsePlanText, type ModelPlan, type Plan } from "@/lib/assistant/schema";
 import { resolvePlan } from "@/lib/assistant/resolve";
+import { aboutThemNotes } from "@/lib/assistant/about-them";
 
 const NOW = "2026-10-07T14:30";
 
@@ -345,13 +346,20 @@ async function guards() {
       { ...blank, interaction_type: "resident_visit", occurred_at: "2027-10-05T12:00", facility: alias(F.annaMaria.id), resident: alias(R.norma.id) },
     ],
   };
-  const { plan } = resolvePlan(model, d);
+  model.resident_updates.push({
+    resident: alias(R.norma.id), status: null, room_number: null, phone_number: null,
+    add_to_kosher_food_needs: "only eats Glatt", add_to_visitation_needs: null,
+    add_to_holiday_support_needs: null, add_to_private_notes: null,
+  });
+  const plan = aboutThemNotes(resolvePlan(model, d).plan);
   const results: Check[] = [
     ["double facility visit dropped", plan.interactions.filter((x) => x.interaction_type === "facility_visit").length === 1],
     ["the other facility's visit kept", plan.interactions.some((x) => x.interaction_type === "facility_visit" && x.facility === F.menorah.id)],
     ["dropping it is explained", plan.questions.some((q) => /already count/.test(q))],
     ["future date flagged for checking", !!plan.interactions.find((x) => x.resident === R.norma.id)?.date_unclear],
     ["delivery not copied to a colleague", plan.interactions.find((x) => x.interaction_type === "food_delivery")?.also_by.length === 0],
+    ["kosher need saved as an About them note", plan.profile_notes.some((p) => p.resident === R.norma.id && p.note === "Kosher food: only eats Glatt")],
+    ["old kosher box left alone", plan.resident_updates.every((u) => !u.add_to_kosher_food_needs)],
     ["past date not flagged", !plan.interactions.find((x) => x.resident === R.ileneAM.id)?.date_unclear],
   ];
   for (const [label, ok] of results) console.log(`${ok ? "PASS" : "FAIL"} ${label}`);
