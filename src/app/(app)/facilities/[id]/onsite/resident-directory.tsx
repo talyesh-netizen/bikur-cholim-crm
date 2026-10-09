@@ -57,15 +57,15 @@ export function ResidentDirectory({ facilityId, residents }: { facilityId: strin
                 </span>
               </Link>
               <div className="grid grid-cols-3 gap-2">
-                <Button size="sm" className="min-w-0 px-2" asChild><Link href={`${logHref}&type=resident_visit`}><HandHeart /> Visit</Link></Button>
-                <Button size="sm" variant="outline" className="min-w-0 px-2" asChild><Link href={`${logHref}&type=food_delivery`}><Cookie /> Food</Link></Button>
-                <Button size="sm" variant="outline" className="min-w-0 px-2" asChild><Link href={`${logHref}&type=other`}><StickyNote /> Note</Link></Button>
+                <Button className="h-11 min-w-0 px-2" asChild><Link href={`${logHref}&type=resident_visit`}><HandHeart /> Visit</Link></Button>
+                <Button variant="outline" className="h-11 min-w-0 px-2" asChild><Link href={`${logHref}&type=food_delivery`}><Cookie /> Food</Link></Button>
+                <Button variant="outline" className="h-11 min-w-0 px-2" asChild><Link href={`${logHref}&type=other`}><StickyNote /> Note</Link></Button>
               </div>
             </li>;
           })}</ul>
         )}
         {seenCount > 0 && !query ? (
-          <button type="button" onClick={() => setShowSeen(!showSeen)} className="w-full py-1 text-center text-sm text-muted-foreground underline underline-offset-2">
+          <button type="button" onClick={() => setShowSeen(!showSeen)} className="min-h-11 w-full py-2 text-center text-sm text-muted-foreground underline underline-offset-2">
             {showSeen ? "Hide" : "Show"} the {seenCount} seen today
           </button>
         ) : null}

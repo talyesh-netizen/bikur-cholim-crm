@@ -19,6 +19,7 @@ import {
   type InteractionType,
 } from "@/lib/domain/interaction";
 import { orgLocalToIso } from "@/lib/format-date";
+import { withSaved } from "@/lib/saved-flash";
 
 const typeValues = INTERACTION_TYPES.map((o) => o.value) as [string, ...string[]];
 const emptyToUndefined = (val: unknown) => (val === "" ? undefined : val);
@@ -206,7 +207,8 @@ export async function createInteraction(
 
   if (parsed.data.resident_id) revalidatePath(`/residents/${parsed.data.resident_id}`);
   if (parsed.data.facility_id) revalidatePath(`/facilities/${parsed.data.facility_id}`);
-  redirect(redirectTo);
+  // A clear "Visit logged" on the page it lands on (e.g. back on site).
+  redirect(withSaved(redirectTo, parsed.data.interaction_type === "resident_visit" ? "visit-logged" : "interaction-logged", created.id));
 }
 
 export async function updateInteraction(

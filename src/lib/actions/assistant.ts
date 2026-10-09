@@ -5,7 +5,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/get-current-profile";
-import { HOLIDAY_TYPES, FAMILY_NEED_TYPES, SERVICE_FIELDS_BY_TYPE, occasionForHoliday, type InteractionType } from "@/lib/domain/interaction";
+import { HOLIDAY_TYPES, FAMILY_NEED_TYPES, INTERACTION_TYPES, labelFor, SERVICE_FIELDS_BY_TYPE, occasionForHoliday, type InteractionType } from "@/lib/domain/interaction";
 import { loadDirectory, type Directory } from "@/lib/assistant/directory";
 import { resolvePlan } from "@/lib/assistant/resolve";
 import { aboutThemNotes } from "@/lib/assistant/about-them";
@@ -488,7 +488,7 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
     const facilityId = idOf(n.facility);
     const target = residentId ? "resident_id" : "facility_id";
     const targetId = residentId ?? facilityId;
-    const label = `Profile note: ${n.note.length > 60 ? `${n.note.slice(0, 57)}...` : n.note}`;
+    const label = `${n.resident ? "About them" : "Facility note"}: ${n.note.length > 60 ? `${n.note.slice(0, 57)}...` : n.note}`;
     if (!targetId) {
       fail(label, "Not saved, because who it's about wasn't saved.");
       continue;
@@ -519,8 +519,12 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
   }
 
   const interactionIds: string[] = [];
+  // Two real visits in one note can look identical (same person, same
+  // day, no time said); numbering repeats keeps both, while saving the
+  // same note again still matches its first save.
+  const repeats = new Map<string, number>();
   for (const i of plan.interactions) {
-    const label = `Log: ${i.interaction_type.replace(/_/g, " ")}`;
+    const label = labelFor(INTERACTION_TYPES, i.interaction_type);
     const residentId = idOf(i.resident);
     const contactId = idOf(i.contact);
     const facilityId = idOf(i.facility);
@@ -530,6 +534,13 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
       fail(label, "Not saved, because someone it depends on wasn't saved.");
       continue;
     }
+    const idParts = (staffId: string) => [
+      staffId, i.interaction_type, occurredAt, facilityId, residentId, contactId, i.holiday, i.family_need,
+      i.people_reached && i.people_reached > 0 ? i.people_reached : null,
+    ];
+    const sameKey = idParts(user.id).join("|");
+    const repeat = (repeats.get(sameKey) ?? 0) + 1;
+    repeats.set(sameKey, repeat);
     // One entry for the writer, plus one per colleague who was also there.
     const insertFor = (staffId: string) =>
       supabase
@@ -563,16 +574,13 @@ export async function applyPlan(input: unknown): Promise<ApplyResult> {
             ? occasionForHoliday(i.holiday)
             : null,
         staff_member_id: staffId,
-        client_submission_id: quickLogSubmissionId([
-          staffId, i.interaction_type, occurredAt, facilityId, residentId, contactId, i.holiday, i.family_need,
-          i.people_reached && i.people_reached > 0 ? i.people_reached : null,
-        ]),
+        client_submission_id: quickLogSubmissionId(repeat > 1 ? [...idParts(staffId), repeat] : idParts(staffId)),
       })
         .select("id")
         .single();
     const { data, error } = await insertFor(user.id);
     if (error?.code === "23505") {
-      steps.push({ label: `${label} -- already saved earlier, not added again`, ok: true, href: residentId ? `/residents/${residentId}` : facilityId ? `/facilities/${facilityId}` : "/interactions" });
+      steps.push({ label: `${label} -- already saved with this same day and time, so not added twice. If this was a separate visit, log it again with its time.`, ok: true, href: residentId ? `/residents/${residentId}` : facilityId ? `/facilities/${facilityId}` : "/interactions" });
       continue;
     }
     if (error || !data) {

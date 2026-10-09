@@ -19,6 +19,7 @@ import { VisitChecklist } from "./visit-checklist";
 import { ResidentDirectory } from "./resident-directory";
 import { logOnsiteVisits } from "@/lib/actions/onsite";
 import { QuickLog } from "../../../quick-log/quick-log";
+import { RememberOnsite } from "@/components/remember-onsite";
 import { quickLogEnabled } from "@/lib/quick-log-enabled";
 import { getCurrentProfile } from "@/lib/get-current-profile";
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
@@ -77,6 +78,7 @@ export default async function FacilityOnsitePage({
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 pb-8">
+      <RememberOnsite facilityId={facility.id} facilityName={facility.name} />
       <div className="flex items-center justify-between gap-3">
         <Button variant="ghost" size="sm" asChild className="-ml-2">
           <Link href={`/facilities/${facility.id}`}>
