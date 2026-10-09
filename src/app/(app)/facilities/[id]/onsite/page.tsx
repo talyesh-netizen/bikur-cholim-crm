@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Building2, ClipboardCheck, ListChecks } from "lucide-react";
+import { ArrowLeft, Building2, ClipboardCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Fold } from "@/components/fold";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getFacility } from "@/lib/queries/facilities";
@@ -10,16 +9,13 @@ import { listResidents } from "@/lib/queries/residents";
 import { listTasksForFacility } from "@/lib/queries/tasks";
 import { SectionIcon } from "@/components/section-icon";
 import { StatusBadge } from "@/components/status-badge";
-import { ProfileNotesCard } from "@/components/profile-notes-card";
 import { ACTIVE_RESIDENT_STATUSES } from "@/lib/domain/resident";
-import { formatDateOnly, formatRelative, formatTimeOfDay, getLocalToday, toOrgDatetimeLocalValue } from "@/lib/format-date";
+import { formatRelative, formatTimeOfDay, getLocalToday, toOrgDatetimeLocalValue } from "@/lib/format-date";
 import { residentName } from "@/lib/domain/resident-name";
 
-import { VisitChecklist } from "./visit-checklist";
 import { OnsiteWorkspace } from "./onsite-workspace";
 import { listInteractionsAtFacilityOnDay } from "@/lib/queries/interactions";
 import { INTERACTION_TYPES, labelFor } from "@/lib/domain/interaction";
-import { logOnsiteVisits } from "@/lib/actions/onsite";
 import { RememberOnsite } from "@/components/remember-onsite";
 import { quickLogEnabled } from "@/lib/quick-log-enabled";
 import { getCurrentProfile } from "@/lib/get-current-profile";
@@ -197,6 +193,13 @@ export default async function FacilityOnsitePage({
             .filter((f) => f.resident_id === resident.id)
             .map((f) => ({ contactId: f.contact_id, name: f.name, relationship: f.relationship, phone: f.phone })),
           openTasks: tasksByResident.get(resident.id)?.length ?? 0,
+          visitedTodayBy: [
+            ...new Set(
+              loggedToday
+                .filter((x) => x.resident_id === resident.id && x.interaction_type === "resident_visit")
+                .map((x) => x.staff_member_name ?? "someone")
+            ),
+          ],
         }))}
       />
 
@@ -206,102 +209,14 @@ export default async function FacilityOnsitePage({
             <p className="font-medium text-foreground">The notes box isn&apos;t switched on yet.</p>
             <p className="mt-1">
               {profile?.role === "admin"
-                ? "Add the ANTHROPIC_API_KEY setting in Vercel to write your whole visit in one note. Until then, tick off visits below."
-                : "Ask an admin to switch it on. Until then, tick off visits below."}
+                ? "Add the ANTHROPIC_API_KEY setting in Vercel to write your whole visit in one note. Until then, use Visit and Talked above; they work without it."
+                : "Ask an admin to switch it on. Until then, use Visit and Talked above; they work without it."}
             </p>
           </CardContent>
         </Card>
       )}
 
-      {/* Without the notes box, the older way: tick names, then
-          follow-ups per resident. With it, the note covers all of this. */}
-      {notesOn ? null : (
-        <>
-      {/* The older quick way: tick names, no notes. Kept as a backup,
-          folded away when the notes box is on. */}
-      <Fold title={notesOn ? "Or just tick off who you saw" : "Who did you see today?"} open={!notesOn}>
-        {currentResidents.length > 0 ? (
-          <>
-            <p className="-mt-1 text-sm text-muted-foreground">
-              Tick everyone you visited, then save once. Each gets their own visit, logged now.
-            </p>
-            <VisitChecklist
-              action={logOnsiteVisits.bind(null, facility.id)}
-              residents={currentResidents.map((resident) => ({
-                id: resident.id,
-                name: residentName(resident),
-                detail: [
-                  resident.room_number ? `Room ${resident.room_number}` : null,
-                  `Last visit: ${formatRelative(resident.last_visit_at) ?? "none yet"}`,
-                ]
-                  .filter(Boolean)
-                  .join(" · "),
-                needsVisit: needsVisit(resident.last_visit_at),
-              }))}
-            />
-          </>
-        ) : null}
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <Button variant="outline" asChild>
-            <Link href={`/interactions/new?facility=${facility.id}&type=family_communication&from=onsite`}>
-              Talked with family
-            </Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href={`/interactions/new?facility=${facility.id}&type=facility_staff_communication&from=onsite`}>
-              Talked with staff
-            </Link>
-          </Button>
-        </div>
-      </Fold>
 
-      {/* Visits are ticked off above; this is only for what comes after --
-          a follow-up task or a lasting note -- so room and last visit
-          aren't repeated here. */}
-      {currentResidents.length > 0 ? (
-        // Folded shut so the screen stays short; anything due is already
-        // flagged above under "Confirm while you are here".
-        <Fold title="Follow-ups & notes" count={currentResidents.length} open={false}>
-          <p className="-mt-1 text-sm text-muted-foreground">Anything to do later, or worth remembering about someone.</p>
-          <ul className="-mx-4 divide-y border-t">
-            {currentResidents.map((resident) => {
-              const residentTasks = tasksByResident.get(resident.id) ?? [];
-              return (
-                <li key={resident.id} className="px-4 py-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <Link href={`/residents/${resident.id}`} className="font-medium leading-snug hover:underline">
-                        {residentName(resident)}
-                      </Link>
-                      {residentTasks.length > 0 || resident.next_follow_up_date ? (
-                        <p className="text-xs text-muted-foreground">
-                          {residentTasks.length > 0
-                            ? `${residentTasks.length} open follow-up${residentTasks.length === 1 ? "" : "s"}`
-                            : null}
-                          {resident.next_follow_up_date
-                            ? `${residentTasks.length > 0 ? " · " : ""}next ${formatDateOnly(resident.next_follow_up_date)}`
-                            : null}
-                        </p>
-                      ) : null}
-                    </div>
-                    <Button variant="outline" size="sm" asChild className="shrink-0">
-                      <Link href={`/tasks/new?facility=${facility.id}&resident=${resident.id}&from=onsite`}>
-                        <ListChecks />
-                        Follow up
-                      </Link>
-                    </Button>
-                  </div>
-                  <ProfileNotesCard targetType="resident" targetId={resident.id} notes={[]} compact />
-                </li>
-              );
-            })}
-          </ul>
-        </Fold>
-      ) : (
-        <p className="text-sm text-muted-foreground">No current residents are on file for this facility.</p>
-      )}
-        </>
-      )}
     </div>
   );
 }

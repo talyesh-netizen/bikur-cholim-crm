@@ -42,7 +42,8 @@ export function OnsiteWorkspace({
   openResidentId?: string;
 }) {
   const [tab, setTab] = useState<OnsiteTab>(initialTab);
-  const [line, setLine] = useState<{ text: string; key: number } | undefined>(undefined);
+  // "I saw them" on the Finish check: open that resident's visit.
+  const [visitRequest, setVisitRequest] = useState<{ id: string; key: number } | null>(null);
   const [finishing, setFinishing] = useState(false);
   const [unsavedNote, setUnsavedNote] = useState(false);
 
@@ -61,8 +62,12 @@ export function OnsiteWorkspace({
     }
   };
 
-  const visit = (r: DirectoryResident) =>
-    setLine((prev) => ({ text: `Visited ${r.name}${r.room ? ` (room ${r.room})` : ""}. `, key: (prev?.key ?? 0) + 1 }));
+  const visit = (r: DirectoryResident) => {
+    chooseTab("residents");
+    setFinishing(false);
+    setVisitRequest((prev) => ({ id: r.id, key: (prev?.key ?? 0) + 1 }));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const finish = () => {
     // A note still in the box (kept on this phone until it's saved).
@@ -112,14 +117,20 @@ export function OnsiteWorkspace({
       </div>
 
       {tab === "residents" ? (
-        <ResidentDirectory facilityId={facilityId} residents={residents} onVisit={notesOn ? visit : undefined} initiallyOpen={openResidentId} />
+        <ResidentDirectory
+          key={visitRequest?.key ?? 0}
+          facilityId={facilityId}
+          residents={residents}
+          initiallyOpen={visitRequest?.id ?? openResidentId}
+          initialVisit={!!visitRequest}
+        />
       ) : tab === "staff" ? (
         <StaffList facilityId={facilityId} staff={staff} />
       ) : (
         <TodayList loggedToday={loggedToday} />
       )}
 
-      {notesOn ? <QuickLog onSite={{ facilityId, facilityName }} addLine={line} /> : null}
+      {notesOn ? <QuickLog onSite={{ facilityId, facilityName }} /> : null}
 
       <Button size="lg" variant={finishing ? "outline" : "default"} className="h-12 w-full text-base" onClick={finish}>
         <Flag /> Finish visit
@@ -183,11 +194,9 @@ export function OnsiteWorkspace({
                       <CircleDashed className="size-4 shrink-0 text-muted-foreground" />
                       <span>{r.name}</span>
                       {r.room ? <span className="text-muted-foreground">· {r.room}</span> : null}
-                      {notesOn ? (
-                        <button type="button" className="ml-auto min-h-11 px-2 font-medium text-primary" onClick={() => visit(r)}>
-                          I saw them
-                        </button>
-                      ) : null}
+                      <button type="button" className="ml-auto min-h-11 px-2 font-medium text-primary" onClick={() => visit(r)}>
+                        I saw them
+                      </button>
                     </li>
                   ))}
                 </ul>

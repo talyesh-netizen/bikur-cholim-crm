@@ -6,14 +6,19 @@ import { MessageCircle, Phone, Plus, Search, Star } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EntryCard } from "./entry-card";
+import { AddPerson } from "./add-person";
 
 export type OnsiteStaff = { contactId: string; name: string; role: string | null; phone: string | null; primary: boolean };
 
 /** On-site Staff tab (decided Oct 9, 2026): the facility's staff
- * contacts, found by name or role; tap Talked to log a conversation
- * with them, or add someone new -- all without leaving on-site mode. */
+ * contacts, found by name or role; tap Talked to record a conversation
+ * with them right here, or add someone (checked against who's already
+ * on file) and record it straight away -- never leaving on-site mode. */
 export function StaffList({ facilityId, staff }: { facilityId: string; staff: OnsiteStaff[] }) {
   const [search, setSearch] = useState("");
+  const [talkingTo, setTalkingTo] = useState<{ id: string; name: string } | null>(null);
+  const [adding, setAdding] = useState(false);
   const query = search.trim().toLowerCase();
   const filtered = useMemo(
     () =>
@@ -47,7 +52,8 @@ export function StaffList({ facilityId, staff }: { facilityId: string; staff: On
         ) : (
           <ul className="divide-y rounded-lg border">
             {filtered.map((s) => (
-              <li key={s.contactId} className="flex items-center gap-2 p-3">
+              <li key={s.contactId} className="flex flex-col gap-2 p-3">
+                <div className="flex items-center gap-2">
                 <Link href={`/contacts/${s.contactId}`} className="min-w-0 flex-1">
                   <span className="flex items-center gap-1 font-medium leading-snug">
                     {s.name}
@@ -60,17 +66,53 @@ export function StaffList({ facilityId, staff }: { facilityId: string; staff: On
                     <a href={`tel:${s.phone}`} aria-label={`Call ${s.name}`}><Phone /></a>
                   </Button>
                 ) : null}
-                <Button className="h-11 shrink-0 px-4" asChild>
-                  <Link href={logHref(s.contactId)}><MessageCircle /> Talked</Link>
+                <Button className="h-11 shrink-0 px-4" onClick={() => setTalkingTo({ id: s.contactId, name: s.name })} disabled={talkingTo?.id === s.contactId}>
+                  <MessageCircle /> Talked
                 </Button>
+                </div>
+                {talkingTo?.id === s.contactId ? (
+                  <EntryCard
+                    facilityId={facilityId}
+                    kind="staff"
+                    personId={s.contactId}
+                    contactId={s.contactId}
+                    title={`Talked with ${s.name}${s.role ? `, ${s.role}` : ""}`}
+                    onDone={() => setTalkingTo(null)}
+                  />
+                ) : null}
               </li>
             ))}
           </ul>
         )}
+        {/* Just added, so not in the list yet: their conversation here. */}
+        {talkingTo && !staff.some((s) => s.contactId === talkingTo.id) ? (
+          <EntryCard
+            facilityId={facilityId}
+            kind="staff"
+            personId={talkingTo.id}
+            contactId={talkingTo.id}
+            title={`Talked with ${talkingTo.name}`}
+            onDone={() => setTalkingTo(null)}
+          />
+        ) : null}
+        {adding ? (
+          <AddPerson
+            kind="staff"
+            facilityId={facilityId}
+            onCancel={() => setAdding(false)}
+            onAdded={(person) => {
+              setAdding(false);
+              setSearch("");
+              setTalkingTo(person);
+            }}
+          />
+        ) : null}
         <div className="grid gap-2 sm:grid-cols-2">
-          <Button variant="outline" className="h-11 border-dashed" asChild>
-            <Link href={`/facilities/${facilityId}/contacts/new?from=onsite`}><Plus /> Add a staff member</Link>
-          </Button>
+          {adding ? null : (
+            <Button variant="outline" className="h-11 border-dashed" onClick={() => setAdding(true)}>
+              <Plus /> Add a staff member
+            </Button>
+          )}
           <Button variant="ghost" className="h-11" asChild>
             <Link href={logHref()}><MessageCircle /> Talked with someone not listed</Link>
           </Button>

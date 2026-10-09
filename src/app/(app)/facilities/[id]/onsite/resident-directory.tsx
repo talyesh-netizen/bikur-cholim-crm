@@ -1,13 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, Plus, HandHeart, ChevronDown, Phone, MessageCircle, ListChecks, UserRound, ClipboardPen } from "lucide-react";
+import { Search, Plus, HandHeart, ChevronDown, Phone, MessageCircle, ListChecks, UserRound } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/status-badge";
 import { cn } from "@/lib/utils";
+import { EntryCard } from "./entry-card";
+import { AddPerson } from "./add-person";
+import { draftsAt } from "./onsite-drafts";
 
 export type DirectoryFamily = { contactId: string; name: string; relationship: string; phone: string | null };
 
@@ -23,28 +26,46 @@ export type DirectoryResident = {
   notes?: { text: string; date: string }[];
   family?: DirectoryFamily[];
   openTasks?: number;
+  /** Staff who already logged a visit with them today. */
+  visitedTodayBy?: string[];
 };
 
-/** Each resident has one button, Visit (decided Oct 9, 2026). With the
- * notes box on, it starts a line in the note on this same page, so a
- * whole round of visits never leaves the page; without it, the form.
- * Tapping the name opens what to know before going in -- their notes,
- * their family -- and the other things to do for them, all on site. */
+/** The on-site visit workflow (director, Oct 9, 2026): find someone,
+ * tap Visit, type or dictate what happened (or nothing), Save -- a real
+ * visit, saved right here -- then on to the next person. Tapping the
+ * name opens what to know before going in (their notes, their family)
+ * and the other things to do for them. Adding a resident or a family
+ * member happens here too, then goes straight to recording. */
 export function ResidentDirectory({
   facilityId,
   residents,
-  onVisit,
   initiallyOpen,
+  initialVisit = false,
 }: {
   facilityId: string;
   residents: DirectoryResident[];
-  onVisit?: (resident: DirectoryResident) => void;
   /** A resident to show opened (coming back from adding their family). */
   initiallyOpen?: string;
+  /** Open that resident's visit card too. */
+  initialVisit?: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [showSeen, setShowSeen] = useState(false);
   const [openId, setOpenId] = useState<string | null>(initiallyOpen ?? null);
+  // Visit card open for this resident (inside their opened row).
+  const [visiting, setVisiting] = useState<string | null>(initialVisit ? (initiallyOpen ?? null) : null);
+  const [adding, setAdding] = useState(false);
+  // Residents with a note typed here earlier but not saved yet.
+  const [drafts, setDrafts] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    const t = window.setTimeout(() => setDrafts(draftsAt(facilityId)), 0);
+    return () => window.clearTimeout(t);
+  }, [facilityId, visiting]);
+
+  const startVisit = (residentId: string) => {
+    setOpenId(residentId);
+    setVisiting(residentId);
+  };
   const query = search.trim().toLowerCase();
   const seenCount = residents.filter((r) => r.seenToday).length;
   const toSee = residents.length - seenCount;
@@ -73,7 +94,6 @@ export function ResidentDirectory({
           </p>
         ) : (
           <ul className="divide-y rounded-lg border">{filtered.map((resident) => {
-            const formHref = `/interactions/new?facility=${facilityId}&resident=${resident.id}&from=onsite&type=resident_visit`;
             const isOpen = openId === resident.id;
             return <li key={resident.id}>
               <div className="flex items-center gap-3 p-3">
@@ -93,19 +113,27 @@ export function ResidentDirectory({
                       <ChevronDown aria-hidden className={cn("size-4 shrink-0 text-muted-foreground transition-transform", isOpen && "rotate-180")} />
                     </span>
                     <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+                      {drafts.has(resident.id) ? <StatusBadge tone="urgent">Unsaved note</StatusBadge> : null}
                       {resident.seenToday ? <StatusBadge tone="good">Seen today</StatusBadge>
                         : resident.needsVisit ? <StatusBadge tone="attention">Visit due</StatusBadge> : null}
                       {resident.seenToday ? null : <span>{resident.lastVisitAt ? `Last visit ${resident.lastVisit.replace("Yesterday", "yesterday")}` : "Never visited"}</span>}
                     </span>
                   </span>
                 </button>
-                {onVisit ? (
-                  <Button className="h-11 shrink-0 px-4" onClick={() => onVisit(resident)}><HandHeart /> Visit</Button>
-                ) : (
-                  <Button className="h-11 shrink-0 px-4" asChild><Link href={formHref}><HandHeart /> Visit</Link></Button>
-                )}
+                <Button className="h-11 shrink-0 px-4" onClick={() => startVisit(resident.id)} disabled={visiting === resident.id}><HandHeart /> Visit</Button>
               </div>
-              {isOpen ? <ResidentPanel facilityId={facilityId} resident={resident} formHref={formHref} notesOn={!!onVisit} /> : null}
+              {isOpen ? (
+                <ResidentPanel
+                  facilityId={facilityId}
+                  resident={resident}
+                  visiting={visiting === resident.id}
+                  onVisit={() => setVisiting(resident.id)}
+                  onVisitDone={() => {
+                    setVisiting(null);
+                    setOpenId(null);
+                  }}
+                />
+              ) : null}
             </li>;
           })}</ul>
         )}
@@ -114,9 +142,28 @@ export function ResidentDirectory({
             {showSeen ? "Hide" : "Show"} the {seenCount} seen today
           </button>
         ) : null}
-        <Button variant="outline" className="w-full border-dashed" asChild>
-          <Link href={`/residents/new?facility=${facilityId}`}><Plus /> Add a new resident</Link>
-        </Button>
+        {adding ? (
+          <AddPerson
+            kind="resident"
+            facilityId={facilityId}
+            onCancel={() => setAdding(false)}
+            onExistingResidentHere={(id) => {
+              setAdding(false);
+              setSearch("");
+              startVisit(id);
+            }}
+            // Added: their visit opens straight away.
+            onAdded={(person) => {
+              setAdding(false);
+              setSearch("");
+              startVisit(person.id);
+            }}
+          />
+        ) : (
+          <Button variant="outline" className="h-11 w-full border-dashed" onClick={() => setAdding(true)}>
+            <Plus /> Add a new resident
+          </Button>
+        )}
       </CardContent>
     </Card>
   );
@@ -125,18 +172,37 @@ export function ResidentDirectory({
 function ResidentPanel({
   facilityId,
   resident,
-  formHref,
-  notesOn,
+  visiting,
+  onVisit,
+  onVisitDone,
 }: {
   facilityId: string;
   resident: DirectoryResident;
-  formHref: string;
-  notesOn: boolean;
+  visiting: boolean;
+  onVisit: () => void;
+  onVisitDone: () => void;
 }) {
   const notes = resident.notes ?? [];
   const family = resident.family ?? [];
+  // A conversation with one family member, or adding one -- in place.
+  const [talkingTo, setTalkingTo] = useState<{ id: string; name: string } | null>(null);
+  const [addingFamily, setAddingFamily] = useState(false);
+  const roomText = resident.room ? ` · room ${resident.room}` : "";
+
   return (
     <div className="flex flex-col gap-4 border-t bg-muted/40 px-3 pb-4 pt-3 text-sm">
+      {visiting ? (
+        <EntryCard
+          facilityId={facilityId}
+          kind="visit"
+          personId={resident.id}
+          residentId={resident.id}
+          title={`Visit with ${resident.name}${roomText}`}
+          alreadyToday={resident.seenToday ? (resident.visitedTodayBy?.length ? resident.visitedTodayBy : ["someone"]) : undefined}
+          onDone={onVisitDone}
+        />
+      ) : null}
+
       <section>
         <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">About them</h3>
         {notes.length === 0 ? (
@@ -154,39 +220,65 @@ function ResidentPanel({
 
       <section>
         <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Family</h3>
-        {family.length === 0 ? <p className="mb-2 text-muted-foreground">No family on file.</p> : null}
+        {family.length === 0 && !talkingTo ? <p className="mb-2 text-muted-foreground">No family on file.</p> : null}
         <ul className="flex flex-col gap-2">
           {family.map((f) => (
-            <li key={f.contactId} className="flex items-center gap-2 rounded-md border bg-card p-2">
-              <span className="min-w-0 flex-1">
-                <span className="block font-medium">{f.name}</span>
-                <span className="block text-xs text-muted-foreground">{f.relationship}</span>
-              </span>
-              {f.phone ? (
-                <Button variant="ghost" size="icon" className="size-11 shrink-0" asChild>
-                  <a href={`tel:${f.phone}`} aria-label={`Call ${f.name}`}><Phone /></a>
-                </Button>
-              ) : null}
-              <Button variant="outline" className="h-11 shrink-0" asChild>
-                <Link href={`/interactions/new?facility=${facilityId}&resident=${resident.id}&contact=${f.contactId}&type=family_communication&from=onsite`}>
+            <li key={f.contactId} className="flex flex-col gap-2">
+              <div className="flex items-center gap-2 rounded-md border bg-card p-2">
+                <span className="min-w-0 flex-1">
+                  <span className="block font-medium">{f.name}</span>
+                  <span className="block text-xs text-muted-foreground">{f.relationship}</span>
+                </span>
+                {f.phone ? (
+                  <Button variant="ghost" size="icon" className="size-11 shrink-0" asChild>
+                    <a href={`tel:${f.phone}`} aria-label={`Call ${f.name}`}><Phone /></a>
+                  </Button>
+                ) : null}
+                <Button variant="outline" className="h-11 shrink-0" onClick={() => setTalkingTo({ id: f.contactId, name: f.name })}>
                   <MessageCircle /> Talked
-                </Link>
-              </Button>
+                </Button>
+              </div>
             </li>
           ))}
         </ul>
-        <Button variant="ghost" size="sm" className="mt-1 -ml-2" asChild>
-          <Link href={`/residents/${resident.id}/contacts/new?from=onsite`}><Plus /> Add a family member</Link>
-        </Button>
+        {talkingTo ? (
+          <div className="mt-2">
+            <EntryCard
+              facilityId={facilityId}
+              kind="family"
+              personId={talkingTo.id}
+              residentId={resident.id}
+              contactId={talkingTo.id}
+              title={`Talked with ${talkingTo.name}, ${resident.name}'s family`}
+              onDone={() => setTalkingTo(null)}
+            />
+          </div>
+        ) : addingFamily ? (
+          <div className="mt-2">
+            <AddPerson
+              kind="family"
+              facilityId={facilityId}
+              residentId={resident.id}
+              residentName={resident.name}
+              onCancel={() => setAddingFamily(false)}
+              // Added (or picked): record the conversation right away.
+              onAdded={(person) => {
+                setAddingFamily(false);
+                setTalkingTo(person);
+              }}
+            />
+          </div>
+        ) : (
+          <Button variant="ghost" size="sm" className="mt-1 -ml-2 h-11" onClick={() => setAddingFamily(true)}>
+            <Plus /> Add a family member
+          </Button>
+        )}
       </section>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {/* The form always works, notes box or not. */}
-        {notesOn ? (
-          <Button variant="outline" className="h-11" asChild>
-            <Link href={formHref}><ClipboardPen /> Log on a form</Link>
-          </Button>
-        ) : null}
+        {visiting ? null : (
+          <Button className="h-11" onClick={onVisit}><HandHeart /> Visit</Button>
+        )}
         <Button variant="outline" className="h-11" asChild>
           <Link href={`/tasks/new?facility=${facilityId}&resident=${resident.id}&from=onsite`}>
             <ListChecks /> Follow-up{resident.openTasks ? ` (${resident.openTasks} open)` : ""}
