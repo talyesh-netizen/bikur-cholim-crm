@@ -34,6 +34,9 @@ const entrySchema = z.object({
   contactId: id.optional(),
   notes: z.string().trim().max(10000).optional(),
   submissionId: id,
+  /** When it happened, if not now: a note started on an earlier day keeps
+   * that day (ISO). Must be in the past and within the last two months. */
+  occurredAt: z.string().datetime({ offset: true }).optional(),
 });
 
 export type OnsiteEntryResult =
@@ -51,6 +54,11 @@ export async function saveOnsiteEntry(input: z.input<typeof entrySchema>): Promi
   const parsed = entrySchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "This wasn't saved: something is missing. Please try again." };
   const { kind, facilityId, residentId, contactId, notes, submissionId } = parsed.data;
+  const nowMs = Date.now();
+  const givenMs = parsed.data.occurredAt ? new Date(parsed.data.occurredAt).getTime() : null;
+  if (givenMs !== null && (givenMs > nowMs + 5 * 60_000 || givenMs < nowMs - 62 * 24 * 60 * 60_000)) {
+    return { ok: false, error: "NOT saved: that visit date looks wrong. Please check it." };
+  }
   if (kind === "visit" && !residentId) return { ok: false, error: "Choose who you visited." };
   if (kind !== "visit" && !contactId) return { ok: false, error: "Choose who you talked with." };
 
@@ -60,7 +68,7 @@ export async function saveOnsiteEntry(input: z.input<typeof entrySchema>): Promi
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "NOT saved: your sign-in expired. Your note is kept here -- sign in again, then tap Save." };
 
-  const occurredAt = new Date().toISOString();
+  const occurredAt = givenMs !== null ? new Date(givenMs).toISOString() : new Date(nowMs).toISOString();
   const { data: created, error } = await supabase
     .from("interactions")
     .insert({

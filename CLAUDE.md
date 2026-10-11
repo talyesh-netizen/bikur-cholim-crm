@@ -62,6 +62,11 @@ Decisions so far:
   holiday and visiting needs are saved as labelled "About them" notes
   ("Kosher food: only eats Glatt"), not the old resident boxes; anything
   sensitive still goes to Private.
+- A note keeps the day it was started (Oct 11, 2026): a Friday note
+  read on Saturday is dated Friday, never "now". On site there is a
+  "Visit date" line; a note kept from before start times were recorded
+  asks for the day before it can be read. Visit/Talked notes keep the
+  time they were started, shown and changeable before saving.
 - Already logged that day (Oct 9, 2026): an entry with the same resident,
   kind and day as one already saved is flagged on the check screen,
   "Is this a second visit?" Yes saves it as its own visit; No unticks

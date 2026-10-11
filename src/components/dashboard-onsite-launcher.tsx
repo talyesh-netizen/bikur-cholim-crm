@@ -9,6 +9,7 @@ import { endVisitSession, facilitiesWithUnsavedNotes, readActiveVisitSession, ty
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SectionIcon } from "@/components/section-icon";
 import { mapsHref } from "@/lib/link-helpers";
+import { formatDateOnly, getLocalToday, toOrgDatetimeLocalValue } from "@/lib/format-date";
 import { matchFacilities } from "@/lib/facility-match";
 
 type OnsiteFacility = {
@@ -43,14 +44,21 @@ export function DashboardOnsiteLauncher({
   // 2026). Where you were last is never assumed to be where you are.
   const [openVisit, setOpenVisit] = useState<VisitSession | null>(null);
   // Notes typed on site but never saved, from any visit, so none are lost.
-  const [unsaved, setUnsaved] = useState<{ id: string; name: string; count: number }[]>([]);
+  const [unsaved, setUnsaved] = useState<{ id: string; name: string; count: number; since: string | null }[]>([]);
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const session = readActiveVisitSession();
       setOpenVisit(session && facilities.some((f) => f.id === session.facilityId) ? session : null);
-      const counts = facilitiesWithUnsavedNotes();
+      const found = facilitiesWithUnsavedNotes();
       setUnsaved(
-        facilities.flatMap((f) => (counts.get(f.id) ? [{ id: f.id, name: f.name, count: counts.get(f.id) as number }] : []))
+        facilities.flatMap((f) => {
+          const n = found.get(f.id);
+          if (!n) return [];
+          const day = n.since !== null ? toOrgDatetimeLocalValue(new Date(n.since)).slice(0, 10) : null;
+          // Which day it's from, so an older note never reads as today's.
+          const since = day === null ? "an earlier visit" : day === getLocalToday() ? "today" : formatDateOnly(day);
+          return [{ id: f.id, name: f.name, count: n.count, since }];
+        })
       );
     }, 0);
     return () => window.clearTimeout(timer);
@@ -221,7 +229,7 @@ export function DashboardOnsiteLauncher({
               {unsaved.map((u) => (
                 <li key={u.id}>
                   <Link href={`/facilities/${u.id}/onsite`} className="flex min-h-11 items-center underline underline-offset-2">
-                    {u.count} unsaved note{u.count === 1 ? "" : "s"} from {u.name} — open to save
+                    {u.count} unsaved note{u.count === 1 ? "" : "s"} from {u.name} ({u.since}) — open to save
                   </Link>
                 </li>
               ))}

@@ -39,7 +39,15 @@ export async function analyzeNote(
   /** Where it happened, when the person said so up front: a facility
    * in the CRM (`here` = on-site mode, standing in it right now), or the
    * name of a place that isn't in the CRM yet. Saves naming it in the note. */
-  place?: { facilityId?: string; here?: boolean; newFacilityName?: string; residentId?: string }
+  place?: {
+    facilityId?: string;
+    here?: boolean;
+    newFacilityName?: string;
+    residentId?: string;
+    /** The day the person says it all happened (YYYY-MM-DD) -- the
+     * on-site "Visit date", or the day an older kept note was started. */
+    visitDate?: string;
+  }
 ): Promise<AnalyzeResult> {
   const trimmed = note.trim();
   if (!trimmed) return { ok: false, error: "Please type or dictate a note first." };
@@ -69,8 +77,15 @@ export async function analyzeNote(
   const placeAlias = place?.facilityId
     ? [...directory.idFor.entries()].find(([, id]) => id === place.facilityId)?.[0] ?? null
     : null;
+  // Only a real, past-or-today day within the last two months is used.
+  const today = getLocalToday();
+  const visitDate =
+    place?.visitDate && /^\d{4}-\d{2}-\d{2}$/.test(place.visitDate) && place.visitDate <= today && place.visitDate >= daysBefore(today, 62)
+      ? place.visitDate
+      : null;
   const userMessage = buildUserMessage({
     now: toOrgDatetimeLocalValue(new Date()),
+    visitDate,
     selfAlias: directory.selfAlias,
     placeAlias,
     here: !!place?.here,
@@ -234,6 +249,11 @@ function assistantErrorMessage(error: InstanceType<typeof Anthropic.APIError>): 
 
 /** Appends a dated line to an existing free-text field instead of
  * overwriting it, so nothing already written is ever lost. */
+function daysBefore(day: string, n: number): string {
+  const [y, m, d] = day.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d - n)).toISOString().slice(0, 10);
+}
+
 function appendNote(existing: string | null, addition: string, today: string) {
   const line = `[${today}] ${addition.trim()}`;
   if (existing?.includes(line)) return existing; // already added by an earlier save of this note

@@ -85,10 +85,16 @@ Reply with ONLY one JSON object -- no other words, no code fences -- that matche
 
 ${PLAN_JSON_SCHEMA}`;
 
+function dayName(day: string): string {
+  const [y, m, d] = day.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-US", { weekday: "long", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, d)));
+}
+
 /** The per-note message: the current time, a calendar to look dates up
  * in, who is writing, on-site mode, and the note itself. */
 export function buildUserMessage({
   now,
+  visitDate = null,
   selfAlias,
   placeAlias = null,
   here = false,
@@ -98,6 +104,9 @@ export function buildUserMessage({
 }: {
   /** Cleveland local time, YYYY-MM-DDTHH:mm. */
   now: string;
+  /** The day they say it all happened (YYYY-MM-DD), when they said so --
+   * e.g. a note started Friday and read on Saturday. */
+  visitDate?: string | null;
   selfAlias: string | null;
   /** The facility the person said it happened at (alias), if any. */
   placeAlias?: string | null;
@@ -110,8 +119,13 @@ export function buildUserMessage({
   note: string;
 }) {
   const today = now.slice(0, 10);
-  const [y, m, d] = today.split("-").map(Number);
-  const weekday = new Intl.DateTimeFormat("en-US", { weekday: "long", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, d)));
+  const weekday = dayName(today);
+  // A visit date that isn't today: it all happened that day (Oct 11,
+  // 2026 -- a Friday note read on Saturday must stay Friday).
+  const earlier = visitDate && visitDate !== today ? visitDate : null;
+  const earlierLine = earlier
+    ? `\nThey say this all happened on ${dayName(earlier)}, ${earlier} -- an EARLIER day, not today. Date every interaction ${earlier} unless the note itself names a different day; with no time words, use 12:00 that day. Never use today's date or the current time for anything that happened. Tasks and reminders are still due from today on.`
+    : "";
   const placeLine = placeAlias
     ? here
       ? `\nThey are on site at ${placeAlias} right now (on-site mode): whatever the note says happened, happened at ${placeAlias} today unless it says otherwise, and anyone they saw who isn't in the directory is a resident of ${placeAlias}.`
@@ -125,5 +139,5 @@ export function buildUserMessage({
     : "";
   return `Current time in Cleveland: ${weekday}, ${now.replace("T", " ")}.\n${calendarAround(today)}\nThe person writing is ${
     selfAlias ?? "a staff member"
-  }.${placeLine}${aboutLine}\n\nNOTE:\n${note}`;
+  }.${placeLine}${earlierLine}${aboutLine}\n\nNOTE:\n${note}`;
 }
