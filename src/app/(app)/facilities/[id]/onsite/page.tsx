@@ -196,7 +196,7 @@ export default async function FacilityOnsitePage({
           visitedTodayBy: [
             ...new Set(
               loggedToday
-                .filter((x) => x.resident_id === resident.id && x.interaction_type === "resident_visit")
+                .filter((x) => x.resident_id === resident.id && (x.interaction_type === "resident_visit" || x.interaction_type === "volunteer_visit"))
                 .map((x) => x.staff_member_name ?? "someone")
             ),
           ],

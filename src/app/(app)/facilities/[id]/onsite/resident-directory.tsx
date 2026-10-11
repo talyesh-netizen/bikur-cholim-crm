@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, Plus, HandHeart, ChevronDown, Phone, MessageCircle, ListChecks, UserRound } from "lucide-react";
+import { Search, Plus, HandHeart, ChevronDown, CheckCircle2, Phone, MessageCircle, ListChecks, UserRound } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,7 +50,6 @@ export function ResidentDirectory({
   initialVisit?: boolean;
 }) {
   const [search, setSearch] = useState("");
-  const [showSeen, setShowSeen] = useState(false);
   const [openId, setOpenId] = useState<string | null>(initiallyOpen ?? null);
   // Visit card open for this resident (inside their opened row).
   const [visiting, setVisiting] = useState<string | null>(initialVisit ? (initiallyOpen ?? null) : null);
@@ -69,12 +68,15 @@ export function ResidentDirectory({
   const query = search.trim().toLowerCase();
   const seenCount = residents.filter((r) => r.seenToday).length;
   const toSee = residents.length - seenCount;
-  // Anyone visited today drops off the list; a search still finds them,
-  // so a second note for someone already seen is never out of reach. A
-  // resident who's opened stays put.
-  const filtered = useMemo(() => residents.filter((r) =>
-    (query || showSeen || !r.seenToday || r.id === openId) && (r.name + " " + (r.room ?? "")).toLowerCase().includes(query)
-  ).sort((a, b) => (a.room ?? "ZZZZ").localeCompare(b.room ?? "ZZZZ", undefined, { numeric: true })), [residents, query, showSeen, openId]);
+  // Everyone stays on the list (director, Oct 11, 2026): those still to
+  // see first, door by door, then those visited today -- checked off and
+  // marked with who visited, so a second visit is always one tap away.
+  const filtered = useMemo(() => {
+    const byRoom = (a: DirectoryResident, b: DirectoryResident) =>
+      (a.room ?? "ZZZZ").localeCompare(b.room ?? "ZZZZ", undefined, { numeric: true });
+    const matching = residents.filter((r) => (r.name + " " + (r.room ?? "")).toLowerCase().includes(query));
+    return [...matching.filter((r) => !r.seenToday).sort(byRoom), ...matching.filter((r) => r.seenToday).sort(byRoom)];
+  }, [residents, query]);
 
   return (
     <Card>
@@ -82,7 +84,7 @@ export function ResidentDirectory({
         <CardTitle className="flex items-baseline justify-between gap-2 text-lg">
           Residents
           <span className="text-sm font-normal text-muted-foreground">
-            {residents.length === 0 ? "" : toSee === 0 ? "Everyone seen today" : `${toSee} to see today`}
+            {residents.length === 0 ? "" : toSee === 0 ? "Everyone visited today" : `${toSee} to see · ${seenCount} visited`}
           </span>
         </CardTitle>
       </CardHeader>
@@ -90,12 +92,13 @@ export function ResidentDirectory({
         <div className="relative"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input type="search" aria-label="Search residents by name or room" placeholder="Search name or room" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" /></div>
         {filtered.length === 0 ? (
           <p className="py-2 text-center text-sm text-muted-foreground">
-            {query ? "No one by that name or room." : residents.length ? "Everyone here has been seen today." : "No residents on file here yet."}
+            {query ? "No one by that name or room." : "No residents on file here yet."}
           </p>
         ) : (
           <ul className="divide-y rounded-lg border">{filtered.map((resident) => {
             const isOpen = openId === resident.id;
-            return <li key={resident.id}>
+            const by = resident.visitedTodayBy ?? [];
+            return <li key={resident.id} className={resident.seenToday ? "bg-success/5" : undefined}>
               <div className="flex items-center gap-3 p-3">
                 <button
                   type="button"
@@ -104,8 +107,11 @@ export function ResidentDirectory({
                   className="flex min-w-0 flex-1 items-center gap-3 text-left"
                 >
                   {/* The room, big, so the list can be walked door by door. */}
-                  <span className={`flex h-12 w-14 shrink-0 items-center justify-center rounded-md px-1 [overflow-wrap:anywhere] text-center font-semibold leading-tight ${resident.room ? "bg-secondary text-base" : "border border-dashed text-xs text-muted-foreground"}`}>
+                  <span className={`relative flex h-12 w-14 shrink-0 items-center justify-center rounded-md px-1 [overflow-wrap:anywhere] text-center font-semibold leading-tight ${resident.room ? "bg-secondary text-base" : "border border-dashed text-xs text-muted-foreground"}`}>
                     {resident.room ?? "No room"}
+                    {resident.seenToday ? (
+                      <CheckCircle2 aria-hidden className="absolute -right-1.5 -top-1.5 size-5 rounded-full bg-card text-success" />
+                    ) : null}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1 font-medium leading-snug">
@@ -114,13 +120,27 @@ export function ResidentDirectory({
                     </span>
                     <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
                       {drafts.has(resident.id) ? <StatusBadge tone="urgent">Unsaved note</StatusBadge> : null}
-                      {resident.seenToday ? <StatusBadge tone="good">Seen today</StatusBadge>
+                      {resident.seenToday ? (
+                        <>
+                          <StatusBadge tone="good">
+                            <CheckCircle2 className="mr-1 inline size-3.5" />
+                            Visited today
+                          </StatusBadge>
+                          {/* Who saved it -- every staff member's visit counts. */}
+                          {by.length ? <span className="min-w-0 [overflow-wrap:anywhere]">by {by.join(", ")}</span> : null}
+                        </>
+                      )
                         : resident.needsVisit ? <StatusBadge tone="attention">Visit due</StatusBadge> : null}
                       {resident.seenToday ? null : <span>{resident.lastVisitAt ? `Last visit ${resident.lastVisit.replace("Yesterday", "yesterday")}` : "Never visited"}</span>}
                     </span>
                   </span>
                 </button>
-                <Button className="h-11 shrink-0 px-4" onClick={() => startVisit(resident.id)} disabled={visiting === resident.id}><HandHeart /> Visit</Button>
+                {resident.seenToday ? (
+                  // Still allowed -- it asks "Is this a second visit?" first.
+                  <Button variant="outline" className="h-11 shrink-0 px-3" onClick={() => startVisit(resident.id)} disabled={visiting === resident.id}>Visit again</Button>
+                ) : (
+                  <Button className="h-11 shrink-0 px-4" onClick={() => startVisit(resident.id)} disabled={visiting === resident.id}><HandHeart /> Visit</Button>
+                )}
               </div>
               {isOpen ? (
                 <ResidentPanel
@@ -137,11 +157,6 @@ export function ResidentDirectory({
             </li>;
           })}</ul>
         )}
-        {seenCount > 0 && !query ? (
-          <button type="button" onClick={() => setShowSeen(!showSeen)} className="min-h-11 w-full py-2 text-center text-sm text-muted-foreground underline underline-offset-2">
-            {showSeen ? "Hide" : "Show"} the {seenCount} seen today
-          </button>
-        ) : null}
         {adding ? (
           <AddPerson
             kind="resident"
