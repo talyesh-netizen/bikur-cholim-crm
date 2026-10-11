@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { CheckCircle2, CloudOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { VoiceButton } from "@/components/voice-button";
@@ -39,6 +40,7 @@ export function EntryCard({
   alreadyToday?: string[];
   onDone: () => void;
 }) {
+  const router = useRouter();
   const key = draftKey(facilityId, kind, personId);
   const [notes, setNotes] = useState("");
   const submissionId = useRef<string>("");
@@ -104,6 +106,8 @@ export function EntryCard({
         }
         removeDraft(key);
         setSaved({ id: result.interactionId, time: result.time });
+        // Reload the list from the CRM, so "Visited today" shows at once.
+        router.refresh();
       } catch {
         // No answer at all: most likely the connection dropped.
         setOffline(true);
