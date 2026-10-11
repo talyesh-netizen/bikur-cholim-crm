@@ -5,7 +5,9 @@
  * Each draft keeps its submission id, so retrying it can't save twice.
  */
 
-export type OnsiteDraft = { notes: string; submissionId: string; updatedAt: number };
+/** startedAt: when the note was begun -- a visit typed Friday and saved
+ * Saturday is dated Friday. Missing on drafts kept before Oct 11, 2026. */
+export type OnsiteDraft = { notes: string; submissionId: string; updatedAt: number; startedAt?: number };
 
 const PREFIX = "onsite-entry:";
 // Unsaved notes are kept a long while (a month): a past visit is never

@@ -4,7 +4,7 @@ import { offeredOptions } from "@/lib/domain/offered";
 import { OFFERED_FACILITY_TYPES } from "@/lib/domain/facility";
 import { OFFERED_CONTACT_TYPES, OFFERED_RELATIONSHIPS } from "@/lib/domain/contact";
 import { TYPE_BUTTONS } from "@/lib/domain/interaction";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -28,6 +28,21 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { VoiceButton } from "@/components/voice-button";
+
+/** A kept note: { note, startedAt }, or (kept before Oct 11, 2026) just
+ * the text, whose start time is unknown. */
+function readQuickLogDraft(raw: string | null): { note: string; startedAt: number | null } | null {
+  if (!raw?.trim()) return null;
+  try {
+    const parsed = JSON.parse(raw) as { note?: unknown; startedAt?: unknown };
+    if (parsed && typeof parsed.note === "string") {
+      return parsed.note.trim() ? { note: parsed.note, startedAt: typeof parsed.startedAt === "number" ? parsed.startedAt : null } : null;
+    }
+  } catch {
+    // Plain text: an older note.
+  }
+  return { note: raw, startedAt: null };
+}
 import { PlacePicker, type Place, type PlaceFacility } from "./place-picker";
 import { carryOver } from "./carry-over";
 import { residentName } from "@/lib/domain/resident-name";
@@ -37,7 +52,7 @@ import { labelFor, INTERACTION_TYPES, HOLIDAYS, FAMILY_NEEDS } from "@/lib/domai
 import { RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { CONTACT_TYPES, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
 import { ENGAGEMENT_STATUSES, VISIT_PRIORITIES, KOSHER_FOOD_OPTIONS, FACILITY_TYPES } from "@/lib/domain/facility";
-import { formatDateOnly, formatDateTimeWithTime, getLocalToday, orgLocalToIso } from "@/lib/format-date";
+import { formatDateOnly, formatDateTimeWithTime, getLocalToday, orgLocalToIso, toOrgDatetimeLocalValue } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
 
 type Section = keyof Omit<Plan, "summary" | "questions">;
@@ -340,14 +355,24 @@ export function QuickLog({
   const draftKey = `quick-log-draft:${onSite?.facilityId ?? about?.residentId ?? (initialPlace?.kind === "facility" ? initialPlace.id : "any")}`;
   const [restored, setRestored] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(false);
+  // When this note was started (director, Oct 11, 2026): a note begun on
+  // Friday and finished on Saturday is about Friday. Unknown (null) for
+  // a note kept before this was recorded -- then the day is asked for.
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const today = getLocalToday();
+  // The day it all happened -- what every entry is dated, unless the
+  // note itself names another day. "" = not picked yet (an old note).
+  const [visitDate, setVisitDate] = useState(today);
   useEffect(() => {
     // Read after the first paint (the server can't see this phone's storage).
     const timer = window.setTimeout(() => {
       try {
-        const saved = window.localStorage.getItem(draftKey);
-        if (saved?.trim()) {
-          setNote((current) => current || saved);
+        const draft = readQuickLogDraft(window.localStorage.getItem(draftKey));
+        if (draft) {
+          setNote((current) => current || draft.note);
           setRestored(true);
+          setStartedAt(draft.startedAt);
+          setVisitDate(draft.startedAt ? toOrgDatetimeLocalValue(new Date(draft.startedAt)).slice(0, 10) : "");
         }
       } catch {
         // Private browsing or blocked storage: carry on without drafts.
@@ -356,15 +381,26 @@ export function QuickLog({
     }, 0);
     return () => window.clearTimeout(timer);
   }, [draftKey]);
+  // A brand-new note starts its clock with its first word.
+  const newNoteStart = useRef<number | null>(null);
   useEffect(() => {
     if (!draftLoaded) return;
     try {
-      if (note.trim()) window.localStorage.setItem(draftKey, note);
-      else window.localStorage.removeItem(draftKey);
+      if (note.trim()) {
+        if (!restored && newNoteStart.current === null) newNoteStart.current = Date.now();
+        window.localStorage.setItem(
+          draftKey,
+          JSON.stringify({ note, startedAt: restored ? startedAt : newNoteStart.current })
+        );
+      } else {
+        newNoteStart.current = null;
+        window.localStorage.removeItem(draftKey);
+      }
     } catch {
       // See above.
     }
-  }, [draftKey, draftLoaded, note]);
+  }, [draftKey, draftLoaded, note, startedAt, restored]);
+  const fromEarlierDay = restored && (startedAt === null || visitDate !== today);
   const [proposal, setProposal] = useState<{
     plan: Plan;
     /** The plan as the assistant first proposed it, before any Edit. */
@@ -460,13 +496,14 @@ export function QuickLog({
           note,
           {
             ...(onSite
-              ? { facilityId: onSite.facilityId, here: true }
+              ? { facilityId: onSite.facilityId, here: visitDate === today }
               : place?.kind === "facility"
                 ? { facilityId: place.id }
                 : place?.kind === "new"
                   ? { newFacilityName: place.name }
                   : {}),
             ...(about ? { residentId: about.residentId } : {}),
+            ...(visitDate ? { visitDate } : {}),
           }
         );
       } catch {
@@ -526,7 +563,12 @@ export function QuickLog({
       setProposal(null);
       setStale(false);
       // Saved: the draft is done with (kept if anything failed).
-      if (response.ok) setNote("");
+      if (response.ok) {
+        setNote("");
+        setRestored(false);
+        setStartedAt(null);
+        setVisitDate(getLocalToday());
+      }
       // Refresh the rest of the page (e.g. on-site lists, last visits).
       router.refresh();
     });
@@ -535,6 +577,8 @@ export function QuickLog({
   const startOver = () => {
     setNote("");
     setRestored(false);
+    setStartedAt(null);
+    setVisitDate(getLocalToday());
     setPlace(initialPlace ?? null);
     setProposal(null);
     setStale(false);
@@ -658,6 +702,42 @@ export function QuickLog({
               </button>
             </p>
           ) : null}
+          {onSite || fromEarlierDay ? (
+            <div
+              className={
+                visitDate
+                  ? "flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
+                  : "flex flex-col gap-2 rounded-md border-2 border-[var(--tone-attention-fg)]/50 bg-[var(--tone-attention-bg)] p-3 text-sm"
+              }
+            >
+              {!visitDate ? (
+                <p className="font-semibold text-[var(--tone-attention-fg)]">
+                  This note was started on an earlier day. When was this visit? Pick the day, then tap Read my note.
+                </p>
+              ) : null}
+              <label className="flex items-center gap-2">
+                <span className="font-medium">Visit date</span>
+                <input
+                  type="date"
+                  value={visitDate}
+                  max={today}
+                  onChange={(e) => {
+                    setVisitDate(e.target.value);
+                    if (proposal) setStale(true);
+                  }}
+                  disabled={reading || saving}
+                  className="h-11 rounded-md border border-input bg-background px-2 text-base"
+                />
+              </label>
+              {visitDate && visitDate !== today ? (
+                <span className="font-medium text-[var(--tone-attention-fg)]">
+                  Earlier day: everything is dated {formatDateOnly(visitDate)}.
+                </span>
+              ) : visitDate ? (
+                <span className="text-muted-foreground">Today</span>
+              ) : null}
+            </div>
+          ) : null}
           <VoiceButton
             disabled={reading || saving}
             onText={(text) => {
@@ -687,7 +767,7 @@ export function QuickLog({
             <p className="text-sm text-muted-foreground">Your unsaved note was kept. Carry on, or tap Read my note.</p>
           ) : null}
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
-          <Button onClick={read} disabled={reading || saving || !note.trim()} size="lg" className="w-full sm:w-auto sm:self-start">
+          <Button onClick={read} disabled={reading || saving || !note.trim() || ((onSite || fromEarlierDay) && !visitDate)} size="lg" className="w-full sm:w-auto sm:self-start">
             {reading ? <Loader2 className="animate-spin" /> : <Sparkles />}
             {reading ? "Reading your note…" : proposal ? "Read it again" : "Read my note"}
           </Button>

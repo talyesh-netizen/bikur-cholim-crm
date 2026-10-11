@@ -7,6 +7,7 @@ import { CheckCircle2, CloudOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { VoiceButton } from "@/components/voice-button";
 import { saveOnsiteEntry, type OnsiteEntryKind } from "@/lib/actions/onsite-entries";
+import { getLocalToday, orgLocalToIso, toOrgDatetimeLocalValue, formatDateOnly } from "@/lib/format-date";
 import { draftKey, newSubmissionId, readDraft, removeDraft, writeDraft } from "./onsite-drafts";
 
 const SAVE_LABEL: Record<OnsiteEntryKind, string> = { visit: "Save visit", staff: "Save conversation", family: "Save conversation" };
@@ -50,15 +51,24 @@ export function EntryCard({
   const [confirmSecond, setConfirmSecond] = useState(false);
   const [saved, setSaved] = useState<{ id: string; time: string } | null>(null);
   const [pending, startTransition] = useTransition();
+  // When the note was begun. A visit typed on an earlier day keeps that
+  // day (director, Oct 11, 2026): shown, changeable, and saved with it.
+  const startedRef = useRef<number | null>(null);
+  const [earlierAt, setEarlierAt] = useState<string | null>(null);
 
   // Pick up a note left unsaved earlier (closed tab, lost signal...).
   useEffect(() => {
     const draft = readDraft(key);
     submissionId.current = draft?.submissionId ?? newSubmissionId();
     if (!draft?.notes) return;
+    // Older drafts have no start time; their first save time is closest.
+    const start = draft.startedAt ?? draft.updatedAt;
+    startedRef.current = start;
+    const startLocal = toOrgDatetimeLocalValue(new Date(start));
     const t = window.setTimeout(() => {
       setNotes(draft.notes);
       setRestored(true);
+      if (startLocal.slice(0, 10) !== getLocalToday()) setEarlierAt(startLocal);
     }, 0);
     return () => window.clearTimeout(t);
   }, [key]);
@@ -67,7 +77,8 @@ export function EntryCard({
   const update = (next: string) => {
     setNotes(next);
     setError(null);
-    writeDraft(key, { notes: next, submissionId: submissionId.current, updatedAt: Date.now() });
+    if (startedRef.current === null) startedRef.current = Date.now();
+    writeDraft(key, { notes: next, submissionId: submissionId.current, updatedAt: Date.now(), startedAt: startedRef.current });
   };
 
   // Warn before leaving the page with a note not yet saved.
@@ -79,7 +90,7 @@ export function EntryCard({
   }, [notes, saved]);
 
   function save(confirmed = false) {
-    if (alreadyToday?.length && kind === "visit" && !confirmed) {
+    if (alreadyToday?.length && kind === "visit" && !confirmed && !earlierAt) {
       setConfirmSecond(true);
       return;
     }
@@ -99,6 +110,7 @@ export function EntryCard({
           contactId,
           notes: notes.trim() || undefined,
           submissionId: submissionId.current,
+          occurredAt: earlierAt ? orgLocalToIso(earlierAt) ?? undefined : undefined,
         });
         if (!result.ok) {
           setError(result.error);
@@ -119,7 +131,7 @@ export function EntryCard({
     return (
       <div role="status" className="flex flex-col gap-2 rounded-lg border border-success/40 bg-success/10 p-3 text-sm">
         <p className="flex items-center gap-2 font-semibold text-success">
-          <CheckCircle2 className="size-5 shrink-0" /> {SAVED_LABEL[kind]} at {saved.time}
+          <CheckCircle2 className="size-5 shrink-0" /> {SAVED_LABEL[kind]} {earlierAt ? `for ${formatDateOnly(earlierAt.slice(0, 10))}, ` : ""}at {saved.time}
         </p>
         <p className="text-muted-foreground">{title}. It&apos;s in the CRM.</p>
         <div className="flex gap-2">
@@ -137,6 +149,20 @@ export function EntryCard({
       <p className="text-sm font-semibold">{title}</p>
       {restored ? (
         <p className="text-xs font-medium text-[var(--tone-attention-fg)]">Your unsaved note from before is back. Check it, then Save.</p>
+      ) : null}
+      {earlierAt ? (
+        <label className="flex flex-col gap-1 rounded-md border border-[var(--tone-attention-fg)]/40 bg-[var(--tone-attention-bg)] p-2 text-sm">
+          <span className="font-medium text-[var(--tone-attention-fg)]">
+            This note was started on an earlier day. It will be saved for when the visit happened:
+          </span>
+          <input
+            type="datetime-local"
+            value={earlierAt}
+            onChange={(e) => setEarlierAt(e.target.value || earlierAt)}
+            className="h-11 rounded-md border border-input bg-background px-2 text-base"
+            aria-label="When the visit happened"
+          />
+        </label>
       ) : null}
       <textarea
         value={notes}

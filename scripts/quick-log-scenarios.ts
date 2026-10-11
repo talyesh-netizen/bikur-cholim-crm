@@ -102,6 +102,8 @@ type Scenario = {
   expect: string;
   /** Logged from this resident's page ("+ Log" there): their id. */
   about?: string;
+  /** The "Visit date" picked (or kept from when the note was started). */
+  visitDate?: string;
   checks: (plan: Plan, questions: string[]) => Check[];
 };
 
@@ -114,6 +116,18 @@ const noFacilityVisit = (plan: Plan): Check => [
 ];
 
 const SCENARIOS: Scenario[] = [
+  {
+    // Oct 11, 2026: a note started Monday, read two days later -- no date
+    // words in it, so everything is dated the visit date, never "now".
+    note: "Visited Rivka, she was in good spirits. Remind me to bring her a siddur.",
+    visitDate: "2026-10-05",
+    expect: "Visit with Rivka dated Monday Oct 5 (the visit date), not today; the reminder is due from today on.",
+    checks: (plan) => [
+      ["visit dated the visit date (Oct 5)", plan.interactions.length > 0 && dates(plan).every((d) => d === "2026-10-05")],
+      ["no date question needed", plan.interactions.every((x) => !x.date_unclear)],
+      ["task not due in the past", plan.tasks.every((t) => !t.due_date || t.due_date >= "2026-10-07")],
+    ],
+  },
   {
     // Oct 8, 2026: "+ Log" on a resident's page -- "her" means that
     // resident, even with two Ilenes in the directory.
@@ -280,6 +294,7 @@ async function writePrompts(dir: string) {
       "=== USER ===",
       buildUserMessage({
         now: NOW,
+        visitDate: s.visitDate ?? null,
         selfAlias: d.selfAlias,
         aboutAlias: s.about ? [...d.idFor.entries()].find(([, id]) => id === s.about)?.[0] ?? null : null,
         note: s.note,

@@ -71,23 +71,40 @@ export function endVisitSession() {
 }
 
 /** Facilities with notes typed on site but not saved yet -- on-site
- * Visit/Talked notes and the on-site notes box -- however old the visit. */
-export function facilitiesWithUnsavedNotes(): Map<string, number> {
-  const counts = new Map<string, number>();
+ * Visit/Talked notes and the on-site notes box -- however old the visit,
+ * with when the oldest was started (null when it was kept before start
+ * times were recorded). */
+export function facilitiesWithUnsavedNotes(): Map<string, { count: number; since: number | null }> {
+  const found = new Map<string, { count: number; since: number | null }>();
+  const add = (facilityId: string, started: number | null) => {
+    const prev = found.get(facilityId);
+    const since = prev ? (prev.since === null || started === null ? null : Math.min(prev.since, started)) : started;
+    found.set(facilityId, { count: (prev?.count ?? 0) + 1, since });
+  };
   try {
     for (let i = 0; i < window.localStorage.length; i++) {
       const key = window.localStorage.key(i) ?? "";
-      let facilityId: string | null = null;
+      const raw = window.localStorage.getItem(key) ?? "";
       if (key.startsWith("onsite-entry:")) {
-        const raw = JSON.parse(window.localStorage.getItem(key) ?? "null") as { notes?: string } | null;
-        if (raw?.notes?.trim()) facilityId = key.split(":")[1];
-      } else if (key.startsWith("quick-log-draft:")) {
-        if (window.localStorage.getItem(key)?.trim()) facilityId = key.split(":")[1];
+        const draft = JSON.parse(raw || "null") as { notes?: string; startedAt?: number; updatedAt?: number } | null;
+        if (draft?.notes?.trim()) add(key.split(":")[1], draft.startedAt ?? draft.updatedAt ?? null);
+      } else if (key.startsWith("quick-log-draft:") && raw.trim()) {
+        let started: number | null = null;
+        let text = raw;
+        try {
+          const parsed = JSON.parse(raw) as { note?: string; startedAt?: number | null };
+          if (parsed && typeof parsed.note === "string") {
+            text = parsed.note;
+            started = typeof parsed.startedAt === "number" ? parsed.startedAt : null;
+          }
+        } catch {
+          // An older plain-text note.
+        }
+        if (text.trim()) add(key.split(":")[1], started);
       }
-      if (facilityId) counts.set(facilityId, (counts.get(facilityId) ?? 0) + 1);
     }
   } catch {
     // None readable.
   }
-  return counts;
+  return found;
 }
