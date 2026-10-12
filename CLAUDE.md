@@ -26,6 +26,20 @@ Still ask first:
 Before any merge: `npx tsc --noEmit`, `npm run lint` and `npm run build`
 must pass, and the Vercel check on the pull request must be green.
 
+## Decision handoff to ChatGPT (director, Oct 12, 2026)
+
+ChatGPT reviews product decisions alongside the director. Whenever a
+report needs genuine product approval (how something looks or works
+for staff, what is saved, who can see what), end it with a short,
+ready-to-paste question for ChatGPT:
+- the background in plain words (ChatGPT can't see the code),
+- the options, each with its upside and downside,
+- Claude's recommendation,
+- exactly what answer is needed back ("Reply A or B and why").
+
+Routine engineering choices (naming, file layout, how a fix is coded)
+don't get one; just make the call and mention it.
+
 ## Other context
 
 - Live site deploys from lowercase `main` (see `LAUNCH_READINESS.md`).
