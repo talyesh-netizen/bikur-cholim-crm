@@ -1,8 +1,17 @@
 import Link from "next/link";
-import { Pencil } from "lucide-react";
+import { NotebookPen, Pencil } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export type LoggedToday = { id: string; what: string; who: string | null; time: string; by: string | null };
+export type LoggedToday = {
+  id: string;
+  what: string;
+  who: string | null;
+  time: string;
+  by: string | null;
+  /** "Add to facility profile" (QA-006): set for a conversation with a
+   * note that isn't about a resident. */
+  profileHref: string | null;
+};
 
 /** On-site Today tab: everything logged at this facility today, by
  * anyone, newest first -- to check what was saved and fix a mistake
@@ -36,6 +45,11 @@ export function TodayList({ loggedToday }: { loggedToday: LoggedToday[] }) {
                   <span className="block font-medium">{x.what}{x.who ? ` · ${x.who}` : ""}</span>
                   {x.by ? <span className="block text-xs text-muted-foreground">by {x.by}</span> : null}
                 </Link>
+                {x.profileHref ? (
+                  <Link href={x.profileHref} className="flex min-h-11 shrink-0 items-center gap-1 px-1 text-xs text-muted-foreground">
+                    <NotebookPen className="size-4" /> To profile
+                  </Link>
+                ) : null}
                 <Link
                   href={`/interactions/${x.id}/edit?from=onsite`}
                   className="flex min-h-11 shrink-0 items-center gap-1 px-2 font-medium text-primary"

@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
-import type { InteractionWithNames, ServiceDetails } from "@/lib/domain/interaction";
+import { STAFF_VISIT_TYPES, type InteractionWithNames, type ServiceDetails } from "@/lib/domain/interaction";
 import { escapeIlikeTerm, sanitizeForOrFilter, searchWords, everyWordInAny } from "@/lib/supabase-filters";
-import { orgDayStartIso, nextDay } from "@/lib/format-date";
+import { orgDayStartIso, nextDay, toOrgDatetimeLocalValue } from "@/lib/format-date";
 import { residentName } from "@/lib/domain/resident-name";
 
 // Recent-interactions lists on resident/facility pages show a short,
@@ -205,6 +205,27 @@ export async function listInteractions(filters: InteractionListFilters = {}) {
     totalCount: count ?? 0,
     pageSize: INTERACTION_LIST_PAGE_SIZE,
   };
+}
+
+/** Facility visit-days (QA-005): days in the last 12 months with at least
+ * one in-person staff entry here -- logged on the on-site screen, or a
+ * resident / facility visit. One per Cleveland calendar day, however
+ * many entries, staff or trips that day; volunteer visits not included. */
+export async function countFacilityVisitDays(facilityId: string): Promise<{ days: number; lastDay: string | null }> {
+  const supabase = await createClient();
+  const since = new Date();
+  since.setFullYear(since.getFullYear() - 1);
+  const { data, error } = await supabase
+    .from("interactions")
+    .select("occurred_at")
+    .eq("facility_id", facilityId)
+    .gte("occurred_at", since.toISOString())
+    .or(`in_person.eq.true,interaction_type.in.(${STAFF_VISIT_TYPES.join(",")})`)
+    .order("occurred_at", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  const days = new Set((data ?? []).map((row) => toOrgDatetimeLocalValue(row.occurred_at as string).slice(0, 10)));
+  return { days: days.size, lastDay: data?.[0]?.occurred_at ?? null };
 }
 
 export async function listInteractionsForFacility(facilityId: string) {

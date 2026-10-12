@@ -80,6 +80,9 @@ export async function saveOnsiteEntry(input: z.input<typeof entrySchema>): Promi
       occurred_at: occurredAt,
       notes: notes || null,
       client_submission_id: submissionId,
+      // Logged on the on-site screen = physically there (QA-005), so a
+      // staff-only visit counts as a facility visit-day too.
+      in_person: true,
     })
     .select("id, occurred_at")
     .single();

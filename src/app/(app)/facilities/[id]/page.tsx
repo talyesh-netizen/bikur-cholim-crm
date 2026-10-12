@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { getFacility } from "@/lib/queries/facilities";
 import { setFacilityActive } from "@/lib/actions/facilities";
 import { listResidents } from "@/lib/queries/residents";
-import { listInteractionsForFacility } from "@/lib/queries/interactions";
+import { countFacilityVisitDays, getInteraction, listInteractionsForFacility } from "@/lib/queries/interactions";
 import { listFacilityContacts } from "@/lib/queries/contacts";
 import { listTasksForFacility } from "@/lib/queries/tasks";
 import { setFacilityContactActive, setPrimaryFacilityContact } from "@/lib/actions/facility-contacts";
@@ -48,13 +48,13 @@ export default async function FacilityDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ impact?: string }>;
+  searchParams: Promise<{ impact?: string; note?: string }>;
 }) {
   const { id } = await params;
-  const { impact: impactParam } = await searchParams;
+  const { impact: impactParam, note: noteFrom } = await searchParams;
   const impactPeriod: ImpactPeriod = impactParam === "month" || impactParam === "all" ? impactParam : "quarter";
   const periodLabel = IMPACT_PERIODS.find((p) => p.value === impactPeriod)?.label ?? "This quarter";
-  const [facility, residents, interactions, facilityContacts, profileNotes, impact, services, media] = await Promise.all([
+  const [facility, residents, interactions, facilityContacts, profileNotes, impact, services, media, visitDays, noteSource] = await Promise.all([
     getFacility(id),
     listResidents({ facilityId: id, showAllStatuses: true }),
     listInteractionsForFacility(id),
@@ -63,7 +63,15 @@ export default async function FacilityDetailPage({
     getImpactBreakdown(impactPeriod, id),
     getServicesDelivered(impactPeriod, id),
     listFacilityMedia(id),
+    countFacilityVisitDays(id),
+    noteFrom && /^[0-9a-f-]{36}$/i.test(noteFrom) ? getInteraction(noteFrom) : Promise.resolve(null),
   ]);
+  // "Add to facility profile": start the notes box with that conversation,
+  // if it was here and wasn't about a resident (QA-006).
+  const notePrefill =
+    noteSource && noteSource.facility_id === id && !noteSource.resident_id && noteSource.notes
+      ? `${noteSource.contact_name ? noteSource.contact_name + " " : ""}(${formatDateTime(noteSource.occurred_at)}): ${noteSource.notes}`
+      : undefined;
 
   if (!facility) notFound();
 
@@ -200,11 +208,27 @@ export default async function FacilityDetailPage({
               label="Last contact"
               value={formatDateTime(facility.last_visit_at) ?? "Nothing logged yet"}
             />
+            {/* Days, not trips: two visits on one day count once (QA-005). */}
+            <InfoRow
+              label="Facility visit-days (12 months)"
+              value={
+                visitDays.days > 0
+                  ? `${visitDays.days} day${visitDays.days === 1 ? "" : "s"} with an in-person staff visit · last ${formatDateTime(visitDays.lastDay)}`
+                  : "None recorded"
+              }
+            />
           </CardContent>
         </Card>
       </div>
 
-      <ProfileNotesCard targetType="facility" targetId={facility.id} notes={profileNotes} />
+      <ProfileNotesCard
+        key={notePrefill ? noteFrom : "notes"}
+        targetType="facility"
+        targetId={facility.id}
+        notes={profileNotes}
+        earlierNotes={facility.notes?.trim() ? { text: facility.notes, editHref: `/facilities/${facility.id}/edit` } : null}
+        prefill={notePrefill}
+      />
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
@@ -392,17 +416,6 @@ export default async function FacilityDetailPage({
           <InteractionList interactions={interactions} variant="facility" />
         </CardContent>
       </Card>
-
-      {facility.notes ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Notes</CardTitle>
-          </CardHeader>
-          <CardContent className="whitespace-pre-wrap text-sm text-muted-foreground">
-            {facility.notes}
-          </CardContent>
-        </Card>
-      ) : null}
 
       <div className="flex flex-wrap items-center gap-x-6 gap-y-1 border-t pt-4 text-sm">
         <Link href={`/facilities/${facility.id}/edit`} className="flex min-h-11 items-center gap-1.5 text-muted-foreground hover:text-foreground">

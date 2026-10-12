@@ -211,6 +211,12 @@ export const SERVICE_FIELDS_BY_TYPE: Partial<
  * the normal case, so the form says to leave it blank for that. */
 export const GROUP_VISIT_TYPES: readonly string[] = ["resident_visit", "volunteer_visit"];
 
+/** Types that are a staff visit by definition, so they count toward a
+ * facility's visit-days even without the on-site "in person" mark
+ * (QA-005). Volunteer visits are kept separate; staff and family
+ * conversations count only when marked in person, never by guess. */
+export const STAFF_VISIT_TYPES: readonly string[] = ["resident_visit", "facility_visit", "facility_discovery_visit"];
+
 export type ServiceDetails = {
   occasion: string | null;
   holiday: string | null;
