@@ -14,6 +14,7 @@ import {
   ChartColumn,
   type LucideIcon,
   KeyRound,
+  Network,
 } from "lucide-react";
 import type { Section } from "@/lib/sections";
 
@@ -30,6 +31,9 @@ export type NavItem = {
   /** Other paths that count as "this menu item" (e.g. People covers
    * Contacts). */
   alsoActive?: string[];
+  /** Paths under this one that belong to a different menu item (e.g.
+   * Facilities doesn't light up on Healthcare groups). */
+  notActive?: string[];
 };
 
 // Kept short on purpose: the daily essentials, with everything else one
@@ -38,7 +42,10 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Today", icon: LayoutDashboard, section: "dashboard" },
   { href: "/needs-attention", label: "Needs attention", icon: BellRing, section: "residents" },
   { href: "/residents", label: "Residents", icon: Users, section: "residents" },
-  { href: "/facilities", label: "Facilities", icon: Building2, section: "facilities" },
+  { href: "/facilities", label: "Facilities", icon: Building2, section: "facilities", notActive: ["/facilities/groups"] },
+  // The companies that own the facilities -- the existing directory,
+  // given its own menu item so it isn't only a button on Facilities.
+  { href: "/facilities/groups", label: "Healthcare groups", icon: Network, section: "facilities" },
   { href: "/interactions", label: "Interactions", icon: History, section: "log" },
   { href: "/tasks", label: "Tasks", icon: ListChecks, section: "tasks" },
   { href: "/impact", label: "Impact", icon: ChartColumn, section: "dashboard" },
@@ -75,8 +82,9 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
 export const MOBILE_PRIMARY_HREFS = ["/dashboard", "/facilities", "/residents", "/interactions", "/tasks"];
 export const MOBILE_MORE_ITEM: NavItem = { href: "/more", label: "More", icon: MoreHorizontal, section: "neutral" };
 
-export function isActive(pathname: string, href: string, alsoActive: string[] = []) {
+export function isActive(pathname: string, href: string, alsoActive: string[] = [], notActive: string[] = []) {
   if (href === "/dashboard") return pathname === href;
+  if (notActive.some((h) => pathname.startsWith(h))) return false;
   return [href, ...alsoActive].some((h) => pathname.startsWith(h));
 }
 
