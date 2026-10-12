@@ -20,7 +20,7 @@ export function SidebarNavLinks({ quickLog = true }: { quickLog?: boolean }) {
   return (
     <nav className="flex flex-col gap-1">
       {items.map((item) => {
-        const active = isActive(pathname, item.href, item.alsoActive);
+        const active = isActive(pathname, item.href, item.alsoActive, item.notActive);
         return (
           <Link
             key={item.href}
@@ -44,13 +44,13 @@ export function SidebarNavLinks({ quickLog = true }: { quickLog?: boolean }) {
 export function MobileBottomNavLinks() {
   const pathname = usePathname();
   const primaryItems = NAV_ITEMS.filter((item) => MOBILE_PRIMARY_HREFS.includes(item.href));
-  const moreIsActive = !primaryItems.some((item) => isActive(pathname, item.href, item.alsoActive));
+  const moreIsActive = !primaryItems.some((item) => isActive(pathname, item.href, item.alsoActive, item.notActive));
   const items = [...primaryItems, MOBILE_MORE_ITEM];
 
   return (
     <nav className="flex items-stretch justify-between">
       {items.map((item) => {
-        const active = item.href === "/more" ? moreIsActive : isActive(pathname, item.href, item.alsoActive);
+        const active = item.href === "/more" ? moreIsActive : isActive(pathname, item.href, item.alsoActive, item.notActive);
         const Icon = item.icon;
         return (
           <Link
