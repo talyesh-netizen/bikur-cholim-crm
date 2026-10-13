@@ -27,6 +27,14 @@ ready-to-paste question for ChatGPT:
 Routine engineering choices (naming, file layout, how a fix is coded)
 don't get one; just make the call and mention it.
 
+One box for everything (director, Oct 13, 2026): whenever a report has
+questions, put ALL of them (product decisions and facts only the
+director knows) in a single fenced code block at the very end, so it
+can be copied in one go. Number each question, include its background
+and options inside the box, and finish with one line saying how to
+reply ("Reply like: 1-A, 2-yes, ..."). Never scatter questions in the
+body outside that box.
+
 ## Other context
 
 - Live site deploys from lowercase `main` (see `LAUNCH_READINESS.md`).
