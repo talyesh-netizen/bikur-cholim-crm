@@ -178,6 +178,7 @@ export default async function FacilityOnsitePage({
           who: x.resident_name ?? x.contact_name,
           time: formatTimeOfDay(x.occurred_at) ?? "",
           by: x.staff_member_name,
+          profileHref: x.notes && !x.resident_id ? `/facilities/${facility.id}?note=${x.id}#profile-notes` : null,
         }))}
         residents={currentResidents.map((resident) => ({
           id: resident.id,

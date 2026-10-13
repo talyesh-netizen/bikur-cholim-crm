@@ -2,7 +2,7 @@ import Link from "next/link";
 import { labelFor, INTERACTION_TYPES } from "@/lib/domain/interaction";
 import type { InteractionWithNames } from "@/lib/domain/interaction";
 import { ClusterBadge } from "@/components/cluster-badge";
-import { ListPlus, Pencil } from "lucide-react";
+import { ListPlus, NotebookPen, Pencil } from "lucide-react";
 import { formatDateTimeWithTime } from "@/lib/format-date";
 import { withContactLabel } from "@/lib/domain/contact";
 
@@ -81,6 +81,18 @@ export function InteractionList({
                 <p className="whitespace-pre-wrap text-muted-foreground">{interaction.notes}</p>
               ) : null}
             </Link>
+            {variant === "facility" && interaction.facility_id && interaction.notes && !interaction.resident_id ? (
+              // Carry something lasting from a conversation into the
+              // facility's profile notes, pre-filled; saved only when the
+              // person taps save there (QA-006).
+              <Link
+                href={`/facilities/${interaction.facility_id}?note=${interaction.id}#profile-notes`}
+                className="flex min-h-9 items-center gap-1 self-start text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+              >
+                <NotebookPen className="size-3.5" />
+                Add to facility profile
+              </Link>
+            ) : null}
             <span className="absolute right-1.5 top-0.5 flex items-center gap-2">
               <Link
                 href={`/tasks/new?interaction=${interaction.id}`}
