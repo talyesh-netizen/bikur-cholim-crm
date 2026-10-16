@@ -23,6 +23,8 @@ import {
 import type { Facility, GeographicCluster } from "@/lib/domain/facility";
 import type { FacilityFormState } from "@/lib/actions/facilities";
 import { capitalizeAsYouType } from "@/lib/format-text";
+import { SearchPicker } from "@/components/search-picker";
+import { Network } from "lucide-react";
 
 type Action = (state: FacilityFormState, formData: FormData) => Promise<FacilityFormState>;
 
@@ -57,10 +59,13 @@ function facilityToFormValues(facility?: Facility): Record<string, string> {
 export function FacilityForm({
   action,
   clusters,
+  healthcareGroups,
   facility,
 }: {
   action: Action;
   clusters: GeographicCluster[];
+  /** Healthcare group names, A to Z, to choose from. */
+  healthcareGroups: string[];
   facility?: Facility;
 }) {
   const [state, formAction, isPending] = useActionState<FacilityFormState, FormData>(action, {
@@ -110,11 +115,23 @@ export function FacilityForm({
           <Field label="Website" htmlFor="website">
             <Input id="website" name="website" defaultValue={values.website} />
           </Field>
-          <Field label="Parent healthcare group" htmlFor="parent_healthcare_group">
-            <Input
+          <Field label="Healthcare group (owner)" htmlFor="parent_healthcare_group">
+            {/* Chosen from the groups list, so the name always matches the
+                group's page. A name typed before this list existed is kept. */}
+            <SearchPicker
               id="parent_healthcare_group"
               name="parent_healthcare_group"
+              icon={Network}
               defaultValue={values.parent_healthcare_group}
+              options={[
+                ...healthcareGroups,
+                ...(values.parent_healthcare_group &&
+                !healthcareGroups.some((g) => g.toLowerCase() === values.parent_healthcare_group.trim().toLowerCase())
+                  ? [values.parent_healthcare_group]
+                  : []),
+              ].map((g) => ({ id: g, label: g }))}
+              emptyLabel="No healthcare group"
+              placeholder="Type the group's name…"
             />
           </Field>
         </div>

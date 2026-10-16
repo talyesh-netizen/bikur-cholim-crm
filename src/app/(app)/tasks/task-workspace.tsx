@@ -14,10 +14,10 @@ import { cn } from "@/lib/utils";
 import { TaskCard } from "./task-card";
 
 /** The four views (decided Oct 9, 2026). Open is every outstanding
- * task, dated or not; Today is due today or overdue. */
+ * task, dated or not; Due today is due today or overdue. */
 const TABS = [
   { key: "open", label: "Open" },
-  { key: "today", label: "Today" },
+  { key: "today", label: "Due today" },
   { key: "upcoming", label: "Upcoming" },
   { key: "completed", label: "Completed" },
 ] as const;
@@ -222,6 +222,14 @@ export function TaskWorkspace({
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            // Results already filter as you type; the Search key just
+            // puts the keyboard away so they can be seen.
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                e.currentTarget.blur();
+              }
+            }}
             placeholder="Search tasks: words, a name, a facility…"
             aria-label="Search tasks, open and completed"
             enterKeyHint="search"

@@ -6,13 +6,7 @@ import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchPicker } from "@/components/search-picker";
 import type { FacilityContactFormState } from "@/lib/actions/facility-contacts";
 
 type Action = (
@@ -23,15 +17,21 @@ type Action = (
 export function LinkExistingContactForm({
   action,
   contacts,
+  defaultContactId,
+  addNewHref,
 }: {
   action: Action;
-  contacts: { id: string; name: string }[];
+  contacts: { id: string; name: string; detail?: string | null }[];
+  /** Chosen on arrival (e.g. just added on the "new contact" page). */
+  defaultContactId?: string;
+  /** "Add a new contact" -- comes back here with them chosen. */
+  addNewHref: string;
 }) {
   const [state, formAction, isPending] = useActionState<FacilityContactFormState, FormData>(action, {
     error: null,
   });
   const fieldErrors = state.fieldErrors ?? {};
-  const [contactId, setContactId] = useState(state.values?.contact_id ?? "");
+  const [contactId, setContactId] = useState(state.values?.contact_id ?? defaultContactId ?? "");
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
@@ -41,26 +41,21 @@ export function LinkExistingContactForm({
         <Label htmlFor="contact_id">
           Contact <span className="text-destructive">*</span>
         </Label>
-        <input type="hidden" name="contact_id" value={contactId} readOnly />
-        <Select value={contactId} onValueChange={setContactId}>
-          <SelectTrigger id="contact_id">
-            <SelectValue placeholder="Choose an existing contact…" />
-          </SelectTrigger>
-          <SelectContent>
-            {contacts.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <SearchPicker
+          id="contact_id"
+          name="contact_id"
+          options={contacts.map((c) => ({ id: c.id, label: c.name, detail: c.detail }))}
+          value={contactId}
+          onChange={setContactId}
+          placeholder="Type a name…"
+        />
         {fieldErrors.contact_id ? <p className="text-xs text-destructive">{fieldErrors.contact_id}</p> : null}
         <p className="text-xs text-muted-foreground">
-          Don&apos;t see who you&apos;re looking for?{" "}
-          <Link href="/contacts/new" className="underline">
-            Add them as a contact first
-          </Link>
-          , then come back here to link them.
+          Not in the CRM yet?{" "}
+          <Link href={addNewHref} className="font-medium underline">
+            Add a new contact
+          </Link>{" "}
+          and you&apos;ll come right back here.
         </p>
       </div>
 

@@ -9,7 +9,12 @@ import { getContact, listResidentsForContact, listFacilitiesForContact } from "@
 import { getOrganizationForContact } from "@/lib/queries/organizations";
 import { listInteractionsForContact, listResidentsVisitedByVolunteer } from "@/lib/queries/interactions";
 import { VisitPartnersCard } from "@/components/visit-partners-card";
-import { setContactActive } from "@/lib/actions/contacts";
+import { setContactActive, markContactDuplicate, undoContactMerge } from "@/lib/actions/contacts";
+import { getMergeInfo, contactMergeReady } from "@/lib/queries/contact-merge";
+import { listContactOptions } from "@/lib/queries/contacts";
+import { getCurrentProfile } from "@/lib/get-current-profile";
+import { Fold } from "@/components/fold";
+import { MergeContactForm } from "./merge-contact-form";
 import {
   labelFor,
   PREFERRED_COMMUNICATION_METHODS,
@@ -21,7 +26,7 @@ import { telHref, mailtoHref, mapsHref } from "@/lib/link-helpers";
 import { formatDateOnly } from "@/lib/format-date";
 import { InfoRow } from "@/components/info-row";
 import { InteractionRow } from "../../interactions/interaction-row";
-import { Pencil, Plus } from "lucide-react";
+import { CopyCheck, Pencil, Plus } from "lucide-react";
 
 const BACKGROUND_CHECK_BADGE_VARIANT: Record<string, "success" | "warning" | "destructive" | "secondary"> = {
   cleared: "success",
@@ -46,6 +51,19 @@ export default async function ContactDetailPage({
   ]);
 
   if (!contact) notFound();
+
+  const [merge, profile, mergeReady] = await Promise.all([
+    getMergeInfo(contact.id, contact.merged_into_id),
+    getCurrentProfile(),
+    contactMergeReady(),
+  ]);
+  const isAdmin = profile?.role === "admin";
+  const canMarkDuplicate = isAdmin && mergeReady && !contact.merged_into_id;
+  const mergeOptions = canMarkDuplicate
+    ? (await listContactOptions())
+        .filter((c) => c.id !== contact.id)
+        .map((c) => ({ id: c.id, label: c.name, detail: c.detail }))
+    : [];
 
   const toggleActive = setContactActive.bind(null, contact.id, !contact.active);
   const fullAddress =
@@ -84,13 +102,50 @@ export default async function ContactDetailPage({
               Edit
             </Link>
           </Button>
-          <form action={toggleActive}>
-            <Button variant="outline" type="submit">
-              {contact.active ? "Mark inactive" : "Mark active"}
-            </Button>
-          </form>
+          {contact.merged_into_id ? null : (
+            <form action={toggleActive}>
+              <Button variant="outline" type="submit">
+                {contact.active ? "Mark inactive" : "Mark active"}
+              </Button>
+            </form>
+          )}
         </div>
       </div>
+
+      {merge.mergedInto ? (
+        <div role="note" className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
+          <CopyCheck className="size-4 shrink-0" />
+          <span className="flex-1">
+            Duplicate record, merged into{" "}
+            <Link href={`/contacts/${merge.mergedInto.id}`} className="font-semibold underline">
+              {merge.mergedInto.name}
+            </Link>
+            . Hidden from searches and lists; its history below is kept.
+          </span>
+          {isAdmin ? (
+            <form action={undoContactMerge.bind(null, contact.id)}>
+              <Button type="submit" size="sm" variant="ghost">
+                Undo merge
+              </Button>
+            </form>
+          ) : null}
+        </div>
+      ) : null}
+
+      {merge.duplicates.length > 0 ? (
+        <p className="rounded-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+          Also in the CRM as a merged duplicate:{" "}
+          {merge.duplicates.map((d, i) => (
+            <span key={d.id}>
+              {i > 0 ? ", " : null}
+              <Link href={`/contacts/${d.id}`} className="underline">
+                {d.name}
+              </Link>
+            </span>
+          ))}{" "}
+          (older visits and links may be there).
+        </p>
+      ) : null}
 
       <Card>
         <CardHeader>
@@ -258,7 +313,12 @@ export default async function ContactDetailPage({
           </CardContent>
         </Card>
       ) : null}
+
+      {canMarkDuplicate ? (
+        <Fold title="Duplicate of another record?">
+          <MergeContactForm action={markContactDuplicate.bind(null, contact.id)} options={mergeOptions} name={contact.name} />
+        </Fold>
+      ) : null}
     </div>
   );
 }
-

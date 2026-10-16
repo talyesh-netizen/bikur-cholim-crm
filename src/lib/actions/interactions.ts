@@ -276,7 +276,7 @@ export async function updateInteraction(
   if (parsed.data.resident_id) revalidatePath(`/residents/${parsed.data.resident_id}`);
   if (parsed.data.facility_id) revalidatePath(`/facilities/${parsed.data.facility_id}`);
   revalidatePath("/interactions");
-  redirect(redirectTo);
+  redirect(withSaved(redirectTo, "interaction-saved"));
 }
 
 export type ReviewFormState = { error: string | null; saved?: boolean };

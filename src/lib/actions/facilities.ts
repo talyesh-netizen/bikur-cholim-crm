@@ -1,5 +1,6 @@
 "use server";
 
+import { withSaved } from "@/lib/saved-flash";
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -35,7 +36,9 @@ const facilitySchema = z.object({
     emptyToUndefined,
     z.coerce.number().int().min(0, "Must be zero or more.").optional()
   ),
-  jewish_residents_currently_known: z.coerce.boolean().default(false),
+  // Not z.coerce.boolean(): that reads the string "false" as true, so an
+  // unticked box was saved as ticked.
+  jewish_residents_currently_known: z.preprocess((val) => val === "true" || val === "on", z.boolean()),
   engagement_status: z.enum(engagementStatusValues),
   visit_priority: z.enum(visitPriorityValues),
   recommended_visit_frequency: z.preprocess(emptyToUndefined, z.string().trim().optional()),
@@ -96,7 +99,7 @@ export async function createFacility(
   }
 
   revalidatePath("/facilities");
-  redirect(`/facilities/${data.id}`);
+  redirect(withSaved(`/facilities/${data.id}`, "facility-added"));
 }
 
 export async function updateFacility(
@@ -113,10 +116,18 @@ export async function updateFacility(
     };
   }
 
+  // An erased box arrives as undefined, which the update would skip --
+  // so the old value (e.g. a healthcare group) quietly stayed. Send null
+  // for every field submitted blank so erasing really clears it.
+  const changes: Record<string, unknown> = { ...parsed.data };
+  for (const key of Object.keys(raw)) {
+    if (key in facilitySchema.shape && changes[key] === undefined) changes[key] = null;
+  }
+
   const supabase = await createClient();
   const { data: updated, error } = await supabase
     .from("facilities")
-    .update(parsed.data)
+    .update(changes)
     .eq("id", facilityId)
     .select("id");
 
@@ -135,7 +146,7 @@ export async function updateFacility(
 
   revalidatePath("/facilities");
   revalidatePath(`/facilities/${facilityId}`);
-  redirect(`/facilities/${facilityId}`);
+  redirect(withSaved(`/facilities/${facilityId}`, "facility-saved"));
 }
 
 export async function setFacilityActive(facilityId: string, active: boolean) {
@@ -146,6 +157,7 @@ export async function setFacilityActive(facilityId: string, active: boolean) {
   }
   revalidatePath("/facilities");
   revalidatePath(`/facilities/${facilityId}`);
+  redirect(withSaved(`/facilities/${facilityId}`, "facility-status-saved"));
 }
 
 function flattenErrors(error: z.ZodError): Record<string, string> {
@@ -157,4 +169,36 @@ function flattenErrors(error: z.ZodError): Record<string, string> {
     }
   }
   return fieldErrors;
+}
+
+export type GroupAssignState = { error: string | null };
+
+/** "Add a facility to this group" on a healthcare group's page: sets
+ * the facility's healthcare group to this group's name (the same field
+ * the facility's Edit page sets). */
+export async function assignFacilityToGroup(
+  groupId: string,
+  _prev: GroupAssignState,
+  formData: FormData
+): Promise<GroupAssignState> {
+  const facilityId = String(formData.get("facility_id") ?? "");
+  if (!z.string().uuid().safeParse(facilityId).success) return { error: "Choose a facility." };
+
+  const supabase = await createClient();
+  const { data: group } = await supabase.from("organizations").select("id, name").eq("id", groupId).maybeSingle();
+  if (!group) return { error: "This group could not be found." };
+
+  const { data: updated, error } = await supabase
+    .from("facilities")
+    .update({ parent_healthcare_group: group.name })
+    .eq("id", facilityId)
+    .select("id");
+  if (error || !updated || updated.length === 0) {
+    return { error: "Not saved: something went wrong adding this facility. Please try again." };
+  }
+
+  revalidatePath("/facilities");
+  revalidatePath("/facilities/groups");
+  revalidatePath(`/facilities/${facilityId}`);
+  redirect(withSaved(`/facilities/groups/${groupId}`, "facility-group-saved"));
 }

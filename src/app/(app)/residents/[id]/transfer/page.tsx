@@ -49,12 +49,12 @@ export default async function TransferResidentPage({
             Back to profile
           </Link>
         </Button>
-        <h1 className="text-2xl font-semibold">Move {displayName} to another facility</h1>
+        <h1 className="text-2xl font-semibold">Change facility for {displayName}</h1>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Move details</CardTitle>
+          <CardTitle className="text-base">New facility</CardTitle>
         </CardHeader>
         <CardContent>
           {otherFacilities.length === 0 ? (

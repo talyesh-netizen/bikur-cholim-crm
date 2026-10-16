@@ -55,6 +55,8 @@ export function ResidentFilters({
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            type="search"
+            enterKeyHint="search"
             placeholder="Search by resident name…"
             className="pl-9"
           />

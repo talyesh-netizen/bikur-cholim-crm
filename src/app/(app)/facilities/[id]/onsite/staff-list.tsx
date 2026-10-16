@@ -42,7 +42,7 @@ export function StaffList({ facilityId, staff }: { facilityId: string; staff: On
         {staff.length > 4 ? (
           <div className="relative">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input type="search" aria-label="Search staff by name or role" placeholder="Search name or role" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+            <Input type="search" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }} enterKeyHint="search" aria-label="Search staff by name or role" placeholder="Search name or role" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
           </div>
         ) : null}
         {filtered.length === 0 ? (

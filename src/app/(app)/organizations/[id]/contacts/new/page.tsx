@@ -7,10 +7,13 @@ import { OrganizationContactForm } from "../organization-contact-form";
 
 export default async function NewOrganizationContactPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ contact?: string }>;
 }) {
   const { id } = await params;
+  const { contact: justAdded } = await searchParams;
   const [organization, contacts] = await Promise.all([getOrganization(id), listContactOptions()]);
   if (!organization) notFound();
 
@@ -28,7 +31,12 @@ export default async function NewOrganizationContactPage({
           <CardTitle className="text-base">Contact details</CardTitle>
         </CardHeader>
         <CardContent>
-          <OrganizationContactForm action={action} contacts={contacts} />
+          <OrganizationContactForm
+            action={action}
+            contacts={contacts}
+            defaultContactId={justAdded}
+            addNewHref={`/contacts/new?returnTo=${encodeURIComponent(`/organizations/${organization.id}/contacts/new`)}`}
+          />
         </CardContent>
       </Card>
     </div>

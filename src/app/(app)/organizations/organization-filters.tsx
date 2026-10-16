@@ -49,6 +49,8 @@ export function OrganizationFilters() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            type="search"
+            enterKeyHint="search"
             placeholder="Search by name…"
             className="pl-9"
           />

@@ -88,8 +88,8 @@ export function TransferForm({
 
       <FormActions
         isPending={isPending} disabled={!facilityId}
-        submitLabel={"Confirm move"}
-        savingLabel={"Moving…"}
+        submitLabel={"Change facility"}
+        savingLabel={"Saving…"}
         hasUnsavedError={!!state.error}
       />
     </form>

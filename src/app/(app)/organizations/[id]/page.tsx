@@ -4,7 +4,9 @@ import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getOrganization, listFacilitiesOwnedBy, listOrganizationContacts } from "@/lib/queries/organizations";
+import { getOrganization, listFacilitiesForGroupPicker, listFacilitiesOwnedBy, listOrganizationContacts } from "@/lib/queries/organizations";
+import { assignFacilityToGroup } from "@/lib/actions/facilities";
+import { AssignFacilityForm } from "./assign-facility-form";
 import { setOrganizationActive, setOrganizationContactActive, setPrimaryOrganizationContact } from "@/lib/actions/organizations";
 import { HEALTHCARE_GROUP, labelFor, ORGANIZATION_TYPES } from "@/lib/domain/organization";
 import { labelFor as labelForContact, CONTACT_TYPES } from "@/lib/domain/contact";
@@ -26,7 +28,11 @@ export default async function OrganizationDetailPage({
   if (!organization) notFound();
 
   const isHealthcare = organization.organization_type === HEALTHCARE_GROUP;
-  const ownedFacilities = isHealthcare ? await listFacilitiesOwnedBy(organization.name) : [];
+  const [ownedFacilities, allFacilities] = isHealthcare
+    ? await Promise.all([listFacilitiesOwnedBy(organization.name), listFacilitiesForGroupPicker()])
+    : [[], []];
+  const ownedIds = new Set(ownedFacilities.map((f) => f.id));
+  const facilitiesToAdd = allFacilities.filter((f) => !ownedIds.has(f.id));
   const toggleActive = setOrganizationActive.bind(null, organization.id, !organization.active);
   const mainContact = contacts.find((c) => c.is_primary_contact) ?? null;
 
@@ -88,11 +94,14 @@ export default async function OrganizationDetailPage({
           <CardHeader>
             <CardTitle className="text-base">Facilities they own ({ownedFacilities.length})</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-col gap-3">
+            <AssignFacilityForm
+              action={assignFacilityToGroup.bind(null, organization.id)}
+              facilities={facilitiesToAdd}
+              groupName={organization.name}
+            />
             {ownedFacilities.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                None linked yet. On a facility&apos;s Edit page, set &ldquo;Parent healthcare group&rdquo; to {organization.name}.
-              </p>
+              <p className="text-sm text-muted-foreground">None linked yet. Add one above.</p>
             ) : (
               <ul className="-mx-2 flex flex-col">
                 {ownedFacilities.map((f) => (

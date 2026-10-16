@@ -211,6 +211,10 @@ export const SERVICE_FIELDS_BY_TYPE: Partial<
  * the normal case, so the form says to leave it blank for that. */
 export const GROUP_VISIT_TYPES: readonly string[] = ["resident_visit", "volunteer_visit"];
 
+/** Entries where volunteers usually take part, so the log form asks
+ * who they were; any other entry offers "+ Add volunteers" instead. */
+export const VOLUNTEER_TYPES: readonly string[] = ["volunteer_visit", "program", "school_engagement", "food_delivery"];
+
 export type ServiceDetails = {
   occasion: string | null;
   holiday: string | null;

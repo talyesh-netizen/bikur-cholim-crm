@@ -50,6 +50,8 @@ export function ContactFilters() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            type="search"
+            enterKeyHint="search"
             placeholder="Search by name or organization…"
             className="pl-9"
           />

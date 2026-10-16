@@ -131,15 +131,20 @@ export function DashboardOnsiteLauncher({
             onChange={(e) => handleQueryChange(e.target.value)}
             onFocus={() => setShowResults(true)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && matches.length === 1) {
+              // The phone's Go/Search key picks the best match (the list is
+              // sorted best first).
+              if (e.key === "Enter") {
                 e.preventDefault();
-                chooseFacility(matches[0]);
+                // Pressed again once a facility is chosen: start the visit.
+                if (selectedFacility && query === selectedFacility.name) startOnsite();
+                else if (query.trim() && matches.length > 0) chooseFacility(matches[0]);
               }
               if (e.key === "Escape") setShowResults(false);
             }}
             placeholder="Type a facility name or address"
             className="h-11 w-full rounded-md border border-input bg-background pl-9 pr-9 text-base outline-none sm:text-sm placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Search for facility for onsite visit"
+            enterKeyHint="go"
             autoComplete="off"
           />
           {selectedFacility ? (

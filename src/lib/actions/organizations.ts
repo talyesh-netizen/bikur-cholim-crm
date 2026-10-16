@@ -1,5 +1,6 @@
 "use server";
 
+import { withSaved } from "@/lib/saved-flash";
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -64,7 +65,7 @@ export async function createOrganization(
   }
 
   revalidatePath("/organizations");
-  redirect(`/organizations/${data.id}`);
+  redirect(withSaved(`/organizations/${data.id}`, "organization-added"));
 }
 
 export async function updateOrganization(
@@ -94,7 +95,7 @@ export async function updateOrganization(
 
   revalidatePath("/organizations");
   revalidatePath(`/organizations/${organizationId}`);
-  redirect(`/organizations/${organizationId}`);
+  redirect(withSaved(`/organizations/${organizationId}`, "organization-saved"));
 }
 
 export async function setOrganizationActive(organizationId: string, active: boolean) {
@@ -163,7 +164,7 @@ export async function addExistingOrganizationContact(
   }
 
   revalidatePath(`/organizations/${organizationId}`);
-  redirect(`/organizations/${organizationId}`);
+  redirect(withSaved(`/organizations/${organizationId}`, "organization-contact-linked"));
 }
 
 export async function setOrganizationContactActive(

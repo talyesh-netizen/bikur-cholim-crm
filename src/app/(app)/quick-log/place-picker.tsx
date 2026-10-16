@@ -41,6 +41,17 @@ export function PlacePicker({ facilities, onChoose }: { facilities: PlaceFacilit
             id="quick-log-place"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              // The phone's Go key picks the facility when there's no doubt
+              // which one (one match, or the exact name); otherwise it puts
+              // the keyboard away so the choices below can be seen.
+              if (e.key !== "Enter") return;
+              e.preventDefault();
+              const only = matches.find((f) => f.name.toLowerCase() === typed.toLowerCase()) ?? (matches.length === 1 ? matches[0] : null);
+              if (only) onChoose({ kind: "facility", id: only.id, name: only.name });
+              else e.currentTarget.blur();
+            }}
+            enterKeyHint="go"
             placeholder="Type a facility name"
             autoComplete="off"
             className="h-11 w-full rounded-xl border border-input bg-background pl-9 pr-3 text-base"

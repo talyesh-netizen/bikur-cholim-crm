@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { CONTACT_QUICK_FILTERS, RESIDENT_CONTACT_RELATIONSHIPS, labelFor } from "@/lib/domain/contact";
+import { CONTACT_QUICK_FILTERS, CONTACT_TYPES, RESIDENT_CONTACT_RELATIONSHIPS, labelFor } from "@/lib/domain/contact";
+import { contactMergeReady } from "@/lib/queries/contact-merge";
 import type { Contact, ResidentContact, FacilityContact } from "@/lib/domain/contact";
 import { searchWords, everyWordInAny } from "@/lib/supabase-filters";
 import { residentName } from "@/lib/domain/resident-name";
@@ -41,6 +42,10 @@ export async function listContacts(filters: ContactFilters = {}): Promise<Contac
 
   if (!filters.showInactive) {
     query = query.eq("active", true);
+  } else if (await contactMergeReady(supabase)) {
+    // Verified duplicates stay out even of "show inactive"; their own
+    // page (and the record they were merged into) still links to them.
+    query = query.is("merged_into_id", null);
   }
   if (filters.contactType) {
     const group = CONTACT_QUICK_FILTERS.find((g) => g.key === filters.contactType);
@@ -126,18 +131,28 @@ async function lastContactByContact() {
   return latest;
 }
 
-/** Lightweight {id, name} options for pickers (interaction forms, etc.)
- * -- active contacts only, optionally narrowed to one contact_type
- * (e.g., "volunteer" for the "who was involved" checklist). */
+/** Lightweight options for pickers (interaction forms, etc.) -- active
+ * contacts only, optionally narrowed to one contact_type (e.g.,
+ * "volunteer" for "who was involved"). `detail` (their kind and
+ * organization) shows under the name so two people with the same name
+ * can be told apart. */
 export async function listContactOptions(contactType?: string) {
   const supabase = await createClient();
-  let query = supabase.from("contacts").select("id, name").eq("active", true).order("name", { ascending: true });
+  let query = supabase
+    .from("contacts")
+    .select("id, name, contact_type, organization")
+    .eq("active", true)
+    .order("name", { ascending: true });
   if (contactType) {
     query = query.eq("contact_type", contactType);
   }
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  return (data ?? []) as { id: string; name: string }[];
+  return ((data ?? []) as { id: string; name: string; contact_type: string; organization: string | null }[]).map((c) => ({
+    id: c.id,
+    name: c.name,
+    detail: [contactType ? null : labelFor(CONTACT_TYPES, c.contact_type), c.organization].filter(Boolean).join(" · ") || null,
+  }));
 }
 
 /** For filling in a checkbox list (like "volunteers involved" on an

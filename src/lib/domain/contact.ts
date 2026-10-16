@@ -108,6 +108,9 @@ export type Contact = {
   background_check_status: BackgroundCheckStatus;
   background_check_date: string | null;
   availability_notes: string | null;
+  /** Set when an admin confirmed this is a duplicate of another contact
+   * (absent until that database field exists). */
+  merged_into_id?: string | null;
   created_at: string;
   updated_at: string;
 };
