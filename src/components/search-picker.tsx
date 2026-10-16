@@ -218,7 +218,10 @@ export function MultiSearchPicker({
     onChange([...value, optionId]);
     setQuery("");
     setActive(0);
-    // Keep the box open and focused, so the next name can be typed.
+    // Close the list so it doesn't cover what's below (a tap there would
+    // only close it); the box keeps the keyboard, and typing the next
+    // name opens it again.
+    setOpen(false);
     inputRef.current?.focus();
   }
 
