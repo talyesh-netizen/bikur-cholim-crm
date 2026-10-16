@@ -4,6 +4,7 @@ import { useId, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, Search, X } from "lucide-react";
 import { matchFacilities } from "@/lib/facility-match";
 import { cn } from "@/lib/utils";
+import { useDelayedClose } from "@/components/use-delayed-close";
 
 const SHOWN = 8;
 
@@ -68,6 +69,7 @@ export function SearchPicker({
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { scheduleClose, cancelClose } = useDelayedClose(setOpen, inputRef);
   const autoId = useId();
   const inputId = id ?? `${autoId}-picker`;
   const listId = `${autoId}-list`;
@@ -104,16 +106,18 @@ export function SearchPicker({
           value={open ? query : (selected?.label ?? "")}
           placeholder={open ? placeholder : (selected?.label ?? emptyLabel ?? placeholder)}
           onFocus={() => {
+            cancelClose();
             setOpen(true);
             setActive(0);
           }}
           onChange={(e) => {
+            cancelClose();
             setQuery(e.target.value);
             setOpen(true);
             setActive(0);
           }}
           // Closing on blur waits a moment, so a tap on a result lands first.
-          onBlur={() => window.setTimeout(() => setOpen(false), 150)}
+          onBlur={scheduleClose}
           onKeyDown={(e) => {
             if (e.key === "Escape") {
               setOpen(false);
@@ -199,6 +203,7 @@ export function MultiSearchPicker({
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { scheduleClose, cancelClose } = useDelayedClose(setOpen, inputRef);
   const autoId = useId();
   const inputId = id ?? `${autoId}-multi`;
   const listId = `${autoId}-list`;
@@ -246,13 +251,17 @@ export function MultiSearchPicker({
           id={inputId}
           value={query}
           placeholder={placeholder}
-          onFocus={() => setOpen(true)}
+          onFocus={() => {
+            cancelClose();
+            setOpen(true);
+          }}
           onChange={(e) => {
+            cancelClose();
             setQuery(e.target.value);
             setOpen(true);
             setActive(0);
           }}
-          onBlur={() => window.setTimeout(() => setOpen(false), 150)}
+          onBlur={scheduleClose}
           onKeyDown={(e) => {
             if (e.key === "Escape") {
               setOpen(false);

@@ -4,6 +4,7 @@ import { useId, useMemo, useRef, useState } from "react";
 import { Building2, Check, ChevronDown, Search, X } from "lucide-react";
 import { matchFacilities, type MatchableFacility } from "@/lib/facility-match";
 import { cn } from "@/lib/utils";
+import { useDelayedClose } from "@/components/use-delayed-close";
 
 const SHOWN = 8;
 
@@ -43,6 +44,7 @@ export function FacilityPicker({
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { scheduleClose, cancelClose } = useDelayedClose(setOpen, inputRef);
   const autoId = useId();
   const inputId = id ?? `${autoId}-facility`;
   const listId = `${autoId}-list`;
@@ -64,6 +66,7 @@ export function FacilityPicker({
   }
 
   function openList() {
+    cancelClose();
     setOpen(true);
     setActive(0);
   }
@@ -84,12 +87,13 @@ export function FacilityPicker({
           placeholder={open ? placeholder : (selected?.name ?? emptyLabel ?? placeholder)}
           onFocus={openList}
           onChange={(e) => {
+            cancelClose();
             setQuery(e.target.value);
             setOpen(true);
             setActive(0);
           }}
           // Closing on blur waits a moment, so a tap on a result lands first.
-          onBlur={() => window.setTimeout(() => setOpen(false), 150)}
+          onBlur={scheduleClose}
           onKeyDown={(e) => {
             if (e.key === "Escape") {
               setOpen(false);
