@@ -247,7 +247,7 @@ export async function listInteractionsForFacility(facilityId: string) {
 export async function listInteractionsForContact(contactId: string) {
   const supabase = await createClient();
 
-  const [direct, viaVolunteers] = await Promise.all([
+  const [direct, viaVolunteers, viaLinks] = await Promise.all([
     supabase
       .from("interactions")
       .select(SELECT_WITH_NAMES)
@@ -264,17 +264,26 @@ export async function listInteractionsForContact(contactId: string) {
       .eq("contact_id", contactId)
       .order("occurred_at", { referencedTable: "interactions", ascending: false })
       .limit(RECENT_INTERACTIONS_LIMIT),
+    // Staff linked to an activity -- worked with, or only there -- see it
+    // on their own page too, not just the first one named.
+    supabase
+      .from("interaction_contacts")
+      .select(`interactions!inner(${SELECT_WITH_NAMES})`)
+      .eq("contact_id", contactId)
+      .order("occurred_at", { referencedTable: "interactions", ascending: false })
+      .limit(RECENT_INTERACTIONS_LIMIT),
   ]);
 
   if (direct.error) throw new Error(direct.error.message);
   if (viaVolunteers.error) throw new Error(viaVolunteers.error.message);
+  if (viaLinks.error) throw new Error(viaLinks.error.message);
 
   const byId = new Map<string, InteractionWithNames>();
   for (const row of direct.data ?? []) {
     const interaction = toInteractionWithNames(row as unknown as Parameters<typeof toInteractionWithNames>[0]);
     byId.set(interaction.id, interaction);
   }
-  for (const row of viaVolunteers.data ?? []) {
+  for (const row of [...(viaVolunteers.data ?? []), ...(viaLinks.data ?? [])]) {
     const raw = (row as unknown as { interactions: Parameters<typeof toInteractionWithNames>[0] }).interactions;
     const interaction = toInteractionWithNames(raw);
     byId.set(interaction.id, interaction);
