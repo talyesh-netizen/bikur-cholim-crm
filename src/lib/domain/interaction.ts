@@ -148,11 +148,37 @@ export type InteractionWithNames = Interaction & {
   contact_relationship: string | null;
   staff_member_name: string | null;
   volunteers: { id: string; name: string }[];
+  /** Set when an admin reviewed this as a copy of another entry. */
+  counted_in_id?: string | null;
 };
 
 /** Types where the facility can be left blank -- e.g. a family calling
  * for help finding a facility for their father doesn't have one yet. */
-export const FACILITY_OPTIONAL_TYPES: readonly string[] = ["care_navigation", "volunteer_meeting"];
+export const FACILITY_OPTIONAL_TYPES: readonly string[] = [
+  "care_navigation",
+  "volunteer_meeting",
+  // Community events and outreach, or students packing Shabbos packages
+  // at school (Build 2, Oct 16, 2026).
+  "program",
+  "school_engagement",
+];
+
+/** Entries that ask "Staff you worked with or spoke to" (each counts
+ * once toward staff engagements) instead of a single Contact. */
+export const ENGAGEMENT_TYPES: readonly string[] = [
+  "facility_staff_communication",
+  "facility_discovery_visit",
+  "facility_visit",
+  "program",
+  "school_engagement",
+];
+
+/** Entries that can have a partner (school, shul, organization) and be
+ * "Part of" a group project. */
+export const PARTNER_TYPES: readonly string[] = ["program", "school_engagement", "food_delivery"];
+
+/** Entries that can hold a group's volunteer count. */
+export const GROUP_COUNT_TYPES: readonly string[] = ["program", "school_engagement"];
 
 export const OCCASIONS = [
   { value: "regular", label: "Regular / weekday" },
@@ -199,7 +225,7 @@ export const SERVICE_FIELDS_BY_TYPE: Partial<
   Record<InteractionType, readonly ("occasion" | "program_partner" | "quantity" | "people_reached" | "participants")[]>
 > = {
   food_delivery: ["occasion", "quantity", "people_reached"],
-  program: ["occasion", "people_reached"],
+  program: ["occasion", "participants", "people_reached"],
   school_engagement: ["program_partner", "occasion", "participants", "people_reached"],
   // Group visits: the old tracking sheet logged e.g. "1 to 1 Pesach visit,
   // 15 residents" or a volunteer group seeing 7 people as one entry.

@@ -19,6 +19,9 @@ import {
   FACILITY_OPTIONAL_TYPES,
   GROUP_VISIT_TYPES,
   VOLUNTEER_TYPES,
+  ENGAGEMENT_TYPES,
+  PARTNER_TYPES,
+  GROUP_COUNT_TYPES,
   PROGRAM_PARTNERS,
   SERVICE_FIELDS_BY_TYPE,
   TYPE_BUTTONS,
@@ -30,8 +33,9 @@ import {
   foodKindFor,
   type InteractionType,
 } from "@/lib/domain/interaction";
-import type { InteractionFormState } from "@/lib/actions/interactions";
-import { toOrgDatetimeLocalValue } from "@/lib/format-date";
+import type { InteractionFormState, PeopleChoice } from "@/lib/actions/interactions";
+import type { ActivityFormOptions, GroupProjectOption } from "@/lib/queries/activity";
+import { formatDateTime, toOrgDatetimeLocalValue } from "@/lib/format-date";
 
 type Action = (
   state: InteractionFormState,
@@ -50,6 +54,10 @@ export function InteractionForm({
   volunteers,
   initialValues,
   initialVolunteerIds,
+  activity,
+  initialPeople,
+  initialPartOf,
+  selfId,
   submitLabel = "Log interaction",
   savingLabel = "Saving…",
 }: {
@@ -82,8 +90,18 @@ export function InteractionForm({
     occurred_at: string;
     interaction_type: string;
     notes: string;
+    partner_organization_id?: string;
   } & Partial<ServiceFormValues>;
   initialVolunteerIds?: string[];
+  /** Staff, partners, group projects -- for who did it, staff engaged,
+   * partner and "Part of" (Build 2). */
+  activity?: ActivityFormOptions;
+  /** Editing: who did it and the staff linked, as saved. */
+  initialPeople?: PeopleChoice;
+  /** Editing: the group project this entry is part of, as saved. */
+  initialPartOf?: GroupProjectOption | null;
+  /** Editing: this entry's own id (never suggested as its own project). */
+  selfId?: string;
   submitLabel?: string;
   savingLabel?: string;
 }) {
@@ -116,7 +134,6 @@ export function InteractionForm({
   // -- stored in the existing holiday field (see FOOD_KINDS).
   const [foodKind, setFoodKind] = useState(foodKindFor(service.holiday));
   const [foodHoliday, setFoodHoliday] = useState(service.holiday && service.holiday !== "shabbos" ? service.holiday : "");
-  const [foodCount, setFoodCount] = useState(service.people_reached || service.quantity);
   // The holidays offered: Shabbos plus the main six, and whatever an
   // older entry already has so editing it never loses it.
   const holidayOptions = HOLIDAYS.filter(
@@ -135,6 +152,40 @@ export function InteractionForm({
   const [volunteersOpened, setVolunteersOpened] = useState(false);
   const showVolunteers =
     VOLUNTEER_TYPES.includes(interactionType) || checkedVolunteerIds.length > 0 || volunteersOpened;
+
+  // Who did it: you, unless changed -- first chosen leads, the rest are
+  // team members credited too. Who typed it in is recorded on its own.
+  const [doneBy, setDoneBy] = useState<string[]>(
+    state.people?.doneBy ?? initialPeople?.doneBy ?? (activity?.currentUserId ? [activity.currentUserId] : [])
+  );
+  // Staff actually worked with or spoken to (each counts once), and --
+  // only when asked for -- others who were just there (not counted).
+  const isEngagementType = ENGAGEMENT_TYPES.includes(interactionType);
+  const [engaged, setEngaged] = useState<string[]>(
+    state.people?.engaged ??
+      initialPeople?.engaged ??
+      (defaultContactId && ENGAGEMENT_TYPES.includes(values.interaction_type) ? [defaultContactId] : [])
+  );
+  const [present, setPresent] = useState<string[]>(state.people?.present ?? initialPeople?.present ?? []);
+  const [presentOpened, setPresentOpened] = useState(false);
+
+  // Partner and group project ("Part of").
+  const isPartnerType = PARTNER_TYPES.includes(interactionType);
+  const [partnerId, setPartnerId] = useState(values.partner_organization_id ?? "");
+  const [partnerOpened, setPartnerOpened] = useState(false);
+  const partnerName = activity?.partners.find((p) => p.id === partnerId)?.name ?? null;
+  const [occurredAt, setOccurredAt] = useState(values.occurred_at);
+  // "yes:<id>" (part of that project), "no" (a separate group), or ""
+  // (not answered). Never assumed: the person has to answer.
+  const [partOfAnswer, setPartOfAnswer] = useState(
+    state.values?.part_of_id ? `yes:${state.values.part_of_id}` : initialPartOf ? `yes:${initialPartOf.id}` : ""
+  );
+  const projectSuggestion = suggestProject(activity?.groupProjects ?? [], partnerId, occurredAt, selfId);
+  const partOfId = partOfAnswer.startsWith("yes:") ? partOfAnswer.slice(4) : "";
+  const partOfProject =
+    partOfId === initialPartOf?.id ? initialPartOf : (activity?.groupProjects ?? []).find((g) => g.id === partOfId) ?? null;
+  const needsPartOfAnswer = isPartnerType && !!projectSuggestion && partOfAnswer === "";
+  const [partOfPrompt, setPartOfPrompt] = useState(false);
 
   // One random ID for everything typed into this form, kept across
   // failed attempts, so the server can recognize a repeat of the same
@@ -176,6 +227,18 @@ export function InteractionForm({
         return;
       }
     }
+    // A suggested group project needs a yes or no -- never assumed.
+    if (needsPartOfAnswer) {
+      e.preventDefault();
+      setPartOfPrompt(true);
+      document.getElementById("part_of_question")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    if (activity && doneBy.length === 0) {
+      e.preventDefault();
+      window.alert("Please add who did it (at least one person).");
+      return;
+    }
     submissionIdRef.current ??= crypto.randomUUID();
     const idField = e.currentTarget.elements.namedItem("client_submission_id");
     if (idField instanceof HTMLInputElement) idField.value = submissionIdRef.current;
@@ -190,6 +253,9 @@ export function InteractionForm({
       className="flex flex-col gap-4"
     >
       <input type="hidden" name="client_submission_id" defaultValue="" />
+      {/* Tells the server this form shows who did it and the staff linked,
+          so saving it replaces them (an older form leaves them alone). */}
+      {activity ? <input type="hidden" name="people_form" value="1" readOnly /> : null}
       {state.error ? (
         <p
           role="alert"
@@ -239,6 +305,7 @@ export function InteractionForm({
           name="occurred_at"
           type="datetime-local"
           defaultValue={values.occurred_at}
+          onChange={(e) => setOccurredAt(e.target.value)}
           required
         />
       </Field>
@@ -254,6 +321,84 @@ export function InteractionForm({
 
       {/* Not asked any more (kept simple); an older entry keeps its value. */}
       <input type="hidden" name="family_need" value={service.family_need} readOnly />
+
+      {activity && isPartnerType ? (
+        interactionType === "food_delivery" && !partnerId && !partnerOpened ? (
+          <button
+            type="button"
+            onClick={() => setPartnerOpened(true)}
+            className="w-fit text-sm font-medium text-primary underline-offset-4 hover:underline"
+          >
+            + Add a partner (school, shul, group)
+          </button>
+        ) : (
+          <Field label="Partner (optional)" htmlFor="partner_organization_id" error={fieldErrors.partner_organization_id}>
+            <SearchPicker
+              id="partner_organization_id"
+              name="partner_organization_id"
+              options={activity.partners.map((p) => ({ id: p.id, label: p.name, detail: p.detail }))}
+              value={partnerId}
+              onChange={(id) => {
+                setPartnerId(id);
+                setPartOfAnswer("");
+                setPartOfPrompt(false);
+              }}
+              emptyLabel="No partner"
+              placeholder="Type a school, shul or organization…"
+            />
+          </Field>
+        )
+      ) : null}
+
+      {activity && isPartnerType && partOfId ? <input type="hidden" name="part_of_id" value={partOfId} readOnly /> : null}
+      {activity && isPartnerType && projectSuggestion && !partOfId ? (
+        <div
+          id="part_of_question"
+          className={
+            partOfPrompt && partOfAnswer === ""
+              ? "flex flex-col gap-2 rounded-md border-2 border-destructive bg-destructive/5 p-3"
+              : "flex flex-col gap-2 rounded-md border border-primary/40 bg-primary/5 p-3"
+          }
+        >
+          <p className="text-sm font-medium">
+            Part of {projectSuggestion.partner_name}&apos;s {formatDateTime(projectSuggestion.occurred_at)} project
+            {projectSuggestion.facility_name ? ` at ${projectSuggestion.facility_name}` : ""} (about {projectSuggestion.participants} volunteers)?
+          </p>
+          {partOfPrompt && partOfAnswer === "" ? (
+            <p className="text-xs font-medium text-destructive">Please answer before saving.</p>
+          ) : null}
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" size="sm" onClick={() => setPartOfAnswer(`yes:${projectSuggestion.id}`)}>
+              Yes, part of it
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={partOfAnswer === "no" ? "default" : "outline"}
+              onClick={() => setPartOfAnswer("no")}
+            >
+              No, a separate group
+            </Button>
+          </div>
+        </div>
+      ) : null}
+      {activity && isPartnerType && partOfId ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
+          <span>
+            Part of {partOfProject?.partner_name ?? "a group"}&apos;s project. Its volunteers are counted on the first activity
+            {partOfProject ? (
+              <>
+                : {formatDateTime(partOfProject.occurred_at)}
+                {partOfProject.facility_name ? ` · ${partOfProject.facility_name}` : ""} (about {partOfProject.participants})
+              </>
+            ) : null}
+            .
+          </span>
+          <button type="button" onClick={() => setPartOfAnswer("no")} className="text-xs text-muted-foreground underline">
+            Not part of it
+          </button>
+        </div>
+      ) : null}
 
       {isFood ? (
         <Field label="What kind?" htmlFor="food_kind">
@@ -323,28 +468,32 @@ export function InteractionForm({
               save; an occasion already on an older entry rides along. */}
           {serviceFields.includes("occasion") ? <input type="hidden" name="occasion" value={service.occasion} readOnly /> : null}
           {isFood ? (
-            // One number for food: how many packages, which is also how
-            // many people got one (the funder report counts the first,
-            // Impact the second).
-            <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <Label htmlFor="people_reached">How many?</Label>
-              <Input
-                id="people_reached"
+            // Two numbers (decision C2, Oct 16, 2026): items can differ
+            // from people -- e.g. 12 challahs for 8 residents.
+            <>
+              <NumberField name="quantity" label="How many items?" defaultValue={service.quantity} error={fieldErrors.quantity} />
+              <NumberField
                 name="people_reached"
-                type="number"
-                inputMode="numeric"
-                min={0}
-                value={foodCount}
-                onChange={(e) => setFoodCount(e.target.value)}
+                label="How many people got one?"
+                hint="A rough count is fine"
+                defaultValue={service.people_reached}
+                error={fieldErrors.people_reached}
               />
-              <input type="hidden" name="quantity" value={foodCount} readOnly />
-              {fieldErrors.people_reached ? <p className="text-sm text-destructive">{fieldErrors.people_reached}</p> : null}
-            </div>
+            </>
           ) : null}
-          {serviceFields.includes("participants") ? (
+          {serviceFields.includes("participants") &&
+          !partOfId &&
+          (interactionType !== "program" || partnerId || service.participants) ? (
             <NumberField
               name="participants"
-              label="Students / shul members who took part"
+              label={
+                partnerName
+                  ? `Volunteers from ${partnerName}: about`
+                  : GROUP_COUNT_TYPES.includes(interactionType) && interactionType === "program"
+                    ? "Group volunteers: about"
+                    : "Students / shul members who took part"
+              }
+              hint={partnerName ? "Counted once for the whole project, however many facilities it reached." : undefined}
               defaultValue={service.participants}
               error={fieldErrors.participants}
             />
@@ -365,7 +514,43 @@ export function InteractionForm({
         </div>
       ) : null}
 
-      {contacts && contacts.length > 0 ? (
+      {activity && isEngagementType ? (
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="engaged_contact_ids">Staff you worked with or spoke to</Label>
+          <MultiSearchPicker
+            id="engaged_contact_ids"
+            name="engaged_contact_ids"
+            options={withChosen(activity.facilityStaff, activity.anyone, engaged).map((c) => ({ id: c.id, label: c.name, detail: c.detail }))}
+            value={engaged}
+            onChange={setEngaged}
+            placeholder="Type a staff member's name…"
+          />
+          <p className="text-xs text-muted-foreground">Each counts once toward staff engagements.</p>
+          {present.length > 0 || presentOpened ? (
+            <div className="mt-2 flex flex-col gap-1.5">
+              <Label htmlFor="present_contact_ids">Others who were there (not counted)</Label>
+              <MultiSearchPicker
+                id="present_contact_ids"
+                name="present_contact_ids"
+                options={activity.anyone
+                  .filter((c) => !engaged.includes(c.id))
+                  .map((c) => ({ id: c.id, label: c.name, detail: c.detail }))}
+                value={present}
+                onChange={setPresent}
+                placeholder="Type a name…"
+              />
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setPresentOpened(true)}
+              className="w-fit text-xs font-medium text-muted-foreground underline-offset-4 hover:underline"
+            >
+              + Others who were there (not counted)
+            </button>
+          )}
+        </div>
+      ) : contacts && contacts.length > 0 ? (
         <Field label={interactionType === "volunteer_meeting" ? "Volunteer you met" : "Contact"} htmlFor="contact_id" error={fieldErrors.contact_id}>
           <SearchPicker
             id="contact_id"
@@ -410,6 +595,24 @@ export function InteractionForm({
             + Add volunteers
           </button>
         )
+      ) : null}
+
+      {activity ? (
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="done_by_ids">Done by</Label>
+          <MultiSearchPicker
+            id="done_by_ids"
+            name="done_by_ids"
+            options={activity.staff.map((s) => ({
+              id: s.id,
+              label: s.id === activity.currentUserId ? `${s.name} (you)` : s.name,
+            }))}
+            value={doneBy}
+            onChange={setDoneBy}
+            placeholder="Add a colleague who was there…"
+          />
+          <p className="text-xs text-muted-foreground">Everyone here gets credit; the activity still counts once.</p>
+        </div>
       ) : null}
 
       <Field label="Notes" htmlFor="notes" error={fieldErrors.notes}>
@@ -628,4 +831,30 @@ function TypePicker({ value, onChange }: { value: string; onChange: (value: stri
       ) : null}
     </div>
   );
+}
+
+/** The closest group project (same partner, within a week of this
+ * activity's date) to offer as "Part of" -- only offered, never assumed. */
+function suggestProject(
+  projects: GroupProjectOption[],
+  partnerId: string,
+  occurredAt: string,
+  selfId?: string
+): GroupProjectOption | null {
+  if (!partnerId || !occurredAt) return null;
+  const at = Date.parse(occurredAt);
+  if (Number.isNaN(at)) return null;
+  const WEEK = 7 * 24 * 60 * 60 * 1000;
+  return (
+    projects
+      .filter((p) => p.partner_organization_id === partnerId && p.id !== selfId && Math.abs(Date.parse(p.occurred_at) - at) <= WEEK)
+      .sort((a, b) => Math.abs(Date.parse(a.occurred_at) - at) - Math.abs(Date.parse(b.occurred_at) - at))[0] ?? null
+  );
+}
+
+/** A picker's options plus anyone already chosen who isn't in them
+ * (e.g. a contact chosen before who isn't listed as facility staff). */
+function withChosen<T extends { id: string }>(options: T[], everyone: T[], chosen: string[]): T[] {
+  const missing = chosen.filter((id) => !options.some((o) => o.id === id));
+  return [...options, ...everyone.filter((o) => missing.includes(o.id))];
 }

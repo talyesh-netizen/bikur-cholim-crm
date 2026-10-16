@@ -260,6 +260,24 @@ One row per visit, call, program, or other logged activity.
 | Couldn't fully meet this request | Yes/No, plus a reason — the "unmet need" funders ask about |
 | Good story for funders | Yes/No — flags notes worth sharing (without names) |
 | Reviewed | When an entry's type was last confirmed; entries from before these fields existed start unreviewed and are worked through on Data Quality → Review past entries |
+| Partner | Optional school, shul or organization (programs, school & shul programs, deliveries) |
+| Part of | Links an activity to the first activity of the same group project (e.g. one school's visits to three facilities). The first one holds the group's volunteer count; linked ones never add it again. Only set when the person logging confirms it. |
+| Entered by | Who typed the entry in (automatic) -- separate from who did it |
+| Counted in | Set only when an admin reviews a suspected double entry as "Same visit": reports skip this copy and count the kept entry once. The copy stays on file. |
+
+**Build 2 additions (Oct 16, 2026):**
+
+- `interaction_contacts` -- facility staff (or others) linked to an
+  activity. "Engaged" (worked with or spoke to) counts once toward staff
+  engagements; not engaged means only present, linked but not counted.
+- `interaction_team_members` -- Bikur Cholim staff who took part besides
+  the lead. Everyone is credited; the activity counts once.
+- `duplicate_reviews` -- every answer to "Is this a double entry?"
+  ("same" or "separate"), with who answered and when. Nothing is decided
+  automatically.
+- `report_snapshots` -- a quarter's totals as first recorded, saved once
+  before that quarter's first correction, so a report already sent can
+  always be matched.
 
 **Rule of thumb for new fields:** if we'd put it in a grant report or want
 to count it, it gets a field; if we'd only want to remember it, it goes in
