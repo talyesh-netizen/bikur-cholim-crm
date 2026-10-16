@@ -1,10 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { listGeographicClusters } from "@/lib/queries/facilities";
 import { createFacility } from "@/lib/actions/facilities";
+import { listOrganizations } from "@/lib/queries/organizations";
 import { FacilityForm } from "../facility-form";
 
 export default async function NewFacilityPage() {
-  const clusters = await listGeographicClusters();
+  const [clusters, groups] = await Promise.all([listGeographicClusters(), listOrganizations({ world: "healthcare" })]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -21,7 +22,11 @@ export default async function NewFacilityPage() {
           <CardTitle className="text-base">Facility details</CardTitle>
         </CardHeader>
         <CardContent>
-          <FacilityForm action={createFacility} clusters={clusters} />
+          <FacilityForm
+            action={createFacility}
+            clusters={clusters}
+            healthcareGroups={groups.map((g) => g.name)}
+          />
         </CardContent>
       </Card>
     </div>

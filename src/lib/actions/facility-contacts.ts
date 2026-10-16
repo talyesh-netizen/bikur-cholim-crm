@@ -113,7 +113,7 @@ export async function addFacilityContact(
   revalidatePath(`/facilities/${facilityId}`);
   revalidatePath(`/facilities/${facilityId}/onsite`);
   revalidatePath("/contacts");
-  redirect(returnTo ? withSaved(returnTo, "facility-contact-added", contact.id) : `/facilities/${facilityId}`);
+  redirect(returnTo ? withSaved(returnTo, "facility-contact-added", contact.id) : withSaved(`/facilities/${facilityId}`, "facility-contact-added", contact.id));
 }
 
 /** Links an existing contact to this facility -- for the common case of
@@ -161,7 +161,7 @@ export async function addExistingFacilityContact(
   }
 
   revalidatePath(`/facilities/${facilityId}`);
-  redirect(`/facilities/${facilityId}`);
+  redirect(withSaved(`/facilities/${facilityId}`, "facility-contact-linked"));
 }
 
 export async function setFacilityContactActive(facilityId: string, facilityContactId: string, active: boolean) {

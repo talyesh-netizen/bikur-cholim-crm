@@ -24,7 +24,17 @@ export function GlobalSearchBar() {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Each keystroke pause gets a number. Answers older than the one on
+  // screen, or from before the box was closed or cleared, are ignored.
   const latestRequest = useRef(0);
+  const shownRequest = useRef(0);
+  const cancelledUpTo = useRef(0);
+  // Only one request at a time: the app sends them to the server one
+  // after another, so a request per pause would pile up behind each other
+  // on a real connection and nothing would show until typing stopped.
+  // While one is out, only the newest text waits to go next.
+  const inFlight = useRef(false);
+  const waiting = useRef<{ text: string; request: number } | null>(null);
   const listId = useId();
 
   // This bar lives in the shared layout and isn't remounted between
@@ -40,31 +50,46 @@ export function GlobalSearchBar() {
     setValue(urlQuery);
   }
 
+  async function fetchSuggestions(text: string, request: number) {
+    inFlight.current = true;
+    try {
+      const found = await searchSuggestions(text);
+      // An answer for an earlier pause still shows while typing goes on
+      // (the next one replaces it), but never replaces a newer one.
+      if (request > shownRequest.current && request > cancelledUpTo.current) {
+        shownRequest.current = request;
+        setSuggestions(found);
+        setActive(-1);
+        setOpen(true);
+      }
+    } catch {
+      // Suggestions are a convenience; Enter still opens the full search.
+    } finally {
+      inFlight.current = false;
+      const next = waiting.current;
+      waiting.current = null;
+      if (next && next.request > cancelledUpTo.current) void fetchSuggestions(next.text, next.request);
+    }
+  }
+
   function requestSuggestions(text: string) {
     if (timer.current) clearTimeout(timer.current);
     const request = ++latestRequest.current;
     if (text.trim().length < 2) {
+      cancelledUpTo.current = request;
       setSuggestions([]);
       setActive(-1);
       return;
     }
-    timer.current = setTimeout(async () => {
-      try {
-        const found = await searchSuggestions(text);
-        // A slower answer for an older keystroke must not replace a newer one.
-        if (request !== latestRequest.current) return;
-        setSuggestions(found);
-        setActive(-1);
-        setOpen(true);
-      } catch {
-        // Suggestions are a convenience; Enter still opens the full search.
-        if (request === latestRequest.current) setSuggestions([]);
-      }
+    timer.current = setTimeout(() => {
+      if (inFlight.current) waiting.current = { text, request };
+      else void fetchSuggestions(text, request);
     }, SUGGEST_DELAY_MS);
   }
 
   function close() {
-    latestRequest.current++;
+    cancelledUpTo.current = ++latestRequest.current;
+    waiting.current = null;
     if (timer.current) clearTimeout(timer.current);
     setOpen(false);
     setActive(-1);

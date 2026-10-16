@@ -160,7 +160,7 @@ export async function addFamilyContact(
 
   revalidatePath(`/residents/${residentId}`);
   revalidatePath("/contacts");
-  redirect(returnTo ? withSaved(returnTo, "family-contact-added") : `/residents/${residentId}`);
+  redirect(returnTo ? withSaved(returnTo, "family-contact-added") : withSaved(`/residents/${residentId}`, "family-contact-added"));
 }
 
 export type RelationshipFormState = {
@@ -201,7 +201,7 @@ export async function updateFamilyContactRelationship(
   }
 
   revalidatePath(`/residents/${residentId}`);
-  redirect(`/residents/${residentId}`);
+  redirect(withSaved(`/residents/${residentId}`, "family-contact-saved"));
 }
 
 export async function setResidentContactActive(residentId: string, residentContactId: string, active: boolean) {

@@ -7,10 +7,13 @@ import { LinkExistingContactForm } from "../link-existing-contact-form";
 
 export default async function LinkFacilityContactPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ contact?: string }>;
 }) {
   const { id } = await params;
+  const { contact: justAdded } = await searchParams;
   const [facility, contacts] = await Promise.all([getFacility(id), listContactOptions()]);
   if (!facility) notFound();
 
@@ -28,7 +31,12 @@ export default async function LinkFacilityContactPage({
           <CardTitle className="text-base">Contact details</CardTitle>
         </CardHeader>
         <CardContent>
-          <LinkExistingContactForm action={action} contacts={contacts} />
+          <LinkExistingContactForm
+            action={action}
+            contacts={contacts}
+            defaultContactId={justAdded}
+            addNewHref={`/facilities/${facility.id}/contacts/new`}
+          />
         </CardContent>
       </Card>
     </div>

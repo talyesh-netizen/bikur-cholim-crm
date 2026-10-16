@@ -11,6 +11,10 @@ import {
   BACKGROUND_CHECK_STATUSES,
 } from "@/lib/domain/contact";
 import { capitalizeOptional, capitalizeWords } from "@/lib/format-text";
+import { withSaved } from "@/lib/saved-flash";
+import { safeReturnTo, withParam } from "@/lib/return-to";
+import { getCurrentProfile } from "@/lib/get-current-profile";
+import { contactMergeReady } from "@/lib/queries/contact-merge";
 
 const contactTypeValues = CONTACT_TYPES.map((o) => o.value) as [string, ...string[]];
 const commMethodValues = PREFERRED_COMMUNICATION_METHODS.map((o) => o.value) as [
@@ -66,7 +70,10 @@ function flattenErrors(error: z.ZodError): Record<string, string> {
   return fieldErrors;
 }
 
+/** `returnTo`: a page to go back to with the new contact chosen (e.g.
+ * the "Link a contact" page it was started from); else its own page. */
 export async function createContact(
+  returnTo: string | undefined,
   _prevState: ContactFormState,
   formData: FormData
 ): Promise<ContactFormState> {
@@ -91,7 +98,8 @@ export async function createContact(
   }
 
   revalidatePath("/contacts");
-  redirect(`/contacts/${data.id}`);
+  const back = safeReturnTo(returnTo);
+  redirect(withSaved(back ? withParam(back, "contact", data.id) : `/contacts/${data.id}`, "contact-added"));
 }
 
 export async function updateContact(
@@ -116,7 +124,7 @@ export async function updateContact(
 
   revalidatePath("/contacts");
   revalidatePath(`/contacts/${contactId}`);
-  redirect(`/contacts/${contactId}`);
+  redirect(withSaved(`/contacts/${contactId}`, "contact-saved"));
 }
 
 export async function setContactActive(contactId: string, active: boolean) {
@@ -127,4 +135,68 @@ export async function setContactActive(contactId: string, active: boolean) {
   }
   revalidatePath("/contacts");
   revalidatePath(`/contacts/${contactId}`);
+  redirect(withSaved(`/contacts/${contactId}`, "contact-status-saved"));
+}
+
+export type MergeContactState = { error: string | null };
+
+/**
+ * Marks this contact as a verified duplicate of another (decision A1,
+ * Oct 16, 2026): it is made inactive and pointed at the record being
+ * kept, so it drops out of searches, lists and pickers. Nothing is
+ * moved or deleted -- its visits and links stay on it, and its page
+ * says where the kept record is. Admins only (the database enforces
+ * this too).
+ */
+export async function markContactDuplicate(
+  contactId: string,
+  _prev: MergeContactState,
+  formData: FormData
+): Promise<MergeContactState> {
+  const keepId = String(formData.get("merged_into_id") ?? "");
+  if (!z.string().uuid().safeParse(keepId).success) return { error: "Choose the record to keep." };
+  if (keepId === contactId) return { error: "Choose a different record than this one." };
+
+  const profile = await getCurrentProfile();
+  if (profile?.role !== "admin") return { error: "Only an admin can mark a contact as a duplicate." };
+
+  const supabase = await createClient();
+  if (!(await contactMergeReady(supabase))) {
+    return { error: "This needs a database update that hasn't been applied yet." };
+  }
+  const { data: keep } = await supabase.from("contacts").select("id, merged_into_id").eq("id", keepId).maybeSingle();
+  if (!keep) return { error: "That record could not be found." };
+  if (keep.merged_into_id) return { error: "That record is itself a duplicate. Choose the record that is being kept." };
+
+  const { data: updated, error } = await supabase
+    .from("contacts")
+    .update({ merged_into_id: keepId, active: false })
+    .eq("id", contactId)
+    .select("id");
+  if (error || !updated || updated.length === 0) {
+    return { error: "Not saved: something went wrong marking this duplicate. Please try again." };
+  }
+  // Anything already merged into this one now points at the kept record.
+  await supabase.from("contacts").update({ merged_into_id: keepId }).eq("merged_into_id", contactId);
+
+  revalidatePath("/contacts");
+  revalidatePath(`/contacts/${contactId}`);
+  revalidatePath(`/contacts/${keepId}`);
+  redirect(withSaved(`/contacts/${keepId}`, "contact-merged"));
+}
+
+/** Undoes a merge: the contact is active and searchable again. */
+export async function undoContactMerge(contactId: string) {
+  const profile = await getCurrentProfile();
+  if (profile?.role !== "admin") throw new Error("Only an admin can undo a merge.");
+  const supabase = await createClient();
+  const { data: updated, error } = await supabase
+    .from("contacts")
+    .update({ merged_into_id: null, active: true })
+    .eq("id", contactId)
+    .select("id");
+  if (error || !updated || updated.length === 0) throw new Error("Could not undo this merge.");
+  revalidatePath("/contacts");
+  revalidatePath(`/contacts/${contactId}`);
+  redirect(withSaved(`/contacts/${contactId}`, "contact-unmerged"));
 }

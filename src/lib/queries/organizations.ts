@@ -148,3 +148,23 @@ export async function findHealthcareGroup(name: string | null | undefined) {
     .maybeSingle();
   return (data as { id: string; name: string } | null) ?? null;
 }
+
+/** Active facilities for "Add a facility to this group", with the group
+ * each is in now (shown under its name). */
+export async function listFacilitiesForGroupPicker() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("facilities")
+    .select("id, name, city, address, zip, parent_healthcare_group")
+    .eq("active", true)
+    .order("name");
+  if (error) throw new Error(error.message);
+  return (data ?? []) as {
+    id: string;
+    name: string;
+    city: string | null;
+    address: string | null;
+    zip: string | null;
+    parent_healthcare_group: string | null;
+  }[];
+}

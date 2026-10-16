@@ -89,7 +89,7 @@ export function ResidentDirectory({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="relative"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input type="search" aria-label="Search residents by name or room" placeholder="Search name or room" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" /></div>
+        <div className="relative"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input type="search" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }} enterKeyHint="search" aria-label="Search residents by name or room" placeholder="Search name or room" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" /></div>
         {filtered.length === 0 ? (
           <p className="py-2 text-center text-sm text-muted-foreground">
             {query ? "No one by that name or room." : "No residents on file here yet."}

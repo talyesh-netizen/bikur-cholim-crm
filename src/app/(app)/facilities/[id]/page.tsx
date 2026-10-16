@@ -104,11 +104,17 @@ export default async function FacilityDetailPage({
             ) : null}
           </p>
         </div>
+        <Button variant="outline" asChild>
+          <Link href={`/facilities/${facility.id}/edit`}>
+            <Pencil className="size-4" />
+            Edit facility
+          </Link>
+        </Button>
       </div>
 
       {/* One way in (decided Oct 9, 2026): the visit page has the
           residents, the notes box and Finish visit. Logging from anywhere
-          else is the red + Log; edit and inactive sit at the bottom. */}
+          else is the red + Log; Edit is at the top (Oct 16, 2026), inactive at the bottom. */}
       <Button asChild size="lg" className="h-12 w-full text-base sm:w-auto sm:self-start">
         <Link href={`/facilities/${facility.id}/onsite`}>
           <ClipboardCheck className="size-5" />
@@ -405,10 +411,6 @@ export default async function FacilityDetailPage({
       ) : null}
 
       <div className="flex flex-wrap items-center gap-x-6 gap-y-1 border-t pt-4 text-sm">
-        <Link href={`/facilities/${facility.id}/edit`} className="flex min-h-11 items-center gap-1.5 text-muted-foreground hover:text-foreground">
-          <Pencil className="size-4" />
-          Edit facility details
-        </Link>
         <form action={toggleActive}>
           <button type="submit" className="flex min-h-11 items-center text-muted-foreground hover:text-foreground">
             {facility.active ? "Mark inactive" : "Mark active"}

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getFacility, listGeographicClusters } from "@/lib/queries/facilities";
 import { updateFacility } from "@/lib/actions/facilities";
+import { listOrganizations } from "@/lib/queries/organizations";
 import { FacilityForm } from "../../facility-form";
 
 export default async function EditFacilityPage({
@@ -16,7 +17,11 @@ export default async function EditFacilityPage({
   // active-only list is only meant to hide retired clusters when
   // choosing a *new* one -- see the migration comment on the cluster's
   // active column).
-  const [facility, clusters] = await Promise.all([getFacility(id), listGeographicClusters(true)]);
+  const [facility, clusters, groups] = await Promise.all([
+    getFacility(id),
+    listGeographicClusters(true),
+    listOrganizations({ world: "healthcare" }),
+  ]);
 
   if (!facility) notFound();
 
@@ -33,7 +38,12 @@ export default async function EditFacilityPage({
           <CardTitle className="text-base">Facility details</CardTitle>
         </CardHeader>
         <CardContent>
-          <FacilityForm action={action} clusters={clusters} facility={facility} />
+          <FacilityForm
+            action={action}
+            clusters={clusters}
+            healthcareGroups={groups.map((g) => g.name)}
+            facility={facility}
+          />
         </CardContent>
       </Card>
     </div>

@@ -12,7 +12,8 @@ export default async function HealthcareGroupsPage() {
   const [groups, counts] = await Promise.all([listOrganizations({ world: "healthcare" }), facilityCountsByGroup()]);
   const withCounts = groups
     .map((g) => ({ ...g, facilities: counts.get(g.name.trim().toLowerCase()) ?? 0 }))
-    .sort((a, b) => b.facilities - a.facilities || a.name.localeCompare(b.name));
+    // A to Z (director, Oct 16, 2026), so a group is found where expected.
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
 
   return (
     <div className="flex flex-col gap-4">

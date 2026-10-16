@@ -14,7 +14,7 @@
 export const SAVED_MESSAGES = {
   "resident-added": "Resident added",
   "resident-saved": "Resident details saved",
-  "resident-moved": "Resident moved to the new facility",
+  "resident-moved": "Facility changed; past visits kept",
   "facility-added": "Facility added",
   "facility-saved": "Facility details saved",
   "visit-logged": "Visit logged",
@@ -31,6 +31,12 @@ export const SAVED_MESSAGES = {
   "organization-added": "Organization added",
   "organization-saved": "Organization saved",
   "organization-contact-linked": "Contact linked to this organization",
+  "organization-contact-added": "Contact added to this organization",
+  "contact-merged": "Duplicate merged into this contact",
+  "contact-unmerged": "Merge undone: contact is active again",
+  "contact-status-saved": "Contact status updated",
+  "facility-status-saved": "Facility status updated",
+  "facility-group-saved": "Facility added to this group",
 } as const;
 
 export type SavedKind = keyof typeof SAVED_MESSAGES;

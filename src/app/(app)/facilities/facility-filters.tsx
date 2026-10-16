@@ -55,6 +55,8 @@ export function FacilityFilters({ clusters }: { clusters: GeographicCluster[] })
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            type="search"
+            enterKeyHint="search"
             placeholder="Search by facility name or city…"
             className="pl-9"
           />

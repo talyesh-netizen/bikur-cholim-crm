@@ -201,6 +201,7 @@ situations easy to represent correctly.
 | Preferred communication method | e.g., Phone / Email / Text (recorded, even though texting isn't built yet) |
 | Notes | General notes about this person, not specific to one resident relationship |
 | Active | Whether this contact is current (e.g., staff member who has left is marked inactive, not deleted) |
+| Merged into | Set by an admin when this record is a confirmed duplicate of another contact (Oct 16, 2026). The duplicate is hidden from searches, lists and pickers and points to the kept record; its own visits and links stay attached to it. |
 
 ### `resident_contacts` — how a contact relates to a specific resident
 

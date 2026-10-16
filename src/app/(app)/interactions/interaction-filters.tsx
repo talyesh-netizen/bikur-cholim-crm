@@ -64,6 +64,8 @@ export function InteractionFilters({
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            type="search"
+            enterKeyHint="search"
             placeholder="Search names or notes…"
             className="pl-9"
           />

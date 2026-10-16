@@ -113,9 +113,9 @@ export default async function ResidentDetailPage({
             <Pencil className="size-4" />
             Edit
           </Link>
-          <Link href={`/residents/${resident.id}/transfer`} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
+          <Link href={`/residents/${resident.id}/transfer`} className="flex items-center gap-1.5 font-medium text-primary hover:underline">
             <ArrowRightLeft className="size-4" />
-            Move
+            Change facility
           </Link>
         </div>
       </div>

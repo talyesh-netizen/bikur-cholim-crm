@@ -1,6 +1,7 @@
 "use client";
 
 import { FacilityPicker } from "@/components/facility-picker";
+import { MultiSearchPicker, SearchPicker } from "@/components/search-picker";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ import {
   INTERACTION_TYPES,
   FACILITY_OPTIONAL_TYPES,
   GROUP_VISIT_TYPES,
+  VOLUNTEER_TYPES,
   PROGRAM_PARTNERS,
   SERVICE_FIELDS_BY_TYPE,
   TYPE_BUTTONS,
@@ -63,14 +65,13 @@ export function InteractionForm({
   fixedResident?: { id: string; name: string };
   /** Set when logging from a facility's page (no fixed resident) — an
    * optional picker limited to that facility's residents. */
-  residents?: { id: string; name: string }[];
+  residents?: { id: string; name: string; detail?: string | null }[];
   /** Any contact this interaction is with directly (e.g., a facility
    * staff communication, a family call) — separate from the resident. */
-  contacts?: { id: string; name: string }[];
-  /** Contacts with contact_type "volunteer", for the "who was
-   * involved" checklist -- this is what actually links an interaction
-   * to a specific volunteer, which the dashboard's volunteer-impact
-   * panel reads from. */
+  contacts?: { id: string; name: string; detail?: string | null }[];
+  /** Contacts with contact_type "volunteer", for "volunteers involved"
+   * -- this is what actually links an interaction to a specific
+   * volunteer, which the dashboard's volunteer-impact panel reads from. */
   volunteers?: { id: string; name: string }[];
   /** Set when editing an existing interaction, to pre-fill the form
    * with its current values instead of blank/"now" defaults. */
@@ -128,14 +129,12 @@ export function InteractionForm({
   const [checkedVolunteerIds, setCheckedVolunteerIds] = useState<string[]>(
     state.checkedVolunteerIds ?? initialVolunteerIds ?? []
   );
-
-  function handleInteractionTypeChange(next: string) {
-    setInteractionType(next);
-    // The checklist is only meant to apply to volunteer visits -- if it
-    // stayed checked after switching away, saving would silently link
-    // those volunteers to an interaction that isn't a volunteer visit.
-    if (next !== "volunteer_visit") setCheckedVolunteerIds([]);
-  }
+  // Volunteers are asked about only where they usually take part; any
+  // other entry offers a small "+ Add volunteers" instead. Chosen ones
+  // always stay on screen (as chips), so nothing is linked unseen.
+  const [volunteersOpened, setVolunteersOpened] = useState(false);
+  const showVolunteers =
+    VOLUNTEER_TYPES.includes(interactionType) || checkedVolunteerIds.length > 0 || volunteersOpened;
 
   // One random ID for everything typed into this form, kept across
   // failed attempts, so the server can recognize a repeat of the same
@@ -170,7 +169,7 @@ export function InteractionForm({
     // volunteer genuinely isn't known yet.
     if (isVolunteerVisit && checkedVolunteerIds.length === 0) {
       const proceed = window.confirm(
-        "No volunteers are checked off for this volunteer visit. It won't count toward the volunteer impact report unless someone is selected. Log it anyway?"
+        "No volunteers are added to this volunteer visit. It won't count toward the volunteer impact report unless someone is added. Log it anyway?"
       );
       if (!proceed) {
         e.preventDefault();
@@ -208,12 +207,13 @@ export function InteractionForm({
         </div>
       ) : residents && residents.length > 0 ? (
         <Field label="Resident" htmlFor="resident_id" error={fieldErrors.resident_id}>
-          <SelectField
+          <SearchPicker
+            id="resident_id"
             name="resident_id"
             defaultValue={values.resident_id}
-            options={residents.map((r) => ({ value: r.id, label: r.name }))}
-            placeholder="General facility interaction (no specific resident)"
-            allowEmpty
+            options={residents.map((r) => ({ id: r.id, label: r.name, detail: r.detail }))}
+            emptyLabel="No specific resident (general facility entry)"
+            placeholder="Type a resident's name…"
           />
           {interactionType === "family_communication" ? (
             <p className="text-xs text-muted-foreground">
@@ -249,7 +249,7 @@ export function InteractionForm({
         error={fieldErrors.interaction_type}
         required
       >
-        <TypePicker value={interactionType} onChange={handleInteractionTypeChange} />
+        <TypePicker value={interactionType} onChange={setInteractionType} />
       </Field>
 
       {/* Not asked any more (kept simple); an older entry keeps its value. */}
@@ -367,53 +367,49 @@ export function InteractionForm({
 
       {contacts && contacts.length > 0 ? (
         <Field label={interactionType === "volunteer_meeting" ? "Volunteer you met" : "Contact"} htmlFor="contact_id" error={fieldErrors.contact_id}>
-          <SelectField
+          <SearchPicker
+            id="contact_id"
             name="contact_id"
             defaultValue={values.contact_id}
-            options={contacts.map((c) => ({ value: c.id, label: c.name }))}
-            placeholder="No specific contact"
-            allowEmpty
+            options={contacts.map((c) => ({ id: c.id, label: c.name, detail: c.detail }))}
+            emptyLabel="No specific contact"
+            placeholder="Type a name…"
           />
         </Field>
       ) : null}
 
       {volunteers && volunteers.length > 0 ? (
-        <div
-          className={
-            isVolunteerVisit
-              ? "flex flex-col gap-1.5 rounded-md border-2 border-primary p-3"
-              : "flex flex-col gap-1.5"
-          }
-        >
-          <Label>
-            Volunteers involved
-            {isVolunteerVisit ? <span className="text-muted-foreground"> (recommended)</span> : null}
-          </Label>
-          {isVolunteerVisit ? (
-            <p className="text-xs text-muted-foreground">
-              This is what makes a volunteer visit show up in the Volunteer Impact report — check off who was there.
-            </p>
-          ) : null}
-          <div className="grid max-h-48 grid-cols-1 gap-1.5 overflow-y-auto rounded-md border border-border p-3 sm:grid-cols-2">
-            {volunteers.map((v) => (
-              <label key={v.id} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  name="volunteer_ids"
-                  value={v.id}
-                  checked={checkedVolunteerIds.includes(v.id)}
-                  onChange={(e) =>
-                    setCheckedVolunteerIds((prev) =>
-                      e.target.checked ? [...prev, v.id] : prev.filter((id) => id !== v.id)
-                    )
-                  }
-                  className="accent-primary"
-                />
-                {v.name}
-              </label>
-            ))}
+        showVolunteers ? (
+          <div
+            className={
+              isVolunteerVisit
+                ? "flex flex-col gap-1.5 rounded-md border-2 border-primary p-3"
+                : "flex flex-col gap-1.5"
+            }
+          >
+            <Label htmlFor="volunteer_ids">
+              Volunteers involved
+              {isVolunteerVisit ? <span className="text-muted-foreground"> (recommended)</span> : null}
+            </Label>
+            {isVolunteerVisit ? (
+              <p className="text-xs text-muted-foreground">
+                This is what makes a volunteer visit show up in the Volunteer Impact report — add who was there.
+              </p>
+            ) : null}
+            <MultiSearchPicker
+              id="volunteer_ids"
+              name="volunteer_ids"
+              options={volunteers.map((v) => ({ id: v.id, label: v.name }))}
+              value={checkedVolunteerIds}
+              onChange={setCheckedVolunteerIds}
+              placeholder="Type a volunteer's name to add…"
+            />
           </div>
-        </div>
+        ) : (
+          <button type="button" onClick={() => setVolunteersOpened(true)} className="w-fit text-sm font-medium text-primary underline-offset-4 hover:underline">
+            + Add volunteers
+          </button>
+        )
       ) : null}
 
       <Field label="Notes" htmlFor="notes" error={fieldErrors.notes}>

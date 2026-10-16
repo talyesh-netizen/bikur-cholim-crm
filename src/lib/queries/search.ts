@@ -6,6 +6,7 @@ import { ORGANIZATION_TYPES } from "@/lib/domain/organization";
 import { INTERACTION_TYPES } from "@/lib/domain/interaction";
 import { OPEN_TASK_STATUSES, TASK_STATUSES } from "@/lib/domain/task";
 import { formatDateOnly, formatDateTime } from "@/lib/format-date";
+import { contactMergeReady } from "@/lib/queries/contact-merge";
 
 export type SearchResult = {
   id: string;
@@ -94,6 +95,16 @@ export async function searchAll(query: string): Promise<SearchGroup[]> {
 
   const any = (columns: string[]) => everyWordInAny(words, columns) as string;
 
+  // Verified duplicates (merged into another contact) never show here;
+  // other inactive contacts do, greyed out.
+  const hideMerged = await contactMergeReady(supabase);
+  const contactQuery = supabase
+    .from("contacts")
+    .select("id, name, contact_type, organization, active")
+    .or(any(["name", "organization"]))
+    .order("name")
+    .limit(PER_GROUP * 3);
+
   const [residents, facilities, organizations, contacts, staff, activity, tasks, notes] = await Promise.all([
     supabase
       .from("residents")
@@ -112,12 +123,7 @@ export async function searchAll(query: string): Promise<SearchGroup[]> {
       .or(any(["name", "notes"]))
       .order("name")
       .limit(PER_GROUP * 2),
-    supabase
-      .from("contacts")
-      .select("id, name, contact_type, organization, active")
-      .or(any(["name", "organization"]))
-      .order("name")
-      .limit(PER_GROUP * 3),
+    hideMerged ? contactQuery.is("merged_into_id", null) : contactQuery,
     supabase
       .from("profiles")
       .select("id, full_name, role, active")
