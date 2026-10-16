@@ -133,7 +133,7 @@ export async function searchAll(query: string): Promise<SearchGroup[]> {
     supabase
       .from("interactions")
       .select(
-        "id, occurred_at, interaction_type, notes, outcome, facilities(name), residents(first_name, last_name, preferred_name), contacts!interactions_contact_id_fkey(name), profiles(full_name)"
+        "id, occurred_at, interaction_type, notes, outcome, facilities(name), residents(first_name, last_name, preferred_name), contacts!interactions_contact_id_fkey(name), profiles!interactions_staff_member_id_fkey(full_name)"
       )
       .or(any(["notes", "outcome"]))
       .order("occurred_at", { ascending: false })

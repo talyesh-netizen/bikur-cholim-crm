@@ -18,6 +18,7 @@ import { formatDateTime } from "@/lib/format-date";
 import { InteractionList, staffLabel } from "../interaction-list";
 import { ClusterBadge } from "@/components/cluster-badge";
 import { Pencil, ListPlus } from "lucide-react";
+import { getActivityExtras } from "@/lib/queries/activity";
 
 export default async function InteractionDetailPage({
   params,
@@ -28,10 +29,16 @@ export default async function InteractionDetailPage({
   const interaction = await getInteraction(id);
   if (!interaction) notFound();
 
-  const [residentInteractions, facilityInteractions] = await Promise.all([
+  const [residentInteractions, facilityInteractions, extras] = await Promise.all([
     interaction.resident_id ? listInteractionsForResident(interaction.resident_id) : Promise.resolve([]),
     interaction.facility_id ? listInteractionsForFacility(interaction.facility_id) : Promise.resolve([]),
+    getActivityExtras(id),
   ]);
+  const doneBy = [
+    ...(interaction.staff_member_name ? [{ id: interaction.staff_member_id, name: interaction.staff_member_name }] : []),
+    ...extras.team.filter((t) => t.id !== interaction.staff_member_id),
+  ];
+  const engaged = extras.engaged;
 
   const serviceDetails = [
     interaction.program_partner ? { label: "School or shul", value: labelFor(PROGRAM_PARTNERS, interaction.program_partner) } : null,
@@ -39,7 +46,14 @@ export default async function InteractionDetailPage({
     interaction.family_need ? { label: "What the family needed", value: labelFor(FAMILY_NEEDS, interaction.family_need) } : null,
     interaction.occasion ? { label: "Occasion", value: labelFor(OCCASIONS, interaction.occasion) } : null,
     interaction.quantity != null ? { label: "Items", value: String(interaction.quantity) } : null,
-    interaction.participants != null ? { label: "Participants", value: String(interaction.participants) } : null,
+    interaction.participants != null
+      ? {
+          label: extras.partner ? `Volunteers from ${extras.partner.name}` : "Participants",
+          value: extras.projectMembers.length > 0
+            ? `about ${interaction.participants} (counted once for the whole project)`
+            : `about ${interaction.participants}`,
+        }
+      : null,
     interaction.people_reached != null ? { label: "Residents reached", value: `about ${interaction.people_reached}` } : null,
     interaction.minutes_spent != null ? { label: "Time spent", value: formatMinutes(interaction.minutes_spent) } : null,
   ].filter((d): d is { label: string; value: string } => d !== null);
@@ -74,6 +88,16 @@ export default async function InteractionDetailPage({
           </Button>
         </div>
       </div>
+
+      {extras.countedIn ? (
+        <div role="note" className="rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
+          Reviewed as a double entry: this is counted once, in{" "}
+          <Link href={`/interactions/${extras.countedIn.id}`} className="font-semibold underline">
+            the entry from {formatDateTime(extras.countedIn.occurred_at)}
+          </Link>
+          . This copy is kept for the record, and the staff member on it is credited on that entry.
+        </div>
+      ) : null}
 
       <Card>
         <CardHeader>
@@ -114,12 +138,73 @@ export default async function InteractionDetailPage({
                 <span className="font-medium text-warning">Not tagged yet</span>
               )}
             </p>
-          ) : interaction.contact_id && interaction.contact_name ? (
+          ) : interaction.contact_id && interaction.contact_name && extras.engaged.length === 0 ? (
             <p>
               <span className="text-muted-foreground">Contact: </span>
               <Link href={`/contacts/${interaction.contact_id}`} className="font-medium hover:underline">
                 {interaction.contact_name}
               </Link>
+            </p>
+          ) : null}
+          {extras.partner ? (
+            <p>
+              <span className="text-muted-foreground">Partner: </span>
+              <Link href={`/organizations/${extras.partner.id}`} className="font-medium hover:underline">
+                {extras.partner.name}
+              </Link>
+            </p>
+          ) : null}
+          {extras.partOf ? (
+            <p>
+              <span className="text-muted-foreground">Part of: </span>
+              <Link href={`/interactions/${extras.partOf.id}`} className="font-medium hover:underline">
+                the project&apos;s first activity, {formatDateTime(extras.partOf.occurred_at)}
+                {extras.partOf.facility_name ? ` at ${extras.partOf.facility_name}` : ""}
+              </Link>
+              {extras.partOf.participants ? (
+                <span className="text-muted-foreground"> — its {extras.partOf.participants} volunteers are counted there</span>
+              ) : null}
+            </p>
+          ) : null}
+          {extras.projectMembers.length > 0 ? (
+            <div>
+              <p className="text-muted-foreground">Also part of this project (volunteers counted here, once):</p>
+              <ul className="ml-4 list-disc">
+                {extras.projectMembers.map((m) => (
+                  <li key={m.id}>
+                    <Link href={`/interactions/${m.id}`} className="hover:underline">
+                      {formatDateTime(m.occurred_at)}
+                      {m.facility_name ? ` · ${m.facility_name}` : ""}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {engaged.length > 0 ? (
+            <p>
+              <span className="text-muted-foreground">Staff worked with: </span>
+              {engaged.map((c, i) => (
+                <span key={c.id}>
+                  <Link href={`/contacts/${c.id}`} className="font-medium hover:underline">
+                    {c.name}
+                  </Link>
+                  {i < engaged.length - 1 ? ", " : ""}
+                </span>
+              ))}
+            </p>
+          ) : null}
+          {extras.present.length > 0 ? (
+            <p>
+              <span className="text-muted-foreground">Also there (not counted): </span>
+              {extras.present.map((c, i) => (
+                <span key={c.id}>
+                  <Link href={`/contacts/${c.id}`} className="hover:underline">
+                    {c.name}
+                  </Link>
+                  {i < extras.present.length - 1 ? ", " : ""}
+                </span>
+              ))}
             </p>
           ) : null}
           {serviceDetails.map((d) => (
@@ -143,12 +228,15 @@ export default async function InteractionDetailPage({
               <Badge variant="secondary">Good story for funders</Badge>
             </p>
           ) : null}
-          {interaction.staff_member_name ? (
+          {doneBy.length > 0 ? (
             <p>
               <span className="text-muted-foreground">
-                {staffLabel(interaction.interaction_type)}:{" "}
+                {doneBy.length > 1 ? "Done by" : staffLabel(interaction.interaction_type)}:{" "}
               </span>
-              <span className="font-medium">{interaction.staff_member_name}</span>
+              <span className="font-medium">{doneBy.map((d) => d.name).join(", ")}</span>
+              {extras.enteredBy && extras.enteredBy.id !== interaction.staff_member_id ? (
+                <span className="text-muted-foreground"> · entered by {extras.enteredBy.name}</span>
+              ) : null}
             </p>
           ) : null}
           {interaction.notes ? (

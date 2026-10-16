@@ -47,6 +47,7 @@ export function InteractionRow({ interaction }: { interaction: InteractionWithNa
             <Badge variant="secondary">{labelFor(INTERACTION_TYPES, interaction.interaction_type)}</Badge>
             {interaction.unmet_need ? <Badge variant="warning">Couldn&apos;t fully meet</Badge> : null}
             {interaction.funder_story ? <Badge variant="outline">Funder story</Badge> : null}
+            {interaction.counted_in_id ? <Badge variant="outline">Double entry · counted once</Badge> : null}
           </div>
           <span className="text-xs text-muted-foreground">{formatDateTime(interaction.occurred_at)}</span>
         </div>

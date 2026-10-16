@@ -98,6 +98,12 @@ export function orgMonthKey(value: string): string {
   return `${p.year}-${pad(p.month)}`;
 }
 
+/** "2026-10-09" -- the Cleveland calendar day an exact moment falls in. */
+export function orgDayKey(value: string): string {
+  const p = zonedParts(new Date(value));
+  return `${p.year}-${pad(p.month)}-${pad(p.day)}`;
+}
+
 /**
  * Two different-looking helpers for a reason: the database stores some
  * fields as a full timestamp ("2026-07-10T09:30:00Z" — an exact moment)

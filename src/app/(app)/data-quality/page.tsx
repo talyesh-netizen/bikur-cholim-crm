@@ -7,6 +7,7 @@ import {
   getUnreviewedCountsByType,
 } from "@/lib/queries/data-quality";
 import type { DataQualityRow } from "@/lib/queries/data-quality";
+import { listDoubleEntries } from "@/lib/queries/double-entries";
 import { CheckCircle2, ChevronRight } from "lucide-react";
 import { SectionIcon } from "@/components/section-icon";
 import { ClipboardCheck } from "lucide-react";
@@ -42,11 +43,13 @@ function Section({ title, rows }: { title: string; rows: DataQualityRow[] }) {
 }
 
 export default async function DataQualityPage() {
-  const [report, volunteerVisitGapCount, unreviewedCounts] = await Promise.all([
+  const [report, volunteerVisitGapCount, unreviewedCounts, doubleEntries] = await Promise.all([
     getDataQualityReport(),
     getVolunteerVisitGapCount(),
     getUnreviewedCountsByType(),
+    listDoubleEntries(),
   ]);
+  const doubleEntryCount = doubleEntries.open.length;
   const unreviewedTotal = unreviewedCounts.reduce((sum, c) => sum + c.count, 0);
   const totalGaps =
     report.contactsMissingPhone.length +
@@ -67,6 +70,23 @@ export default async function DataQualityPage() {
           {totalGaps} gap{totalGaps === 1 ? "" : "s"} across active records — tap a gap to fix it.
         </p>
       </div>
+
+      <Link href="/data-quality/double-entries">
+        <Card className="transition-colors hover:border-primary/50">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-base">Possible double entries</CardTitle>
+            <div className="flex items-center gap-2">
+              {doubleEntryCount > 0 ? <Badge variant="warning">{doubleEntryCount}</Badge> : null}
+              <ChevronRight className="size-4 text-muted-foreground" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Same visit saved twice (often once by each staff member there)? Review each pair so reports count it once.
+            </p>
+          </CardContent>
+        </Card>
+      </Link>
 
       <Link href="/data-quality/review-entries">
         <Card className="transition-colors hover:border-primary/50">

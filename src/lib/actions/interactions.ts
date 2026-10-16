@@ -15,6 +15,8 @@ import {
   HOLIDAY_TYPES,
   FAMILY_NEEDS,
   FAMILY_NEED_TYPES,
+  ENGAGEMENT_TYPES,
+  PARTNER_TYPES,
   occasionForHoliday,
   type InteractionType,
 } from "@/lib/domain/interaction";
@@ -39,7 +41,30 @@ export type InteractionFormState = {
   // Same idea for the "Volunteers involved" checkboxes -- formData only
   // keeps a single value per key, so this can't live in `values` above.
   checkedVolunteerIds?: string[];
+  /** Same again for who did it and the staff linked (several each). */
+  people?: PeopleChoice;
 };
+
+/** Who did an activity and who was there, as chosen on the form. */
+export type PeopleChoice = {
+  /** First = lead (staff_member_id); the rest are team members. */
+  doneBy: string[];
+  /** Staff actually worked with or spoken to -- each counts once. */
+  engaged: string[];
+  /** Linked but not counted. */
+  present: string[];
+};
+
+const uuidList = (values: FormDataEntryValue[]) =>
+  [...new Set(values.map(String).filter((v) => z.string().uuid().safeParse(v).success))];
+
+function readPeople(formData: FormData): PeopleChoice {
+  return {
+    doneBy: uuidList(formData.getAll("done_by_ids")),
+    engaged: uuidList(formData.getAll("engaged_contact_ids")),
+    present: uuidList(formData.getAll("present_contact_ids")),
+  };
+}
 
 const interactionSchema = z
   .object({
@@ -63,6 +88,8 @@ const interactionSchema = z
     unmet_need: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
     unmet_need_reason: z.preprocess(emptyToUndefined, z.enum(enumValues(UNMET_NEED_REASONS)).optional()),
     funder_story: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
+    partner_organization_id: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
+    part_of_id: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
   })
   .superRefine((data, ctx) => {
     if (!data.facility_id && !FACILITY_OPTIONAL_TYPES.includes(data.interaction_type)) {
@@ -74,8 +101,13 @@ const interactionSchema = z
  * doesn't ask about is cleared (null), so an entry whose type was
  * changed -- e.g. from a food delivery to a phone call -- can't keep
  * counting its old quantity in the impact report. */
-function toInteractionRow(data: z.infer<typeof interactionSchema>) {
+function toInteractionRow(data: z.infer<typeof interactionSchema>, people: PeopleChoice) {
   const applies = SERVICE_FIELDS_BY_TYPE[data.interaction_type as InteractionType] ?? [];
+  const partnered = PARTNER_TYPES.includes(data.interaction_type);
+  const partOf = partnered ? data.part_of_id ?? null : null;
+  // Staff engagements are picked as a list; the first one is also the
+  // entry's own contact, so older pages and reports keep showing it.
+  const contactId = ENGAGEMENT_TYPES.includes(data.interaction_type) ? people.engaged[0] ?? null : data.contact_id ?? null;
   const pick = <K extends (typeof applies)[number]>(key: K) => (applies.includes(key) ? data[key] ?? null : null);
   const holiday = HOLIDAY_TYPES.includes(data.interaction_type) ? data.holiday ?? null : null;
   // The holiday now drives the older Shabbos / Yom Tov occasion (used by
@@ -84,7 +116,7 @@ function toInteractionRow(data: z.infer<typeof interactionSchema>) {
   const occasion = applies.includes("occasion") ? occasionForHoliday(holiday) ?? data.occasion ?? null : null;
   return {
     resident_id: data.resident_id ?? null,
-    contact_id: data.contact_id ?? null,
+    contact_id: contactId,
     facility_id: data.facility_id ?? null,
     // The form's date & time box has no timezone of its own -- what was
     // typed is Cleveland time. Reading it with `new Date()` here would
@@ -99,7 +131,11 @@ function toInteractionRow(data: z.infer<typeof interactionSchema>) {
     program_partner: pick("program_partner"),
     quantity: pick("quantity"),
     people_reached: pick("people_reached"),
-    participants: pick("participants"),
+    // Part of a group project: its volunteers are counted on the
+    // project's first activity, never again here.
+    participants: partOf ? null : pick("participants"),
+    partner_organization_id: partnered ? data.partner_organization_id ?? null : null,
+    part_of_id: partOf,
     minutes_spent: data.minutes_spent ?? null,
     unmet_need: data.unmet_need,
     unmet_need_reason: data.unmet_need ? data.unmet_need_reason ?? null : null,
@@ -123,6 +159,37 @@ async function saveInteractionVolunteers(
   return error;
 }
 
+/** Saves who else did it (team) and the staff linked, in one
+ * all-or-nothing call (set_interaction_people). */
+async function saveInteractionPeople(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  interactionId: string,
+  lead: string,
+  people: PeopleChoice
+) {
+  const { error } = await supabase.rpc("set_interaction_people", {
+    p_interaction_id: interactionId,
+    p_engaged_contact_ids: people.engaged,
+    p_present_contact_ids: people.present,
+    p_team_profile_ids: people.doneBy.filter((id) => id !== lead),
+  });
+  return error;
+}
+
+/** "Part of" always points at the project's first activity (the one
+ * holding the volunteer count), even if an in-between one was picked. */
+async function projectRoot(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  partOfId: string | undefined,
+  selfId?: string
+): Promise<string | undefined> {
+  if (!partOfId || partOfId === selfId) return undefined;
+  const { data } = await supabase.from("interactions").select("id, part_of_id").eq("id", partOfId).maybeSingle();
+  if (!data) return undefined;
+  const root = (data.part_of_id as string | null) ?? (data.id as string);
+  return root === selfId ? undefined : root;
+}
+
 // A random ID the form sends with each save, so a double tap or a retry
 // after a dropped connection can't create the same visit twice -- see
 // the interaction_submission_id migration.
@@ -135,6 +202,7 @@ export async function createInteraction(
 ): Promise<InteractionFormState> {
   const raw = Object.fromEntries(formData.entries()) as Record<string, string>;
   const volunteerIds = formData.getAll("volunteer_ids") as string[];
+  const people = readPeople(formData);
   const parsed = interactionSchema.safeParse(raw);
   if (!parsed.success) {
     const fieldErrors: Record<string, string> = {};
@@ -142,7 +210,7 @@ export async function createInteraction(
       const key = issue.path[0];
       if (typeof key === "string" && !fieldErrors[key]) fieldErrors[key] = issue.message;
     }
-    return { error: "Please fix the highlighted fields.", fieldErrors, values: raw, checkedVolunteerIds: volunteerIds };
+    return { error: "Please fix the highlighted fields.", fieldErrors, values: raw, checkedVolunteerIds: volunteerIds, people };
   }
 
   const supabase = await createClient();
@@ -156,12 +224,16 @@ export async function createInteraction(
 
   const submission = submissionIdSchema.safeParse(raw.client_submission_id);
   const clientSubmissionId = submission.success ? submission.data : null;
+  // Who did it (first chosen) can differ from who is typing it in --
+  // that is recorded automatically as entered_by.
+  const lead = people.doneBy[0] ?? user.id;
+  parsed.data.part_of_id = await projectRoot(supabase, parsed.data.part_of_id);
 
   const { data: created, error } = await supabase
     .from("interactions")
     .insert({
-      ...toInteractionRow(parsed.data),
-      staff_member_id: user.id,
+      ...toInteractionRow(parsed.data, people),
+      staff_member_id: lead,
       client_submission_id: clientSubmissionId,
     })
     .select("id")
@@ -191,7 +263,15 @@ export async function createInteraction(
           : "This interaction was NOT saved -- something went wrong. Your entry is still below; please try again.",
       values: raw,
       checkedVolunteerIds: volunteerIds,
+      people,
     };
+  }
+
+  if (people.engaged.length > 0 || people.present.length > 0 || people.doneBy.some((id) => id !== lead)) {
+    const peopleError = await saveInteractionPeople(supabase, created.id, lead, people);
+    // Saved already -- fix the people on the edit page rather than risk
+    // a second copy of the entry from a retry here.
+    if (peopleError) redirect(`/interactions/${created.id}/edit?peopleError=1`);
   }
 
   if (volunteerIds.length > 0) {
@@ -219,6 +299,7 @@ export async function updateInteraction(
 ): Promise<InteractionFormState> {
   const raw = Object.fromEntries(formData.entries()) as Record<string, string>;
   const volunteerIds = formData.getAll("volunteer_ids") as string[];
+  const people = readPeople(formData);
   const parsed = interactionSchema.safeParse(raw);
   if (!parsed.success) {
     const fieldErrors: Record<string, string> = {};
@@ -226,7 +307,7 @@ export async function updateInteraction(
       const key = issue.path[0];
       if (typeof key === "string" && !fieldErrors[key]) fieldErrors[key] = issue.message;
     }
-    return { error: "Please fix the highlighted fields.", fieldErrors, values: raw, checkedVolunteerIds: volunteerIds };
+    return { error: "Please fix the highlighted fields.", fieldErrors, values: raw, checkedVolunteerIds: volunteerIds, people };
   }
 
   const supabase = await createClient();
@@ -238,10 +319,14 @@ export async function updateInteraction(
     return { error: "Your session expired. Please sign in again.", values: raw, checkedVolunteerIds: volunteerIds };
   }
 
+  const lead = people.doneBy[0] ?? undefined;
+  parsed.data.part_of_id = await projectRoot(supabase, parsed.data.part_of_id, id);
+
   const { data: updated, error } = await supabase
     .from("interactions")
     .update({
-      ...toInteractionRow(parsed.data),
+      ...toInteractionRow(parsed.data, people),
+      ...(lead ? { staff_member_id: lead } : {}),
       // Saving the full edit form counts as reviewing it -- it drops off
       // the "Review past entries" list.
       service_reviewed_at: new Date().toISOString(),
@@ -260,6 +345,20 @@ export async function updateInteraction(
           : "Your changes were NOT saved -- something went wrong. Your edits are still below; please try again.",
       values: raw,
       checkedVolunteerIds: volunteerIds,
+      people,
+    };
+  }
+
+  const { data: saved } = await supabase.from("interactions").select("staff_member_id").eq("id", id).single();
+  const peopleError = formData.has("people_form")
+    ? await saveInteractionPeople(supabase, id, (saved?.staff_member_id as string) ?? lead ?? user.id, people)
+    : null;
+  if (peopleError) {
+    return {
+      error: "The details were saved, but who did it and the staff linked were NOT updated. Please check them and save again.",
+      values: raw,
+      checkedVolunteerIds: volunteerIds,
+      people,
     };
   }
 

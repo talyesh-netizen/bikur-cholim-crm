@@ -24,6 +24,7 @@ function toInteractionWithNames(row: ServiceDetails & {
   contacts: { name: string; resident_contacts: { resident_id: string; relationship_to_resident: string }[] | null } | null;
   profiles: { full_name: string } | null;
   interaction_volunteers: { contacts: { id: string; name: string } | null }[] | null;
+  counted_in_id?: string | null;
 }): InteractionWithNames {
   const resident = row.residents;
   return {
@@ -47,6 +48,7 @@ function toInteractionWithNames(row: ServiceDetails & {
     unmet_need: row.unmet_need,
     unmet_need_reason: row.unmet_need_reason,
     funder_story: row.funder_story,
+    counted_in_id: row.counted_in_id ?? null,
     resident_name: resident
       ? residentName(resident)
       : null,
@@ -71,7 +73,7 @@ function toInteractionWithNames(row: ServiceDetails & {
 // having been on a volunteer_visit -- see the type comment on
 // InteractionWithNames for why this must stay distinct from contact_id.
 const SELECT_WITH_NAMES =
-  "id, occurred_at, interaction_type, facility_id, resident_id, contact_id, staff_member_id, notes, created_at, occasion, holiday, family_need, program_partner, quantity, people_reached, participants, minutes_spent, unmet_need, unmet_need_reason, funder_story, residents(first_name, last_name, preferred_name), facilities(name, geographic_cluster_id), contacts!interactions_contact_id_fkey(name, resident_contacts(resident_id, relationship_to_resident)), profiles(full_name), interaction_volunteers(contacts(id, name))";
+  "id, occurred_at, interaction_type, facility_id, resident_id, contact_id, staff_member_id, notes, created_at, occasion, holiday, family_need, program_partner, quantity, people_reached, participants, minutes_spent, unmet_need, unmet_need_reason, funder_story, counted_in_id, residents(first_name, last_name, preferred_name), facilities(name, geographic_cluster_id), contacts!interactions_contact_id_fkey(name, resident_contacts(resident_id, relationship_to_resident)), profiles!interactions_staff_member_id_fkey(full_name), interaction_volunteers(contacts(id, name))";
 
 export async function listInteractionsForResident(residentId: string) {
   const supabase = await createClient();
@@ -124,6 +126,8 @@ export type InteractionListFilters = {
   interactionTypes?: string[];
   holiday?: string;
   familyNeed?: string;
+  /** Only entries reviewed as double entries (counted in another). */
+  countedIn?: boolean;
 };
 
 export async function listInteractions(filters: InteractionListFilters = {}) {
@@ -147,11 +151,26 @@ export async function listInteractions(filters: InteractionListFilters = {}) {
   if (filters.familyNeed) {
     query = query.eq("family_need", filters.familyNeed);
   }
+  if (filters.countedIn) {
+    query = query.not("counted_in_id", "is", null);
+  }
   if (filters.facilityId) {
     query = query.eq("facility_id", filters.facilityId);
   }
   if (filters.staffId) {
-    query = query.eq("staff_member_id", filters.staffId);
+    // Their own entries and ones they were a team member on -- the same
+    // activities the Impact page credits them with.
+    const { data: team } = await supabase
+      .from("interaction_team_members")
+      .select("interaction_id")
+      .eq("profile_id", filters.staffId)
+      .limit(1000);
+    const teamIds = (team ?? []).map((t) => t.interaction_id as string);
+    // The id goes into a filter string, so only a real id is used there.
+    const validId = /^[0-9a-f-]{36}$/i.test(filters.staffId);
+    query = teamIds.length && validId
+      ? query.or(`staff_member_id.eq.${filters.staffId},id.in.(${teamIds.join(",")})`)
+      : query.eq("staff_member_id", filters.staffId);
   }
   // The date filters are plain Cleveland calendar days ("2026-09-22")
   // from a date input, but occurred_at is an exact moment -- so "from the
@@ -228,7 +247,7 @@ export async function listInteractionsForFacility(facilityId: string) {
 export async function listInteractionsForContact(contactId: string) {
   const supabase = await createClient();
 
-  const [direct, viaVolunteers] = await Promise.all([
+  const [direct, viaVolunteers, viaLinks] = await Promise.all([
     supabase
       .from("interactions")
       .select(SELECT_WITH_NAMES)
@@ -245,17 +264,26 @@ export async function listInteractionsForContact(contactId: string) {
       .eq("contact_id", contactId)
       .order("occurred_at", { referencedTable: "interactions", ascending: false })
       .limit(RECENT_INTERACTIONS_LIMIT),
+    // Staff linked to an activity -- worked with, or only there -- see it
+    // on their own page too, not just the first one named.
+    supabase
+      .from("interaction_contacts")
+      .select(`interactions!inner(${SELECT_WITH_NAMES})`)
+      .eq("contact_id", contactId)
+      .order("occurred_at", { referencedTable: "interactions", ascending: false })
+      .limit(RECENT_INTERACTIONS_LIMIT),
   ]);
 
   if (direct.error) throw new Error(direct.error.message);
   if (viaVolunteers.error) throw new Error(viaVolunteers.error.message);
+  if (viaLinks.error) throw new Error(viaLinks.error.message);
 
   const byId = new Map<string, InteractionWithNames>();
   for (const row of direct.data ?? []) {
     const interaction = toInteractionWithNames(row as unknown as Parameters<typeof toInteractionWithNames>[0]);
     byId.set(interaction.id, interaction);
   }
-  for (const row of viaVolunteers.data ?? []) {
+  for (const row of [...(viaVolunteers.data ?? []), ...(viaLinks.data ?? [])]) {
     const raw = (row as unknown as { interactions: Parameters<typeof toInteractionWithNames>[0] }).interactions;
     const interaction = toInteractionWithNames(raw);
     byId.set(interaction.id, interaction);
