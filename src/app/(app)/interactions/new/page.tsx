@@ -112,6 +112,7 @@ export default async function NewInteractionPage({
             defaultFacilityId={facilityId ?? resident?.current_facility_id ?? undefined}
             defaultInteractionType={defaultType}
             defaultContactId={chosenContact?.id}
+            defaultInPerson={from === "onsite"}
             fixedResident={fixedResident}
             residents={residents}
             contacts={contacts}

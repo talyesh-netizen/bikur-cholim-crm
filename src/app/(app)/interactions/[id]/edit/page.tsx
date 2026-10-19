@@ -126,6 +126,7 @@ export default async function EditInteractionPage({
               interaction_type: interaction.interaction_type,
               notes: interaction.notes ?? "",
               partner_organization_id: extras.partner?.id ?? "",
+              in_person: interaction.in_person ? "on" : "",
               occasion: interaction.occasion ?? "",
               holiday: interaction.holiday ?? "",
               family_need: interaction.family_need ?? "",

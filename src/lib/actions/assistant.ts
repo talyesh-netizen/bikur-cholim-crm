@@ -5,7 +5,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/get-current-profile";
-import { HOLIDAY_TYPES, FAMILY_NEED_TYPES, INTERACTION_TYPES, labelFor, SERVICE_FIELDS_BY_TYPE, occasionForHoliday, type InteractionType } from "@/lib/domain/interaction";
+import { HOLIDAY_TYPES, FAMILY_NEED_TYPES, IN_PERSON_ONLY_TYPES, INTERACTION_TYPES, labelFor, SERVICE_FIELDS_BY_TYPE, occasionForHoliday, type InteractionType } from "@/lib/domain/interaction";
 import { loadDirectory, type Directory } from "@/lib/assistant/directory";
 import { resolvePlan } from "@/lib/assistant/resolve";
 import { aboutThemNotes } from "@/lib/assistant/about-them";
@@ -286,7 +286,12 @@ function quickLogSubmissionId(parts: (string | number | null)[]) {
  * says exactly which part didn't.
  */
 
-export async function applyPlan(input: unknown, secondVisits: string[] = []): Promise<ApplyResult> {
+export async function applyPlan(
+  input: unknown,
+  secondVisits: string[] = [],
+  /** The on-site notes box: the facility we're standing in. */
+  onSiteFacilityId?: string
+): Promise<ApplyResult> {
   const parsed = planSchema.safeParse(input);
   if (!parsed.success) return { ok: false, steps: [{ label: "Nothing was saved: the plan looked wrong.", ok: false }] };
   const plan = aboutThemNotes(parsed.data);
@@ -640,6 +645,9 @@ export async function applyPlan(input: unknown, secondVisits: string[] = []): Pr
             ? occasionForHoliday(i.holiday)
             : null,
         staff_member_id: staffId,
+        // Written on site: a staff conversation there was in person
+        // (decision B, Oct 19, 2026).
+        in_person: onSiteFacilityId && facilityId === onSiteFacilityId && IN_PERSON_ONLY_TYPES.includes(i.interaction_type) ? true : null,
         client_submission_id: quickLogSubmissionId([
           ...idParts(staffId),
           ...(repeat > 1 ? [repeat] : []),

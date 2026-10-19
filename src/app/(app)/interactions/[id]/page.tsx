@@ -13,6 +13,7 @@ import {
   FAMILY_NEEDS,
   PROGRAM_PARTNERS,
   UNMET_NEED_REASONS,
+  IN_PERSON_ONLY_TYPES,
 } from "@/lib/domain/interaction";
 import { formatDateTime, formatDateTimeWithTime } from "@/lib/format-date";
 import { InteractionList, staffLabel } from "../interaction-list";
@@ -221,6 +222,11 @@ export default async function InteractionDetailPage({
                   {labelFor(UNMET_NEED_REASONS, interaction.unmet_need_reason)}
                 </span>
               ) : null}
+            </p>
+          ) : null}
+          {IN_PERSON_ONLY_TYPES.includes(interaction.interaction_type) ? (
+            <p className="text-muted-foreground">
+              {interaction.in_person ? "In person at the facility (counts as a facility visit-day)" : "Not marked in person (a call, email or not recorded)"}
             </p>
           ) : null}
           {interaction.funder_story ? (

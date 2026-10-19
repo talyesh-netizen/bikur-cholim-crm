@@ -76,6 +76,10 @@ Decisions so far:
   is saved at noon, today at the moment of saving, and an edit that
   keeps the day keeps the time already saved. When it was typed in is
   still recorded (created_at).
+- In person (Oct 19, 2026, decision B): a staff conversation saved from
+  the on-site notes box is marked in person, so it counts as a facility
+  visit-day; elsewhere Quick Log leaves it unmarked (the person can tick
+  "In person?" when fixing it). Calls and emails never count.
 - Already logged that day (Oct 9, 2026): an entry with the same resident,
   kind and day as one already saved is flagged on the check screen,
   "Is this a second visit?" Yes saves it as its own visit; No unticks

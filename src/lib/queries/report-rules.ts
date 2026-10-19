@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { orgDayKey } from "@/lib/format-date";
 import { selectAllPages } from "@/lib/queries/impact";
+import { IN_PERSON_ONLY_TYPES } from "@/lib/domain/interaction";
 
 /**
  * How activities are counted (Build 2, approved by the director Oct 16,
@@ -15,7 +16,9 @@ import { selectAllPages } from "@/lib/queries/impact";
  * - Staff facility visit-days (decision D2, Oct 19, 2026): each facility
  *   once per Cleveland calendar day our staff were there in person, however
  *   many activities were logged. Volunteer-only visits don't make one;
- *   they're counted as volunteer visits.
+ *   they're counted as volunteer visits. A staff conversation makes one
+ *   only when it was in person (decision B, Oct 19, 2026: logged on site,
+ *   or "In person?" ticked); calls and emails never do.
  * - Group volunteers: a group project's head count, held on its first
  *   activity; activities "Part of" it never add it again.
  */
@@ -48,6 +51,7 @@ export type CountableRow = {
   participants?: number | null;
   part_of_id?: string | null;
   counted_in_id?: string | null;
+  in_person?: boolean | null;
 };
 
 /** Not reviewed as a copy of another entry. */
@@ -93,7 +97,9 @@ export function staffEngagementsFor(r: CountableRow, engaged: EngagedLinks): num
 
 /** "facility|2026-10-09" for an in-person activity at a facility, else null. */
 export function visitDayKey(r: CountableRow): string | null {
-  if (!r.facility_id || !VISIT_DAY_TYPES.has(r.interaction_type)) return null;
+  if (!r.facility_id) return null;
+  const inPerson = VISIT_DAY_TYPES.has(r.interaction_type) || (IN_PERSON_ONLY_TYPES.includes(r.interaction_type) && r.in_person === true);
+  if (!inPerson) return null;
   return `${r.facility_id}|${orgDayKey(r.occurred_at)}`;
 }
 

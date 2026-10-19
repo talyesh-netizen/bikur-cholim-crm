@@ -552,7 +552,7 @@ export function QuickLog({
         const secondVisits = Object.entries(repeatAnswers)
           .filter(([, answer]) => answer === "second")
           .map(([index]) => repeatVisitKey(dated.interactions[Number(index)]));
-        response = await applyPlan(withDecisions(withoutSkipped(dated, skipped), decisions), secondVisits);
+        response = await applyPlan(withDecisions(withoutSkipped(dated, skipped), decisions), secondVisits, onSite?.facilityId);
       } catch {
         // Saving twice is safe (each entry has a fixed id), so the list
         // stays up for another try.

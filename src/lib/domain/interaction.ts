@@ -125,6 +125,9 @@ export type Interaction = {
   staff_member_id: string;
   notes: string | null;
   created_at: string;
+  /** Our staff were there in person (set on site, or ticked on a staff
+   * conversation); null = not recorded. */
+  in_person?: boolean | null;
 } & ServiceDetails;
 
 /** An interaction row plus the resident/facility/contact/staff names needed
@@ -174,6 +177,11 @@ export const ENGAGEMENT_TYPES: readonly string[] = [
   "program",
   "school_engagement",
 ];
+
+/** Entries that ask "In person?" -- a facility visit-day only when ticked
+ * (or logged on site). Calls and emails are never asked and never count
+ * (decision B, Oct 19, 2026). */
+export const IN_PERSON_ONLY_TYPES: readonly string[] = ["facility_staff_communication"];
 
 /** Entries that can have a partner (school, shul, organization) and be
  * "Part of" a group project. */

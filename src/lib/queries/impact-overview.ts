@@ -59,6 +59,7 @@ type Row = {
   people_reached: number | null;
   holiday: string | null;
   family_need: string | null;
+  in_person: boolean | null;
 };
 
 export type Headline = {
@@ -187,7 +188,7 @@ export async function getImpactOverview(period: ImpactPeriod): Promise<ImpactOve
       let q = supabase
         .from("interactions")
         .select(
-          "id, interaction_type, occurred_at, resident_id, contact_id, facility_id, people_reached, holiday, family_need, participants, part_of_id, counted_in_id"
+          "id, interaction_type, occurred_at, resident_id, contact_id, facility_id, people_reached, holiday, family_need, participants, part_of_id, counted_in_id, in_person"
         )
         .order("id")
         .range(from, to);
@@ -377,7 +378,7 @@ export async function headlineAsFirstRecorded(fromIso: string, toIso: string): P
       supabase
         .from("interactions")
         .select(
-          "id, interaction_type, occurred_at, resident_id, contact_id, facility_id, people_reached, holiday, family_need, participants, part_of_id, counted_in_id"
+          "id, interaction_type, occurred_at, resident_id, contact_id, facility_id, people_reached, holiday, family_need, participants, part_of_id, counted_in_id, in_person"
         )
         .gte("occurred_at", fromIso)
         .lt("occurred_at", toIso)

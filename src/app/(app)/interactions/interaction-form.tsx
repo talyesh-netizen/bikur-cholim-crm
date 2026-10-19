@@ -21,6 +21,7 @@ import {
   VOLUNTEER_TYPES,
   ENGAGEMENT_TYPES,
   PARTNER_TYPES,
+  IN_PERSON_ONLY_TYPES,
   GROUP_COUNT_TYPES,
   PROGRAM_PARTNERS,
   SERVICE_FIELDS_BY_TYPE,
@@ -51,6 +52,7 @@ export function InteractionForm({
   defaultFacilityId,
   defaultInteractionType,
   defaultContactId,
+  defaultInPerson,
   fixedResident,
   residents,
   contacts,
@@ -71,6 +73,8 @@ export function InteractionForm({
   defaultInteractionType?: string;
   /** Pre-selects who it was with (a staff or family member tapped on site). */
   defaultContactId?: string;
+  /** Opened from on site: a staff conversation starts ticked "In person". */
+  defaultInPerson?: boolean;
   /** Set when logging from a resident's page — already chosen. */
   fixedResident?: { id: string; name: string };
   /** Residents to pick from (with where they live). Once a facility is
@@ -95,6 +99,8 @@ export function InteractionForm({
     interaction_type: string;
     notes: string;
     partner_organization_id?: string;
+    /** "on" when saved as in person. */
+    in_person?: string;
   } & Partial<ServiceFormValues>;
   initialVolunteerIds?: string[];
   /** Staff, partners, group projects -- for who did it, staff engaged,
@@ -125,6 +131,7 @@ export function InteractionForm({
       occurred_at: defaultOccurredAt,
       interaction_type: defaultInteractionType ?? "",
       notes: "",
+      in_person: defaultInPerson ? "on" : "",
     };
   const formKey = JSON.stringify(values);
 
@@ -373,6 +380,23 @@ export function InteractionForm({
       >
         <TypePicker value={interactionType} onChange={setInteractionType} />
       </Field>
+
+      {/* Only a staff conversation asks: in person, it counts as a facility
+          visit-day; a call or email never does (decision B, Oct 19, 2026). */}
+      {IN_PERSON_ONLY_TYPES.includes(interactionType) ? (
+        <label className="flex w-fit items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="in_person"
+            defaultChecked={values.in_person === "on"}
+            className="size-4 accent-[var(--primary)]"
+          />
+          <span>
+            <span className="font-medium">In person?</span>
+            <span className="text-muted-foreground"> Tick if you were at the facility (not a call or email).</span>
+          </span>
+        </label>
+      ) : null}
 
       {/* Not asked any more (kept simple); an older entry keeps its value. */}
       <input type="hidden" name="family_need" value={service.family_need} readOnly />
