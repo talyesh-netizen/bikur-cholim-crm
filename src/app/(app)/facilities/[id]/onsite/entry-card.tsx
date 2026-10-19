@@ -11,7 +11,7 @@ import { getLocalToday, orgLocalToIso, toOrgDatetimeLocalValue, formatDateOnly }
 import { draftKey, newSubmissionId, readDraft, removeDraft, writeDraft } from "./onsite-drafts";
 
 const SAVE_LABEL: Record<OnsiteEntryKind, string> = { visit: "Save visit", staff: "Save conversation", family: "Save conversation" };
-const SAVED_LABEL: Record<OnsiteEntryKind, string> = { visit: "Visit saved", staff: "Conversation saved", family: "Family support saved" };
+const SAVED_LABEL: Record<OnsiteEntryKind, string> = { visit: "Visit saved", staff: "Staff conversation saved", family: "Family support saved" };
 
 /**
  * Record what happened with one person, right where they're listed:

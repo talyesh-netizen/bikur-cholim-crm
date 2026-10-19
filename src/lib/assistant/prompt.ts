@@ -1,4 +1,10 @@
 import { FAMILY_NEEDS, HOLIDAYS, INTERACTION_TYPES } from "@/lib/domain/interaction";
+
+/** What a type covers, for the assistant, where its short label alone
+ * would say less than the longer one it replaced. */
+const TYPE_HINTS: Partial<Record<string, string>> = {
+  facility_staff_communication: "any meeting, check-in or appreciation with facility staff",
+};
 import { PLAN_JSON_SCHEMA } from "@/lib/assistant/schema";
 import { calendarAround } from "@/lib/assistant/calendar";
 
@@ -29,7 +35,7 @@ You are given a DIRECTORY of everything this staff member can see. Refer to exis
 
 ## 2. Log what happened (interactions)
 Log one interaction for each distinct conversation or visit the note says happened (see section 0). Pick the type:
-${INTERACTION_TYPES.map((t) => `- ${t.value}: ${t.label}`).join("\n")}
+${INTERACTION_TYPES.map((t) => `- ${t.value}: ${t.label}${TYPE_HINTS[t.value] ? ` (${TYPE_HINTS[t.value]})` : ""}`).join("\n")}
 Guidance:
 - Staff visiting a resident in person -> resident_visit, with resident and facility set.
 - A volunteer visiting -> volunteer_visit, with the volunteer contact aliases in "volunteers".

@@ -20,7 +20,9 @@ export const INTERACTION_TYPES = [
   { value: "medical_referral", label: "Medical referral (to Bikur Cholim)" },
   { value: "ride_arranged", label: "Ride arranged (through Bikur Cholim)" },
   { value: "referral", label: "Referral (other)" },
-  { value: "facility_staff_communication", label: "Facility staff (meeting, touchpoint, appreciation)" },
+  // Plain wording (director, Oct 19, 2026); meetings, check-ins and
+  // appreciation with facility staff are all this one kind.
+  { value: "facility_staff_communication", label: "Staff conversation" },
   { value: "facility_visit", label: "Facility visit" },
   { value: "facility_discovery_visit", label: "First visit to a new facility" },
   { value: "hospital_related_communication", label: "Hospital-related communication" },
@@ -45,7 +47,7 @@ export const TYPE_BUTTONS: {
   { key: "family", label: "Family", choices: [{ value: "family_communication", label: "Family" }] },
   { key: "delivery", label: "Food", choices: [{ value: "food_delivery", label: "Food" }] },
   { key: "referral", label: "Referral", choices: [{ value: "medical_referral", label: "Referral" }] },
-  { key: "facility", label: "Staff", choices: [{ value: "facility_staff_communication", label: "Staff" }] },
+  { key: "facility", label: "Staff conversation", choices: [{ value: "facility_staff_communication", label: "Staff conversation" }] },
   { key: "program", label: "Program", choices: [{ value: "program", label: "Program" }] },
 ];
 

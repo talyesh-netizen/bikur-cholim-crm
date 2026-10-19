@@ -255,8 +255,8 @@ export function ImpactView({
       ) : null}
 
       <Section id="staff" color={SERIES.staff} title="Staff & facility support" intro="The relationships with facility teams that open the door to residents.">
-        <ChartCard title="Staff touchpoints per month" subtitle="Meetings, check-ins, appreciation and first visits, last 6 months">
-          <MonthBars data={o.staffByMonth} colors={[SERIES.staff]} names={["touchpoints"]} />
+        <ChartCard title="Staff conversations per month" subtitle="Meetings, check-ins, appreciation and first visits, last 6 months">
+          <MonthBars data={o.staffByMonth} colors={[SERIES.staff]} names={["conversations"]} />
         </ChartCard>
         <ChartCard
           title="Where each facility relationship stands"
@@ -264,11 +264,11 @@ export function ImpactView({
         >
           <SplitBar data={o.stages} />
         </ChartCard>
-        <ChartCard title="Most-supported facility teams" subtitle={`Staff touchpoints · ${p.label.toLowerCase()} · tap to open`}>
+        <ChartCard title="Most-supported facility teams" subtitle={`Staff conversations · ${p.label.toLowerCase()} · tap to open`}>
           {o.topFacilities.length > 0 ? (
             <HBars data={o.topFacilities} color={SERIES.staff} labelWidth={150} />
           ) : (
-            <p className="text-sm text-muted-foreground">No staff touchpoints logged {periodPhrase}.</p>
+            <p className="text-sm text-muted-foreground">No staff conversations logged {periodPhrase}.</p>
           )}
         </ChartCard>
       </Section>
