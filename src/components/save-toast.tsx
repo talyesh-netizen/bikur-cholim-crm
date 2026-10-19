@@ -88,5 +88,5 @@ export function SaveToast() {
 }
 
 function isLoggedInteraction(kind: SavedKind) {
-  return kind === "interaction-logged" || kind === "visit-logged";
+  return kind === "interaction-logged" || kind === "visit-logged" || kind === "staff-talk-logged";
 }

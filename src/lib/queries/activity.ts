@@ -158,3 +158,17 @@ export async function getActivityExtras(id: string): Promise<ActivityExtras> {
     countedIn: countedIn ? { id: countedIn.id, occurred_at: countedIn.occurred_at } : null,
   };
 }
+
+/** Staff contacts marked "worked with or spoke to" on these entries
+ * (beyond each entry's own contact) -- for "Talked today" on site. */
+export async function listEngagedContacts(interactionIds: string[]): Promise<{ interaction_id: string; contact_id: string }[]> {
+  if (interactionIds.length === 0) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("interaction_contacts")
+    .select("interaction_id, contact_id")
+    .in("interaction_id", interactionIds)
+    .eq("engaged", true);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as { interaction_id: string; contact_id: string }[];
+}

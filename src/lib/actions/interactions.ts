@@ -310,7 +310,13 @@ export async function createInteraction(
   redirect(
     withSaved(
       redirectTo,
-      createdIds.length > 1 ? "visits-logged" : parsed.data.interaction_type === "resident_visit" ? "visit-logged" : "interaction-logged",
+      createdIds.length > 1
+        ? "visits-logged"
+        : parsed.data.interaction_type === "resident_visit"
+          ? "visit-logged"
+          : parsed.data.interaction_type === "facility_staff_communication"
+            ? "staff-talk-logged"
+            : "interaction-logged",
       createdIds.length > 1 ? undefined : created.id
     )
   );
