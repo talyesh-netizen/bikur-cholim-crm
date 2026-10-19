@@ -22,7 +22,8 @@ import { TaskList } from "@/app/(app)/tasks/task-list";
 import { ProfileNotesCard } from "@/components/profile-notes-card";
 import { Fold } from "@/components/fold";
 import { listResidentProfileNotes } from "@/lib/queries/profile-notes";
-import { Pencil, ArrowRightLeft, Plus, UserX, Undo2, Star, ListPlus } from "lucide-react";
+import { Pencil, ArrowRightLeft, Plus, UserX, Undo2, Star, ListPlus, Mic } from "lucide-react";
+import { safeReturnTo } from "@/lib/return-to";
 import { residentName } from "@/lib/domain/resident-name";
 import { getCurrentProfile } from "@/lib/get-current-profile";
 import { listChangesForRecord } from "@/lib/queries/change-log";
@@ -34,10 +35,16 @@ function residenceUnitLabel(facilityType: string | null) {
 
 export default async function ResidentDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  /** The page this resident was opened from (e.g. their facility). */
+  searchParams: Promise<{ back?: string }>;
 }) {
   const { id } = await params;
+  const back = safeReturnTo((await searchParams).back);
+  // Saving a log or task started here goes back where the person began.
+  const backParam = back ? `&back=${encodeURIComponent(back)}` : "";
   const [resident, history, interactions, volunteers, familyContacts, tasks, profileNotes, profile, changes] = await Promise.all([
     getResident(id),
     getResidentFacilityHistory(id),
@@ -87,17 +94,25 @@ export default async function ResidentDetailPage({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {/* One way to log (decided Oct 8, 2026): visits, family, food,
-              notes about them and follow-ups all start here. */}
+          {/* Log opens the written form with this resident chosen
+              (director, Oct 19, 2026); talking it in stays one tap away. */}
           <Button asChild size="lg" className="text-base">
-            <Link href={`${quickLogEnabled() ? "/quick-log" : "/interactions/new"}?resident=${resident.id}`}>
+            <Link href={`/interactions/new?resident=${resident.id}${backParam}`}>
               <Plus className="size-5" />
               Log
             </Link>
           </Button>
+          {quickLogEnabled() ? (
+            <Button variant="outline" size="lg" asChild>
+              <Link href={`/quick-log?resident=${resident.id}`}>
+                <Mic className="size-4" />
+                Voice note
+              </Link>
+            </Button>
+          ) : null}
           <Button variant="outline" asChild>
             <Link
-              href={`/tasks/new?resident=${resident.id}${resident.current_facility_id ? `&facility=${resident.current_facility_id}` : ""}`}
+              href={`/tasks/new?resident=${resident.id}${resident.current_facility_id ? `&facility=${resident.current_facility_id}` : ""}${backParam}`}
             >
               <ListPlus className="size-4" />
               Follow-up
@@ -239,14 +254,14 @@ export default async function ResidentDetailPage({
         count={tasks.filter((t) => t.status !== "completed" && t.status !== "cancelled").length}
         action={
           <Button size="sm" variant="outline" asChild>
-            <Link href={`/tasks/new?resident=${resident.id}`}>
+            <Link href={`/tasks/new?resident=${resident.id}${backParam}`}>
               <Plus className="size-4" />
               Add task
             </Link>
           </Button>
         }
       >
-        <TaskList tasks={tasks} />
+        <TaskList tasks={tasks} returnTo={back ?? `/residents/${resident.id}`} />
       </Fold>
 
 

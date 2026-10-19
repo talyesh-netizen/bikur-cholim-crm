@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { labelFor, INTERACTION_TYPES } from "@/lib/domain/interaction";
+import { labelFor, INTERACTION_TYPES, serviceNumbersLine } from "@/lib/domain/interaction";
 import type { InteractionWithNames } from "@/lib/domain/interaction";
 import { formatDateTime } from "@/lib/format-date";
 import { ClusterBadge } from "@/components/cluster-badge";
@@ -18,6 +18,7 @@ import { withContactLabel } from "@/lib/domain/contact";
  * "who volunteered," so they're shown instead of contact_id. */
 export function InteractionRow({ interaction }: { interaction: InteractionWithNames }) {
   const isVolunteerVisit = interaction.interaction_type === "volunteer_visit";
+  const numbers = serviceNumbersLine(interaction);
 
   // A family conversation is support for the family member, so they
   // come first: "With Bob Gottfried (spouse) · about Linda Gottfried".
@@ -55,6 +56,8 @@ export function InteractionRow({ interaction }: { interaction: InteractionWithNa
         {interaction.facility_id && interaction.facility_name ? (
           <ClusterBadge clusterId={interaction.facility_cluster_id} name={interaction.facility_name} />
         ) : null}
+
+        {numbers ? <p className="font-medium text-foreground">{numbers}</p> : null}
 
         {interaction.notes ? (
           <p className="whitespace-pre-wrap text-muted-foreground">{interaction.notes}</p>

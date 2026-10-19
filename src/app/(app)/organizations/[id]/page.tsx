@@ -12,7 +12,10 @@ import { HEALTHCARE_GROUP, labelFor, ORGANIZATION_TYPES } from "@/lib/domain/org
 import { labelFor as labelForContact, CONTACT_TYPES } from "@/lib/domain/contact";
 import { InfoRow } from "@/components/info-row";
 import { telHref, websiteHref, mapsHref } from "@/lib/link-helpers";
-import { Pencil, Plus, UserX, Undo2, Star } from "lucide-react";
+import { ListPlus, Pencil, Plus, UserX, Undo2, Star } from "lucide-react";
+import { Fold } from "@/components/fold";
+import { listTasks } from "@/lib/queries/tasks";
+import { TaskList } from "@/app/(app)/tasks/task-list";
 
 export default async function OrganizationDetailPage({
   params,
@@ -20,9 +23,10 @@ export default async function OrganizationDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [organization, contacts] = await Promise.all([
+  const [organization, contacts, tasks] = await Promise.all([
     getOrganization(id),
     listOrganizationContacts(id),
+    listTasks({ organizationId: id, showAllStatuses: true }),
   ]);
 
   if (!organization) notFound();
@@ -172,6 +176,13 @@ export default async function OrganizationDetailPage({
                       </p>
                     </div>
                     <div className="relative z-10 flex items-center gap-1">
+                      {oc.active ? (
+                        <Button size="sm" variant="ghost" asChild title={`Add a task about ${oc.contact.name}`}>
+                          <Link href={`/tasks/new?organization=${organization.id}&contact=${oc.contact.id}&back=${encodeURIComponent(`/organizations/${organization.id}`)}`}>
+                            <ListPlus className="size-4" />
+                          </Link>
+                        </Button>
+                      ) : null}
                       {!oc.active ? (
                         <Badge variant="outline">Inactive</Badge>
                       ) : oc.is_primary_contact ? (
@@ -204,6 +215,21 @@ export default async function OrganizationDetailPage({
           )}
         </CardContent>
       </Card>
+
+      <Fold
+        title="Follow-up tasks"
+        count={tasks.filter((t) => t.status !== "completed" && t.status !== "cancelled").length}
+        action={
+          <Button size="sm" variant="outline" asChild>
+            <Link href={`/tasks/new?organization=${organization.id}`}>
+              <ListPlus className="size-4" />
+              Add task
+            </Link>
+          </Button>
+        }
+      >
+        <TaskList tasks={tasks} returnTo={`/organizations/${organization.id}`} />
+      </Fold>
 
       {organization.notes ? (
         <Card>

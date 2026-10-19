@@ -162,8 +162,8 @@ export function ContactForm({
       <Field label="Organization (free text)" htmlFor="organization">
         <Input id="organization" name="organization" defaultValue={values.organization} autoCapitalize="words" onChange={capitalizeAsYouType} />
         <p className="text-xs text-muted-foreground">
-          A note about where they work/belong — separate from linking this contact to an actual
-          Organization record, which is done from that organization&apos;s own page.
+          A note only. To link them to a facility or Strategic Partner, use &ldquo;+ Link to a facility or
+          partner&rdquo; under Works at / Represents on their page.
         </p>
       </Field>
 

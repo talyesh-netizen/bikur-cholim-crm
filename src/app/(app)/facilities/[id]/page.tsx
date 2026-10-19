@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getFacility } from "@/lib/queries/facilities";
+import { getFacility, getFacilityAlsoOffers } from "@/lib/queries/facilities";
 import { setFacilityActive } from "@/lib/actions/facilities";
 import { listResidents } from "@/lib/queries/residents";
 import { listInteractionsForFacility } from "@/lib/queries/interactions";
@@ -54,7 +54,7 @@ export default async function FacilityDetailPage({
   const { impact: impactParam } = await searchParams;
   const impactPeriod: ImpactPeriod = impactParam === "month" || impactParam === "all" ? impactParam : "quarter";
   const periodLabel = IMPACT_PERIODS.find((p) => p.value === impactPeriod)?.label ?? "This quarter";
-  const [facility, residents, interactions, facilityContacts, profileNotes, impact, services, media] = await Promise.all([
+  const [facility, residents, interactions, facilityContacts, profileNotes, impact, services, media, alsoOffers] = await Promise.all([
     getFacility(id),
     listResidents({ facilityId: id, showAllStatuses: true }),
     listInteractionsForFacility(id),
@@ -63,6 +63,7 @@ export default async function FacilityDetailPage({
     getImpactBreakdown(impactPeriod, id),
     getServicesDelivered(impactPeriod, id),
     listFacilityMedia(id),
+    getFacilityAlsoOffers(id),
   ]);
 
   if (!facility) notFound();
@@ -95,6 +96,7 @@ export default async function FacilityDetailPage({
           </div>
           <p className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
             {labelFor(FACILITY_TYPES, facility.facility_type)}
+            {alsoOffers.length > 0 ? ` · also ${alsoOffers.map((t) => labelFor(FACILITY_TYPES, t).toLowerCase()).join(", ")}` : ""}
             {facility.city ? ` · ${facility.city}` : ""}
             {facility.geographic_cluster_name ? (
               <ClusterBadge
@@ -230,7 +232,7 @@ export default async function FacilityDetailPage({
               {residents.map((resident) => (
                 <li key={resident.id}>
                   <Link
-                    href={`/residents/${resident.id}`}
+                    href={`/residents/${resident.id}?back=${encodeURIComponent(`/facilities/${facility.id}`)}`}
                     className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-accent"
                   >
                     <span>
@@ -341,7 +343,7 @@ export default async function FacilityDetailPage({
           </Button>
         </CardHeader>
         <CardContent>
-          <TaskList tasks={tasks} showResident />
+          <TaskList tasks={tasks} showResident returnTo={`/facilities/${facility.id}`} />
         </CardContent>
       </Card>
 

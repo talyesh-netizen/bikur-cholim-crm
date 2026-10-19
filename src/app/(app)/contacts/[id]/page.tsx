@@ -6,7 +6,12 @@ import { Button } from "@/components/ui/button";
 import { ColorBadge } from "@/components/color-badge";
 import { primaryProfileColor, primaryProfileLabel } from "@/lib/domain/primary-profile";
 import { getContact, listResidentsForContact, listFacilitiesForContact } from "@/lib/queries/contacts";
-import { getOrganizationForContact } from "@/lib/queries/organizations";
+import { getOrganizationForContact, listOrganizations, listOrganizationsForContact } from "@/lib/queries/organizations";
+import { listFacilities } from "@/lib/queries/facilities";
+import { listTasks } from "@/lib/queries/tasks";
+import { TaskList } from "@/app/(app)/tasks/task-list";
+import { linkContactToPlace } from "@/lib/actions/contacts";
+import { LinkPlaceForm } from "./link-place-form";
 import { listInteractionsForContact, listResidentsVisitedByVolunteer } from "@/lib/queries/interactions";
 import { VisitPartnersCard } from "@/components/visit-partners-card";
 import { setContactActive, markContactDuplicate, undoContactMerge } from "@/lib/actions/contacts";
@@ -26,7 +31,7 @@ import { telHref, mailtoHref, mapsHref } from "@/lib/link-helpers";
 import { formatDateOnly } from "@/lib/format-date";
 import { InfoRow } from "@/components/info-row";
 import { InteractionRow } from "../../interactions/interaction-row";
-import { CopyCheck, Pencil, Plus } from "lucide-react";
+import { CopyCheck, ListPlus, Pencil, Plus } from "lucide-react";
 
 const BACKGROUND_CHECK_BADGE_VARIANT: Record<string, "success" | "warning" | "destructive" | "secondary"> = {
   cleared: "success",
@@ -41,14 +46,19 @@ export default async function ContactDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [contact, residentLinks, facilityLinks, interactions, organizationLink, residentsVisited] = await Promise.all([
-    getContact(id),
-    listResidentsForContact(id),
-    listFacilitiesForContact(id),
-    listInteractionsForContact(id),
-    getOrganizationForContact(id),
-    listResidentsVisitedByVolunteer(id),
-  ]);
+  const [contact, residentLinks, facilityLinks, interactions, organizationLink, residentsVisited, organizationLinks, tasks, facilities, organizations] =
+    await Promise.all([
+      getContact(id),
+      listResidentsForContact(id),
+      listFacilitiesForContact(id),
+      listInteractionsForContact(id),
+      getOrganizationForContact(id),
+      listResidentsVisitedByVolunteer(id),
+      listOrganizationsForContact(id),
+      listTasks({ contactId: id, showAllStatuses: true }),
+      listFacilities(),
+      listOrganizations(),
+    ]);
 
   if (!contact) notFound();
 
@@ -66,6 +76,15 @@ export default async function ContactDetailPage({
     : [];
 
   const toggleActive = setContactActive.bind(null, contact.id, !contact.active);
+  // Places this person can be linked to: facilities and partners, in one search.
+  const placeOptions = [
+    ...facilities
+      .filter((f) => !facilityLinks.some((l) => l.facility_id === f.id))
+      .map((f) => ({ id: `facility:${f.id}`, label: f.name, detail: "Facility" })),
+    ...organizations
+      .filter((o) => !organizationLinks.some((l) => l.organization_id === o.id))
+      .map((o) => ({ id: `organization:${o.id}`, label: o.name, detail: "Strategic Partner" })),
+  ];
   const fullAddress =
     [contact.address, [contact.city, contact.state, contact.zip].filter(Boolean).join(" ")]
       .filter(Boolean)
@@ -190,25 +209,6 @@ export default async function ContactDetailPage({
         </Card>
       ) : null}
 
-      {organizationLink ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Organization</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Link
-              href={`/organizations/${organizationLink.organization_id}`}
-              className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-accent"
-            >
-              <span>{organizationLink.organization_name}</span>
-              {organizationLink.role_at_organization ? (
-                <Badge variant="secondary">{organizationLink.role_at_organization}</Badge>
-              ) : null}
-            </Link>
-          </CardContent>
-        </Card>
-      ) : null}
-
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Connected residents</CardTitle>
@@ -241,11 +241,11 @@ export default async function ContactDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Connected facilities</CardTitle>
+          <CardTitle className="text-base">Works at / Represents</CardTitle>
         </CardHeader>
-        <CardContent>
-          {facilityLinks.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Not linked to any facilities yet.</p>
+        <CardContent className="flex flex-col gap-3">
+          {facilityLinks.length === 0 && organizationLinks.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Not linked to a facility or partner yet.</p>
           ) : (
             <ul className="flex flex-col gap-2">
               {facilityLinks.map((link) => (
@@ -264,7 +264,26 @@ export default async function ContactDetailPage({
                   </Link>
                 </li>
               ))}
+              {organizationLinks.map((link) => (
+                <li key={link.organization_contact_id}>
+                  <Link
+                    href={`/organizations/${link.organization_id}`}
+                    className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+                  >
+                    <span>{link.organization_name}</span>
+                    <span className="flex items-center gap-2">
+                      {link.is_primary_contact ? <Badge>Primary</Badge> : null}
+                      {link.role_at_organization ? (
+                        <Badge variant="secondary">{link.role_at_organization}</Badge>
+                      ) : null}
+                    </span>
+                  </Link>
+                </li>
+              ))}
             </ul>
+          )}
+          {contact.merged_into_id ? null : (
+            <LinkPlaceForm action={linkContactToPlace.bind(null, contact.id)} options={placeOptions} />
           )}
         </CardContent>
       </Card>
@@ -282,7 +301,7 @@ export default async function ContactDetailPage({
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-base">Interactions ({interactions.length})</CardTitle>
           <Button size="sm" variant="outline" asChild>
-            <Link href="/interactions/new">
+            <Link href={`/interactions/new?contact=${contact.id}&back=${encodeURIComponent(`/contacts/${contact.id}`)}`}>
               <Plus className="size-4" />
               Log an interaction
             </Link>
@@ -302,6 +321,21 @@ export default async function ContactDetailPage({
           )}
         </CardContent>
       </Card>
+
+      <Fold
+        title="Follow-up tasks"
+        count={tasks.filter((t) => t.status !== "completed" && t.status !== "cancelled").length}
+        action={
+          <Button size="sm" variant="outline" asChild>
+            <Link href={`/tasks/new?contact=${contact.id}`}>
+              <ListPlus className="size-4" />
+              Add task
+            </Link>
+          </Button>
+        }
+      >
+        <TaskList tasks={tasks} returnTo={`/contacts/${contact.id}`} />
+      </Fold>
 
       {contact.notes ? (
         <Card>

@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getResident } from "@/lib/queries/residents";
 import { getFacility, listFacilities } from "@/lib/queries/facilities";
-import { listResidents } from "@/lib/queries/residents";
+import { residentOptions } from "@/lib/resident-options";
+import { safeReturnTo } from "@/lib/return-to";
 import { listContactOptions, listResidentContacts } from "@/lib/queries/contacts";
 import { labelFor as labelForContact, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
 import { createInteraction } from "@/lib/actions/interactions";
@@ -15,17 +16,15 @@ import { getActivityFormOptions } from "@/lib/queries/activity";
 export default async function NewInteractionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ resident?: string; facility?: string; type?: string; from?: string; contact?: string }>;
+  searchParams: Promise<{ resident?: string; facility?: string; type?: string; from?: string; contact?: string; back?: string }>;
 }) {
-  const { resident: residentId, facility: facilityId, type, from, contact: contactId } = await searchParams;
+  const { resident: residentId, facility: facilityId, type, from, contact: contactId, back } = await searchParams;
   const defaultType = INTERACTION_TYPES.some((t) => t.value === type) ? type : undefined;
 
-  const [facilities, resident, residentsAtFacility, allContacts, volunteers, residentFamily, activity] = await Promise.all([
+  const [facilities, resident, residents, allContacts, volunteers, residentFamily, activity] = await Promise.all([
     listFacilities(),
     residentId ? getResident(residentId) : Promise.resolve(null),
-    !residentId && facilityId
-      ? listResidents({ facilityId, showAllStatuses: true })
-      : Promise.resolve([]),
+    residentOptions(residentId),
     listContactOptions(),
     listContactOptions("volunteer"),
     residentId ? listResidentContacts(residentId) : Promise.resolve([]),
@@ -67,8 +66,12 @@ export default async function NewInteractionPage({
           defaultType === "family_communication" ? residentId : undefined
         )
       : undefined;
+  // Back to the page the person started from (e.g. the facility page
+  // they opened this resident from), else the resident or facility.
   const redirectTo = onsiteReturn
     ? onsiteReturn
+    : safeReturnTo(back)
+    ? safeReturnTo(back)!
     : residentId
     ? `/residents/${residentId}`
     : facilityId
@@ -93,8 +96,8 @@ export default async function NewInteractionPage({
         <h1 className="text-2xl font-semibold">{heading}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {fixedResident
-            ? `For ${fixedResident.name}. Date and time are filled in for right now.`
-            : "Record a visit, call, or other activity. Date and time are filled in for right now."}
+            ? `For ${fixedResident.name}. The date is today; change it for an earlier visit.`
+            : "Record a visit, call, or other activity. The date is today; change it for an earlier visit."}
         </p>
       </div>
 
@@ -110,10 +113,7 @@ export default async function NewInteractionPage({
             defaultInteractionType={defaultType}
             defaultContactId={chosenContact?.id}
             fixedResident={fixedResident}
-            residents={residentsAtFacility.map((r) => ({
-              id: r.id,
-              name: residentName(r),
-            }))}
+            residents={residents}
             contacts={contacts}
             volunteers={volunteers}
             activity={activity}

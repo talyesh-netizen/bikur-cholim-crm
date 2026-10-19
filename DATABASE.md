@@ -118,7 +118,8 @@ One row per facility (nursing home, assisted living, etc.).
 | Field | Purpose |
 |---|---|
 | Name | e.g., "Maplewood Care Center" |
-| Facility type | Nursing home / Assisted living / Rehabilitation center / Memory care / Independent living / Senior apartment building / Hospital / Other |
+| Facility type | Nursing home / Assisted living / Rehabilitation center / Memory care / Independent living / Senior apartment building / Continuing care community / Hospital / Other |
+| Also offers | Other kinds of care besides the main type (e.g. an assisted living that also has memory care). Lists and reports group by the main type. |
 | Address, City, ZIP | Location |
 | Main phone | Facility's front desk / main line |
 | Website | Optional link |
@@ -300,7 +301,7 @@ One row per follow-up item.
 | Priority | e.g., High / Medium / Low |
 | Status | Open / In progress / Waiting / Completed / Cancelled |
 | Assigned staff member | Link to `profiles` |
-| Related facility, resident, contact | All optional links |
+| Related facility, resident, contact, Strategic Partner | All optional links |
 | Task category | Visit / Phone call / Family follow up / Facility follow up / Volunteer coordination / Program planning / Kosher food / Referral / Hospital follow up / Resident transition / Other |
 | Completion notes | Filled in when marked completed |
 

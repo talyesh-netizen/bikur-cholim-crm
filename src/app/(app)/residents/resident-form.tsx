@@ -175,12 +175,14 @@ export function ResidentForm({
           <input
             type="checkbox"
             name="check_in_task"
-            defaultChecked={values.check_in_task_shown ? values.check_in_task === "on" : true}
+            defaultChecked={values.check_in_task_shown ? values.check_in_task === "on" : false}
             className="mt-0.5 size-4 accent-[var(--primary)]"
           />
+          {/* Unticked unless asked for (decision C1, Oct 19, 2026), so
+              someone already visited doesn't get a task they don't need. */}
           <span>
-            <span className="font-medium">Remind me to check in on them</span>
-            <span className="block text-muted-foreground">Adds a follow-up task for a week from today.</span>
+            <span className="font-medium">Not visited yet? Add a visit task for next week.</span>
+            <span className="block text-muted-foreground">Leave this unticked if you&apos;ve already visited them.</span>
           </span>
         </label>
       )}

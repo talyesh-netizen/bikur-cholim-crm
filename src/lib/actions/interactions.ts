@@ -20,7 +20,7 @@ import {
   occasionForHoliday,
   type InteractionType,
 } from "@/lib/domain/interaction";
-import { orgLocalToIso } from "@/lib/format-date";
+import { orgDateToIso } from "@/lib/format-date";
 import { withSaved } from "@/lib/saved-flash";
 
 const typeValues = INTERACTION_TYPES.map((o) => o.value) as [string, ...string[]];
@@ -43,6 +43,8 @@ export type InteractionFormState = {
   checkedVolunteerIds?: string[];
   /** Same again for who did it and the staff linked (several each). */
   people?: PeopleChoice;
+  /** And the residents picked on a Visit (several allowed). */
+  residentIds?: string[];
 };
 
 /** Who did an activity and who was there, as chosen on the form. */
@@ -73,8 +75,10 @@ const interactionSchema = z
     facility_id: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
     occurred_at: z
       .string()
-      .min(1, "Please enter a date and time.")
-      .refine((v) => orgLocalToIso(v) !== null, "Please enter a valid date and time."),
+      .min(1, "Please enter the date.")
+      .refine((v) => orgDateToIso(v) !== null, "Please enter a valid date."),
+    // Editing: the moment already saved, kept when the day isn't changed.
+    occurred_at_saved: z.preprocess(emptyToUndefined, z.string().optional()),
     interaction_type: z.enum(typeValues),
     notes: z.preprocess(emptyToUndefined, z.string().trim().optional()),
     occasion: z.preprocess(emptyToUndefined, z.enum(enumValues(OCCASIONS)).optional()),
@@ -118,11 +122,9 @@ function toInteractionRow(data: z.infer<typeof interactionSchema>, people: Peopl
     resident_id: data.resident_id ?? null,
     contact_id: contactId,
     facility_id: data.facility_id ?? null,
-    // The form's date & time box has no timezone of its own -- what was
-    // typed is Cleveland time. Reading it with `new Date()` here would
-    // treat it as the server's timezone (UTC on Vercel) and shift every
-    // visit by 4-5 hours.
-    occurred_at: orgLocalToIso(data.occurred_at)!,
+    // The form asks for the day only (a Cleveland calendar day); see
+    // orgDateToIso for the moment saved.
+    occurred_at: orgDateToIso(data.occurred_at, data.occurred_at_saved)!,
     interaction_type: data.interaction_type,
     notes: data.notes ?? null,
     occasion,
@@ -203,6 +205,7 @@ export async function createInteraction(
   const raw = Object.fromEntries(formData.entries()) as Record<string, string>;
   const volunteerIds = formData.getAll("volunteer_ids") as string[];
   const people = readPeople(formData);
+  const chosenResidents = uuidList(formData.getAll("resident_ids"));
   const parsed = interactionSchema.safeParse(raw);
   if (!parsed.success) {
     const fieldErrors: Record<string, string> = {};
@@ -210,7 +213,7 @@ export async function createInteraction(
       const key = issue.path[0];
       if (typeof key === "string" && !fieldErrors[key]) fieldErrors[key] = issue.message;
     }
-    return { error: "Please fix the highlighted fields.", fieldErrors, values: raw, checkedVolunteerIds: volunteerIds, people };
+    return { error: "Please fix the highlighted fields.", fieldErrors, values: raw, checkedVolunteerIds: volunteerIds, people, residentIds: chosenResidents };
   }
 
   const supabase = await createClient();
@@ -229,15 +232,27 @@ export async function createInteraction(
   const lead = people.doneBy[0] ?? user.id;
   parsed.data.part_of_id = await projectRoot(supabase, parsed.data.part_of_id);
 
-  const { data: created, error } = await supabase
-    .from("interactions")
-    .insert({
-      ...toInteractionRow(parsed.data, people),
-      staff_member_id: lead,
-      client_submission_id: clientSubmissionId,
-    })
-    .select("id")
-    .single();
+  // Several residents on one Visit (decision A1, Oct 19, 2026): a visit
+  // for each, with the same day, place and notes. One insert, so either
+  // all are saved or none; the submission ID on the first is enough to
+  // recognize a repeat. A group head count isn't copied to each.
+  const row = toInteractionRow(parsed.data, people);
+  const residentIds = parsed.data.interaction_type === "resident_visit" ? chosenResidents : [];
+  const rows =
+    residentIds.length > 0
+      ? residentIds.map((residentId, i) => ({
+          ...row,
+          resident_id: residentId,
+          people_reached: residentIds.length > 1 ? null : row.people_reached,
+          staff_member_id: lead,
+          client_submission_id: i === 0 ? clientSubmissionId : null,
+        }))
+      : [{ ...row, staff_member_id: lead, client_submission_id: clientSubmissionId }];
+
+  const { data: createdRows, error } = await supabase.from("interactions").insert(rows).select("id");
+  const createdIds = (createdRows ?? []).map((r) => r.id as string);
+  const created = createdIds.length === rows.length ? { id: createdIds[0] } : null;
+  const touchedResidents = rows.map((r) => r.resident_id).filter((r): r is string => !!r);
 
   if (error?.code === "23505" && clientSubmissionId) {
     // This exact form was already saved (a double tap, or a retry after
@@ -249,7 +264,7 @@ export async function createInteraction(
       .eq("client_submission_id", clientSubmissionId)
       .maybeSingle();
     if (existing) {
-      if (parsed.data.resident_id) revalidatePath(`/residents/${parsed.data.resident_id}`);
+      for (const r of touchedResidents) revalidatePath(`/residents/${r}`);
       if (parsed.data.facility_id) revalidatePath(`/facilities/${parsed.data.facility_id}`);
       redirect(redirectTo);
     }
@@ -264,31 +279,41 @@ export async function createInteraction(
       values: raw,
       checkedVolunteerIds: volunteerIds,
       people,
+      residentIds: chosenResidents,
     };
   }
 
-  if (people.engaged.length > 0 || people.present.length > 0 || people.doneBy.some((id) => id !== lead)) {
-    const peopleError = await saveInteractionPeople(supabase, created.id, lead, people);
-    // Saved already -- fix the people on the edit page rather than risk
-    // a second copy of the entry from a retry here.
-    if (peopleError) redirect(`/interactions/${created.id}/edit?peopleError=1`);
-  }
+  for (const createdId of createdIds) {
+    if (people.engaged.length > 0 || people.present.length > 0 || people.doneBy.some((id) => id !== lead)) {
+      const peopleError = await saveInteractionPeople(supabase, createdId, lead, people);
+      // Saved already -- fix the people on the edit page rather than risk
+      // a second copy of the entry from a retry here.
+      if (peopleError) redirect(`/interactions/${createdId}/edit?peopleError=1`);
+    }
 
-  if (volunteerIds.length > 0) {
-    const volunteerError = await saveInteractionVolunteers(supabase, created.id, volunteerIds);
-    if (volunteerError) {
-      // The interaction row itself is already saved at this point --
-      // re-showing the "create" form here (as the other error returns
-      // do) would let a retry create a second, duplicate interaction.
-      // Send them to edit the one that was actually created instead.
-      redirect(`/interactions/${created.id}/edit?volunteersError=1`);
+    if (volunteerIds.length > 0) {
+      const volunteerError = await saveInteractionVolunteers(supabase, createdId, volunteerIds);
+      if (volunteerError) {
+        // The interaction row itself is already saved at this point --
+        // re-showing the "create" form here (as the other error returns
+        // do) would let a retry create a second, duplicate interaction.
+        // Send them to edit the one that was actually created instead.
+        redirect(`/interactions/${createdId}/edit?volunteersError=1`);
+      }
     }
   }
 
-  if (parsed.data.resident_id) revalidatePath(`/residents/${parsed.data.resident_id}`);
+  for (const r of touchedResidents) revalidatePath(`/residents/${r}`);
   if (parsed.data.facility_id) revalidatePath(`/facilities/${parsed.data.facility_id}`);
   // A clear "Visit logged" on the page it lands on (e.g. back on site).
-  redirect(withSaved(redirectTo, parsed.data.interaction_type === "resident_visit" ? "visit-logged" : "interaction-logged", created.id));
+  revalidatePath("/interactions");
+  redirect(
+    withSaved(
+      redirectTo,
+      createdIds.length > 1 ? "visits-logged" : parsed.data.interaction_type === "resident_visit" ? "visit-logged" : "interaction-logged",
+      createdIds.length > 1 ? undefined : created.id
+    )
+  );
 }
 
 export async function updateInteraction(

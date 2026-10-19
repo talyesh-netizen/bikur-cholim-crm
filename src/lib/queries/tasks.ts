@@ -6,7 +6,8 @@ import { residentName } from "@/lib/domain/resident-name";
 
 export const SELECT_WITH_NAMES =
   "*, residents(first_name, last_name, preferred_name), facilities(name), profiles!tasks_assigned_to_fkey(full_name), " +
-  "contacts(name, contact_type, organization, facility_contacts(role_at_facility, is_primary_contact, facilities(name)))";
+  "contacts(name, contact_type, organization, facility_contacts(role_at_facility, is_primary_contact, facilities(name))), " +
+  "organizations(name)";
 
 type ContactJoin = {
   name: string;
@@ -29,9 +30,10 @@ export function toTaskWithNames(row: {
   facilities: { name: string } | null;
   profiles: { full_name: string } | null;
   contacts?: ContactJoin;
+  organizations?: { name: string } | null;
   [key: string]: unknown;
 }): TaskWithNames {
-  const { residents: resident, facilities, profiles, contacts: contact, ...task } = row;
+  const { residents: resident, facilities, profiles, contacts: contact, organizations: organization, ...task } = row;
   return {
     ...(task as unknown as Task),
     resident_name: resident
@@ -42,6 +44,7 @@ export function toTaskWithNames(row: {
     contact_name: contact?.name ?? null,
     contact_type: contact?.contact_type ?? null,
     contact_detail: contact ? contactDetail(contact) : null,
+    organization_name: organization?.name ?? null,
   };
 }
 
@@ -52,6 +55,8 @@ export type TaskFilters = {
   showAllStatuses?: boolean;
   residentId?: string;
   facilityId?: string;
+  contactId?: string;
+  organizationId?: string;
 };
 
 export async function listTasks(filters: TaskFilters = {}) {
@@ -75,6 +80,12 @@ export async function listTasks(filters: TaskFilters = {}) {
   }
   if (filters.facilityId) {
     query = query.eq("facility_id", filters.facilityId);
+  }
+  if (filters.contactId) {
+    query = query.eq("contact_id", filters.contactId);
+  }
+  if (filters.organizationId) {
+    query = query.eq("organization_id", filters.organizationId);
   }
   if (filters.overdueOnly) {
     // Only re-apply the open-statuses constraint when no specific status

@@ -260,3 +260,21 @@ export function formatMinutes(minutes: number): string {
   const hours = minutes / 60;
   return `${Number.isInteger(hours) ? hours : hours.toFixed(1)} hr${hours === 1 ? "" : "s"}`;
 }
+
+/** The numbers worth seeing on an entry's card without opening it:
+ * "30 items delivered · 25 people reached" for food, a group visit's or
+ * program's reach, a program's head count. Null when there are none. */
+export function serviceNumbersLine(i: Pick<ServiceDetails, "quantity" | "people_reached" | "participants"> & { interaction_type: string }): string | null {
+  const plural = (n: number, one: string, many: string) => `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
+  const parts =
+    i.interaction_type === "food_delivery"
+      ? [
+          i.quantity ? `${plural(i.quantity, "item", "items")} delivered` : null,
+          i.people_reached ? `${plural(i.people_reached, "person", "people")} reached` : null,
+        ]
+      : [
+          i.participants ? `${plural(i.participants, "person", "people")} took part` : null,
+          i.people_reached ? `${plural(i.people_reached, "resident", "residents")} reached` : null,
+        ];
+  return parts.filter(Boolean).join(" · ") || null;
+}

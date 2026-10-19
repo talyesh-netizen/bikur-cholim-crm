@@ -63,6 +63,21 @@ export function orgLocalToIso(localDateTime: string): string | null {
   return Number.isNaN(result.getTime()) ? null : result.toISOString();
 }
 
+/**
+ * The moment to save for an entry logged by its day only (decision B1,
+ * Oct 19, 2026: no time is asked, so none is made up and shown).
+ * - The saved entry's own day (`saved`, when editing): kept exactly.
+ * - Today: the moment it's saved.
+ * - Any other day: noon Cleveland time, safely inside that day.
+ * A full "2026-09-22T14:30" (older forms, on-site notes) is read as is.
+ */
+export function orgDateToIso(date: string, saved?: string | null): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return orgLocalToIso(date);
+  if (saved && !Number.isNaN(Date.parse(saved)) && orgDayKey(saved) === date) return new Date(saved).toISOString();
+  if (date === getLocalToday()) return new Date().toISOString();
+  return orgLocalToIso(`${date}T12:00`);
+}
+
 /** The start of a Cleveland calendar day ("2026-09-22") as an exact
  * moment -- for filtering timestamps by day ("on or after the 22nd"). */
 export function orgDayStartIso(date: string): string | null {

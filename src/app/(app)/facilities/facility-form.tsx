@@ -32,13 +32,14 @@ type Action = (state: FacilityFormState, formData: FormData) => Promise<Facility
  * a submitted <form>'s values take, so both "editing an existing
  * facility" and "re-showing what was just typed after a failed save"
  * can feed the same fields the same way. */
-function facilityToFormValues(facility?: Facility): Record<string, string> {
+function facilityToFormValues(facility?: Facility, alsoOffers: string[] = []): Record<string, string> {
   if (!facility) {
     return { engagement_status: "not_contacted", visit_priority: "medium" };
   }
   return {
     name: facility.name,
     facility_type: facility.facility_type,
+    also_offers: alsoOffers.join(","),
     address: facility.address ?? "",
     city: facility.city ?? "",
     zip: facility.zip ?? "",
@@ -61,8 +62,11 @@ export function FacilityForm({
   clusters,
   healthcareGroups,
   facility,
+  alsoOffers,
 }: {
   action: Action;
+  /** Editing: the other kinds of care it offers, as saved. */
+  alsoOffers?: string[];
   clusters: GeographicCluster[];
   /** Healthcare group names, A to Z, to choose from. */
   healthcareGroups: string[];
@@ -77,7 +81,9 @@ export function FacilityForm({
   // out what someone typed. The key forces the uncontrolled fields below
   // to pick up fresh defaultValues whenever this changes — see
   // facilityToFormValues' doc comment.
-  const values = state.values ?? facilityToFormValues(facility);
+  const values = state.values ?? facilityToFormValues(facility, alsoOffers);
+  const [mainType, setMainType] = useState(values.facility_type ?? "");
+  const [also, setAlso] = useState<string[]>(() => (values.also_offers ? values.also_offers.split(",") : []));
   const formKey = JSON.stringify(values);
 
   return (
@@ -96,8 +102,40 @@ export function FacilityForm({
         </Field>
 
         <Field label="Facility type" htmlFor="facility_type" error={fieldErrors.facility_type} required>
-          <SelectField name="facility_type" defaultValue={values.facility_type} options={offeredOptions(FACILITY_TYPES, OFFERED_FACILITY_TYPES, values.facility_type)} />
+          <SelectField
+            name="facility_type"
+            value={mainType}
+            onValueChange={setMainType}
+            options={offeredOptions(FACILITY_TYPES, OFFERED_FACILITY_TYPES, values.facility_type)}
+          />
         </Field>
+
+        {/* A second (or third) kind of care, e.g. assisted living that
+            also has memory care. Lists and reports use the main type. */}
+        <div className="flex flex-col gap-1.5">
+          <Label>Also offers (optional)</Label>
+          <input type="hidden" name="also_offers_shown" value="1" />
+          <div className="flex flex-wrap gap-2">
+            {FACILITY_TYPES.filter(
+              (t) => t.value !== mainType && t.value !== "other" && ((OFFERED_FACILITY_TYPES as readonly string[]).includes(t.value) || also.includes(t.value))
+            ).map((t) => (
+              <label
+                key={t.value}
+                className="flex cursor-pointer items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary/10"
+              >
+                <input
+                  type="checkbox"
+                  name="also_offers"
+                  value={t.value}
+                  checked={also.includes(t.value)}
+                  onChange={(e) => setAlso(e.target.checked ? [...also, t.value] : also.filter((v) => v !== t.value))}
+                  className="size-4 accent-[var(--primary)]"
+                />
+                {t.label}
+              </label>
+            ))}
+          </div>
+        </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Address" htmlFor="address">
@@ -244,15 +282,22 @@ function Field({
 function SelectField({
   name,
   defaultValue,
+  value: controlledValue,
+  onValueChange,
   options,
   placeholder,
 }: {
   name: string;
   defaultValue?: string;
+  /** Pass both to follow the choice from outside (e.g. Facility type). */
+  value?: string;
+  onValueChange?: (value: string) => void;
   options: readonly { value: string; label: string }[];
   placeholder?: string;
 }) {
-  const [value, setValue] = useState(defaultValue ?? "");
+  const [internalValue, setInternalValue] = useState(defaultValue ?? "");
+  const value = controlledValue ?? internalValue;
+  const setValue = onValueChange ?? setInternalValue;
 
   return (
     <>

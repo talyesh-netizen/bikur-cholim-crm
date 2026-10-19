@@ -57,8 +57,18 @@ export type FacilityFormState = {
   values?: Record<string, string>;
 };
 
+/** "Also offers": the ticked kinds of care, minus the main type. Only
+ * read when the form showed the boxes, so an older form never clears it. */
+function alsoOffersFrom(formData: FormData, mainType: string): { also_offers?: string[] } {
+  if (!formData.has("also_offers_shown")) return {};
+  const ticked = formData.getAll("also_offers").map(String);
+  return { also_offers: facilityTypeValues.filter((t) => ticked.includes(t) && t !== mainType) };
+}
+
 function parseFacilityForm(formData: FormData) {
   const raw = Object.fromEntries(formData.entries()) as Record<string, string>;
+  // Several boxes share one name; keep them all for a failed save.
+  raw.also_offers = formData.getAll("also_offers").map(String).join(",");
   // Checkboxes only appear in FormData when checked, so a missing key
   // means "false" here.
   raw.jewish_residents_currently_known = formData.has("jewish_residents_currently_known")
@@ -87,7 +97,7 @@ export async function createFacility(
 
   const { data, error } = await supabase
     .from("facilities")
-    .insert({ ...parsed.data, created_by: user?.id })
+    .insert({ ...parsed.data, ...alsoOffersFrom(formData, parsed.data.facility_type), created_by: user?.id })
     .select("id")
     .single();
 
@@ -119,7 +129,7 @@ export async function updateFacility(
   // An erased box arrives as undefined, which the update would skip --
   // so the old value (e.g. a healthcare group) quietly stayed. Send null
   // for every field submitted blank so erasing really clears it.
-  const changes: Record<string, unknown> = { ...parsed.data };
+  const changes: Record<string, unknown> = { ...parsed.data, ...alsoOffersFrom(formData, parsed.data.facility_type) };
   for (const key of Object.keys(raw)) {
     if (key in facilitySchema.shape && changes[key] === undefined) changes[key] = null;
   }

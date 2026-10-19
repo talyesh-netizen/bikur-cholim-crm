@@ -53,6 +53,8 @@ export type Task = {
   facility_id: string | null;
   resident_id: string | null;
   contact_id: string | null;
+  /** The Strategic Partner it's about (added Oct 19, 2026). */
+  organization_id?: string | null;
   interaction_id: string | null;
   task_category: string;
   completion_notes: string | null;
@@ -71,4 +73,5 @@ export type TaskWithNames = Task & {
   contact_name?: string | null;
   contact_type?: string | null;
   contact_detail?: string | null;
+  organization_name?: string | null;
 };

@@ -12,8 +12,10 @@ import { selectAllPages } from "@/lib/queries/impact";
  * - Staff engagements: each facility staff contact marked "worked with or
  *   spoke to" on an activity counts once for it. A staff call or meeting
  *   with no one named still counts 1. People only present count 0.
- * - Facility visit-days: each facility once per Cleveland calendar day it
- *   had an in-person activity.
+ * - Staff facility visit-days (decision D2, Oct 19, 2026): each facility
+ *   once per Cleveland calendar day our staff were there in person, however
+ *   many activities were logged. Volunteer-only visits don't make one;
+ *   they're counted as volunteer visits.
  * - Group volunteers: a group project's head count, held on its first
  *   activity; activities "Part of" it never add it again.
  */
@@ -23,10 +25,10 @@ type Client = Awaited<ReturnType<typeof createClient>>;
 /** Staff calls, meetings and discovery visits: always at least one engagement. */
 export const STAFF_SUPPORT_TYPES = new Set(["facility_staff_communication", "facility_discovery_visit"]);
 
-/** In-person activity at a facility -- what makes a "visit-day". */
+/** Staff in person at a facility -- what makes a "visit-day". Not
+ * volunteer visits (no staff there) and never calls. */
 export const VISIT_DAY_TYPES = new Set([
   "resident_visit",
-  "volunteer_visit",
   "facility_visit",
   "facility_discovery_visit",
   "program",

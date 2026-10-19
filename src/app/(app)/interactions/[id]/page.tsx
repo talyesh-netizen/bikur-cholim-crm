@@ -14,7 +14,7 @@ import {
   PROGRAM_PARTNERS,
   UNMET_NEED_REASONS,
 } from "@/lib/domain/interaction";
-import { formatDateTime } from "@/lib/format-date";
+import { formatDateTime, formatDateTimeWithTime } from "@/lib/format-date";
 import { InteractionList, staffLabel } from "../interaction-list";
 import { ClusterBadge } from "@/components/cluster-badge";
 import { Pencil, ListPlus } from "lucide-react";
@@ -239,6 +239,9 @@ export default async function InteractionDetailPage({
               ) : null}
             </p>
           ) : null}
+          {/* The visit's own day is shown above; when it was typed in
+              is kept for the record. */}
+          <p className="text-xs text-muted-foreground">Entered {formatDateTimeWithTime(interaction.created_at)}</p>
           {interaction.notes ? (
             <div>
               <p className="text-muted-foreground">Notes</p>

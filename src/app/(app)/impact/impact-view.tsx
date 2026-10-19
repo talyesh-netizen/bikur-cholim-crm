@@ -138,8 +138,12 @@ export function ImpactView({
 
       <section aria-label="More numbers" className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
         <span>
-          <span className="font-semibold text-foreground tabular-nums">{n(h.visitDays)}</span> facility visit-days
-          <span className="text-xs"> (each facility once per day)</span>
+          <span className="font-semibold text-foreground tabular-nums">{n(h.visitDays)}</span> staff facility visit-days
+          <span className="text-xs"> (each facility once per day we were there)</span>
+        </span>
+        <span>
+          <span className="font-semibold text-foreground tabular-nums">{n(h.volunteerVisits)}</span> volunteer visits
+          <span className="text-xs"> (counted separately)</span>
         </span>
         <span>
           <span className="font-semibold text-foreground tabular-nums">{n(h.groupVolunteers)}</span> group volunteers

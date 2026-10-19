@@ -238,6 +238,29 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /* A hand on everything that can be clicked, the same as on links
+     (Tailwind leaves buttons with the plain arrow), and never on
+     something switched off. */
+  button,
+  [role="button"],
+  [role="tab"],
+  [role="option"],
+  [role="menuitem"],
+  [role="combobox"],
+  select,
+  summary,
+  label:has(> input[type="checkbox"]),
+  label:has(> input[type="radio"]),
+  input[type="checkbox"],
+  input[type="radio"] {
+    cursor: pointer;
+  }
+  button:disabled,
+  [aria-disabled="true"],
+  input:disabled,
+  select:disabled {
+    cursor: not-allowed;
+  }
   html {
     /* Stops iOS from inflating text sizes on rotate, and keeps taps from
        flashing a grey box -- small things that make it feel like an app. */
@@ -282,5 +305,17 @@
 @media (prefers-reduced-motion: reduce) {
   .skeleton {
     animation: none;
+  }
+}
+
+/* The whole row opens the link: the row is `relative`, the main link
+   gets this, and any other button or link in the row sits above it
+   with `relative z-10`. (Used across lists; it was never defined, so
+   only the name itself was clickable.) */
+@utility stretched-link {
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
   }
 }

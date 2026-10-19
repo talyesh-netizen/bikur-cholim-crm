@@ -15,12 +15,15 @@ export function TaskList({
   tasks,
   emptyAction,
   showResident = false,
+  returnTo,
 }: {
   tasks: TaskWithNames[];
   /** On a facility page, say which resident each follow-up is for. */
   showResident?: boolean;
   /** Where "add one" should go when there are no open tasks. */
   emptyAction?: { href: string; label: string };
+  /** This page: finishing a task opened from here comes back here. */
+  returnTo?: string;
 }) {
   const open = tasks.filter((t) => (OPEN_TASK_STATUSES as readonly string[]).includes(t.status));
   const closed = tasks.filter((t) => !(OPEN_TASK_STATUSES as readonly string[]).includes(t.status));
@@ -39,7 +42,7 @@ export function TaskList({
           action={emptyAction}
         />
       ) : (
-        <TaskRows tasks={open} showResident={showResident} />
+        <TaskRows tasks={open} showResident={showResident} returnTo={returnTo} />
       )}
 
       {closed.length > 0 ? (
@@ -49,7 +52,7 @@ export function TaskList({
             <span className="hidden group-open:inline">Hide completed or cancelled</span>
           </summary>
           <div className="mt-2 opacity-80">
-            <TaskRows tasks={closed} showResident={showResident} />
+            <TaskRows tasks={closed} showResident={showResident} returnTo={returnTo} />
           </div>
         </details>
       ) : null}
@@ -57,7 +60,7 @@ export function TaskList({
   );
 }
 
-function TaskRows({ tasks, showResident }: { tasks: TaskWithNames[]; showResident: boolean }) {
+function TaskRows({ tasks, showResident, returnTo }: { tasks: TaskWithNames[]; showResident: boolean; returnTo?: string }) {
   const today = getLocalToday();
   return (
     <ul className="-mx-2 flex flex-col">
@@ -67,7 +70,7 @@ function TaskRows({ tasks, showResident }: { tasks: TaskWithNames[]; showResiden
         return (
           <li key={task.id}>
             <Link
-              href={`/tasks/${task.id}`}
+              href={returnTo ? `/tasks/${task.id}?return=${encodeURIComponent(returnTo)}` : `/tasks/${task.id}`}
               className="flex min-h-12 items-center justify-between gap-3 rounded-md px-2 py-2 hover:bg-accent/60"
             >
               <div className="min-w-0">

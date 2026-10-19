@@ -200,3 +200,63 @@ export async function undoContactMerge(contactId: string) {
   revalidatePath(`/contacts/${contactId}`);
   redirect(withSaved(`/contacts/${contactId}`, "contact-unmerged"));
 }
+
+export type LinkPlaceState = { error: string | null };
+
+const linkPlaceSchema = z.object({
+  // "facility:<id>" or "organization:<id>" -- one picker for both.
+  place: z.string().regex(/^(facility|organization):[0-9a-f-]{36}$/i, "Please choose a facility or partner."),
+  role: z.preprocess((v) => (typeof v === "string" && v.trim() ? v.trim() : undefined), z.string().max(200).optional()),
+});
+
+/** "Works at / Represents" from the contact's own page: links this
+ * person to a facility (Lisa at Anna Maria) or a Strategic Partner
+ * (Kevin at LCS) -- the same links the facility's and partner's own
+ * "Link a contact" make. A link that was turned off is turned back on. */
+export async function linkContactToPlace(
+  contactId: string,
+  _prevState: LinkPlaceState,
+  formData: FormData
+): Promise<LinkPlaceState> {
+  const parsed = linkPlaceSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const [kind, placeId] = parsed.data.place.split(":") as ["facility" | "organization", string];
+  const role = parsed.data.role ?? null;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const table = kind === "facility" ? "facility_contacts" : "organization_contacts";
+  const placeColumn = kind === "facility" ? "facility_id" : "organization_id";
+  const roleColumn = kind === "facility" ? "role_at_facility" : "role_at_organization";
+
+  const { data: existing } = await supabase
+    .from(table)
+    .select("id, active")
+    .eq(placeColumn, placeId)
+    .eq("contact_id", contactId)
+    .maybeSingle();
+
+  if (existing?.active) return { error: `Already linked to that ${kind === "facility" ? "facility" : "partner"}.` };
+
+  const { error } = existing
+    ? await supabase
+        .from(table)
+        .update({ active: true, ...(role ? { [roleColumn]: role } : {}) })
+        .eq("id", existing.id)
+    : await supabase.from(table).insert({
+        [placeColumn]: placeId,
+        contact_id: contactId,
+        [roleColumn]: role,
+        is_primary_contact: false,
+        created_by: user?.id,
+      });
+
+  if (error) return { error: "That link was NOT saved -- something went wrong. Please try again." };
+
+  revalidatePath(`/contacts/${contactId}`);
+  revalidatePath(kind === "facility" ? `/facilities/${placeId}` : `/organizations/${placeId}`);
+  redirect(withSaved(`/contacts/${contactId}`, "contact-place-linked"));
+}

@@ -110,8 +110,9 @@ export async function createResident(
     return { error: "Something went wrong saving this resident. Please try again.", values: raw };
   }
 
-  // "Remind me to check in" on the new-resident form: a follow-up a week
-  // out, so nobody new is added and then forgotten.
+  // "Not visited yet? Add a visit task for next week." on the
+  // new-resident form (unticked unless chosen): a visit a week out, so a
+  // new referral isn't added and then forgotten.
   if (raw.check_in_task === "on" && user) {
     const [y, m, d] = getLocalToday().split("-").map(Number);
     const due = new Date(Date.UTC(y, m - 1, d + 7)).toISOString().slice(0, 10);

@@ -11,16 +11,36 @@ import { residentName } from "@/lib/domain/resident-name";
 import { getCurrentProfile } from "@/lib/get-current-profile";
 import { listTasks } from "@/lib/queries/tasks";
 import { OPEN_TASK_STATUSES } from "@/lib/domain/task";
+import { getContact } from "@/lib/queries/contacts";
+import { getOrganization } from "@/lib/queries/organizations";
+import { safeReturnTo } from "@/lib/return-to";
 
 export default async function NewTaskPage({
   searchParams,
 }: {
-  searchParams: Promise<{ resident?: string; facility?: string; interaction?: string; from?: string; title?: string }>;
+  searchParams: Promise<{
+    resident?: string;
+    facility?: string;
+    interaction?: string;
+    contact?: string;
+    organization?: string;
+    from?: string;
+    title?: string;
+    back?: string;
+  }>;
 }) {
-  const { resident: residentId, facility: facilityId, interaction: interactionId, from, title } =
-    await searchParams;
+  const {
+    resident: residentId,
+    facility: facilityId,
+    interaction: interactionId,
+    contact: contactId,
+    organization: organizationId,
+    from,
+    title,
+    back,
+  } = await searchParams;
 
-  const [staff, facilities, resident, facility, interaction, me, allTasks] = await Promise.all([
+  const [staff, facilities, resident, facility, interaction, me, allTasks, contact, organization] = await Promise.all([
     listActiveStaff(),
     listFacilities(),
     residentId ? getResident(residentId) : Promise.resolve(null),
@@ -28,15 +48,25 @@ export default async function NewTaskPage({
     interactionId ? getInteraction(interactionId) : Promise.resolve(null),
     getCurrentProfile(),
     listTasks({ showAllStatuses: true }),
+    contactId ? getContact(contactId) : Promise.resolve(null),
+    organizationId ? getOrganization(organizationId) : Promise.resolve(null),
   ]);
 
   if (residentId && !resident) notFound();
   if (facilityId && !facility) notFound();
   if (interactionId && !interaction) notFound();
+  if (contactId && !contact) notFound();
+  if (organizationId && !organization) notFound();
 
   // Opened from on-site mode: go back there, not to the resident page.
   const redirectTo = from === "onsite" && facilityId
     ? `/facilities/${facilityId}/onsite`
+    : safeReturnTo(back)
+    ? safeReturnTo(back)!
+    : contactId
+    ? `/contacts/${contactId}`
+    : organizationId
+    ? `/organizations/${organizationId}`
     : residentId
     ? `/residents/${residentId}`
     : facilityId
@@ -45,7 +75,14 @@ export default async function NewTaskPage({
   const action = createTask.bind(null, redirectTo);
 
   let fixedContext:
-    | { label: string; residentId?: string; facilityId?: string; interactionId?: string }
+    | {
+        label: string;
+        residentId?: string;
+        facilityId?: string;
+        interactionId?: string;
+        contactId?: string;
+        organizationId?: string;
+      }
     | undefined;
 
   if (interaction) {
@@ -62,6 +99,15 @@ export default async function NewTaskPage({
       label: residentName(resident),
       residentId: resident.id,
     };
+  } else if (contact) {
+    // From a contact's page; from a partner's page, the partner too.
+    fixedContext = {
+      label: organization ? `${contact.name} (${organization.name})` : contact.name,
+      contactId: contact.id,
+      organizationId: organization?.id,
+    };
+  } else if (organization) {
+    fixedContext = { label: organization.name, organizationId: organization.id };
   } else if (facility) {
     fixedContext = { label: facility.name, facilityId: facility.id };
   }

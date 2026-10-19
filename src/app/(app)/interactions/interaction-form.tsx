@@ -35,7 +35,10 @@ import {
 } from "@/lib/domain/interaction";
 import type { InteractionFormState, PeopleChoice } from "@/lib/actions/interactions";
 import type { ActivityFormOptions, GroupProjectOption } from "@/lib/queries/activity";
-import { formatDateTime, toOrgDatetimeLocalValue } from "@/lib/format-date";
+import { formatDateTime, getLocalToday } from "@/lib/format-date";
+
+/** A resident to pick, with where they live ("Room 12 · Menorah Park"). */
+export type ResidentOption = { id: string; name: string; detail?: string | null; facility_id?: string | null };
 
 type Action = (
   state: InteractionFormState,
@@ -68,12 +71,11 @@ export function InteractionForm({
   defaultInteractionType?: string;
   /** Pre-selects who it was with (a staff or family member tapped on site). */
   defaultContactId?: string;
-  /** Set when logging from a resident's page — the resident is fixed
-   * and shown as plain text rather than a picker. */
+  /** Set when logging from a resident's page — already chosen. */
   fixedResident?: { id: string; name: string };
-  /** Set when logging from a facility's page (no fixed resident) — an
-   * optional picker limited to that facility's residents. */
-  residents?: { id: string; name: string; detail?: string | null }[];
+  /** Residents to pick from (with where they live). Once a facility is
+   * chosen, only its residents are offered. */
+  residents?: ResidentOption[];
   /** Any contact this interaction is with directly (e.g., a facility
    * staff communication, a family call) — separate from the resident. */
   contacts?: { id: string; name: string; detail?: string | null }[];
@@ -88,6 +90,8 @@ export function InteractionForm({
     resident_id: string;
     contact_id: string;
     occurred_at: string;
+    /** Editing: the moment already saved, kept when the day isn't changed. */
+    occurred_at_saved?: string;
     interaction_type: string;
     notes: string;
     partner_organization_id?: string;
@@ -109,10 +113,10 @@ export function InteractionForm({
     error: null,
   });
   const fieldErrors = state.fieldErrors ?? {};
-  // "Now" in Cleveland time -- computed the same way on the server and in
-  // the browser, so the pre-filled time is right even though the page is
-  // first rendered on a server running in UTC.
-  const [defaultOccurredAt] = useState(() => toOrgDatetimeLocalValue(new Date()));
+  // Today in Cleveland -- the same on the server and in the browser, so
+  // the pre-filled day is right even though the page is first rendered on
+  // a server running in UTC. Only the day is asked (decision B1).
+  const [defaultOccurredAt] = useState(() => getLocalToday());
   const values = state.values ??
     initialValues ?? {
       facility_id: defaultFacilityId ?? "",
@@ -130,6 +134,32 @@ export function InteractionForm({
   const serviceFields = SERVICE_FIELDS_BY_TYPE[interactionType as InteractionType] ?? [];
   const service: ServiceFormValues = { ...EMPTY_SERVICE_VALUES, ...values };
   const isFood = interactionType === "food_delivery";
+  const isEditing = !!initialValues;
+
+  // Where and who: picking a resident fills in their facility; once a
+  // facility is chosen, only its residents are offered.
+  const [facilityId, setFacilityId] = useState(values.facility_id);
+  const [residentIds, setResidentIds] = useState<string[]>(() =>
+    state.residentIds?.length ? state.residentIds : values.resident_id ? [values.resident_id] : []
+  );
+  // Several residents only for a new Visit (decision A1): a visit each.
+  const multiResident = interactionType === "resident_visit" && !isEditing;
+  const residentOptions = (residents ?? [])
+    .filter((r) => !facilityId || !r.facility_id || r.facility_id === facilityId || residentIds.includes(r.id))
+    .map((r) => ({ id: r.id, label: r.name, detail: r.detail }));
+  function chooseResidents(ids: string[]) {
+    setResidentIds(ids);
+    setIsDirty(true);
+    const first = (residents ?? []).find((r) => r.id === ids[0]);
+    if (!facilityId && first?.facility_id) setFacilityId(first.facility_id);
+  }
+  // "Residents reached" is for a group visit only: one person is the
+  // usual visit, and each resident picked already counts.
+  const [groupOpened, setGroupOpened] = useState(false);
+  const groupHidden =
+    GROUP_VISIT_TYPES.includes(interactionType) &&
+    ((!groupOpened && !service.people_reached) || (multiResident && residentIds.length > 1));
+  const boxFields = groupHidden ? serviceFields.filter((f) => f !== "people_reached") : serviceFields;
   // Food asks one question -- Snack, Shabbos delivery or Holiday delivery
   // -- stored in the existing holiday field (see FOOD_KINDS).
   const [foodKind, setFoodKind] = useState(foodKindFor(service.holiday));
@@ -265,28 +295,50 @@ export function InteractionForm({
         </p>
       ) : null}
 
-      {fixedResident ? (
+      {residents && residents.length > 0 ? (
+        multiResident ? (
+          <Field label="Residents visited" htmlFor="resident_ids" error={fieldErrors.resident_id}>
+            <MultiSearchPicker
+              id="resident_ids"
+              name="resident_ids"
+              options={residentOptions}
+              value={residentIds}
+              onChange={chooseResidents}
+              placeholder="Type a resident's name…"
+            />
+            {residentIds.length > 1 ? (
+              <p className="rounded-md bg-[var(--tone-attention-bg)] px-3 py-2 text-xs font-medium text-[var(--tone-attention-fg)]">
+                A separate visit is saved for each of these {residentIds.length} residents. The notes below will appear on
+                every one of their profiles; anything about one person can be added to their own visit afterward.
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Visited several people? Add each one; a visit is saved for each.</p>
+            )}
+          </Field>
+        ) : (
+          <Field label="Resident" htmlFor="resident_id" error={fieldErrors.resident_id}>
+            <SearchPicker
+              id="resident_id"
+              name="resident_id"
+              value={residentIds[0] ?? ""}
+              onChange={(id) => chooseResidents(id ? [id] : [])}
+              options={residentOptions}
+              emptyLabel="No specific resident (general facility entry)"
+              placeholder="Type a resident's name…"
+            />
+            {interactionType === "family_communication" ? (
+              <p className="text-xs text-muted-foreground">
+                Whose family? Pick the resident (or the family member under Contact) so it counts toward families supported.
+              </p>
+            ) : null}
+          </Field>
+        )
+      ) : fixedResident ? (
         <div className="flex flex-col gap-1.5">
           <Label>Resident</Label>
           <p className="text-sm">{fixedResident.name}</p>
           <input type="hidden" name="resident_id" value={fixedResident.id} />
         </div>
-      ) : residents && residents.length > 0 ? (
-        <Field label="Resident" htmlFor="resident_id" error={fieldErrors.resident_id}>
-          <SearchPicker
-            id="resident_id"
-            name="resident_id"
-            defaultValue={values.resident_id}
-            options={residents.map((r) => ({ id: r.id, label: r.name, detail: r.detail }))}
-            emptyLabel="No specific resident (general facility entry)"
-            placeholder="Type a resident's name…"
-          />
-          {interactionType === "family_communication" ? (
-            <p className="text-xs text-muted-foreground">
-              Whose family? Pick the resident (or the family member under Contact) so it counts toward families supported.
-            </p>
-          ) : null}
-        </Field>
       ) : null}
 
       <Field label="Facility" htmlFor="facility_id" error={fieldErrors.facility_id} required={facilityRequired}>
@@ -294,20 +346,23 @@ export function InteractionForm({
           id="facility_id"
           name="facility_id"
           facilities={facilities}
-          defaultValue={values.facility_id}
+          value={facilityId}
+          onChange={setFacilityId}
           emptyLabel={facilityRequired ? undefined : "No facility yet"}
         />
       </Field>
 
-      <Field label="Date & time" htmlFor="occurred_at" error={fieldErrors.occurred_at} required>
+      <Field label="Date" htmlFor="occurred_at" error={fieldErrors.occurred_at} required>
         <Input
           id="occurred_at"
           name="occurred_at"
-          type="datetime-local"
-          defaultValue={values.occurred_at}
+          type="date"
+          defaultValue={values.occurred_at.slice(0, 10)}
+          max={defaultOccurredAt}
           onChange={(e) => setOccurredAt(e.target.value)}
           required
         />
+        {values.occurred_at_saved ? <input type="hidden" name="occurred_at_saved" value={values.occurred_at_saved} readOnly /> : null}
       </Field>
 
       <Field
@@ -452,7 +507,16 @@ export function InteractionForm({
         </Field>
       ) : null}
 
-      {serviceFields.length > 0 ? (
+      {groupHidden && !(multiResident && residentIds.length > 1) ? (
+        <button
+          type="button"
+          onClick={() => setGroupOpened(true)}
+          className="w-fit text-sm font-medium text-primary underline-offset-4 hover:underline"
+        >
+          + Group visit? Add how many residents were reached
+        </button>
+      ) : null}
+      {boxFields.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 rounded-md border border-border bg-muted/40 p-3 sm:grid-cols-2">
           {serviceFields.includes("program_partner") ? (
             <Field label="School or shul?" htmlFor="program_partner" error={fieldErrors.program_partner}>
@@ -498,7 +562,7 @@ export function InteractionForm({
               error={fieldErrors.participants}
             />
           ) : null}
-          {serviceFields.includes("people_reached") && !isFood ? (
+          {boxFields.includes("people_reached") && !isFood ? (
             <NumberField
               name="people_reached"
               label="Residents reached (about)"

@@ -11,11 +11,13 @@ const RESIDENT_PAGE = new RegExp(`^/residents/(${UUID})`, "i");
 const FACILITY_PAGE = new RegExp(`^/facilities/(${UUID})`, "i");
 
 /** Where "+ Log" goes from this page: the notes box, already set to the
- * resident or facility you're looking at. Without Quick Log, the form. */
+ * facility you're looking at. Without Quick Log, the form. On a
+ * resident's page, always the written form with them chosen (director,
+ * Oct 19, 2026); their page has its own "Voice note". */
 export function logHref(pathname: string, quickLog: boolean): string {
   const base = quickLog ? "/quick-log" : "/interactions/new";
   const resident = pathname.match(RESIDENT_PAGE)?.[1];
-  if (resident) return `${base}?resident=${resident}`;
+  if (resident) return `/interactions/new?resident=${resident}`;
   const facility = pathname.match(FACILITY_PAGE)?.[1];
   if (facility) return `${base}?facility=${facility}`;
   return base;

@@ -71,8 +71,10 @@ export type Headline = {
   reached: number;
   programs: number;
   deliveries: number;
-  /** Each facility once per day it had an in-person activity. */
+  /** Each facility once per day our staff were there in person. */
   visitDays: number;
+  /** Volunteer visits, counted on their own (they make no staff visit-day). */
+  volunteerVisits: number;
   /** School / shul / community group volunteers, each project counted once. */
   groupVolunteers: number;
   groupProjects: number;
@@ -88,7 +90,7 @@ function headlineFor(rows: Row[], engaged: EngagedLinks): Headline {
   const h: Headline = {
     residents: 0, residentContacts: 0, families: 0, familyConversations: 0,
     staffTouchpoints: 0, staffFacilities: 0, reached: 0, programs: 0, deliveries: 0,
-    visitDays: 0, groupVolunteers: 0, groupProjects: 0,
+    visitDays: 0, volunteerVisits: 0, groupVolunteers: 0, groupProjects: 0,
   };
   for (const r of rows) {
     if (ONE_ON_ONE.has(r.interaction_type) && r.resident_id) {
@@ -109,6 +111,7 @@ function headlineFor(rows: Row[], engaged: EngagedLinks): Headline {
     }
     const day = visitDayKey(r);
     if (day) visitDays.add(day);
+    if (r.interaction_type === "volunteer_visit") h.volunteerVisits += 1;
     const group = groupVolunteersFor(r);
     if (group > 0) {
       h.groupVolunteers += group;

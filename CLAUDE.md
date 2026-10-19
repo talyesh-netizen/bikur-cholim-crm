@@ -69,7 +69,13 @@ Decisions so far:
   read on Saturday is dated Friday, never "now". On site there is a
   "Visit date" line; a note kept from before start times were recorded
   asks for the day before it can be read. Visit/Talked notes keep the
-  time they were started, shown and changeable before saving.
+  time they were started; only the day is shown and changeable before
+  saving (Oct 19, 2026, below).
+- Dates, not times (Oct 19, 2026, decision B1): logging asks for the
+  day only and lists show the day only. No time is made up: a past day
+  is saved at noon, today at the moment of saving, and an edit that
+  keeps the day keeps the time already saved. When it was typed in is
+  still recorded (created_at).
 - Already logged that day (Oct 9, 2026): an entry with the same resident,
   kind and day as one already saved is flagged on the check screen,
   "Is this a second visit?" Yes saves it as its own visit; No unticks
