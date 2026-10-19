@@ -27,6 +27,7 @@ export default async function InteractionsPage({
     types.length ? types.map((t) => labelFor(INTERACTION_TYPES, t)).join(", ") : null,
     holiday ? `For ${holiday.label}` : null,
     need ? `Family need: ${need.label}` : null,
+    params.countedIn === "1" ? "Reviewed double entries (each counted in another entry)" : null,
   ].filter(Boolean);
 
   const [{ interactions, totalCount, pageSize }, facilities, staff] = await Promise.all([
@@ -41,6 +42,7 @@ export default async function InteractionsPage({
       interactionTypes: types,
       holiday: holiday?.value,
       familyNeed: need?.value,
+      countedIn: params.countedIn === "1",
     }),
     listFacilityOptions(),
     listActiveStaff(),

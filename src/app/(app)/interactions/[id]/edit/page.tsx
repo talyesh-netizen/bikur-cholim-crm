@@ -10,16 +10,18 @@ import { InteractionForm } from "../../interaction-form";
 import { toOrgDatetimeLocalValue } from "@/lib/format-date";
 import { residentName } from "@/lib/domain/resident-name";
 import { onsiteHref } from "@/lib/onsite-links";
+import { getActivityExtras, getActivityFormOptions } from "@/lib/queries/activity";
+import { ENGAGEMENT_TYPES } from "@/lib/domain/interaction";
 
 export default async function EditInteractionPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ volunteersError?: string; from?: string }>;
+  searchParams: Promise<{ volunteersError?: string; peopleError?: string; from?: string }>;
 }) {
   const { id } = await params;
-  const { volunteersError, from } = await searchParams;
+  const { volunteersError, peopleError, from } = await searchParams;
   const interaction = await getInteraction(id);
   if (!interaction) notFound();
 
@@ -30,7 +32,7 @@ export default async function EditInteractionPage({
       ? `/facilities/${interaction.facility_id}`
       : "/interactions");
 
-  const [facilities, residentsAtFacility, contacts, activeVolunteers, volunteerIds] = await Promise.all([
+  const [facilities, residentsAtFacility, contacts, activeVolunteers, volunteerIds, activity, extras] = await Promise.all([
     listFacilities(),
     interaction.facility_id
       ? listResidents({ facilityId: interaction.facility_id, showAllStatuses: true })
@@ -38,7 +40,31 @@ export default async function EditInteractionPage({
     listContactOptions(),
     listContactOptions("volunteer"),
     getInteractionVolunteerIds(id),
+    getActivityFormOptions(),
+    getActivityExtras(id),
   ]);
+
+  // Who did it, as saved: the lead first, then the team. Staff engaged:
+  // a staff entry's own contact counts as engaged, as it always has.
+  const engaged = [
+    ...(ENGAGEMENT_TYPES.includes(interaction.interaction_type) && interaction.contact_id ? [interaction.contact_id] : []),
+    ...extras.engaged.map((c) => c.id),
+  ];
+  const initialPeople = {
+    doneBy: [interaction.staff_member_id, ...extras.team.map((t) => t.id).filter((tid) => tid !== interaction.staff_member_id)],
+    engaged: [...new Set(engaged)],
+    present: extras.present.map((c) => c.id),
+  };
+  const initialPartOf = extras.partOf
+    ? {
+        id: extras.partOf.id,
+        occurred_at: extras.partOf.occurred_at,
+        partner_organization_id: extras.partner?.id ?? "",
+        partner_name: extras.partner?.name ?? "the group",
+        participants: extras.partOf.participants ?? 0,
+        facility_name: extras.partOf.facility_name,
+      }
+    : null;
 
   // A volunteer already linked to this interaction might since have gone
   // inactive, which would drop them from the checkbox list above (and
@@ -60,6 +86,13 @@ export default async function EditInteractionPage({
         <h1 className="text-2xl font-semibold">Edit interaction</h1>
         <p className="text-sm text-muted-foreground">Update the details of this logged interaction.</p>
       </div>
+
+      {peopleError ? (
+        <div className="flex items-center gap-2 rounded-lg bg-warning/10 px-3 py-2.5 text-sm text-warning">
+          <AlertTriangle className="size-4 shrink-0" />
+          <span>This entry was saved, but who did it and the staff linked couldn&apos;t be recorded. Please check them below and save again.</span>
+        </div>
+      ) : null}
 
       {volunteersError ? (
         <div className="flex items-center gap-2 rounded-lg bg-warning/10 px-3 py-2.5 text-sm text-warning">
@@ -86,6 +119,10 @@ export default async function EditInteractionPage({
             contacts={contacts}
             volunteers={volunteers}
             initialVolunteerIds={volunteerIds}
+            activity={activity}
+            initialPeople={initialPeople}
+            initialPartOf={initialPartOf}
+            selfId={id}
             initialValues={{
               facility_id: interaction.facility_id ?? "",
               resident_id: interaction.resident_id ?? "",
@@ -93,6 +130,7 @@ export default async function EditInteractionPage({
               occurred_at: toOrgDatetimeLocalValue(interaction.occurred_at),
               interaction_type: interaction.interaction_type,
               notes: interaction.notes ?? "",
+              partner_organization_id: extras.partner?.id ?? "",
               occasion: interaction.occasion ?? "",
               holiday: interaction.holiday ?? "",
               family_need: interaction.family_need ?? "",

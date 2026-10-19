@@ -203,7 +203,7 @@ async function findAlreadyLogged(plan: Plan): Promise<AlreadyLogged> {
     const supabase = await createClient();
     const { data, error } = await supabase
       .from("interactions")
-      .select("occurred_at, interaction_type, resident_id, profiles(full_name)")
+      .select("occurred_at, interaction_type, resident_id, profiles!interactions_staff_member_id_fkey(full_name)")
       .in("resident_id", [...new Set(wanted.map((w) => w.x.resident!))])
       .gte("occurred_at", from)
       .lt("occurred_at", to)
@@ -610,7 +610,8 @@ export async function applyPlan(input: unknown, secondVisits: string[] = []): Pr
     const sameKey = idParts(user.id).join("|");
     const repeat = (repeats.get(sameKey) ?? 0) + 1;
     repeats.set(sameKey, repeat);
-    // One entry for the writer, plus one per colleague who was also there.
+    // One entry, once -- colleagues who were also there are its team
+    // members (decision B1, Oct 16, 2026), never a copy each.
     const insertFor = (staffId: string) =>
       supabase
         .from("interactions")
@@ -622,18 +623,14 @@ export async function applyPlan(input: unknown, secondVisits: string[] = []): Pr
         contact_id: contactId,
         notes: blankToNull(i.notes),
         minutes_spent: i.minutes_spent && i.minutes_spent > 0 ? i.minutes_spent : null,
-        // A colleague's copy credits them for being there, but the people
-        // reached are counted once (on the writer's entry), so a lunch for
-        // three isn't reported as six.
         people_reached:
-          staffId === user.id &&
           i.people_reached && i.people_reached > 0 && SERVICE_FIELDS_BY_TYPE[i.interaction_type as InteractionType]?.includes("people_reached")
             ? i.people_reached
             : null,
         // Food: one number -- how many packages, also how many people got
         // one (the funder report counts this one, Impact the one above).
         quantity:
-          staffId === user.id && i.interaction_type === "food_delivery" && i.people_reached && i.people_reached > 0
+          i.interaction_type === "food_delivery" && i.people_reached && i.people_reached > 0
             ? i.people_reached
             : null,
         holiday: i.holiday && HOLIDAY_TYPES.includes(i.interaction_type) ? i.holiday : null,
@@ -673,23 +670,23 @@ export async function applyPlan(input: unknown, secondVisits: string[] = []): Pr
     }
     if (residentId) touchedResidents.add(residentId);
     if (facilityId) touchedFacilities.add(facilityId);
-    steps.push({ label, ok: true, href: residentId ? `/residents/${residentId}` : facilityId ? `/facilities/${facilityId}` : "/interactions" });
-    for (const colleague of i.also_by.filter((id) => id !== user.id)) {
-      const { data: copy, error: copyError } = await insertFor(colleague);
-      const copyLabel = `${label} -- also for ${staffNames.get(colleague) ?? "a colleague"}`;
-      if (copyError?.code === "23505") {
-        steps.push({ label: `${copyLabel} (already saved earlier)`, ok: true });
+    const colleagues = [...new Set(i.also_by.filter((id) => id !== user.id))];
+    if (colleagues.length > 0) {
+      const { error: teamError } = await supabase.rpc("set_interaction_people", {
+        p_interaction_id: data.id,
+        p_engaged_contact_ids: [],
+        p_present_contact_ids: [],
+        p_team_profile_ids: colleagues,
+      });
+      const names = colleagues.map((c) => staffNames.get(c) ?? "a colleague").join(", ");
+      if (teamError) {
+        steps.push({ label, ok: false, href: `/interactions/${data.id}/edit`, error: `Saved, but ${names} wasn't added as also there -- please add them under Done by.` });
         continue;
       }
-      if (copyError || !copy) {
-        fail(copyLabel);
-        continue;
-      }
-      if (volunteerIds.length > 0) {
-        await supabase.rpc("set_interaction_volunteers", { p_interaction_id: copy.id, p_contact_ids: volunteerIds });
-      }
-      steps.push({ label: copyLabel, ok: true });
+      steps.push({ label: `${label} -- with ${names}`, ok: true, href: residentId ? `/residents/${residentId}` : facilityId ? `/facilities/${facilityId}` : "/interactions" });
+      continue;
     }
+    steps.push({ label, ok: true, href: residentId ? `/residents/${residentId}` : facilityId ? `/facilities/${facilityId}` : "/interactions" });
   }
 
   for (const t of plan.tasks) {

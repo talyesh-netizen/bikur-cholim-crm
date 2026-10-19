@@ -79,6 +79,8 @@ export async function GET(request: NextRequest) {
   csv += csvRow(["School & shul programs", "Shul programs", schoolShul.shul]);
   csv += csvRow(["School & shul programs", "Students / members who took part", schoolShul.participants]);
   csv += csvRow(["School & shul programs", "Residents reached (approx.)", schoolShul.peopleReached]);
+  csv += csvRow(["Group volunteers", "School, shul & community group projects", services.groupVolunteers.projects]);
+  csv += csvRow(["Group volunteers", "Volunteers (each group counted once, however many facilities)", services.groupVolunteers.volunteers]);
   csv += csvRow(["Medical referrals", "Referred to Bikur Cholim medical referrals", services.medicalReferrals]);
   csv += csvRow(["Rides", "Rides arranged through Bikur Cholim", services.rides]);
   csv += csvRow(["Care navigation", "Families helped", careNavigation.families]);

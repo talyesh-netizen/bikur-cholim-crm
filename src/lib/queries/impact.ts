@@ -69,7 +69,8 @@ export async function getImpactBreakdown(period: ImpactPeriod = "month", facilit
   const start = periodStart(period);
 
   const data = await selectAllPages<{ interaction_type: string }>((from, to) => {
-    let query = supabase.from("interactions").select("interaction_type").order("id").range(from, to);
+    // Each activity once: entries reviewed as a copy of another are skipped.
+    let query = supabase.from("interactions").select("interaction_type").is("counted_in_id", null).order("id").range(from, to);
     if (start) query = query.gte("occurred_at", start);
     if (facilityId) query = query.eq("facility_id", facilityId);
     return query;
@@ -94,32 +95,42 @@ export async function getImpactBreakdown(period: ImpactPeriod = "month", facilit
 
 export type PersonImpactRow = { id: string; name: string; count: number };
 
-/** How many interactions each staff member logged in the period — lets
- * the director show funders (and staff themselves) impact beyond just
- * their own work, not just a single org-wide total. */
+/** How many activities each staff member took part in during the
+ * period -- as lead or as a team member -- so a visit two people made
+ * together credits both of them (while the activity itself counts once
+ * everywhere else). */
 export async function getStaffActivity(period: ImpactPeriod = "month", facilityId?: string): Promise<PersonImpactRow[]> {
   const supabase = await createClient();
   const start = periodStart(period);
 
-  const data = await selectAllPages((from, to) => {
-    let query = supabase.from("interactions").select("staff_member_id, profiles(full_name)").order("id").range(from, to);
-    if (start) query = query.gte("occurred_at", start);
-    if (facilityId) query = query.eq("facility_id", facilityId);
-    return query;
-  });
+  const [data, team, people] = await Promise.all([
+    selectAllPages<{ id: string; staff_member_id: string }>((from, to) => {
+      let query = supabase
+        .from("interactions")
+        .select("id, staff_member_id")
+        .is("counted_in_id", null)
+        .order("id")
+        .range(from, to);
+      if (start) query = query.gte("occurred_at", start);
+      if (facilityId) query = query.eq("facility_id", facilityId);
+      return query;
+    }),
+    selectAllPages<{ interaction_id: string; profile_id: string }>((from, to) =>
+      supabase.from("interaction_team_members").select("interaction_id, profile_id").order("interaction_id").order("profile_id").range(from, to)
+    ),
+    supabase.from("profiles").select("id, full_name"),
+  ]);
+
+  const nameOf = new Map(((people.data ?? []) as { id: string; full_name: string }[]).map((p) => [p.id, p.full_name]));
+  const teamOf = new Map<string, string[]>();
+  for (const t of team) teamOf.set(t.interaction_id, [...(teamOf.get(t.interaction_id) ?? []), t.profile_id]);
 
   const counts = new Map<string, PersonImpactRow>();
-  for (const row of data) {
-    const r = row as unknown as { staff_member_id: string; profiles: { full_name: string } | null };
-    const existing = counts.get(r.staff_member_id);
-    if (existing) {
-      existing.count += 1;
-    } else {
-      counts.set(r.staff_member_id, {
-        id: r.staff_member_id,
-        name: r.profiles?.full_name ?? "Unknown",
-        count: 1,
-      });
+  for (const r of data) {
+    for (const id of new Set([r.staff_member_id, ...(teamOf.get(r.id) ?? [])])) {
+      const existing = counts.get(id);
+      if (existing) existing.count += 1;
+      else counts.set(id, { id, name: nameOf.get(id) ?? "Unknown", count: 1 });
     }
   }
 
@@ -137,7 +148,7 @@ export async function getInteractionTrend(months = 6): Promise<MonthlyCount[]> {
   const start = orgDayStartIso(`${first.year}-${pad2(first.month)}-01`)!;
 
   const data = await selectAllPages<{ occurred_at: string }>((from, to) =>
-    supabase.from("interactions").select("occurred_at").gte("occurred_at", start).order("id").range(from, to)
+    supabase.from("interactions").select("occurred_at").is("counted_in_id", null).gte("occurred_at", start).order("id").range(from, to)
   );
 
   // Months are Cleveland months, so a visit on the evening of the 31st
@@ -172,7 +183,7 @@ export async function getVolunteerImpact(period: ImpactPeriod = "month", facilit
   const data = await selectAllPages((from, to) =>
     supabase
       .from("interaction_volunteers")
-      .select("interaction_id, contact_id, contacts(name), interactions(occurred_at, facility_id)")
+      .select("interaction_id, contact_id, contacts(name), interactions(occurred_at, facility_id, counted_in_id)")
       .order("interaction_id")
       .order("contact_id")
       .range(from, to)
@@ -183,8 +194,9 @@ export async function getVolunteerImpact(period: ImpactPeriod = "month", facilit
     const r = row as unknown as {
       contact_id: string;
       contacts: { name: string } | null;
-      interactions: { occurred_at: string; facility_id: string | null } | null;
+      interactions: { occurred_at: string; facility_id: string | null; counted_in_id: string | null } | null;
     };
+    if (r.interactions?.counted_in_id) continue;
     if (start && (!r.interactions || Date.parse(r.interactions.occurred_at) < Date.parse(start))) continue;
     if (facilityId && r.interactions?.facility_id !== facilityId) continue;
     const existing = counts.get(r.contact_id);
@@ -211,6 +223,9 @@ export type ServicesDelivered = {
   };
   volunteers: { volunteers: number; visits: number; hours: number; residentsVisited: number };
   schoolShul: { programs: number; school: number; shul: number; participants: number; peopleReached: number };
+  /** School, shul and community groups: each project's head count once,
+   * however many facilities it reached. */
+  groupVolunteers: { projects: number; volunteers: number };
   /** Different residents who had a one-on-one visit or call (staff or
    * volunteer) in the period -- each person counted once -- and how many
    * such visits and calls there were. */
@@ -248,6 +263,7 @@ type ServiceRow = {
   unmet_need: boolean;
   unmet_need_reason: string | null;
   funder_story: boolean;
+  part_of_id: string | null;
 };
 
 /** Contact with one named resident: visits and calls, by staff or volunteers. */
@@ -271,8 +287,9 @@ export async function getServicesDelivered(period: ImpactPeriod = "month", facil
       let query = supabase
         .from("interactions")
         .select(
-          "id, interaction_type, resident_id, occasion, program_partner, quantity, people_reached, participants, minutes_spent, unmet_need, unmet_need_reason, funder_story"
+          "id, interaction_type, resident_id, occasion, program_partner, quantity, people_reached, participants, minutes_spent, unmet_need, unmet_need_reason, funder_story, part_of_id"
         )
+        .is("counted_in_id", null)
         .order("id")
         .range(from, to);
       if (start) query = query.gte("occurred_at", start);
@@ -285,6 +302,7 @@ export async function getServicesDelivered(period: ImpactPeriod = "month", facil
       (from, to) =>
         supabase
           .from("interaction_volunteers")
+          // Only looked up for the (counted) rows above, by id.
           .select("interaction_id, contact_id, interactions(occurred_at)")
           .order("interaction_id")
           .order("contact_id")
@@ -307,6 +325,7 @@ export async function getServicesDelivered(period: ImpactPeriod = "month", facil
     food: { deliveries: 0, items: 0, peopleReached: 0, byOccasion: { shabbos: 0, yomTov: 0, other: 0 } },
     volunteers: { volunteers: 0, visits: 0, hours: 0, residentsVisited: 0 },
     schoolShul: { programs: 0, school: 0, shul: 0, participants: 0, peopleReached: 0 },
+    groupVolunteers: { projects: 0, volunteers: 0 },
     oneOnOne: { residents: 0, contacts: 0 },
     peopleReached: { total: 0, programs: 0, food: 0, schoolShul: 0, volunteerGroups: 0, residentGroups: 0, other: 0 },
     medicalReferrals: 0,
@@ -348,8 +367,19 @@ export async function getServicesDelivered(period: ImpactPeriod = "month", facil
         result.schoolShul.programs += 1;
         if (row.program_partner === "shul") result.schoolShul.shul += 1;
         else result.schoolShul.school += 1;
-        result.schoolShul.participants += row.participants ?? 0;
+        // A group's head count is held once, on its project's first activity.
+        if (!row.part_of_id) result.schoolShul.participants += row.participants ?? 0;
+        if (!row.part_of_id && row.participants) {
+          result.groupVolunteers.projects += 1;
+          result.groupVolunteers.volunteers += row.participants;
+        }
         result.schoolShul.peopleReached += row.people_reached ?? 0;
+        break;
+      case "program":
+        if (!row.part_of_id && row.participants) {
+          result.groupVolunteers.projects += 1;
+          result.groupVolunteers.volunteers += row.participants;
+        }
         break;
       case "medical_referral":
         result.medicalReferrals += 1;

@@ -180,7 +180,7 @@ export async function listUnreviewedEntries(interactionType?: string): Promise<U
   let query = supabase
     .from("interactions")
     .select(
-      "id, occurred_at, interaction_type, notes, occasion, program_partner, quantity, people_reached, participants, facilities(name), residents(first_name, last_name, preferred_name), profiles(full_name)"
+      "id, occurred_at, interaction_type, notes, occasion, program_partner, quantity, people_reached, participants, facilities(name), residents(first_name, last_name, preferred_name), profiles!interactions_staff_member_id_fkey(full_name)"
     )
     .is("service_reviewed_at", null)
     .order("occurred_at", { ascending: false })

@@ -145,6 +145,18 @@ export function ServicesDeliveredTiles({
         ]}
       />
       ) : null}
+      {show(services.groupVolunteers.volunteers) ? (
+      <Tile
+        icon={School}
+        title="Group volunteers"
+        value={services.groupVolunteers.volunteers}
+        unit="volunteers"
+        details={[
+          `${n(services.groupVolunteers.projects)} school, shul & community ${services.groupVolunteers.projects === 1 ? "project" : "projects"}`,
+          "Each group counted once, however many facilities it reached",
+        ]}
+      />
+      ) : null}
       {show(services.medicalReferrals) ? (
       <Tile
         icon={Stethoscope}

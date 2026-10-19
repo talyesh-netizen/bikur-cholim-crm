@@ -10,6 +10,7 @@ import { InteractionForm } from "../interaction-form";
 import { INTERACTION_TYPES, labelFor } from "@/lib/domain/interaction";
 import { residentName } from "@/lib/domain/resident-name";
 import { onsiteHref } from "@/lib/onsite-links";
+import { getActivityFormOptions } from "@/lib/queries/activity";
 
 export default async function NewInteractionPage({
   searchParams,
@@ -19,7 +20,7 @@ export default async function NewInteractionPage({
   const { resident: residentId, facility: facilityId, type, from, contact: contactId } = await searchParams;
   const defaultType = INTERACTION_TYPES.some((t) => t.value === type) ? type : undefined;
 
-  const [facilities, resident, residentsAtFacility, allContacts, volunteers, residentFamily] = await Promise.all([
+  const [facilities, resident, residentsAtFacility, allContacts, volunteers, residentFamily, activity] = await Promise.all([
     listFacilities(),
     residentId ? getResident(residentId) : Promise.resolve(null),
     !residentId && facilityId
@@ -28,6 +29,7 @@ export default async function NewInteractionPage({
     listContactOptions(),
     listContactOptions("volunteer"),
     residentId ? listResidentContacts(residentId) : Promise.resolve([]),
+    getActivityFormOptions(),
   ]);
 
   // The resident's own family members first ("Sarah Katz (daughter)"),
@@ -114,6 +116,7 @@ export default async function NewInteractionPage({
             }))}
             contacts={contacts}
             volunteers={volunteers}
+            activity={activity}
             submitLabel={isVisit ? "Save visit" : "Save interaction"}
           />
         </CardContent>

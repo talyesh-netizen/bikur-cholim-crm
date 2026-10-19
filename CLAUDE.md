@@ -54,8 +54,10 @@ Decisions so far:
 - "Family" support needs no sub-type; the kind of support is optional.
 - Staff meetings with volunteers (recruiting, onboarding, check-ins) are
   "Meeting with a volunteer" entries, separate from volunteer visits.
-- Food deliveries count once and are never copied to a colleague who was
-  there; visits, calls and family entries are.
+- Food deliveries count once and are never credited to a colleague who
+  was there; visits, calls and family entries are. Since Oct 16, 2026
+  (decision B1) a colleague is a team member on the same single entry,
+  not a copy of it, so the visit counts once and both are credited.
 - A note started with "+ Log" on a resident's page is about that
   resident unless it names someone else ("visited her" = them), even
   when another resident shares the first name (Oct 8, 2026).

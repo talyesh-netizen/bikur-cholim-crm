@@ -119,7 +119,7 @@ export function ImpactView({
           label="Facility staff supported"
           href={o.headlineLinks.staff}
           value={n(h.staffTouchpoints)}
-          detail={`staff touchpoints · ${n(h.staffFacilities)} facilities`}
+          detail={`staff engagements · ${n(h.staffFacilities)} facilities`}
           current={h.staffTouchpoints}
           previous={prev?.staffTouchpoints ?? null}
           periodWord={p.word}
@@ -135,6 +135,38 @@ export function ImpactView({
           periodWord={p.word}
         />
       </section>
+
+      <section aria-label="More numbers" className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
+        <span>
+          <span className="font-semibold text-foreground tabular-nums">{n(h.visitDays)}</span> facility visit-days
+          <span className="text-xs"> (each facility once per day)</span>
+        </span>
+        <span>
+          <span className="font-semibold text-foreground tabular-nums">{n(h.groupVolunteers)}</span> group volunteers
+          <span className="text-xs">
+            {" "}
+            ({n(h.groupProjects)} school, shul &amp; community {h.groupProjects === 1 ? "project" : "projects"}, each counted once)
+          </span>
+        </span>
+      </section>
+
+      {o.asFirstRecorded && o.corrections ? (
+        <section aria-label="Corrections" className="rounded-lg border border-border bg-card px-4 py-3 text-sm">
+          <p className="font-medium">
+            {o.corrections.entries === 1
+              ? "1 entry in this period was reviewed as a copy of another, so that activity now counts once."
+              : `${n(o.corrections.entries)} entries in this period were reviewed as copies of others, so each activity now counts once.`}
+          </p>
+          <p className="text-muted-foreground">
+            As first recorded: {n(o.asFirstRecorded.residentContacts)} visits &amp; calls, {n(o.asFirstRecorded.familyConversations)}{" "}
+            family conversations, {n(o.asFirstRecorded.staffTouchpoints)} staff engagements. Corrected (above):{" "}
+            {n(h.residentContacts)}, {n(h.familyConversations)}, {n(h.staffTouchpoints)}.{" "}
+            <Link href={o.corrections.href} className="font-medium text-primary underline-offset-4 hover:underline">
+              See the reviewed entries
+            </Link>
+          </p>
+        </section>
+      ) : null}
 
       <Section id="res" color={SERIES.residents} title="Resident impact" intro="Who we're seeing, how often, and who might be slipping through the cracks.">
         <ChartCard title="Visits & calls per month" subtitle="Staff and volunteers, last 6 months">
