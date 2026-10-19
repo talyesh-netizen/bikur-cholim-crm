@@ -65,6 +65,7 @@ const C = {
   lisaB: contact("Lisa Hart", "facility_staff"),
   lisaE: contact("Lisa Fenn", "facility_staff"),
   lisaFam: contact("Lisa Zeller", "family_member"),
+  dana: contact("Dana Reyes", "community_partner"),
 };
 const SELF = { id: id(), full_name: "Tzvi Alyesh" };
 const SARA = { id: id(), full_name: "Sara Klein" };
@@ -116,6 +117,18 @@ const noFacilityVisit = (plan: Plan): Check => [
 ];
 
 const SCENARIOS: Scenario[] = [
+  {
+    // Director, Oct 19, 2026: a conversation with someone at an outside
+    // hospice, not staff at a facility we serve -- "Other", no facility,
+    // never counted as facility staff support.
+    note: "Spoke with Dana Reyes from the hospice today about a family that may need hospice care.",
+    expect: "One Other entry with Dana, no facility; not a staff conversation.",
+    checks: (plan) => [
+      ["one Other entry with Dana", plan.interactions.length === 1 && plan.interactions[0].interaction_type === "other" && plan.interactions[0].contact === C.dana.id],
+      ["no facility", !plan.interactions[0]?.facility],
+      ["not a staff conversation", !plan.interactions.some((x) => x.interaction_type === "facility_staff_communication")],
+    ],
+  },
   {
     // Oct 11, 2026: a note started Monday, read two days later -- no date
     // words in it, so everything is dated the visit date, never "now".

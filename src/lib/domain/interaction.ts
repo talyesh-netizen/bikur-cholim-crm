@@ -32,7 +32,7 @@ export const INTERACTION_TYPES = [
 
 export type InteractionType = (typeof INTERACTION_TYPES)[number]["value"];
 
-/** The log form's one fixed list: 8 choices, one tap each, no
+/** The log form's one fixed list: 9 choices (Other added Oct 19, 2026), one tap each, no
  * follow-up questions. Decided by the director (Oct 8, 2026): fewer,
  * clearer choices beat a long list. Every stored type stays valid for
  * old records and reports -- this only changes what's offered. */
@@ -49,6 +49,10 @@ export const TYPE_BUTTONS: {
   { key: "referral", label: "Referral", choices: [{ value: "medical_referral", label: "Referral" }] },
   { key: "facility", label: "Staff conversation", choices: [{ value: "facility_staff_communication", label: "Staff conversation" }] },
   { key: "program", label: "Program", choices: [{ value: "program", label: "Program" }] },
+  // A conversation that fits none of the above, e.g. with someone at an
+  // outside agency or hospice (director, Oct 19, 2026). Counted only
+  // under "Other": never as staff support or a facility visit-day.
+  { key: "other", label: "Other", choices: [{ value: "other", label: "Other" }] },
 ];
 
 /** No "more types": the 8 above are the whole list. An older entry with
@@ -166,6 +170,8 @@ export const FACILITY_OPTIONAL_TYPES: readonly string[] = [
   // at school (Build 2, Oct 16, 2026).
   "program",
   "school_engagement",
+  // Someone outside the facilities we serve (Oct 19, 2026).
+  "other",
 ];
 
 /** Entries that ask "Staff you worked with or spoke to" (each counts

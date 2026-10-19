@@ -80,6 +80,10 @@ Decisions so far:
   the on-site notes box is marked in person, so it counts as a facility
   visit-day; elsewhere Quick Log leaves it unmarked (the person can tick
   "In person?" when fixing it). Calls and emails never count.
+- Outside professionals (Oct 19, 2026): a conversation with someone who
+  isn't staff at a facility we serve (a hospice or agency contact, e.g.
+  Tina at Affinity Care) is "Other", no facility needed, never a staff
+  conversation, so it isn't counted as facility staff support.
 - Already logged that day (Oct 9, 2026): an entry with the same resident,
   kind and day as one already saved is flagged on the check screen,
   "Is this a second visit?" Yes saves it as its own visit; No unticks
