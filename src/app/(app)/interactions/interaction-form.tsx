@@ -73,7 +73,7 @@ export function InteractionForm({
   fixedResident?: { id: string; name: string };
   /** Set when logging from a facility's page (no fixed resident) — an
    * optional picker limited to that facility's residents. */
-  residents?: { id: string; name: string; detail?: string | null }[];
+  residents?: { id: string; name: string; detail?: string | null; facility_id?: string | null }[];
   /** Any contact this interaction is with directly (e.g., a facility
    * staff communication, a family call) — separate from the resident. */
   contacts?: { id: string; name: string; detail?: string | null }[];
@@ -125,6 +125,8 @@ export function InteractionForm({
   const formKey = JSON.stringify(values);
 
   const [interactionType, setInteractionType] = useState(values.interaction_type);
+  // Picking a resident fills in the facility they live at.
+  const [residentFacility, setResidentFacility] = useState<string | null>(null);
   const isVolunteerVisit = interactionType === "volunteer_visit";
   const facilityRequired = !FACILITY_OPTIONAL_TYPES.includes(interactionType);
   const serviceFields = SERVICE_FIELDS_BY_TYPE[interactionType as InteractionType] ?? [];
@@ -167,7 +169,6 @@ export function InteractionForm({
       (defaultContactId && ENGAGEMENT_TYPES.includes(values.interaction_type) ? [defaultContactId] : [])
   );
   const [present, setPresent] = useState<string[]>(state.people?.present ?? initialPeople?.present ?? []);
-  const [presentOpened, setPresentOpened] = useState(false);
 
   // Partner and group project ("Part of").
   const isPartnerType = PARTNER_TYPES.includes(interactionType);
@@ -271,14 +272,24 @@ export function InteractionForm({
           <p className="text-sm">{fixedResident.name}</p>
           <input type="hidden" name="resident_id" value={fixedResident.id} />
         </div>
-      ) : residents && residents.length > 0 ? (
-        <Field label="Resident" htmlFor="resident_id" error={fieldErrors.resident_id}>
+      ) : residents && (residents.length > 0 || interactionType === "resident_visit") ? (
+        <Field
+          label="Resident"
+          htmlFor="resident_id"
+          error={fieldErrors.resident_id}
+          required={interactionType === "resident_visit"}
+        >
           <SearchPicker
             id="resident_id"
             name="resident_id"
             defaultValue={values.resident_id}
             options={residents.map((r) => ({ id: r.id, label: r.name, detail: r.detail }))}
-            emptyLabel="No specific resident (general facility entry)"
+            onChange={(id) => {
+              const chosen = residents.find((r) => r.id === id);
+              if (chosen?.facility_id) setResidentFacility(chosen.facility_id);
+            }}
+            // A resident visit always names the resident (director, Oct 20, 2026).
+            emptyLabel={interactionType === "resident_visit" ? undefined : "No specific resident (general facility entry)"}
             placeholder="Type a resident's name…"
           />
           {interactionType === "family_communication" ? (
@@ -291,10 +302,11 @@ export function InteractionForm({
 
       <Field label="Facility" htmlFor="facility_id" error={fieldErrors.facility_id} required={facilityRequired}>
         <FacilityPicker
+          key={residentFacility ?? "saved"}
           id="facility_id"
           name="facility_id"
           facilities={facilities}
-          defaultValue={values.facility_id}
+          defaultValue={residentFacility ?? values.facility_id}
           emptyLabel={facilityRequired ? undefined : "No facility yet"}
         />
       </Field>
@@ -526,7 +538,10 @@ export function InteractionForm({
             placeholder="Type a staff member's name…"
           />
           <p className="text-xs text-muted-foreground">Each counts once toward staff engagements.</p>
-          {present.length > 0 || presentOpened ? (
+          {/* "Others who were there" is hidden from everyday logging
+              (director, Oct 20, 2026); it only shows on an entry that
+              already has someone in it, so editing never drops them. */}
+          {present.length > 0 ? (
             <div className="mt-2 flex flex-col gap-1.5">
               <Label htmlFor="present_contact_ids">Others who were there (not counted)</Label>
               <MultiSearchPicker
@@ -540,15 +555,7 @@ export function InteractionForm({
                 placeholder="Type a name…"
               />
             </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setPresentOpened(true)}
-              className="w-fit text-xs font-medium text-muted-foreground underline-offset-4 hover:underline"
-            >
-              + Others who were there (not counted)
-            </button>
-          )}
+          ) : null}
         </div>
       ) : contacts && contacts.length > 0 ? (
         <Field label={interactionType === "volunteer_meeting" ? "Volunteer you met" : "Contact"} htmlFor="contact_id" error={fieldErrors.contact_id}>

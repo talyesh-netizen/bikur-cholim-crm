@@ -195,6 +195,14 @@ async function projectRoot(
 // the interaction_submission_id migration.
 const submissionIdSchema = z.string().uuid();
 
+const RESIDENT_REQUIRED_MESSAGE = "Please choose the resident you visited.";
+
+/** A resident visit needs its resident (director, Oct 20, 2026). An
+ * older visit saved without one can still be edited as it is. */
+function missingResident(data: { interaction_type: string; resident_id?: string }, savedWithoutResident = false) {
+  return data.interaction_type === "resident_visit" && !data.resident_id && !savedWithoutResident;
+}
+
 export async function createInteraction(
   redirectTo: string,
   _prevState: InteractionFormState,
@@ -211,6 +219,15 @@ export async function createInteraction(
       if (typeof key === "string" && !fieldErrors[key]) fieldErrors[key] = issue.message;
     }
     return { error: "Please fix the highlighted fields.", fieldErrors, values: raw, checkedVolunteerIds: volunteerIds, people };
+  }
+  if (missingResident(parsed.data)) {
+    return {
+      error: "Please fix the highlighted fields.",
+      fieldErrors: { resident_id: RESIDENT_REQUIRED_MESSAGE },
+      values: raw,
+      checkedVolunteerIds: volunteerIds,
+      people,
+    };
   }
 
   const supabase = await createClient();
@@ -317,6 +334,20 @@ export async function updateInteraction(
 
   if (!user) {
     return { error: "Your session expired. Please sign in again.", values: raw, checkedVolunteerIds: volunteerIds };
+  }
+
+  if (parsed.data.interaction_type === "resident_visit" && !parsed.data.resident_id) {
+    const { data: saved } = await supabase.from("interactions").select("interaction_type, resident_id").eq("id", id).maybeSingle();
+    const savedWithoutResident = saved?.interaction_type === "resident_visit" && !saved.resident_id;
+    if (missingResident(parsed.data, savedWithoutResident)) {
+      return {
+        error: "Please fix the highlighted fields.",
+        fieldErrors: { resident_id: RESIDENT_REQUIRED_MESSAGE },
+        values: raw,
+        checkedVolunteerIds: volunteerIds,
+        people,
+      };
+    }
   }
 
   const lead = people.doneBy[0] ?? undefined;

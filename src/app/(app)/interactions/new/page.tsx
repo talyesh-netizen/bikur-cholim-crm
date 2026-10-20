@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getResident } from "@/lib/queries/residents";
 import { getFacility, listFacilities } from "@/lib/queries/facilities";
 import { listResidents } from "@/lib/queries/residents";
+import { residentOptions } from "@/lib/resident-options";
 import { listContactOptions, listResidentContacts } from "@/lib/queries/contacts";
 import { labelFor as labelForContact, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
 import { createInteraction } from "@/lib/actions/interactions";
@@ -20,11 +21,17 @@ export default async function NewInteractionPage({
   const { resident: residentId, facility: facilityId, type, from, contact: contactId } = await searchParams;
   const defaultType = INTERACTION_TYPES.some((t) => t.value === type) ? type : undefined;
 
-  const [facilities, resident, residentsAtFacility, allContacts, volunteers, residentFamily, activity] = await Promise.all([
+  const [facilities, resident, residentChoices, allContacts, volunteers, residentFamily, activity] = await Promise.all([
     listFacilities(),
     residentId ? getResident(residentId) : Promise.resolve(null),
     !residentId && facilityId
-      ? listResidents({ facilityId, showAllStatuses: true })
+      ? listResidents({ facilityId, showAllStatuses: true }).then((rows) =>
+          rows.map((r) => ({ id: r.id, name: residentName(r), facility_id: r.current_facility_id, detail: null }))
+        )
+      : // The general "+ Log": every resident, so a visit can name who
+        // was visited (director, Oct 20, 2026).
+        !residentId
+      ? residentOptions()
       : Promise.resolve([]),
     listContactOptions(),
     listContactOptions("volunteer"),
@@ -110,10 +117,7 @@ export default async function NewInteractionPage({
             defaultInteractionType={defaultType}
             defaultContactId={chosenContact?.id}
             fixedResident={fixedResident}
-            residents={residentsAtFacility.map((r) => ({
-              id: r.id,
-              name: residentName(r),
-            }))}
+            residents={residentChoices}
             contacts={contacts}
             volunteers={volunteers}
             activity={activity}
