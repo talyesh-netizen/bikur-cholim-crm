@@ -118,3 +118,9 @@ Decisions so far:
   "elsewhere" (a shiva house, a hospital, a school) keeps the entry's
   resident and facility. "At facility" needs a facility, so without one
   it is saved as elsewhere. Older entries stay "not recorded".
+- Facility Visit entry stays (Oct 21, 2026, Option A): for a visit
+  where no resident interaction or staff meeting happened. A Facility
+  Visit plus resident visits there the same day is still one facility
+  visit. Facility visits, resident interactions and staff meetings are
+  counted separately; a Facility Visit is a staff meeting only when
+  staff were actually met.
