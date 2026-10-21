@@ -19,9 +19,14 @@ import { Search } from "lucide-react";
 export function InteractionFilters({
   facilities,
   staff,
+  typeGroupLabel,
 }: {
   facilities: { id: string; name: string }[];
   staff: { id: string; full_name: string }[];
+  /** Set when the list arrived filtered to several types at once (from
+   * an Impact number) -- shown as the Type box's choice, so it never
+   * looks like "All types" while only some are listed. */
+  typeGroupLabel?: string | null;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -79,13 +84,15 @@ export function InteractionFilters({
         <div className="flex flex-col gap-1">
           <Label className="text-xs text-muted-foreground">Type</Label>
           <Select
-            value={searchParams.get("type") ?? "all"}
-            onValueChange={(v) => updateParam("type", v === "all" ? null : v)}
+            value={searchParams.get("type") ?? (typeGroupLabel ? "group" : "all")}
+            // Picking one type (or All) replaces the group from Impact.
+            onValueChange={(v) => updateParams({ type: v === "all" || v === "group" ? null : v, types: v === "group" ? searchParams.get("types") : null })}
           >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              {typeGroupLabel ? <SelectItem value="group">{typeGroupLabel}</SelectItem> : null}
               <SelectItem value="all">All types</SelectItem>
               {INTERACTION_TYPES.map((t) => (
                 <SelectItem key={t.value} value={t.value}>

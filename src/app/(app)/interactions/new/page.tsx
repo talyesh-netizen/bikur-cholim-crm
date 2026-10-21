@@ -10,21 +10,33 @@ import { InteractionForm } from "../interaction-form";
 import { INTERACTION_TYPES, labelFor } from "@/lib/domain/interaction";
 import { residentName } from "@/lib/domain/resident-name";
 import { onsiteHref } from "@/lib/onsite-links";
+import { safeReturnTo } from "@/lib/return-to";
+import { quickLogEnabled } from "@/lib/quick-log-enabled";
+import Link from "next/link";
+import { Mic } from "lucide-react";
 
 export default async function NewInteractionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ resident?: string; facility?: string; type?: string; from?: string; contact?: string }>;
+  searchParams: Promise<{ resident?: string; facility?: string; type?: string; from?: string; contact?: string; returnTo?: string }>;
 }) {
-  const { resident: residentId, facility: facilityId, type, from, contact: contactId } = await searchParams;
+  const { resident: residentId, facility: facilityId, type, from, contact: contactId, returnTo: returnToParam } = await searchParams;
+  // Started from another page (a contact, a partner, the Interactions
+  // list): saving goes back there.
+  const returnTo = safeReturnTo(returnToParam);
   const defaultType = INTERACTION_TYPES.some((t) => t.value === type) ? type : undefined;
 
-  const [facilities, resident, residentsAtFacility, allContacts, volunteers, residentFamily] = await Promise.all([
+  const [facilities, resident, residentChoices, allContacts, volunteers, residentFamily] = await Promise.all([
     listFacilities(),
     residentId ? getResident(residentId) : Promise.resolve(null),
-    !residentId && facilityId
-      ? listResidents({ facilityId, showAllStatuses: true })
-      : Promise.resolve([]),
+    // Not started from a resident: any resident can be searched for --
+    // everyone at the facility it was started from (whatever their
+    // status), otherwise every current resident.
+    residentId
+      ? Promise.resolve([])
+      : facilityId
+        ? listResidents({ facilityId, showAllStatuses: true })
+        : listResidents(),
     listContactOptions(),
     listContactOptions("volunteer"),
     residentId ? listResidentContacts(residentId) : Promise.resolve([]),
@@ -67,6 +79,8 @@ export default async function NewInteractionPage({
       : undefined;
   const redirectTo = onsiteReturn
     ? onsiteReturn
+    : returnTo
+    ? returnTo
     : residentId
     ? `/residents/${residentId}`
     : facilityId
@@ -94,6 +108,16 @@ export default async function NewInteractionPage({
             ? `For ${fixedResident.name}. Date and time are filled in for right now.`
             : "Record a visit, call, or other activity. Date and time are filled in for right now."}
         </p>
+        {/* Voice / free-text logging stays one tap away (director, Oct 21, 2026). */}
+        {quickLogEnabled() && from !== "onsite" ? (
+          <Link
+            href={`/quick-log${residentId ? `?resident=${residentId}` : facilityId ? `?facility=${facilityId}` : ""}`}
+            className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-primary underline-offset-4 hover:underline"
+          >
+            <Mic className="size-4" />
+            Or say it / type it as a note (Quick Log)
+          </Link>
+        ) : null}
       </div>
 
       <Card>
@@ -108,9 +132,11 @@ export default async function NewInteractionPage({
             defaultInteractionType={defaultType}
             defaultContactId={chosenContact?.id}
             fixedResident={fixedResident}
-            residents={residentsAtFacility.map((r) => ({
+            residents={residentChoices.map((r) => ({
               id: r.id,
               name: residentName(r),
+              detail: r.current_facility_name,
+              facilityId: r.current_facility_id,
             }))}
             contacts={contacts}
             volunteers={volunteers}

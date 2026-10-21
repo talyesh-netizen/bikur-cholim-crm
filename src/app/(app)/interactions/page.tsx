@@ -11,6 +11,8 @@ import { InteractionRow } from "./interaction-row";
 import { SectionIcon } from "@/components/section-icon";
 import { FAMILY_NEEDS, HOLIDAYS, INTERACTION_TYPES, labelFor } from "@/lib/domain/interaction";
 import { formatDateOnly } from "@/lib/format-date";
+import { getResident } from "@/lib/queries/residents";
+import { residentName } from "@/lib/domain/resident-name";
 
 export default async function InteractionsPage({
   searchParams,
@@ -23,7 +25,9 @@ export default async function InteractionsPage({
   const types = (params.types ?? "").split(",").filter((t) => INTERACTION_TYPES.some((x) => x.value === t));
   const holiday = HOLIDAYS.find((h) => h.value === params.holiday);
   const need = FAMILY_NEEDS.find((f) => f.value === params.need);
+  const resident = params.resident ? await getResident(params.resident) : null;
   const showing = [
+    resident ? `Entries for ${residentName(resident)}` : null,
     types.length ? types.map((t) => labelFor(INTERACTION_TYPES, t)).join(", ") : null,
     holiday ? `For ${holiday.label}` : null,
     need ? `Family need: ${need.label}` : null,
@@ -41,6 +45,7 @@ export default async function InteractionsPage({
       interactionTypes: types,
       holiday: holiday?.value,
       familyNeed: need?.value,
+      residentId: resident?.id,
     }),
     listFacilityOptions(),
     listActiveStaff(),
@@ -60,14 +65,18 @@ export default async function InteractionsPage({
           </p>
         </div>
         <Button asChild>
-          <Link href="/interactions/new">
+          <Link href="/interactions/new?returnTo=%2Finteractions">
             <Plus className="size-4" />
             Log interaction
           </Link>
         </Button>
       </div>
 
-      <InteractionFilters facilities={facilities} staff={staff} />
+      <InteractionFilters
+        facilities={facilities}
+        staff={staff}
+        typeGroupLabel={types.length ? types.map((t) => labelFor(INTERACTION_TYPES, t)).join(", ") : null}
+      />
 
       {showing.length ? (
         <p className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted px-3 py-2 text-sm">
@@ -77,8 +86,9 @@ export default async function InteractionsPage({
             {params.from ? <span className="text-muted-foreground"> · since {formatDateOnly(params.from)}</span> : null}
             {params.to ? <span className="text-muted-foreground"> · to {formatDateOnly(params.to)}</span> : null}
           </span>
+          {/* Was "Show all", which read like "show all of these" (director, Oct 21, 2026). */}
           <Link href="/interactions" className="font-medium underline underline-offset-2">
-            Show all
+            Clear filter
           </Link>
         </p>
       ) : null}

@@ -169,6 +169,78 @@ export type RelationshipFormState = {
   values?: Record<string, string>;
 };
 
+const linkExistingFamilySchema = z
+  .object({
+    contact_id: z.string().uuid("Please choose who."),
+    relationship_to_resident: z.enum(relationshipValues, { message: "Please choose a relationship." }),
+    relationship_other_description: optionalText(),
+    relationship_notes: optionalText(),
+    is_primary_contact: z.preprocess((val) => val === "on", z.boolean()),
+  })
+  .superRefine((data, ctx) => {
+    if (data.relationship_to_resident === "other" && !data.relationship_other_description) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["relationship_other_description"],
+        message: "Please describe the relationship.",
+      });
+    }
+  });
+
+/** Links someone already in the CRM (e.g. a contact just added on the
+ * Contacts page) to a resident as family -- the same family link
+ * "Add family contact" makes, without creating a second record of them. */
+export async function linkExistingFamilyContact(
+  residentId: string,
+  _prevState: RelationshipFormState,
+  formData: FormData
+): Promise<RelationshipFormState> {
+  const raw = Object.fromEntries(formData.entries()) as Record<string, string>;
+  const parsed = linkExistingFamilySchema.safeParse(raw);
+  if (!parsed.success) {
+    return { error: "Please fix the highlighted fields.", fieldErrors: flattenErrors(parsed.error), values: raw };
+  }
+  const { contact_id, relationship_to_resident, relationship_other_description, relationship_notes, is_primary_contact } =
+    parsed.data;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (is_primary_contact) {
+    await supabase
+      .from("resident_contacts")
+      .update({ is_primary_contact: false })
+      .eq("resident_id", residentId)
+      .eq("is_primary_contact", true);
+  }
+
+  const { error } = await supabase.from("resident_contacts").insert({
+    resident_id: residentId,
+    contact_id,
+    relationship_to_resident,
+    relationship_other_description,
+    relationship_notes,
+    is_primary_contact,
+    created_by: user?.id,
+  });
+
+  if (error) {
+    return {
+      error:
+        error.code === "23505"
+          ? "They're already linked to this resident with that relationship."
+          : "Something went wrong linking them. Please try again.",
+      values: raw,
+    };
+  }
+
+  revalidatePath(`/residents/${residentId}`);
+  revalidatePath(`/contacts/${contact_id}`);
+  redirect(withSaved(`/residents/${residentId}`, "family-contact-linked"));
+}
+
 /** Edits the resident-specific side of a family contact link (how
  * they're related, and any notes about that relationship) -- the
  * contact's own details (name/phone/email/address) are edited from

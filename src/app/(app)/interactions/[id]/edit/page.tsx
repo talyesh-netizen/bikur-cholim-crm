@@ -3,41 +3,49 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle } from "lucide-react";
 import { getInteraction, getInteractionVolunteerIds } from "@/lib/queries/interactions";
 import { listFacilities } from "@/lib/queries/facilities";
-import { listResidents } from "@/lib/queries/residents";
+import { getResident, listResidents } from "@/lib/queries/residents";
 import { listContactOptions, listContactsByIds } from "@/lib/queries/contacts";
 import { updateInteraction } from "@/lib/actions/interactions";
 import { InteractionForm } from "../../interaction-form";
 import { toOrgDatetimeLocalValue } from "@/lib/format-date";
 import { residentName } from "@/lib/domain/resident-name";
 import { onsiteHref } from "@/lib/onsite-links";
+import { safeReturnTo } from "@/lib/return-to";
 
 export default async function EditInteractionPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ volunteersError?: string; from?: string }>;
+  searchParams: Promise<{ volunteersError?: string; from?: string; returnTo?: string }>;
 }) {
   const { id } = await params;
-  const { volunteersError, from } = await searchParams;
+  const { volunteersError, from, returnTo } = await searchParams;
   const interaction = await getInteraction(id);
   if (!interaction) notFound();
 
   // Fixed from on-site mode's Today list: back to that list.
-  const redirectTo = (from === "onsite" ? onsiteHref(interaction.facility_id, "today") : undefined) ?? (interaction.resident_id
+  // Otherwise back to the page the edit was started from, if it said.
+  const redirectTo = (from === "onsite" ? onsiteHref(interaction.facility_id, "today") : undefined) ?? safeReturnTo(returnTo) ?? (interaction.resident_id
     ? `/residents/${interaction.resident_id}`
     : interaction.facility_id
       ? `/facilities/${interaction.facility_id}`
       : "/interactions");
 
-  const [facilities, residentsAtFacility, contacts, activeVolunteers, volunteerIds] = await Promise.all([
+  const [facilities, facilityResidents, currentResidents, contacts, activeVolunteers, volunteerIds, ownResident] = await Promise.all([
     listFacilities(),
     interaction.facility_id
       ? listResidents({ facilityId: interaction.facility_id, showAllStatuses: true })
       : Promise.resolve([]),
+    // Any current resident can be picked too (e.g. an entry saved
+    // without one, or under the wrong facility).
+    listResidents(),
     listContactOptions(),
     listContactOptions("volunteer"),
     getInteractionVolunteerIds(id),
+    // Its own resident is always offered, even if no longer current --
+    // so re-saving can never quietly drop them.
+    interaction.resident_id ? getResident(interaction.resident_id) : Promise.resolve(null),
   ]);
 
   // A volunteer already linked to this interaction might since have gone
@@ -79,9 +87,13 @@ export default async function EditInteractionPage({
           <InteractionForm
             action={action}
             facilities={facilities}
-            residents={residentsAtFacility.map((r) => ({
+            residents={[...(ownResident ? [ownResident] : []), ...facilityResidents, ...currentResidents]
+              .filter((r, i, all) => all.findIndex((x) => x.id === r.id) === i)
+              .map((r) => ({
               id: r.id,
               name: residentName(r),
+              detail: r.current_facility_name,
+              facilityId: r.current_facility_id,
             }))}
             contacts={contacts}
             volunteers={volunteers}
