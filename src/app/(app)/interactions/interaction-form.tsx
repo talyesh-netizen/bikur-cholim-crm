@@ -53,6 +53,7 @@ export function InteractionForm({
   defaultInteractionType,
   defaultContactId,
   defaultInPerson,
+  defaultPartnerId,
   fixedResident,
   residents,
   contacts,
@@ -75,6 +76,8 @@ export function InteractionForm({
   defaultContactId?: string;
   /** Opened from on site: a staff conversation starts ticked "In person". */
   defaultInPerson?: boolean;
+  /** Opened from a Strategic Partner's page: that partner is chosen. */
+  defaultPartnerId?: string;
   /** Set when logging from a resident's page — already chosen. */
   fixedResident?: { id: string; name: string };
   /** Residents to pick from (with where they live). Once a facility is
@@ -132,6 +135,7 @@ export function InteractionForm({
       interaction_type: defaultInteractionType ?? "",
       notes: "",
       in_person: defaultInPerson ? "on" : "",
+      partner_organization_id: defaultPartnerId ?? "",
     };
   const formKey = JSON.stringify(values);
 

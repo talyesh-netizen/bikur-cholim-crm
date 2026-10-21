@@ -41,8 +41,8 @@ export function InteractionRow({ interaction }: { interaction: InteractionWithNa
   );
 
   return (
-    <li className="flex flex-col gap-1 rounded-lg border border-border bg-card p-4 text-sm transition-colors hover:border-primary/50">
-      <Link href={`/interactions/${interaction.id}`} className="flex flex-col gap-1">
+    <li className="relative flex flex-col gap-1 rounded-lg border border-border bg-card p-4 text-sm transition-colors hover:border-primary/50">
+      <Link href={`/interactions/${interaction.id}`} className="stretched-link flex flex-col gap-1">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="flex flex-wrap gap-1">
             <Badge variant="secondary">{labelFor(INTERACTION_TYPES, interaction.interaction_type)}</Badge>
@@ -74,7 +74,7 @@ export function InteractionRow({ interaction }: { interaction: InteractionWithNa
           {interaction.volunteers.length > 0 ? (
             interaction.volunteers.map((v, i) => (
               <span key={v.id}>
-                <Link href={`/contacts/${v.id}`} className="font-medium hover:underline">
+                <Link href={`/contacts/${v.id}`} className="relative z-10 font-medium hover:underline">
                   {v.name}
                 </Link>
                 {i < interaction.volunteers.length - 1 ? ", " : ""}
@@ -93,7 +93,7 @@ export function InteractionRow({ interaction }: { interaction: InteractionWithNa
               <span key={p.href} className="flex items-center gap-1">
                 <Link
                   href={p.href}
-                  className={isVolunteerVisit ? "text-muted-foreground hover:underline" : "font-medium hover:underline"}
+                  className={isVolunteerVisit ? "relative z-10 text-muted-foreground hover:underline" : "relative z-10 font-medium hover:underline"}
                 >
                   {p.label}
                 </Link>
@@ -107,7 +107,7 @@ export function InteractionRow({ interaction }: { interaction: InteractionWithNa
         <Link
           href={`/interactions/${interaction.id}/edit`}
           title="Edit this interaction"
-          className="text-muted-foreground hover:text-foreground"
+          className="relative z-10 text-muted-foreground hover:text-foreground"
         >
           <Pencil className="size-3.5" />
         </Link>

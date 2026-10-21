@@ -9,6 +9,7 @@ import { updateInteraction } from "@/lib/actions/interactions";
 import { InteractionForm } from "../../interaction-form";
 import { orgDayKey } from "@/lib/format-date";
 import { onsiteHref } from "@/lib/onsite-links";
+import { safeReturnTo } from "@/lib/return-to";
 import { getActivityExtras, getActivityFormOptions } from "@/lib/queries/activity";
 import { ENGAGEMENT_TYPES } from "@/lib/domain/interaction";
 
@@ -17,15 +18,16 @@ export default async function EditInteractionPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ volunteersError?: string; peopleError?: string; from?: string }>;
+  searchParams: Promise<{ volunteersError?: string; peopleError?: string; from?: string; back?: string; returnTo?: string }>;
 }) {
   const { id } = await params;
-  const { volunteersError, peopleError, from } = await searchParams;
+  const { volunteersError, peopleError, from, back, returnTo } = await searchParams;
   const interaction = await getInteraction(id);
   if (!interaction) notFound();
 
   // Fixed from on-site mode's Today list: back to that list.
-  const redirectTo = (from === "onsite" ? onsiteHref(interaction.facility_id, "today") : undefined) ?? (interaction.resident_id
+  // Otherwise back to the page the edit was started from, if it said.
+  const redirectTo = (from === "onsite" ? onsiteHref(interaction.facility_id, "today") : undefined) ?? safeReturnTo(back ?? returnTo) ?? (interaction.resident_id
     ? `/residents/${interaction.resident_id}`
     : interaction.facility_id
       ? `/facilities/${interaction.facility_id}`

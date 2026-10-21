@@ -162,7 +162,18 @@ export default async function ResidentDetailPage({
         <ProfileNotesCard targetType="resident" targetId={resident.id} notes={profileNotes} compact />
       </Fold>
 
-      <Fold title="Recent interactions" count={interactions.length} open>
+      <Fold
+        title="Recent interactions"
+        count={interactions.length}
+        open
+        action={
+          interactions.length > 0 ? (
+            <Link href={`/interactions?resident=${resident.id}`} className="text-sm font-medium text-primary hover:underline">
+              See all
+            </Link>
+          ) : undefined
+        }
+      >
         <InteractionList interactions={interactions} variant="resident" />
       </Fold>
 
@@ -170,12 +181,17 @@ export default async function ResidentDetailPage({
         title="Family"
         count={familyContacts.filter((rc) => rc.active).length}
         action={
-          <Button size="sm" variant="outline" asChild>
-            <Link href={`/residents/${resident.id}/contacts/new`}>
-              <Plus className="size-4" />
-              Add family contact
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" asChild>
+              <Link href={`/residents/${resident.id}/contacts/new`}>
+                <Plus className="size-4" />
+                Add family contact
+              </Link>
+            </Button>
+            <Button size="sm" variant="ghost" asChild>
+              <Link href={`/residents/${resident.id}/contacts/link`}>Link someone already in the CRM</Link>
+            </Button>
+          </div>
         }
       >
           {familyContacts.length === 0 ? (

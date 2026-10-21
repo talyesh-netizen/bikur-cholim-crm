@@ -4,6 +4,9 @@ import { offeredOptions } from "@/lib/domain/offered";
 import { OFFERED_RELATIONSHIPS } from "@/lib/domain/contact";
 import { FormActions, FormError } from "@/components/form-actions";
 import { useActionState, useState } from "react";
+import Link from "next/link";
+import { SearchPicker } from "@/components/search-picker";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,7 +23,8 @@ import type { ResidentContact } from "@/lib/domain/contact";
 
 type Action = (state: RelationshipFormState, formData: FormData) => Promise<RelationshipFormState>;
 
-function toFormValues(residentContact: ResidentContact): Record<string, string> {
+function toFormValues(residentContact?: ResidentContact): Record<string, string> {
+  if (!residentContact) return { relationship_to_resident: "", relationship_other_description: "", relationship_notes: "" };
   return {
     relationship_to_resident: residentContact.relationship_to_resident,
     relationship_other_description: residentContact.relationship_other_description ?? "",
@@ -31,9 +35,19 @@ function toFormValues(residentContact: ResidentContact): Record<string, string> 
 export function RelationshipForm({
   action,
   residentContact,
+  link,
 }: {
   action: Action;
-  residentContact: ResidentContact;
+  /** The family link being edited. */
+  residentContact?: ResidentContact;
+  /** Instead: linking someone already in the CRM as family -- they're
+   * picked here. */
+  link?: {
+    contacts: { id: string; name: string; detail?: string | null }[];
+    defaultContactId?: string;
+    /** "Add a new person" instead. */
+    addNewHref: string;
+  };
 }) {
   const [state, formAction, isPending] = useActionState<RelationshipFormState, FormData>(action, {
     error: null,
@@ -42,10 +56,31 @@ export function RelationshipForm({
   const values = state.values ?? toFormValues(residentContact);
   const formKey = JSON.stringify(values);
   const [relationship, setRelationship] = useState(values.relationship_to_resident);
+  const [contactId, setContactId] = useState(values.contact_id ?? link?.defaultContactId ?? "");
 
   return (
     <form key={formKey} action={formAction} className="flex flex-col gap-4">
       <FormError message={state.error} />
+
+      {link ? (
+        <Field label="Who" htmlFor="contact_id" error={fieldErrors.contact_id} required>
+          <SearchPicker
+            id="contact_id"
+            name="contact_id"
+            options={link.contacts.map((c) => ({ id: c.id, label: c.name, detail: c.detail }))}
+            value={contactId}
+            onChange={setContactId}
+            placeholder="Type their name…"
+          />
+          <p className="text-xs text-muted-foreground">
+            Not in the CRM yet?{" "}
+            <Link href={link.addNewHref} className="font-medium underline">
+              Add them as a new family contact
+            </Link>{" "}
+            instead.
+          </p>
+        </Field>
+      ) : null}
 
       <Field
         label="Relationship to resident"
@@ -93,10 +128,20 @@ export function RelationshipForm({
         />
       </Field>
 
+      {link ? (
+        <div className="flex items-center gap-2">
+          <Checkbox id="is_primary_contact" name="is_primary_contact" />
+          <Label htmlFor="is_primary_contact" className="text-sm font-normal">
+            Make them the resident&apos;s Primary Contact
+          </Label>
+        </div>
+      ) : null}
+
       <FormActions
         isPending={isPending}
-        submitLabel={"Save changes"}
-        savingLabel={"Saving…"}
+        disabled={link ? !contactId || !relationship : undefined}
+        submitLabel={link ? "Link as family" : "Save changes"}
+        savingLabel={link ? "Linking…" : "Saving…"}
         hasUnsavedError={!!state.error}
       />
     </form>

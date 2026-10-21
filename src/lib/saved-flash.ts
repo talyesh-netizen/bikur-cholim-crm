@@ -29,6 +29,7 @@ export const SAVED_MESSAGES = {
   "contact-added": "Contact added",
   "contact-saved": "Contact saved",
   "family-contact-added": "Family contact added",
+  "family-contact-linked": "Linked as family",
   "family-contact-saved": "Family contact updated",
   "facility-contact-added": "Facility contact added",
   "facility-contact-linked": "Contact linked to this facility",

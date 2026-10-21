@@ -16,6 +16,8 @@ import { ListPlus, Pencil, Plus, UserX, Undo2, Star } from "lucide-react";
 import { Fold } from "@/components/fold";
 import { listTasks } from "@/lib/queries/tasks";
 import { TaskList } from "@/app/(app)/tasks/task-list";
+import { listInteractionsForPartner } from "@/lib/queries/interactions";
+import { InteractionRow } from "@/app/(app)/interactions/interaction-row";
 
 export default async function OrganizationDetailPage({
   params,
@@ -39,6 +41,10 @@ export default async function OrganizationDetailPage({
   const facilitiesToAdd = allFacilities.filter((f) => !ownedIds.has(f.id));
   const toggleActive = setOrganizationActive.bind(null, organization.id, !organization.active);
   const mainContact = contacts.find((c) => c.is_primary_contact) ?? null;
+  // Its history: entries with this partner chosen, or with its people.
+  const interactions = isHealthcare ? [] : await listInteractionsForPartner(organization.id, contacts.map((c) => c.contact_id));
+  const pageHref = `/organizations/${organization.id}`;
+  const logHref = `/interactions/new?partner=${organization.id}&back=${encodeURIComponent(pageHref)}${mainContact ? `&contact=${mainContact.contact_id}` : ""}`;
 
   return (
     <div className="flex flex-col gap-4">
@@ -61,6 +67,14 @@ export default async function OrganizationDetailPage({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {isHealthcare ? null : (
+            <Button asChild>
+              <Link href={logHref}>
+                <Plus className="size-4" />
+                Log interaction
+              </Link>
+            </Button>
+          )}
           <Button variant="outline" asChild>
             <Link href={`/organizations/${organization.id}/edit`}>
               <Pencil className="size-4" />
@@ -230,6 +244,26 @@ export default async function OrganizationDetailPage({
       >
         <TaskList tasks={tasks} returnTo={`/organizations/${organization.id}`} />
       </Fold>
+      {isHealthcare ? null : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Recent interactions with this partner ({interactions.length})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {interactions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                None yet. Use Log interaction above.
+              </p>
+            ) : (
+              <ol className="flex flex-col gap-3">
+                {interactions.map((interaction) => (
+                  <InteractionRow key={interaction.id} interaction={interaction} />
+                ))}
+              </ol>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {organization.notes ? (
         <Card>

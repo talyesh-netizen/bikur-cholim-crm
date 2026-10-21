@@ -37,12 +37,12 @@ export function TaskCard({
 
   return (
     <Card
-      className={cn("overflow-hidden border-l-4 transition-colors hover:border-primary/50", !open && "opacity-80")}
+      className={cn("relative overflow-hidden border-l-4 transition-colors hover:border-primary/50", !open && "opacity-80")}
       style={{ borderLeftColor: who.color }}
     >
       <CardContent className="flex items-start gap-3 p-4 sm:p-4">
-        {leading}
-        <Link href={href ?? `/tasks/${task.id}`} className="flex min-w-0 flex-1 flex-col gap-2">
+        {leading ? <div className="relative z-10 shrink-0">{leading}</div> : null}
+        <Link href={href ?? `/tasks/${task.id}`} className="stretched-link flex min-w-0 flex-1 flex-col gap-2">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className={cn("text-base font-semibold leading-snug", !open && "text-muted-foreground line-through decoration-1")}>

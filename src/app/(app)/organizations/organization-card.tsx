@@ -49,13 +49,7 @@ export function OrganizationCard({ organization }: { organization: Organization 
             ) : null}
           </div>
         </div>
-        <Link
-          href={`/organizations/${organization.id}`}
-          aria-label={`Open ${organization.name}`}
-          className="shrink-0 rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-        >
-          <ChevronRight className="size-4" />
-        </Link>
+        <ChevronRight aria-hidden className="size-4 shrink-0 text-muted-foreground" />
       </CardContent>
     </Card>
   );

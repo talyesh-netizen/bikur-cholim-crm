@@ -215,7 +215,10 @@ export default async function ContactDetailPage({
         </CardHeader>
         <CardContent>
           {residentLinks.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Not linked to any residents yet.</p>
+            <p className="text-sm text-muted-foreground">
+              Not linked to any residents yet. To add them as family, open the resident&apos;s page → Family →
+              &ldquo;Link someone already in the CRM&rdquo;.
+            </p>
           ) : (
             <ul className="flex flex-col gap-2">
               {residentLinks.map((link) => (

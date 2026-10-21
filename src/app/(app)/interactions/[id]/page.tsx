@@ -93,7 +93,7 @@ export default async function InteractionDetailPage({
             </Link>
           </Button>
           <Button asChild>
-            <Link href={`/interactions/${interaction.id}/edit`}>
+            <Link href={`/interactions/${interaction.id}/edit?back=${encodeURIComponent(`/interactions/${interaction.id}`)}`}>
               <Pencil className="size-4" />
               Edit
             </Link>

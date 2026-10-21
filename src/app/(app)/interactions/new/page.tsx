@@ -12,13 +12,18 @@ import { INTERACTION_TYPES, labelFor } from "@/lib/domain/interaction";
 import { residentName } from "@/lib/domain/resident-name";
 import { onsiteHref } from "@/lib/onsite-links";
 import { getActivityFormOptions } from "@/lib/queries/activity";
+import { quickLogEnabled } from "@/lib/quick-log-enabled";
+import Link from "next/link";
+import { Mic } from "lucide-react";
 
 export default async function NewInteractionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ resident?: string; facility?: string; type?: string; from?: string; contact?: string; back?: string }>;
+  searchParams: Promise<{ resident?: string; facility?: string; type?: string; from?: string; contact?: string; back?: string; returnTo?: string; partner?: string }>;
 }) {
-  const { resident: residentId, facility: facilityId, type, from, contact: contactId, back } = await searchParams;
+  const { resident: residentId, facility: facilityId, type, from, contact: contactId, back: backParam, returnTo, partner } = await searchParams;
+  // Where to go after saving; returnTo is the older name for the same thing.
+  const back = backParam ?? returnTo;
   const defaultType = INTERACTION_TYPES.some((t) => t.value === type) ? type : undefined;
 
   const [facilities, resident, residents, allContacts, volunteers, residentFamily, activity] = await Promise.all([
@@ -99,6 +104,16 @@ export default async function NewInteractionPage({
             ? `For ${fixedResident.name}. The date is today; change it for an earlier visit.`
             : "Record a visit, call, or other activity. The date is today; change it for an earlier visit."}
         </p>
+        {/* Voice / free-text logging stays one tap away (director, Oct 21, 2026). */}
+        {quickLogEnabled() && from !== "onsite" ? (
+          <Link
+            href={`/quick-log${residentId ? `?resident=${residentId}` : facilityId ? `?facility=${facilityId}` : ""}`}
+            className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-primary underline-offset-4 hover:underline"
+          >
+            <Mic className="size-4" />
+            Or say it / type it as a note (Quick Log)
+          </Link>
+        ) : null}
       </div>
 
       <Card>
@@ -113,6 +128,7 @@ export default async function NewInteractionPage({
             defaultInteractionType={defaultType}
             defaultContactId={chosenContact?.id}
             defaultInPerson={from === "onsite"}
+            defaultPartnerId={activity.partners.some((p) => p.id === partner) ? partner : undefined}
             fixedResident={fixedResident}
             residents={residents}
             contacts={contacts}
