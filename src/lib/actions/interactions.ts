@@ -17,12 +17,14 @@ import {
   FAMILY_NEED_TYPES,
   ENGAGEMENT_TYPES,
   PARTNER_TYPES,
-  IN_PERSON_ONLY_TYPES,
+  METHOD_ASKED,
+  METHOD_FIXED,
   occasionForHoliday,
   type InteractionType,
 } from "@/lib/domain/interaction";
 import { orgDateToIso } from "@/lib/format-date";
 import { withSaved } from "@/lib/saved-flash";
+import { saveQuarterAsFirstRecorded } from "@/lib/actions/double-entries";
 
 const typeValues = INTERACTION_TYPES.map((o) => o.value) as [string, ...string[]];
 const emptyToUndefined = (val: unknown) => (val === "" ? undefined : val);
@@ -93,8 +95,8 @@ const interactionSchema = z
     unmet_need: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
     unmet_need_reason: z.preprocess(emptyToUndefined, z.enum(enumValues(UNMET_NEED_REASONS)).optional()),
     funder_story: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
-    // "In person?" on a staff conversation (unticked = not recorded).
-    in_person: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
+    // How it happened, where the form asks (blank = not recorded).
+    method: z.preprocess(emptyToUndefined, z.enum(["in_person", "phone", "email", "video"]).optional()),
     partner_organization_id: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
     part_of_id: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
   })
@@ -108,7 +110,7 @@ const interactionSchema = z
  * doesn't ask about is cleared (null), so an entry whose type was
  * changed -- e.g. from a food delivery to a phone call -- can't keep
  * counting its old quantity in the impact report. */
-function toInteractionRow(data: z.infer<typeof interactionSchema>, people: PeopleChoice) {
+function toInteractionRow(data: z.infer<typeof interactionSchema>, people: PeopleChoice, isNew: boolean) {
   const applies = SERVICE_FIELDS_BY_TYPE[data.interaction_type as InteractionType] ?? [];
   const partnered = PARTNER_TYPES.includes(data.interaction_type);
   const partOf = partnered ? data.part_of_id ?? null : null;
@@ -145,9 +147,14 @@ function toInteractionRow(data: z.infer<typeof interactionSchema>, people: Peopl
     unmet_need: data.unmet_need,
     unmet_need_reason: data.unmet_need ? data.unmet_need_reason ?? null : null,
     funder_story: data.funder_story,
-    // Only a staff conversation asks "In person?"; any other entry keeps
-    // what it has (e.g. true from on site).
-    ...(IN_PERSON_ONLY_TYPES.includes(data.interaction_type) ? { in_person: data.in_person ? true : null } : {}),
+    // How it happened: what the form asked, else the one way this kind
+    // of entry can happen -- for a NEW entry only. Editing an older entry
+    // that never had one leaves it "not recorded" (director, Oct 21, 2026).
+    ...(data.interaction_type in METHOD_ASKED
+      ? { method: data.method ?? null }
+      : isNew && METHOD_FIXED[data.interaction_type as InteractionType]
+        ? { method: METHOD_FIXED[data.interaction_type as InteractionType] }
+        : {}),
   };
 }
 
@@ -273,7 +280,7 @@ export async function createInteraction(
   // for each, with the same day, place and notes. One insert, so either
   // all are saved or none; the submission ID on the first is enough to
   // recognize a repeat. A group head count isn't copied to each.
-  const row = toInteractionRow(parsed.data, people);
+  const row = toInteractionRow(parsed.data, people, true);
   const residentIds = parsed.data.interaction_type === "resident_visit" ? chosenResidents : [];
   const rows =
     residentIds.length > 0
@@ -407,7 +414,7 @@ export async function updateInteraction(
   const { data: updated, error } = await supabase
     .from("interactions")
     .update({
-      ...toInteractionRow(parsed.data, people),
+      ...toInteractionRow(parsed.data, people, false),
       ...(lead ? { staff_member_id: lead } : {}),
       // Saving the full edit form counts as reviewing it -- it drops off
       // the "Review past entries" list.
@@ -512,4 +519,60 @@ export async function saveInteractionReview(
   // place instead, and is gone next time the page loads.
   revalidatePath("/data-quality");
   return { error: null, saved: true };
+}
+
+export type VoidResult = { ok: boolean; error?: string };
+
+const VOID_REASON_MAX = 300;
+
+/** Voids an entry made by mistake (director, Oct 21, 2026): it stays on
+ * file and can be restored, but no longer counts anywhere. A reason is
+ * required; who did it and when are kept in the change history. Nothing
+ * is ever deleted. */
+export async function voidInteraction(id: string, reason: string): Promise<VoidResult> {
+  const why = reason.trim().slice(0, VOID_REASON_MAX);
+  if (!z.string().uuid().safeParse(id).success) return { ok: false, error: "That entry could not be found." };
+  if (!why) return { ok: false, error: "Please say why this entry is being voided." };
+
+  const supabase = await createClient();
+  const { data: entry } = await supabase.from("interactions").select("occurred_at, voided_at, counted_in_id").eq("id", id).maybeSingle();
+  if (!entry) return { ok: false, error: "That entry could not be found, or you don't have access to it." };
+  if (entry.voided_at) return { ok: true };
+  if (entry.counted_in_id) {
+    return { ok: false, error: "This entry was reviewed as a double entry and already isn't counted. Undo that review first if it's wrong." };
+  }
+  // The quarter's totals as first recorded, saved once before its first
+  // correction (only an admin can save them; a void never waits on it).
+  await saveQuarterAsFirstRecorded(entry.occurred_at as string);
+
+  const { data: updated, error } = await supabase
+    .from("interactions")
+    .update({ voided_at: new Date().toISOString(), void_reason: why })
+    .eq("id", id)
+    .select("id, resident_id, facility_id");
+  if (error || !updated || updated.length === 0) return { ok: false, error: "Not voided. Please try again." };
+  revalidateEntryPages(updated[0]);
+  return { ok: true };
+}
+
+/** Puts a voided entry back: it counts again, exactly as before. */
+export async function restoreInteraction(id: string): Promise<VoidResult> {
+  if (!z.string().uuid().safeParse(id).success) return { ok: false, error: "That entry could not be found." };
+  const supabase = await createClient();
+  const { data: updated, error } = await supabase
+    .from("interactions")
+    .update({ voided_at: null })
+    .eq("id", id)
+    .select("id, resident_id, facility_id");
+  if (error || !updated || updated.length === 0) return { ok: false, error: "Not restored. Please try again." };
+  revalidateEntryPages(updated[0]);
+  return { ok: true };
+}
+
+function revalidateEntryPages(row: { id: string; resident_id: string | null; facility_id: string | null }) {
+  revalidatePath(`/interactions/${row.id}`);
+  revalidatePath("/interactions");
+  revalidatePath("/impact");
+  if (row.resident_id) revalidatePath(`/residents/${row.resident_id}`);
+  if (row.facility_id) revalidatePath(`/facilities/${row.facility_id}`);
 }

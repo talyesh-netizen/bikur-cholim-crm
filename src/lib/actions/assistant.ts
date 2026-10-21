@@ -5,7 +5,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/get-current-profile";
-import { HOLIDAY_TYPES, FAMILY_NEED_TYPES, IN_PERSON_ONLY_TYPES, INTERACTION_TYPES, labelFor, SERVICE_FIELDS_BY_TYPE, occasionForHoliday, type InteractionType } from "@/lib/domain/interaction";
+import { HOLIDAY_TYPES, FAMILY_NEED_TYPES, IN_PERSON_ONLY_TYPES, INTERACTION_TYPES, METHOD_FIXED, labelFor, SERVICE_FIELDS_BY_TYPE, occasionForHoliday, type InteractionType } from "@/lib/domain/interaction";
 import { loadDirectory, type Directory } from "@/lib/assistant/directory";
 import { resolvePlan } from "@/lib/assistant/resolve";
 import { aboutThemNotes } from "@/lib/assistant/about-them";
@@ -205,6 +205,7 @@ async function findAlreadyLogged(plan: Plan): Promise<AlreadyLogged> {
       .from("interactions")
       .select("occurred_at, interaction_type, resident_id, profiles!interactions_staff_member_id_fkey(full_name)")
       .in("resident_id", [...new Set(wanted.map((w) => w.x.resident!))])
+      .is("voided_at", null)
       .gte("occurred_at", from)
       .lt("occurred_at", to)
       .order("occurred_at", { ascending: false });
@@ -648,6 +649,10 @@ export async function applyPlan(
         // Written on site: a staff conversation there was in person
         // (decision B, Oct 19, 2026).
         in_person: onSiteFacilityId && facilityId === onSiteFacilityId && IN_PERSON_ONLY_TYPES.includes(i.interaction_type) ? true : null,
+        // How it happened, for kinds that can only happen one way (a visit
+        // is in person, a phone call by phone); otherwise left to the tick
+        // above, never assumed (Oct 21, 2026).
+        ...(METHOD_FIXED[i.interaction_type as InteractionType] ? { method: METHOD_FIXED[i.interaction_type as InteractionType] } : {}),
         client_submission_id: quickLogSubmissionId([
           ...idParts(staffId),
           ...(repeat > 1 ? [repeat] : []),

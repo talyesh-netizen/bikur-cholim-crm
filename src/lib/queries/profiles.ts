@@ -48,3 +48,11 @@ export async function listStaffAccounts(): Promise<StaffAccount[]> {
     };
   });
 }
+
+/** One staff member's name (active or not), e.g. who voided an entry. */
+export async function getProfileName(id: string | null | undefined): Promise<string | null> {
+  if (!id) return null;
+  const supabase = await createClient();
+  const { data } = await supabase.from("profiles").select("full_name").eq("id", id).maybeSingle();
+  return (data as { full_name: string } | null)?.full_name ?? null;
+}

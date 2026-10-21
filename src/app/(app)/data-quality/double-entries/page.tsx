@@ -25,7 +25,8 @@ export default async function DoubleEntriesPage() {
         <p className="text-sm text-muted-foreground">
           The same kind of entry, with the same person, on the same day — often one visit saved by each staff member who was
           there. &ldquo;Same visit&rdquo; counts it once in reports (by the day it happened) and keeps both people credited.
-          Nothing is deleted.
+          Also one staff meeting saved once per person met (same facility, time and note): &ldquo;Same meeting&rdquo;
+          counts one meeting and keeps everyone met on it. Nothing is deleted, and every answer can be undone.
         </p>
       </div>
 

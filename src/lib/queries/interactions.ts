@@ -11,6 +11,11 @@ const RECENT_INTERACTIONS_LIMIT = 10;
 
 function toInteractionWithNames(row: ServiceDetails & {
   id: string;
+  method?: string | null;
+  in_person?: boolean | null;
+  voided_at?: string | null;
+  void_reason?: string | null;
+  voided_by?: string | null;
   occurred_at: string;
   interaction_type: string;
   facility_id: string | null;
@@ -48,6 +53,11 @@ function toInteractionWithNames(row: ServiceDetails & {
     unmet_need: row.unmet_need,
     unmet_need_reason: row.unmet_need_reason,
     funder_story: row.funder_story,
+    method: row.method ?? null,
+    in_person: row.in_person ?? null,
+    voided_at: row.voided_at ?? null,
+    void_reason: row.void_reason ?? null,
+    voided_by: row.voided_by ?? null,
     counted_in_id: row.counted_in_id ?? null,
     resident_name: resident
       ? residentName(resident)
@@ -73,13 +83,14 @@ function toInteractionWithNames(row: ServiceDetails & {
 // having been on a volunteer_visit -- see the type comment on
 // InteractionWithNames for why this must stay distinct from contact_id.
 const SELECT_WITH_NAMES =
-  "id, occurred_at, interaction_type, facility_id, resident_id, contact_id, staff_member_id, notes, created_at, occasion, holiday, family_need, program_partner, quantity, people_reached, participants, minutes_spent, unmet_need, unmet_need_reason, funder_story, counted_in_id, residents(first_name, last_name, preferred_name), facilities(name, geographic_cluster_id), contacts!interactions_contact_id_fkey(name, resident_contacts(resident_id, relationship_to_resident)), profiles!interactions_staff_member_id_fkey(full_name), interaction_volunteers(contacts(id, name))";
+  "id, occurred_at, interaction_type, method, in_person, voided_at, void_reason, voided_by, facility_id, resident_id, contact_id, staff_member_id, notes, created_at, occasion, holiday, family_need, program_partner, quantity, people_reached, participants, minutes_spent, unmet_need, unmet_need_reason, funder_story, counted_in_id, residents(first_name, last_name, preferred_name), facilities(name, geographic_cluster_id), contacts!interactions_contact_id_fkey(name, resident_contacts(resident_id, relationship_to_resident)), profiles!interactions_staff_member_id_fkey(full_name), interaction_volunteers(contacts(id, name))";
 
 export async function listInteractionsForResident(residentId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("interactions")
     .select(SELECT_WITH_NAMES)
+    .is("voided_at", null)
     .eq("resident_id", residentId)
     .order("occurred_at", { ascending: false })
     .limit(RECENT_INTERACTIONS_LIMIT);
@@ -105,6 +116,7 @@ export async function listRecentInteractions(limit = 8) {
   const { data, error } = await supabase
     .from("interactions")
     .select(SELECT_WITH_NAMES)
+    .is("voided_at", null)
     .order("occurred_at", { ascending: false })
     .limit(limit);
 
@@ -128,6 +140,10 @@ export type InteractionListFilters = {
   familyNeed?: string;
   /** Only entries reviewed as double entries (counted in another). */
   countedIn?: boolean;
+  /** Only voided entries (otherwise they're never listed). */
+  voided?: boolean;
+  /** Only corrections: reviewed double entries and voided entries. */
+  corrected?: boolean;
   residentId?: string;
 };
 
@@ -154,6 +170,14 @@ export async function listInteractions(filters: InteractionListFilters = {}) {
   }
   if (filters.countedIn) {
     query = query.not("counted_in_id", "is", null);
+  }
+  // A voided entry stays on file but is only listed when asked for.
+  if (filters.voided) {
+    query = query.not("voided_at", "is", null);
+  } else if (filters.corrected) {
+    query = query.or("counted_in_id.not.is.null,voided_at.not.is.null");
+  } else {
+    query = query.is("voided_at", null);
   }
   if (filters.facilityId) {
     query = query.eq("facility_id", filters.facilityId);
@@ -235,6 +259,7 @@ export async function listInteractionsForFacility(facilityId: string) {
   const { data, error } = await supabase
     .from("interactions")
     .select(SELECT_WITH_NAMES)
+    .is("voided_at", null)
     .eq("facility_id", facilityId)
     .order("occurred_at", { ascending: false })
     .limit(RECENT_INTERACTIONS_LIMIT);
@@ -256,6 +281,7 @@ export async function listInteractionsForPartner(organizationId: string, contact
   const { data, error } = await supabase
     .from("interactions")
     .select(SELECT_WITH_NAMES)
+    .is("voided_at", null)
     .or([`partner_organization_id.eq.${organizationId}`, contactIds.length ? `contact_id.in.(${contactIds.join(",")})` : null].filter(Boolean).join(","))
     .neq("interaction_type", "volunteer_visit")
     .order("occurred_at", { ascending: false })
@@ -271,6 +297,7 @@ export async function listInteractionsForContact(contactId: string) {
     supabase
       .from("interactions")
       .select(SELECT_WITH_NAMES)
+      .is("voided_at", null)
       .eq("contact_id", contactId)
       // For a volunteer visit, who took part is recorded ONLY in
       // interaction_volunteers (the second query) -- contact_id on a
@@ -281,6 +308,7 @@ export async function listInteractionsForContact(contactId: string) {
     supabase
       .from("interaction_volunteers")
       .select(`interactions!inner(${SELECT_WITH_NAMES})`)
+      .is("interactions.voided_at", null)
       .eq("contact_id", contactId)
       .order("occurred_at", { referencedTable: "interactions", ascending: false })
       .limit(RECENT_INTERACTIONS_LIMIT),
@@ -289,6 +317,7 @@ export async function listInteractionsForContact(contactId: string) {
     supabase
       .from("interaction_contacts")
       .select(`interactions!inner(${SELECT_WITH_NAMES})`)
+      .is("interactions.voided_at", null)
       .eq("contact_id", contactId)
       .order("occurred_at", { referencedTable: "interactions", ascending: false })
       .limit(RECENT_INTERACTIONS_LIMIT),
@@ -371,6 +400,7 @@ export async function listVolunteersForResident(residentId: string): Promise<Vis
     .from("interaction_volunteers")
     .select(VISIT_PAIR_SELECT)
     .eq("interactions.interaction_type", "volunteer_visit")
+    .is("interactions.voided_at", null)
     .eq("interactions.resident_id", residentId);
 
   if (error) throw new Error(error.message);
@@ -386,6 +416,7 @@ export async function listResidentsVisitedByVolunteer(contactId: string): Promis
     .select(VISIT_PAIR_SELECT)
     .eq("contact_id", contactId)
     .eq("interactions.interaction_type", "volunteer_visit")
+    .is("interactions.voided_at", null)
     .not("interactions.resident_id", "is", null);
 
   if (error) throw new Error(error.message);
@@ -407,6 +438,7 @@ export async function listInteractionsAtFacilityOnDay(facilityId: string, day: s
   const { data, error } = await supabase
     .from("interactions")
     .select(SELECT_WITH_NAMES)
+    .is("voided_at", null)
     .eq("facility_id", facilityId)
     .gte("occurred_at", from)
     .lt("occurred_at", to)
@@ -427,6 +459,7 @@ export async function listInteractionsByStaffOnDay(staffId: string, day: string)
   const { data, error } = await supabase
     .from("interactions")
     .select(SELECT_WITH_NAMES)
+    .is("voided_at", null)
     .eq("staff_member_id", staffId)
     .gte("occurred_at", from)
     .lt("occurred_at", to)

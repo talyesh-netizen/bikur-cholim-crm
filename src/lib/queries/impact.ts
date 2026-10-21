@@ -1,10 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import type { InteractionType } from "@/lib/domain/interaction";
 import { orgDayStartIso, orgMonthStart, orgMonthKey } from "@/lib/format-date";
+import { inPeriod, periodBounds, type ReportPeriod } from "@/lib/report-period";
 
 export const pad2 = (n: number) => String(n).padStart(2, "0");
 
-export type ImpactPeriod = "month" | "quarter" | "all";
+/** The period a report covers: any month, quarter, year or range of
+ * days (see lib/report-period.ts). */
+export type ImpactPeriod = ReportPeriod;
 
 export type ImpactBucket = {
   key: string;
@@ -46,32 +49,24 @@ export async function selectAllPages<T>(
   }
 }
 
-/** The start of this month / quarter in Cleveland (midnight Eastern on
- * the 1st), not the server's UTC -- otherwise the last evening of the
- * previous month would be counted in this one. */
+/** Where a period starts and ends, as exact moments ([start, end)). */
 export function periodStart(period: ImpactPeriod): string | null {
-  const { year, month } = orgMonthStart();
-  if (period === "month") {
-    return orgDayStartIso(`${year}-${pad2(month)}-01`);
-  }
-  if (period === "quarter") {
-    const quarterStartMonth = Math.floor((month - 1) / 3) * 3 + 1;
-    return orgDayStartIso(`${year}-${pad2(quarterStartMonth)}-01`);
-  }
-  return null;
+  return periodBounds(period).start;
 }
 
-export async function getImpactBreakdown(period: ImpactPeriod = "month", facilityId?: string): Promise<{
+export async function getImpactBreakdown(period: ImpactPeriod, facilityId?: string): Promise<{
   buckets: ImpactBucket[];
   total: number;
 }> {
   const supabase = await createClient();
-  const start = periodStart(period);
+  const bounds = periodBounds(period);
+  const { start, end } = bounds;
 
   const data = await selectAllPages<{ interaction_type: string }>((from, to) => {
     // Each activity once: entries reviewed as a copy of another are skipped.
-    let query = supabase.from("interactions").select("interaction_type").is("counted_in_id", null).order("id").range(from, to);
+    let query = supabase.from("interactions").select("interaction_type").is("counted_in_id", null).is("voided_at", null).order("id").range(from, to);
     if (start) query = query.gte("occurred_at", start);
+    if (end) query = query.lt("occurred_at", end);
     if (facilityId) query = query.eq("facility_id", facilityId);
     return query;
   });
@@ -99,19 +94,21 @@ export type PersonImpactRow = { id: string; name: string; count: number };
  * period -- as lead or as a team member -- so a visit two people made
  * together credits both of them (while the activity itself counts once
  * everywhere else). */
-export async function getStaffActivity(period: ImpactPeriod = "month", facilityId?: string): Promise<PersonImpactRow[]> {
+export async function getStaffActivity(period: ImpactPeriod, facilityId?: string): Promise<PersonImpactRow[]> {
   const supabase = await createClient();
-  const start = periodStart(period);
+  const bounds = periodBounds(period);
+  const { start, end } = bounds;
 
   const [data, team, people] = await Promise.all([
     selectAllPages<{ id: string; staff_member_id: string }>((from, to) => {
       let query = supabase
         .from("interactions")
         .select("id, staff_member_id")
-        .is("counted_in_id", null)
+        .is("counted_in_id", null).is("voided_at", null)
         .order("id")
         .range(from, to);
       if (start) query = query.gte("occurred_at", start);
+    if (end) query = query.lt("occurred_at", end);
       if (facilityId) query = query.eq("facility_id", facilityId);
       return query;
     }),
@@ -148,7 +145,7 @@ export async function getInteractionTrend(months = 6): Promise<MonthlyCount[]> {
   const start = orgDayStartIso(`${first.year}-${pad2(first.month)}-01`)!;
 
   const data = await selectAllPages<{ occurred_at: string }>((from, to) =>
-    supabase.from("interactions").select("occurred_at").is("counted_in_id", null).gte("occurred_at", start).order("id").range(from, to)
+    supabase.from("interactions").select("occurred_at").is("counted_in_id", null).is("voided_at", null).gte("occurred_at", start).order("id").range(from, to)
   );
 
   // Months are Cleveland months, so a visit on the evening of the 31st
@@ -176,18 +173,20 @@ export async function getInteractionTrend(months = 6): Promise<MonthlyCount[]> {
 /** How many logged interactions each volunteer took part in during the
  * period — the volunteer-side equivalent of getStaffActivity, for
  * showing volunteer impact separately from staff impact. */
-export async function getVolunteerImpact(period: ImpactPeriod = "month", facilityId?: string): Promise<PersonImpactRow[]> {
+export async function getVolunteerImpact(period: ImpactPeriod, facilityId?: string): Promise<PersonImpactRow[]> {
   const supabase = await createClient();
-  const start = periodStart(period);
+  const bounds = periodBounds(period);
+  const { start, end } = bounds;
 
-  const data = await selectAllPages((from, to) =>
-    supabase
+  const data = await selectAllPages((from, to) => {
+    let query = supabase
       .from("interaction_volunteers")
-      .select("interaction_id, contact_id, contacts(name), interactions(occurred_at, facility_id, counted_in_id)")
-      .order("interaction_id")
-      .order("contact_id")
-      .range(from, to)
-  );
+      .select("interaction_id, contact_id, contacts(name), interactions!inner(occurred_at, facility_id, counted_in_id)")
+      .is("interactions.voided_at", null);
+    if (start) query = query.gte("interactions.occurred_at", start);
+    if (end) query = query.lt("interactions.occurred_at", end);
+    return query.order("interaction_id").order("contact_id").range(from, to);
+  });
 
   const counts = new Map<string, PersonImpactRow>();
   for (const row of data) {
@@ -197,7 +196,7 @@ export async function getVolunteerImpact(period: ImpactPeriod = "month", facilit
       interactions: { occurred_at: string; facility_id: string | null; counted_in_id: string | null } | null;
     };
     if (r.interactions?.counted_in_id) continue;
-    if (start && (!r.interactions || Date.parse(r.interactions.occurred_at) < Date.parse(start))) continue;
+    if (!r.interactions || !inPeriod(r.interactions.occurred_at, bounds)) continue;
     if (facilityId && r.interactions?.facility_id !== facilityId) continue;
     const existing = counts.get(r.contact_id);
     if (existing) {
@@ -278,9 +277,10 @@ const toHours = (minutes: number) => Math.round((minutes / 60) * 10) / 10;
  * Volunteer hours are each visit's time spent times the number of
  * volunteers tagged on it (two volunteers for an hour = two volunteer
  * hours); staff hours are time spent on everything else. */
-export async function getServicesDelivered(period: ImpactPeriod = "month", facilityId?: string): Promise<ServicesDelivered> {
+export async function getServicesDelivered(period: ImpactPeriod, facilityId?: string): Promise<ServicesDelivered> {
   const supabase = await createClient();
-  const start = periodStart(period);
+  const bounds = periodBounds(period);
+  const { start, end } = bounds;
 
   const [rows, volunteerLinks] = await Promise.all([
     selectAllPages<ServiceRow>((from, to) => {
@@ -289,10 +289,11 @@ export async function getServicesDelivered(period: ImpactPeriod = "month", facil
         .select(
           "id, interaction_type, resident_id, occasion, program_partner, quantity, people_reached, participants, minutes_spent, unmet_need, unmet_need_reason, funder_story, part_of_id"
         )
-        .is("counted_in_id", null)
+        .is("counted_in_id", null).is("voided_at", null)
         .order("id")
         .range(from, to);
       if (start) query = query.gte("occurred_at", start);
+    if (end) query = query.lt("occurred_at", end);
       // Volunteer links are only ever looked up by these rows' ids, so
       // filtering the rows is enough to scope everything to one facility.
       if (facilityId) query = query.eq("facility_id", facilityId);
@@ -315,7 +316,7 @@ export async function getServicesDelivered(period: ImpactPeriod = "month", facil
 
   const volunteersByInteraction = new Map<string, Set<string>>();
   for (const link of volunteerLinks) {
-    if (start && (!link.interactions || Date.parse(link.interactions.occurred_at) < Date.parse(start))) continue;
+    if (!link.interactions || !inPeriod(link.interactions.occurred_at, bounds)) continue;
     const set = volunteersByInteraction.get(link.interaction_id) ?? new Set<string>();
     set.add(link.contact_id);
     volunteersByInteraction.set(link.interaction_id, set);

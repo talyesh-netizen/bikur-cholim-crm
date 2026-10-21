@@ -136,6 +136,7 @@ export async function searchAll(query: string): Promise<SearchGroup[]> {
         "id, occurred_at, interaction_type, notes, outcome, facilities(name), residents(first_name, last_name, preferred_name), contacts!interactions_contact_id_fkey(name), profiles!interactions_staff_member_id_fkey(full_name)"
       )
       .or(any(["notes", "outcome"]))
+      .is("voided_at", null)
       .order("occurred_at", { ascending: false })
       .limit(ACTIVITY_LIMIT),
     supabase

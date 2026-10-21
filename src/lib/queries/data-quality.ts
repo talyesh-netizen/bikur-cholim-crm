@@ -100,6 +100,7 @@ export async function getVolunteerVisitGapCount(): Promise<number> {
     .from("interactions")
     .select("id, interaction_volunteers!left(interaction_id)", { count: "exact", head: true })
     .eq("interaction_type", "volunteer_visit")
+    .is("voided_at", null)
     .is("interaction_volunteers", null);
   if (error) throw new Error(error.message);
   return count ?? 0;
@@ -124,6 +125,7 @@ export async function getVolunteerVisitGaps(): Promise<VolunteerVisitGap[]> {
       "id, occurred_at, facilities(name), residents(first_name, last_name, preferred_name), interaction_volunteers!left(interaction_id)"
     )
     .eq("interaction_type", "volunteer_visit")
+    .is("voided_at", null)
     .is("interaction_volunteers", null)
     .order("occurred_at", { ascending: false });
   if (error) throw new Error(error.message);
@@ -155,6 +157,7 @@ export async function getUnreviewedCountsByType(): Promise<{ type: string; count
         .from("interactions")
         .select("id", { count: "exact", head: true })
         .eq("interaction_type", t.value)
+        .is("voided_at", null)
         .is("service_reviewed_at", null);
       if (error) throw new Error(error.message);
       return { type: t.value as string, count: count ?? 0 };
@@ -183,6 +186,7 @@ export async function listUnreviewedEntries(interactionType?: string): Promise<U
       "id, occurred_at, interaction_type, notes, occasion, program_partner, quantity, people_reached, participants, facilities(name), residents(first_name, last_name, preferred_name), profiles!interactions_staff_member_id_fkey(full_name)"
     )
     .is("service_reviewed_at", null)
+    .is("voided_at", null)
     .order("occurred_at", { ascending: false })
     .limit(REVIEW_PAGE_SIZE);
   if (interactionType) query = query.eq("interaction_type", interactionType);

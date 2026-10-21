@@ -47,17 +47,21 @@ export function PairRow({ pair, typeLabel, canReview }: { pair: DoubleEntryPair;
       </div>
       {done ? (
         <p role="status" className="text-sm font-medium text-success">
-          {done === "same"
-            ? "Saved: counted once. Both staff members keep credit; the second entry is kept for the record."
-            : "Saved: separate visits, both counted."}
+          {pair.kind === "meeting"
+            ? done === "same"
+              ? "Saved: one meeting, with both people on it. The second entry is kept for the record."
+              : "Saved: separate meetings, both counted."
+            : done === "same"
+              ? "Saved: counted once. Both staff members keep credit; the second entry is kept for the record."
+              : "Saved: separate visits, both counted."}
         </p>
       ) : canReview ? (
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" disabled={pending} onClick={() => answer("same")}>
-            Same visit (count once)
+            {pair.kind === "meeting" ? "Same meeting (count once)" : "Same visit (count once)"}
           </Button>
           <Button size="sm" variant="outline" disabled={pending} onClick={() => answer("separate")}>
-            Separate visits
+            {pair.kind === "meeting" ? "Separate meetings" : "Separate visits"}
           </Button>
           {error ? <span className="text-sm text-destructive">{error}</span> : null}
         </div>

@@ -22,6 +22,10 @@ export type DoubleEntrySide = {
 
 export type DoubleEntryPair = {
   key: string;
+  /** "visit": the same visit saved by two people (or twice). "meeting":
+   * one staff meeting saved once per person met (Oct 21, 2026) -- "Same
+   * meeting" keeps one entry and adds the other person to it. */
+  kind: "visit" | "meeting";
   type: string;
   day: string;
   person: string;
@@ -47,6 +51,8 @@ type Row = {
   interaction_type: string;
   resident_id: string | null;
   contact_id: string | null;
+  facility_id: string | null;
+  staff_member_id: string;
   notes: string | null;
   counted_in_id: string | null;
   residents: { first_name: string | null; last_name: string | null; preferred_name: string | null } | null;
@@ -66,6 +72,9 @@ const side = (r: Row): DoubleEntrySide => ({
 
 const pairKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
 
+/** Meetings that can involve several people at once. */
+const MEETING_TYPES = new Set(["facility_staff_communication", "volunteer_meeting"]);
+
 export async function listDoubleEntries(): Promise<{ open: DoubleEntryPair[]; reviewed: ReviewedPair[] }> {
   const supabase = await createClient();
   const [rows, reviews, people] = await Promise.all([
@@ -73,9 +82,10 @@ export async function listDoubleEntries(): Promise<{ open: DoubleEntryPair[]; re
       supabase
         .from("interactions")
         .select(
-          "id, occurred_at, created_at, interaction_type, resident_id, contact_id, notes, counted_in_id, residents(first_name, last_name, preferred_name), contacts!interactions_contact_id_fkey(name), facilities(name), profiles!interactions_staff_member_id_fkey(full_name)"
+          "id, occurred_at, created_at, interaction_type, resident_id, contact_id, facility_id, staff_member_id, notes, counted_in_id, residents(first_name, last_name, preferred_name), contacts!interactions_contact_id_fkey(name), facilities(name), profiles!interactions_staff_member_id_fkey(full_name)"
         )
         .or("resident_id.not.is.null,contact_id.not.is.null")
+        .is("voided_at", null)
         .order("id")
         .range(from, to) as unknown as PromiseLike<{ data: Row[] | null; error: { message: string } | null }>
     ),
@@ -115,10 +125,37 @@ export async function listDoubleEntries(): Promise<{ open: DoubleEntryPair[]; re
     for (const other of rest) {
       if (answered.has(pairKey(first.id, other.id))) continue;
       open.push({
+        kind: "visit",
         key: `${key}|${other.id}`,
         type: first.interaction_type,
         day: orgDayKey(first.occurred_at),
         person: first.residents ? residentName(first.residents) : first.contacts?.name ?? "Someone",
+        kept: side(first),
+        other: side(other),
+      });
+    }
+  }
+  // One meeting saved once per person met: same kind of meeting, same
+  // facility, same moment and same note, by the same staff member, each
+  // with a different person.
+  const meetings = new Map<string, Row[]>();
+  for (const r of rows) {
+    if (r.counted_in_id || !MEETING_TYPES.has(r.interaction_type) || !r.contact_id) continue;
+    const key = `${r.interaction_type}|${r.facility_id}|${r.occurred_at}|${r.staff_member_id}|${(r.notes ?? "").trim()}`;
+    meetings.set(key, [...(meetings.get(key) ?? []), r]);
+  }
+  for (const [key, group] of meetings) {
+    if (new Set(group.map((r) => r.contact_id)).size < 2) continue;
+    group.sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const [first, ...rest] = group;
+    for (const other of rest) {
+      if (other.contact_id === first.contact_id || answered.has(pairKey(first.id, other.id))) continue;
+      open.push({
+        kind: "meeting",
+        key: `meeting|${key}|${other.id}`,
+        type: first.interaction_type,
+        day: orgDayKey(first.occurred_at),
+        person: `${first.contacts?.name ?? "Someone"} and ${other.contacts?.name ?? "someone"}`,
         kept: side(first),
         other: side(other),
       });

@@ -132,6 +132,12 @@ export type Interaction = {
   /** Our staff were there in person (set on site, or ticked on a staff
    * conversation); null = not recorded. */
   in_person?: boolean | null;
+  /** How it happened (see METHODS); null = not recorded. */
+  method?: string | null;
+  /** Set when voided (a mistake or duplicate): kept on file, never counted. */
+  voided_at?: string | null;
+  void_reason?: string | null;
+  voided_by?: string | null;
 } & ServiceDetails;
 
 /** An interaction row plus the resident/facility/contact/staff names needed
@@ -188,6 +194,43 @@ export const ENGAGEMENT_TYPES: readonly string[] = [
  * (or logged on site). Calls and emails are never asked and never count
  * (decision B, Oct 19, 2026). */
 export const IN_PERSON_ONLY_TYPES: readonly string[] = ["facility_staff_communication"];
+
+/** How it happened (director, Oct 21, 2026). Only in person can make a
+ * facility visit-day. An entry saved before this has none ("not
+ * recorded") and is never assumed to be in person. */
+export const METHODS = [
+  { value: "in_person", label: "In person" },
+  { value: "phone", label: "Phone" },
+  { value: "email", label: "Email" },
+  { value: "video", label: "Video" },
+] as const;
+
+/** Entries that ask how it happened, and the choice a new one starts on. */
+export const METHOD_ASKED: Partial<Record<InteractionType, (typeof METHODS)[number]["value"] | null>> = {
+  facility_staff_communication: "in_person",
+  volunteer_meeting: "in_person",
+  family_communication: null,
+  care_navigation: null,
+  medical_referral: null,
+  referral: null,
+  hospital_related_communication: null,
+  kosher_food_coordination: null,
+  other: null,
+};
+
+/** Entries that can only happen one way: recorded for a new entry
+ * without asking. (An older entry keeps "not recorded".) */
+export const METHOD_FIXED: Partial<Record<InteractionType, (typeof METHODS)[number]["value"]>> = {
+  resident_visit: "in_person",
+  volunteer_visit: "in_person",
+  facility_visit: "in_person",
+  facility_discovery_visit: "in_person",
+  program: "in_person",
+  school_engagement: "in_person",
+  food_delivery: "in_person",
+  resident_phone_call: "phone",
+  email: "email",
+};
 
 /** Entries that can have a partner (school, shul, organization) and be
  * "Part of" a group project. */

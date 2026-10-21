@@ -21,6 +21,8 @@ import { ClusterBadge } from "@/components/cluster-badge";
 import { Pencil, ListPlus } from "lucide-react";
 import { getActivityExtras } from "@/lib/queries/activity";
 import { STAFF_SUPPORT_TYPES } from "@/lib/queries/report-rules";
+import { getProfileName } from "@/lib/queries/profiles";
+import { VoidPanel } from "./void-panel";
 
 export default async function InteractionDetailPage({
   params,
@@ -70,6 +72,7 @@ export default async function InteractionDetailPage({
     interaction.minutes_spent != null ? { label: "Time spent", value: formatMinutes(interaction.minutes_spent) } : null,
   ].filter((d): d is { label: string; value: string } => d !== null);
 
+  const voidedBy = interaction.voided_at ? await getProfileName(interaction.voided_by) : null;
   const otherResidentInteractions = residentInteractions.filter((i) => i.id !== id);
   const otherFacilityInteractions = facilityInteractions.filter((i) => i.id !== id);
 
@@ -100,6 +103,21 @@ export default async function InteractionDetailPage({
           </Button>
         </div>
       </div>
+
+      {interaction.voided_at ? (
+        <div role="note" className="flex flex-col gap-1 rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm">
+          <p className="font-semibold">Voided — kept on file, not counted anywhere.</p>
+          <p className="text-muted-foreground">
+            {interaction.void_reason}
+            {" · "}
+            {formatDateTime(interaction.voided_at)}
+            {voidedBy ? ` by ${voidedBy}` : ""}
+          </p>
+          <div className="mt-1">
+            <VoidPanel id={interaction.id} voided />
+          </div>
+        </div>
+      ) : null}
 
       {extras.countedIn ? (
         <div role="note" className="rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
@@ -303,6 +321,9 @@ export default async function InteractionDetailPage({
           </CardContent>
         </Card>
       ) : null}
+
+      {/* Mistakes are voided, never deleted (director, Oct 21, 2026). */}
+      {interaction.voided_at || extras.countedIn ? null : <VoidPanel id={interaction.id} voided={false} />}
     </div>
   );
 }

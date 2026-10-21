@@ -3,18 +3,13 @@ import { Button } from "@/components/ui/button";
 import type { ImpactOverview } from "@/lib/queries/impact-overview";
 import type { PersonImpactRow } from "@/lib/queries/impact";
 import { ImpactLeaderboard } from "@/components/impact-leaderboard";
-import type { ImpactPeriod } from "@/lib/queries/impact";
+import type { ReportPeriod } from "@/lib/report-period";
+import { PeriodPicker } from "@/components/period-picker";
 import { ChartCard, HBars, HeadlineTile, Legend, MonthBars, PercentLine, SERIES, SplitBar } from "@/components/impact/charts";
 import type { ImpactGrowth } from "@/lib/queries/impact-growth";
 import { IMPACT_GOALS } from "@/lib/impact-goals";
 import { formatDateOnly } from "@/lib/format-date";
 import { Download } from "lucide-react";
-
-const PERIODS: { value: ImpactPeriod; label: string; word: string | null }[] = [
-  { value: "month", label: "This month", word: "month" },
-  { value: "quarter", label: "This quarter", word: "quarter" },
-  { value: "all", label: "All time", word: null },
-];
 
 const n = (v: number) => v.toLocaleString("en-US");
 
@@ -35,6 +30,7 @@ function Section({ id, color, title, intro, children }: { id: string; color: str
 
 export function ImpactView({
   period,
+  choices,
   o,
   growth,
   team,
@@ -42,14 +38,17 @@ export function ImpactView({
 }: {
   growth?: ImpactGrowth;
   fellBackToAllTime?: boolean;
-  period: ImpactPeriod;
+  period: ReportPeriod;
+  /** What the period picker offers. */
+  choices: { quick: { key: string; label: string }[]; months: { key: string; label: string }[]; quarters: { key: string; label: string }[] };
   o: ImpactOverview;
-  team?: { staff: PersonImpactRow[]; volunteers: PersonImpactRow[]; periodFrom: string | null };
+  team?: { staff: PersonImpactRow[]; volunteers: PersonImpactRow[] };
 }) {
-  const p = PERIODS.find((x) => x.value === period)!;
+  const p = period;
   const h = o.headline;
   const prev = o.previous;
-  const periodPhrase = period === "all" ? "so far" : `this ${p.word}`;
+  const periodPhrase = period.from ? `in ${period.label}` : "so far";
+  const periodLink = period.from ? `&from=${period.from}&to=${period.to}` : "";
   const famGoal = IMPACT_GOALS.familyConnection;
   // Months before we'd met anyone have no percentage to show.
   const famTrend = (growth?.familyConnection ?? []).filter((f) => f.known > 0);
@@ -61,25 +60,10 @@ export function ImpactView({
           <h1 className="text-3xl font-bold tracking-tight">Our impact</h1>
           <p className="text-muted-foreground">Residents, families and facility staff we supported {periodPhrase}.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div role="group" aria-label="Time period" className="flex gap-1 rounded-lg bg-muted p-1">
-            {PERIODS.map((x) => (
-              <Link
-                key={x.value}
-                href={x.value === "quarter" ? "/impact" : `/impact?period=${x.value}`}
-                aria-current={x.value === period ? "true" : undefined}
-                className={
-                  x.value === period
-                    ? "rounded-md bg-card px-3 py-2 text-sm font-semibold shadow-sm"
-                    : "rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-                }
-              >
-                {x.label}
-              </Link>
-            ))}
-          </div>
+        <div className="flex flex-wrap items-start gap-2">
+          <PeriodPicker basePath="/impact" currentKey={period.key} {...choices} />
           <Button asChild>
-            <a href={`/api/impact-report?period=${period}`}>
+            <a href={`/api/impact-report?period=${encodeURIComponent(period.key)}`}>
               <Download className="size-4" />
               Export for funders
             </a>
@@ -119,7 +103,7 @@ export function ImpactView({
           label="Facility staff supported"
           href={o.headlineLinks.staff}
           value={n(h.staffTouchpoints)}
-          detail={`staff engagements · ${n(h.staffFacilities)} facilities`}
+          detail={`staff meetings & conversations · ${n(h.staffPeople)} different staff · ${n(h.staffFacilities)} facilities`}
           current={h.staffTouchpoints}
           previous={prev?.staffTouchpoints ?? null}
           periodWord={p.word}
@@ -136,44 +120,72 @@ export function ImpactView({
         />
       </section>
 
-      <section aria-label="More numbers" className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
-        <span>
-          <span className="font-semibold text-foreground tabular-nums">{n(h.visitDays)}</span> staff facility visit-days
-          <span className="text-xs"> (each facility once per day we were there)</span>
-        </span>
-        <span>
-          <span className="font-semibold text-foreground tabular-nums">{n(h.volunteerVisits)}</span> volunteer visits
-          <span className="text-xs"> (counted separately)</span>
-        </span>
-        <span>
-          <span className="font-semibold text-foreground tabular-nums">{n(h.groupVolunteers)}</span> group volunteers
-          <span className="text-xs">
-            {" "}
-            ({n(h.groupProjects)} school, shul &amp; community {h.groupProjects === 1 ? "project" : "projects"}, each counted once)
+      {/* Four facility numbers, kept apart on purpose (director, Oct 21,
+          2026): each facility counts once per day; phone calls and
+          off-site programs never make a visit. */}
+      <section aria-labelledby="facility-presence" className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5">
+        <h2 id="facility-presence" className="text-base font-semibold">Facility visits {periodPhrase}</h2>
+        <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+          <div>
+            <dt className="text-sm text-muted-foreground">Staff visits</dt>
+            <dd className="text-2xl font-bold tabular-nums">{n(h.visitDays)}</dd>
+            <dd className="text-xs text-muted-foreground">days our staff were at a facility, each facility once a day</dd>
+          </div>
+          <div>
+            <dt className="text-sm text-muted-foreground">Volunteer-only visits</dt>
+            <dd className="text-2xl font-bold tabular-nums">{n(h.volunteerOnlyDays)}</dd>
+            <dd className="text-xs text-muted-foreground">days only volunteers were there</dd>
+          </div>
+          <div>
+            <dt className="text-sm text-muted-foreground">Total facility presence</dt>
+            <dd className="text-2xl font-bold tabular-nums">{n(h.presenceDays)}</dd>
+            <dd className="text-xs text-muted-foreground">staff, volunteers or both, each facility once a day</dd>
+          </div>
+          <div>
+            <dt className="text-sm text-muted-foreground">Facilities visited</dt>
+            <dd className="text-2xl font-bold tabular-nums">{n(h.facilitiesVisited)}</dd>
+            <dd className="text-xs text-muted-foreground">different facilities we were at</dd>
+          </div>
+          <div>
+            <dt className="text-sm text-muted-foreground">Facilities engaged</dt>
+            <dd className="text-2xl font-bold tabular-nums">{n(h.facilitiesEngaged)}</dd>
+            <dd className="text-xs text-muted-foreground">different facilities with any contact, calls included</dd>
+          </div>
+        </dl>
+        <p className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted-foreground">
+          <span>
+            <span className="font-semibold text-foreground tabular-nums">{n(h.volunteerVisits)}</span> volunteer visits
           </span>
-        </span>
+          <span>
+            <span className="font-semibold text-foreground tabular-nums">{n(h.groupVolunteers)}</span> group volunteers
+            <span className="text-xs">
+              {" "}
+              ({n(h.groupProjects)} school, shul &amp; community {h.groupProjects === 1 ? "project" : "projects"}, each counted once)
+            </span>
+          </span>
+        </p>
       </section>
 
       {o.asFirstRecorded && o.corrections ? (
         <section aria-label="Corrections" className="rounded-lg border border-border bg-card px-4 py-3 text-sm">
           <p className="font-medium">
             {o.corrections.entries === 1
-              ? "1 entry in this period was reviewed as a copy of another, so that activity now counts once."
-              : `${n(o.corrections.entries)} entries in this period were reviewed as copies of others, so each activity now counts once.`}
+              ? "1 entry in this period was corrected (reviewed as a copy of another, or voided), so it no longer counts."
+              : `${n(o.corrections.entries)} entries in this period were corrected (reviewed as copies of others, or voided), so they no longer count.`}
           </p>
           <p className="text-muted-foreground">
             As first recorded: {n(o.asFirstRecorded.residentContacts)} visits &amp; calls, {n(o.asFirstRecorded.familyConversations)}{" "}
-            family conversations, {n(o.asFirstRecorded.staffTouchpoints)} staff engagements. Corrected (above):{" "}
+            family conversations, {n(o.asFirstRecorded.staffTouchpoints)} staff meetings. Corrected (above):{" "}
             {n(h.residentContacts)}, {n(h.familyConversations)}, {n(h.staffTouchpoints)}.{" "}
             <Link href={o.corrections.href} className="font-medium text-primary underline-offset-4 hover:underline">
-              See the reviewed entries
+              See the corrected entries
             </Link>
           </p>
         </section>
       ) : null}
 
       <Section id="res" color={SERIES.residents} title="Resident impact" intro="Who we're seeing, how often, and who might be slipping through the cracks.">
-        <ChartCard title="Visits & calls per month" subtitle="Staff and volunteers, last 6 months">
+        <ChartCard title="Visits & calls per month" subtitle={`Staff and volunteers · ${period.from ? period.label : "last 6 months"}`}>
           <Legend items={[{ label: "Staff", color: SERIES.residents }, { label: "Volunteers", color: SERIES.volunteers }]} />
           <MonthBars data={o.visitsByMonth} colors={[SERIES.residents, SERIES.volunteers]} names={["by staff", "by volunteers"]} />
         </ChartCard>
@@ -197,8 +209,8 @@ export function ImpactView({
       </Section>
 
       <Section id="fam" color={SERIES.families} title="Family support" intro="How we're keeping families informed and helping them care for their loved ones.">
-        <ChartCard title="Family conversations per month" subtitle="Calls, visits and messages with family, last 6 months">
-          <MonthBars data={o.familyByMonth} colors={[SERIES.families]} names={["conversations"]} />
+        <ChartCard title="Family conversations per month" subtitle={`Calls, visits and messages with family · ${period.from ? period.label : "last 6 months"}`}>
+          <MonthBars data={o.familyByMonth} colors={[SERIES.families]} names={["meetings & conversations"]} />
         </ChartCard>
         <ChartCard title="Family connections on file" subtitle="Active residents with at least one family contact">
           <div className="flex items-baseline gap-2.5">
@@ -255,8 +267,8 @@ export function ImpactView({
       ) : null}
 
       <Section id="staff" color={SERIES.staff} title="Staff & facility support" intro="The relationships with facility teams that open the door to residents.">
-        <ChartCard title="Staff conversations per month" subtitle="Meetings, check-ins, appreciation and first visits, last 6 months">
-          <MonthBars data={o.staffByMonth} colors={[SERIES.staff]} names={["conversations"]} />
+        <ChartCard title="Staff meetings & conversations per month" subtitle={`Each meeting once, however many staff · ${period.from ? period.label : "last 6 months"}`}>
+          <MonthBars data={o.staffByMonth} colors={[SERIES.staff]} names={["meetings & conversations"]} />
         </ChartCard>
         <ChartCard
           title="Where each facility relationship stands"
@@ -283,7 +295,7 @@ export function ImpactView({
             <ChartCard title="Staff" subtitle="Interactions logged">
               <ImpactLeaderboard
                 rows={team.staff}
-                hrefFor={(row) => `/interactions?staff=${row.id}${team.periodFrom ? `&from=${team.periodFrom}` : ""}`}
+                hrefFor={(row) => `/interactions?staff=${row.id}${periodLink}`}
                 barColor={SERIES.residents}
                 emptyMessage="Nothing logged in this period yet."
               />

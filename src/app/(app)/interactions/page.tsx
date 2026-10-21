@@ -32,6 +32,8 @@ export default async function InteractionsPage({
     holiday ? `For ${holiday.label}` : null,
     need ? `Family need: ${need.label}` : null,
     params.countedIn === "1" ? "Reviewed double entries (each counted in another entry)" : null,
+    params.voided === "1" ? "Voided entries (kept on file, never counted)" : null,
+    params.corrected === "1" ? "Corrections: reviewed double entries and voided entries" : null,
   ].filter(Boolean);
 
   const [{ interactions, totalCount, pageSize }, facilities, staff] = await Promise.all([
@@ -47,6 +49,8 @@ export default async function InteractionsPage({
       holiday: holiday?.value,
       familyNeed: need?.value,
       countedIn: params.countedIn === "1",
+      voided: params.voided === "1" || params.flag === "voided",
+      corrected: params.corrected === "1",
       residentId: resident?.id,
     }),
     listFacilityOptions(),

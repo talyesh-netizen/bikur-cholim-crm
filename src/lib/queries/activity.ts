@@ -55,6 +55,7 @@ export async function getActivityFormOptions(): Promise<ActivityFormOptions> {
       .gt("participants", 0)
       .is("part_of_id", null)
       .is("counted_in_id", null)
+      .is("voided_at", null)
       .gte("occurred_at", since)
       .order("occurred_at", { ascending: false }),
   ]);

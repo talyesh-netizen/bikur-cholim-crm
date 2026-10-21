@@ -76,10 +76,12 @@ Decisions so far:
   is saved at noon, today at the moment of saving, and an edit that
   keeps the day keeps the time already saved. When it was typed in is
   still recorded (created_at).
-- In person (Oct 19, 2026, decision B): a staff conversation saved from
-  the on-site notes box is marked in person, so it counts as a facility
-  visit-day; elsewhere Quick Log leaves it unmarked (the person can tick
-  "In person?" when fixing it). Calls and emails never count.
+- In person (Oct 19, 2026, decision B; widened Oct 21): a staff
+  conversation saved from the on-site notes box is marked in person, so
+  it counts as a facility visit-day; elsewhere Quick Log leaves it
+  unmarked (the person picks In person / Phone / Email / Video when
+  fixing it). Visits, programs and deliveries are in person and phone
+  calls by phone, without asking. Calls, email and video never count.
 - Outside professionals (Oct 19, 2026): a conversation with someone who
   isn't staff at a facility we serve (a hospice or agency contact, e.g.
   Tina at Affinity Care) is "Other", no facility needed, never a staff
@@ -88,3 +90,25 @@ Decisions so far:
   kind and day as one already saved is flagged on the check screen,
   "Is this a second visit?" Yes saves it as its own visit; No unticks
   it. Never dropped or added without the person answering.
+
+## Reporting definitions (director, Oct 21, 2026)
+
+- Facility numbers, each facility once per Cleveland day: staff visits
+  (our staff there in person), volunteer-only visits, total facility
+  presence (either); plus facilities visited and facilities engaged
+  (any contact, calls included). Kept apart on every screen. Entries
+  with no recorded method are never assumed in person, except kinds
+  that can only happen in person. Off-site entries (no facility) never
+  count as visits.
+- Staff interactions: each distinct meeting or conversation once,
+  however many staff were in it (four staff = one meeting, four
+  people); staff people counted separately. A first visit to a new
+  facility always counts as a facility visit, and as a staff meeting
+  only when someone was actually met.
+- Mistakes are voided (reason required, restorable, in the change
+  history), never deleted, and never counted. Historical entries are
+  only ever combined or voided by a person's answer, one at a time.
+- A resident is required only on resident entries (a visit or a phone
+  call with a resident), not on facility visits, staff conversations,
+  programs, or group visits counted with "Residents reached".
+- Reports can cover any month, quarter, year or range of days.

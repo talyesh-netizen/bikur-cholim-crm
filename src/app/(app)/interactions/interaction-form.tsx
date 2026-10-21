@@ -21,7 +21,8 @@ import {
   VOLUNTEER_TYPES,
   ENGAGEMENT_TYPES,
   PARTNER_TYPES,
-  IN_PERSON_ONLY_TYPES,
+  METHODS,
+  METHOD_ASKED,
   GROUP_COUNT_TYPES,
   PROGRAM_PARTNERS,
   SERVICE_FIELDS_BY_TYPE,
@@ -104,6 +105,7 @@ export function InteractionForm({
     partner_organization_id?: string;
     /** "on" when saved as in person. */
     in_person?: string;
+    method?: string;
   } & Partial<ServiceFormValues>;
   initialVolunteerIds?: string[];
   /** Staff, partners, group projects -- for who did it, staff engaged,
@@ -140,6 +142,12 @@ export function InteractionForm({
   const formKey = JSON.stringify(values);
 
   const [interactionType, setInteractionType] = useState(values.interaction_type);
+  const isNewEntry = !initialValues;
+  // How it happened. A new entry starts on the usual way for its kind (on
+  // site: in person); an older entry shows what it has, blank included.
+  const [chosenMethod, setMethod] = useState<string | null>(values.method ?? null);
+  const method =
+    chosenMethod ?? (isNewEntry ? (values.in_person === "on" ? "in_person" : METHOD_ASKED[interactionType as InteractionType] ?? "") : "");
   const isVolunteerVisit = interactionType === "volunteer_visit";
   const facilityRequired = !FACILITY_OPTIONAL_TYPES.includes(interactionType);
   const serviceFields = SERVICE_FIELDS_BY_TYPE[interactionType as InteractionType] ?? [];
@@ -393,21 +401,34 @@ export function InteractionForm({
         <TypePicker value={interactionType} onChange={setInteractionType} />
       </Field>
 
-      {/* Only a staff conversation asks: in person, it counts as a facility
-          visit-day; a call or email never does (decision B, Oct 19, 2026). */}
-      {IN_PERSON_ONLY_TYPES.includes(interactionType) ? (
-        <label className="flex w-fit items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            name="in_person"
-            defaultChecked={values.in_person === "on"}
-            className="size-4 accent-[var(--primary)]"
-          />
-          <span>
-            <span className="font-medium">In person?</span>
-            <span className="text-muted-foreground"> Tick if you were at the facility (not a call or email).</span>
-          </span>
-        </label>
+      {/* How it happened (director, Oct 21, 2026): only in person can count
+          as a facility visit. An older entry with none shows nothing
+          picked ("not recorded") and keeps it unless changed. */}
+      {interactionType in METHOD_ASKED ? (
+        <Field label="How?" htmlFor="method">
+          <input type="hidden" name="method" value={method} readOnly />
+          <div id="method" role="group" aria-label="How it happened" className="flex flex-wrap gap-2">
+            {METHODS.map((m) => (
+              <button
+                key={m.value}
+                type="button"
+                aria-pressed={method === m.value}
+                onClick={() => {
+                  setMethod(method === m.value ? "" : m.value);
+                  setIsDirty(true);
+                }}
+                className={
+                  method === m.value
+                    ? "rounded-full bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground"
+                    : "rounded-full bg-card px-3 py-1.5 text-sm font-medium ring-1 ring-border hover:ring-primary/50"
+                }
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+          {!method ? <p className="text-xs text-muted-foreground">Not recorded. Only “In person” counts as a facility visit.</p> : null}
+        </Field>
       ) : null}
 
       {/* Not asked any more (kept simple); an older entry keeps its value. */}
