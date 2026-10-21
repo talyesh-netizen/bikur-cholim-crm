@@ -9,10 +9,12 @@
 --    of every count. Who voided or restored it, and when, is recorded in
 --    change_log by the existing trigger; "voided by" is always the person
 --    signed in.
--- 2. How it happened: in person / phone / email / video (method). Blank
---    = not recorded -- every older entry -- and never treated as in
---    person. Kept in step with Build 3's in_person tick, so either can be
---    read.
+-- 2. How it happened (method): in person at facility / in person
+--    elsewhere / phone / email / video. Only "at facility" can count as a
+--    facility visit; "elsewhere" keeps the entry's resident and facility.
+--    Blank = not recorded -- every older entry -- and never treated as
+--    at the facility. Kept in step with Build 3's in_person tick, so
+--    either can be read.
 -- 3. Double-entry review ("Same visit" / "Same meeting"): the other
 --    entry's contact now joins the kept entry as someone engaged, so one
 --    meeting with four staff logged as four entries becomes one meeting
@@ -67,13 +69,15 @@ create or replace trigger stamp_void before update of voided_at, voided_by, void
 alter table public.interactions add column if not exists method text;
 alter table public.interactions drop constraint if exists interactions_method_check;
 alter table public.interactions add constraint interactions_method_check
-  check (method in ('in_person', 'phone', 'email', 'video'));
+  check (method in ('in_person', 'in_person_elsewhere', 'phone', 'email', 'video'));
 
 comment on column public.interactions.method is
-  'How it happened: in_person, phone, email or video. NULL = not recorded (every entry saved before Oct 21, 2026) -- never assumed to be in person.';
+  'How it happened: in_person (at the facility), in_person_elsewhere, phone, email or video. Only in_person can count as a facility visit. NULL = not recorded (every entry saved before Oct 21, 2026) -- never assumed to be at the facility.';
 
 -- Whichever one a save sets, the other follows; a save that sets
--- neither leaves both as they were.
+-- neither leaves both as they were. "At the facility" needs a facility:
+-- without one it was in person elsewhere. in_person is true only at the
+-- facility (it is what counts a visit-day).
 create or replace function crm_private.sync_method()
 returns trigger
 language plpgsql
@@ -81,22 +85,28 @@ set search_path = public
 as $$
 begin
   if tg_op = 'INSERT' then
-    if new.method is not null then
-      new.in_person := (new.method = 'in_person');
-    elsif new.in_person is true then
+    if new.method is null and new.in_person is true then
       new.method := 'in_person';
     end if;
-  elsif new.method is distinct from old.method then
-    new.in_person := case when new.method is null then null else new.method = 'in_person' end;
+  elsif new.method is distinct from old.method or new.facility_id is distinct from old.facility_id then
+    null;
   elsif new.in_person is distinct from old.in_person then
     new.method := case when new.in_person is true then 'in_person' when old.method = 'in_person' then null else old.method end;
+  end if;
+  if new.method = 'in_person' and new.facility_id is null then
+    new.method := 'in_person_elsewhere';
+  end if;
+  if new.method is not null then
+    new.in_person := (new.method = 'in_person');
+  elsif tg_op = 'UPDATE' and old.method is not null then
+    new.in_person := null;
   end if;
   return new;
 end;
 $$;
 revoke all on function crm_private.sync_method() from public, anon, authenticated;
 
-create or replace trigger sync_method before insert or update of method, in_person on public.interactions
+create or replace trigger sync_method before insert or update of method, in_person, facility_id on public.interactions
   for each row execute function crm_private.sync_method();
 
 -- 3. Double-entry review carries the other entry's person ------------

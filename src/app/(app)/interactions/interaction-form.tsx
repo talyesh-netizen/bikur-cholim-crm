@@ -146,8 +146,6 @@ export function InteractionForm({
   // How it happened. A new entry starts on the usual way for its kind (on
   // site: in person); an older entry shows what it has, blank included.
   const [chosenMethod, setMethod] = useState<string | null>(values.method ?? null);
-  const method =
-    chosenMethod ?? (isNewEntry ? (values.in_person === "on" ? "in_person" : METHOD_ASKED[interactionType as InteractionType] ?? "") : "");
   const isVolunteerVisit = interactionType === "volunteer_visit";
   const facilityRequired = !FACILITY_OPTIONAL_TYPES.includes(interactionType);
   const serviceFields = SERVICE_FIELDS_BY_TYPE[interactionType as InteractionType] ?? [];
@@ -158,6 +156,10 @@ export function InteractionForm({
   // Where and who: picking a resident fills in their facility; once a
   // facility is chosen, only its residents are offered.
   const [facilityId, setFacilityId] = useState(values.facility_id);
+  // "In person" starts as at the facility when one is chosen, else
+  // elsewhere (a volunteer meeting at the office).
+  const usualMethod = isNewEntry ? (values.in_person === "on" ? "in_person" : METHOD_ASKED[interactionType as InteractionType] ?? "") : "";
+  const method = chosenMethod ?? (usualMethod === "in_person" && !facilityId ? "in_person_elsewhere" : usualMethod);
   const [residentIds, setResidentIds] = useState<string[]>(() =>
     state.residentIds?.length ? state.residentIds : values.resident_id ? [values.resident_id] : []
   );
@@ -405,7 +407,7 @@ export function InteractionForm({
           as a facility visit. An older entry with none shows nothing
           picked ("not recorded") and keeps it unless changed. */}
       {interactionType in METHOD_ASKED ? (
-        <Field label="How?" htmlFor="method">
+        <Field label="How?" htmlFor="method" error={fieldErrors.method}>
           <input type="hidden" name="method" value={method} readOnly />
           <div id="method" role="group" aria-label="How it happened" className="flex flex-wrap gap-2">
             {METHODS.map((m) => (
@@ -427,7 +429,9 @@ export function InteractionForm({
               </button>
             ))}
           </div>
-          {!method ? <p className="text-xs text-muted-foreground">Not recorded. Only “In person” counts as a facility visit.</p> : null}
+          <p className="text-xs text-muted-foreground">
+            {!method ? "Not recorded. " : ""}Only “In person at facility” counts as a facility visit.
+          </p>
         </Field>
       ) : null}
 

@@ -116,8 +116,9 @@ export function staffInteractions(rows: CountableRow[], engaged: EngagedLinks): 
   return { interactions, people: people.size };
 }
 
-/** Whether our staff were there in person: the method when one was
- * recorded; otherwise only for entries that can't happen any other way. */
+/** Whether our staff were at the facility in person: the method when one was
+ * recorded ("In person elsewhere" never); otherwise only for entries that
+ * can't happen any other way. */
 export function staffInPerson(r: CountableRow): boolean {
   if (r.interaction_type === "volunteer_visit") return false;
   if (r.method) return r.method === "in_person";

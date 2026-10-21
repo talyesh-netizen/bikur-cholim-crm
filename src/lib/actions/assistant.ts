@@ -5,7 +5,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/get-current-profile";
-import { HOLIDAY_TYPES, FAMILY_NEED_TYPES, IN_PERSON_ONLY_TYPES, INTERACTION_TYPES, METHOD_FIXED, labelFor, SERVICE_FIELDS_BY_TYPE, occasionForHoliday, type InteractionType } from "@/lib/domain/interaction";
+import { HOLIDAY_TYPES, FAMILY_NEED_TYPES, IN_PERSON_ONLY_TYPES, INTERACTION_TYPES, METHOD_FIXED, methodWhere, labelFor, SERVICE_FIELDS_BY_TYPE, occasionForHoliday, type InteractionType } from "@/lib/domain/interaction";
 import { loadDirectory, type Directory } from "@/lib/assistant/directory";
 import { resolvePlan } from "@/lib/assistant/resolve";
 import { aboutThemNotes } from "@/lib/assistant/about-them";
@@ -652,7 +652,9 @@ export async function applyPlan(
         // How it happened, for kinds that can only happen one way (a visit
         // is in person, a phone call by phone); otherwise left to the tick
         // above, never assumed (Oct 21, 2026).
-        ...(METHOD_FIXED[i.interaction_type as InteractionType] ? { method: METHOD_FIXED[i.interaction_type as InteractionType] } : {}),
+        ...(METHOD_FIXED[i.interaction_type as InteractionType]
+          ? { method: methodWhere(METHOD_FIXED[i.interaction_type as InteractionType], facilityId) }
+          : {}),
         client_submission_id: quickLogSubmissionId([
           ...idParts(staffId),
           ...(repeat > 1 ? [repeat] : []),

@@ -9,7 +9,7 @@ do $test$
 declare
   a uuid; b uuid; adm uuid;
   f1 uuid; f2 uuid; r1 uuid; c1 uuid; c2 uuid;
-  e0 uuid; e1 uuid; m1 uuid; m2 uuid; u_a uuid; u_b uuid; u_team uuid; at_f2 uuid; old_row uuid;
+  e0 uuid; e1 uuid; m1 uuid; m2 uuid; m3 uuid; m4 uuid; u_a uuid; u_b uuid; u_team uuid; at_f2 uuid; old_row uuid;
   rev uuid;
   t0 timestamptz := now() - interval '3 days';
   t1 timestamptz := now() - interval '1 day';
@@ -74,7 +74,7 @@ begin
   begin
     update interactions set method = 'fax' where id = e0;
     res := array_append(res, 'FAIL M1 an unknown method was accepted');
-  exception when check_violation then res := array_append(res, 'PASS M1 only in person / phone / email / video are accepted');
+  exception when check_violation then res := array_append(res, 'PASS M1 only the five ways (at facility / elsewhere / phone / email / video) are accepted');
   end;
   select method into v_text from interactions where id = e0;
   res := array_append(res, (case when v_text is null then 'PASS M2 an entry saved without a method stays "not recorded"' else 'FAIL M2' end)::text);
@@ -92,6 +92,20 @@ begin
   update interactions set method = null where id = m2;
   select in_person into v_bool from interactions where id = m2;
   res := array_append(res, (case when v_bool is null then 'PASS M6 clearing the method makes it "not recorded" again' else 'FAIL M6' end)::text);
+  -- In person elsewhere (director, Oct 21, 2026): keeps its facility, never a visit-day.
+  insert into interactions (interaction_type, occurred_at, facility_id, staff_member_id, method)
+    values ('family_communication', t1, f1, a, 'in_person_elsewhere') returning id into m3;
+  select in_person, facility_id into v_bool, v_uuid from interactions where id = m3;
+  res := array_append(res, (case when v_bool is false and v_uuid = f1 then 'PASS M7 "In person elsewhere" keeps the facility and is not "at the facility"' else 'FAIL M7' end)::text);
+  insert into interactions (interaction_type, occurred_at, staff_member_id, method)
+    values ('program', t1, a, 'in_person') returning id into m4;
+  select method, in_person into v_text, v_bool from interactions where id = m4;
+  res := array_append(res, (case when v_text = 'in_person_elsewhere' and v_bool is false then 'PASS M8 "at facility" with no facility is saved as elsewhere' else 'FAIL M8 ' || coalesce(v_text, 'null') end)::text);
+  update interactions set method = 'in_person', facility_id = f1 where id = m2;
+  update interactions set facility_id = null where id = m2;
+  select method into v_text from interactions where id = m2;
+  res := array_append(res, (case when v_text = 'in_person_elsewhere' then 'PASS M9 removing the facility from an "at facility" entry makes it elsewhere' else 'FAIL M9 ' || coalesce(v_text, 'null') end)::text);
+  update interactions set facility_id = f1, method = 'in_person' where id = m2;
 
   -- Entries with no facility and no resident.
   insert into interactions (interaction_type, occurred_at, staff_member_id) values ('volunteer_meeting', t1, a) returning id into u_a;

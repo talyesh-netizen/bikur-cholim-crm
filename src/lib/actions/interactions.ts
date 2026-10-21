@@ -19,6 +19,8 @@ import {
   PARTNER_TYPES,
   METHOD_ASKED,
   METHOD_FIXED,
+  METHODS,
+  methodWhere,
   occasionForHoliday,
   type InteractionType,
 } from "@/lib/domain/interaction";
@@ -96,13 +98,20 @@ const interactionSchema = z
     unmet_need_reason: z.preprocess(emptyToUndefined, z.enum(enumValues(UNMET_NEED_REASONS)).optional()),
     funder_story: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
     // How it happened, where the form asks (blank = not recorded).
-    method: z.preprocess(emptyToUndefined, z.enum(["in_person", "phone", "email", "video"]).optional()),
+    method: z.preprocess(emptyToUndefined, z.enum(enumValues(METHODS)).optional()),
     partner_organization_id: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
     part_of_id: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
   })
   .superRefine((data, ctx) => {
     if (!data.facility_id && !FACILITY_OPTIONAL_TYPES.includes(data.interaction_type)) {
       ctx.addIssue({ code: "custom", path: ["facility_id"], message: "Please choose a facility." });
+    }
+    if (data.method === "in_person" && !data.facility_id && data.interaction_type in METHOD_ASKED) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["method"],
+        message: "“In person at facility” needs a facility. Choose the facility, or pick “In person elsewhere”.",
+      });
     }
   });
 
@@ -150,10 +159,12 @@ function toInteractionRow(data: z.infer<typeof interactionSchema>, people: Peopl
     // How it happened: what the form asked, else the one way this kind
     // of entry can happen -- for a NEW entry only. Editing an older entry
     // that never had one leaves it "not recorded" (director, Oct 21, 2026).
+    // A program or school event with no facility was in person
+    // elsewhere, never a facility visit.
     ...(data.interaction_type in METHOD_ASKED
       ? { method: data.method ?? null }
       : isNew && METHOD_FIXED[data.interaction_type as InteractionType]
-        ? { method: METHOD_FIXED[data.interaction_type as InteractionType] }
+        ? { method: methodWhere(METHOD_FIXED[data.interaction_type as InteractionType], data.facility_id) }
         : {}),
   };
 }

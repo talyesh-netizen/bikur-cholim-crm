@@ -79,8 +79,8 @@ Decisions so far:
 - In person (Oct 19, 2026, decision B; widened Oct 21): a staff
   conversation saved from the on-site notes box is marked in person, so
   it counts as a facility visit-day; elsewhere Quick Log leaves it
-  unmarked (the person picks In person / Phone / Email / Video when
-  fixing it). Visits, programs and deliveries are in person and phone
+  unmarked (the person picks In person at facility / In person
+  elsewhere / Phone / Email / Video when fixing it). Visits, programs and deliveries are in person and phone
   calls by phone, without asking. Calls, email and video never count.
 - Outside professionals (Oct 19, 2026): a conversation with someone who
   isn't staff at a facility we serve (a hospice or agency contact, e.g.
@@ -112,3 +112,9 @@ Decisions so far:
   call with a resident), not on facility visits, staff conversations,
   programs, or group visits counted with "Residents reached".
 - Reports can cover any month, quarter, year or range of days.
+- Where it happened (Oct 21, 2026, Option B): "How?" offers In person
+  at facility / In person elsewhere / Phone / Email / Video on every
+  kind that asks it. Only "In person at facility" counts as a visit;
+  "elsewhere" (a shiva house, a hospital, a school) keeps the entry's
+  resident and facility. "At facility" needs a facility, so without one
+  it is saved as elsewhere. Older entries stay "not recorded".

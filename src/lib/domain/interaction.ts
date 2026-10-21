@@ -195,11 +195,14 @@ export const ENGAGEMENT_TYPES: readonly string[] = [
  * (decision B, Oct 19, 2026). */
 export const IN_PERSON_ONLY_TYPES: readonly string[] = ["facility_staff_communication"];
 
-/** How it happened (director, Oct 21, 2026). Only in person can make a
- * facility visit-day. An entry saved before this has none ("not
- * recorded") and is never assumed to be in person. */
+/** How it happened (director, Oct 21, 2026). Only "In person at
+ * facility" can make a facility visit-day; "In person elsewhere" (a
+ * shiva house, a hospital, a school) keeps the entry's resident and
+ * facility but never counts as a visit. An entry saved before this has
+ * none ("not recorded") and is never assumed to be at the facility. */
 export const METHODS = [
-  { value: "in_person", label: "In person" },
+  { value: "in_person", label: "In person at facility" },
+  { value: "in_person_elsewhere", label: "In person elsewhere" },
   { value: "phone", label: "Phone" },
   { value: "email", label: "Email" },
   { value: "video", label: "Video" },
@@ -231,6 +234,15 @@ export const METHOD_FIXED: Partial<Record<InteractionType, (typeof METHODS)[numb
   resident_phone_call: "phone",
   email: "email",
 };
+
+export type Method = (typeof METHODS)[number]["value"];
+
+/** "In person at facility" needs a facility: one saved without a
+ * facility was in person somewhere else. */
+export function methodWhere(method: Method | null | undefined, facilityId: string | null | undefined): Method | null {
+  if (method === "in_person" && !facilityId) return "in_person_elsewhere";
+  return method ?? null;
+}
 
 /** Entries that can have a partner (school, shul, organization) and be
  * "Part of" a group project. */

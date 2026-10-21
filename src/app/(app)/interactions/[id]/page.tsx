@@ -13,7 +13,8 @@ import {
   FAMILY_NEEDS,
   PROGRAM_PARTNERS,
   UNMET_NEED_REASONS,
-  IN_PERSON_ONLY_TYPES,
+  METHODS,
+  METHOD_ASKED,
 } from "@/lib/domain/interaction";
 import { formatDateTime, formatDateTimeWithTime } from "@/lib/format-date";
 import { InteractionList, staffLabel } from "../interaction-list";
@@ -253,9 +254,16 @@ export default async function InteractionDetailPage({
               ) : null}
             </p>
           ) : null}
-          {IN_PERSON_ONLY_TYPES.includes(interaction.interaction_type) ? (
+          {interaction.method || interaction.in_person || interaction.interaction_type in METHOD_ASKED ? (
             <p className="text-muted-foreground">
-              {interaction.in_person ? "In person at the facility (counts as a facility visit-day)" : "Not marked in person (a call, email or not recorded)"}
+              {interaction.method
+                ? labelFor(METHODS, interaction.method)
+                : interaction.in_person
+                  ? "In person at facility"
+                  : "How it happened: not recorded"}
+              {interaction.facility_id && (interaction.method === "in_person" || (!interaction.method && interaction.in_person))
+                ? " (counts as a facility visit-day)"
+                : ""}
             </p>
           ) : null}
           {interaction.funder_story ? (
