@@ -60,8 +60,7 @@ end;
 $$;
 revoke all on function crm_private.stamp_void() from public, anon, authenticated;
 
-drop trigger if exists stamp_void on public.interactions;
-create trigger stamp_void before update of voided_at, voided_by, void_reason on public.interactions
+create or replace trigger stamp_void before update of voided_at, voided_by, void_reason on public.interactions
   for each row execute function crm_private.stamp_void();
 
 -- 2. How it happened ----------------------------------------------------
@@ -97,8 +96,7 @@ end;
 $$;
 revoke all on function crm_private.sync_method() from public, anon, authenticated;
 
-drop trigger if exists sync_method on public.interactions;
-create trigger sync_method before insert or update of method, in_person on public.interactions
+create or replace trigger sync_method before insert or update of method, in_person on public.interactions
   for each row execute function crm_private.sync_method();
 
 -- 3. Double-entry review carries the other entry's person ------------
