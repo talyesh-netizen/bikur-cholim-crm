@@ -16,8 +16,11 @@
 -- Order: first a backup, then this script, then roll the code back in
 -- Vercel (Instant Rollback to the last pre-Build-2 production deployment).
 --
--- NOT YET REHEARSED. Before relying on it, run it on the practice database
--- followed by the Build 2 migration again, then check the app still works.
+-- Rehearsed Oct 21, 2026 on a local copy of the full migration history
+-- (after first running 20261021000001_reporting_additions_undo.sql, which
+-- must come first): the database structure then matched one built
+-- without Build 2 exactly, and both migrations applied cleanly again.
+-- Not rehearsed with the app running against it.
 
 begin;
 
