@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2 } from "lucide-react";
@@ -14,6 +15,7 @@ import { PairList, UndoReviewButton } from "./pair-row";
 export default async function DoubleEntriesPage() {
   const [{ open, reviewed }, profile] = await Promise.all([listDoubleEntries(), getCurrentProfile()]);
   const canReview = profile?.role === "admin";
+  if (!canReview) redirect("/data-quality");
 
   return (
     <div className="flex flex-col gap-4">

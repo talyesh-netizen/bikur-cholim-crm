@@ -203,6 +203,26 @@ async function projectRoot(
 // the interaction_submission_id migration.
 const submissionIdSchema = z.string().uuid();
 
+const RESIDENT_REQUIRED_MESSAGE = "Please choose the resident.";
+
+/** Entries that are specifically with one resident must name them
+ * (director, Oct 20 and 21, 2026). Not facility visits, staff, programs
+ * or anything else; not a group visit counted with "Residents reached";
+ * and an older entry saved without one can still be edited as it is. */
+const RESIDENT_REQUIRED_TYPES: readonly string[] = ["resident_visit", "resident_phone_call"];
+function missingResident(
+  data: { interaction_type: string; resident_id?: string; people_reached?: number },
+  residentChosen: boolean,
+  savedWithoutResident = false
+) {
+  return (
+    RESIDENT_REQUIRED_TYPES.includes(data.interaction_type) &&
+    !residentChosen &&
+    !(data.people_reached && data.people_reached > 0) &&
+    !savedWithoutResident
+  );
+}
+
 export async function createInteraction(
   redirectTo: string,
   _prevState: InteractionFormState,
@@ -220,6 +240,17 @@ export async function createInteraction(
       if (typeof key === "string" && !fieldErrors[key]) fieldErrors[key] = issue.message;
     }
     return { error: "Please fix the highlighted fields.", fieldErrors, values: raw, checkedVolunteerIds: volunteerIds, people, residentIds: chosenResidents };
+  }
+  // A new visit sends its residents as a list (resident_ids).
+  if (missingResident(parsed.data, !!parsed.data.resident_id || chosenResidents.length > 0)) {
+    return {
+      error: "Please fix the highlighted fields.",
+      fieldErrors: { resident_id: RESIDENT_REQUIRED_MESSAGE },
+      values: raw,
+      checkedVolunteerIds: volunteerIds,
+      people,
+      residentIds: chosenResidents,
+    };
   }
 
   const supabase = await createClient();
@@ -354,6 +385,20 @@ export async function updateInteraction(
 
   if (!user) {
     return { error: "Your session expired. Please sign in again.", values: raw, checkedVolunteerIds: volunteerIds };
+  }
+
+  if (missingResident(parsed.data, !!parsed.data.resident_id)) {
+    const { data: saved } = await supabase.from("interactions").select("interaction_type, resident_id").eq("id", id).maybeSingle();
+    const savedWithoutResident = !!saved && RESIDENT_REQUIRED_TYPES.includes(saved.interaction_type) && !saved.resident_id;
+    if (missingResident(parsed.data, false, savedWithoutResident)) {
+      return {
+        error: "Please fix the highlighted fields.",
+        fieldErrors: { resident_id: RESIDENT_REQUIRED_MESSAGE },
+        values: raw,
+        checkedVolunteerIds: volunteerIds,
+        people,
+      };
+    }
   }
 
   const lead = people.doneBy[0] ?? undefined;

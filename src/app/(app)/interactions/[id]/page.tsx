@@ -20,6 +20,7 @@ import { InteractionList, staffLabel } from "../interaction-list";
 import { ClusterBadge } from "@/components/cluster-badge";
 import { Pencil, ListPlus } from "lucide-react";
 import { getActivityExtras } from "@/lib/queries/activity";
+import { STAFF_SUPPORT_TYPES } from "@/lib/queries/report-rules";
 
 export default async function InteractionDetailPage({
   params,
@@ -39,7 +40,17 @@ export default async function InteractionDetailPage({
     ...(interaction.staff_member_name ? [{ id: interaction.staff_member_id, name: interaction.staff_member_name }] : []),
     ...extras.team.filter((t) => t.id !== interaction.staff_member_id),
   ];
-  const engaged = extras.engaged;
+  // A staff call or meeting (including one saved on the on-site screen)
+  // names its person as the entry's contact; that person was spoken
+  // with and counts as engaged, so show them that way.
+  const staffContact =
+    STAFF_SUPPORT_TYPES.has(interaction.interaction_type) && interaction.contact_id && interaction.contact_name
+      ? { id: interaction.contact_id, name: interaction.contact_name }
+      : null;
+  const engaged =
+    staffContact && !extras.engaged.some((c) => c.id === staffContact.id)
+      ? [staffContact, ...extras.engaged]
+      : extras.engaged;
 
   const serviceDetails = [
     interaction.program_partner ? { label: "School or shul", value: labelFor(PROGRAM_PARTNERS, interaction.program_partner) } : null,
@@ -139,7 +150,7 @@ export default async function InteractionDetailPage({
                 <span className="font-medium text-warning">Not tagged yet</span>
               )}
             </p>
-          ) : interaction.contact_id && interaction.contact_name && extras.engaged.length === 0 ? (
+          ) : interaction.contact_id && interaction.contact_name && engaged.length === 0 ? (
             <p>
               <span className="text-muted-foreground">Contact: </span>
               <Link href={`/contacts/${interaction.contact_id}`} className="font-medium hover:underline">
@@ -184,7 +195,7 @@ export default async function InteractionDetailPage({
           ) : null}
           {engaged.length > 0 ? (
             <p>
-              <span className="text-muted-foreground">Staff worked with: </span>
+              <span className="text-muted-foreground">Staff worked with or spoke to: </span>
               {engaged.map((c, i) => (
                 <span key={c.id}>
                   <Link href={`/contacts/${c.id}`} className="font-medium hover:underline">

@@ -166,6 +166,14 @@ export function InteractionForm({
   const groupHidden =
     GROUP_VISIT_TYPES.includes(interactionType) &&
     ((!groupOpened && !service.people_reached) || (multiResident && residentIds.length > 1));
+  // A visit or call with one resident names them; a group visit counted
+  // with "Residents reached", or an older entry saved without one, doesn't
+  // have to (matches missingResident in lib/actions/interactions.ts).
+  const residentRequired =
+    (interactionType === "resident_visit" || interactionType === "resident_phone_call") &&
+    !service.people_reached &&
+    !groupOpened &&
+    !(isEditing && !values.resident_id);
   const boxFields = groupHidden ? serviceFields.filter((f) => f !== "people_reached") : serviceFields;
   // Food asks one question -- Snack, Shabbos delivery or Holiday delivery
   // -- stored in the existing holiday field (see FOOD_KINDS).
@@ -304,7 +312,7 @@ export function InteractionForm({
 
       {residents && residents.length > 0 ? (
         multiResident ? (
-          <Field label="Residents visited" htmlFor="resident_ids" error={fieldErrors.resident_id}>
+          <Field label="Residents visited" htmlFor="resident_ids" error={fieldErrors.resident_id} required={!service.people_reached && !groupOpened}>
             <MultiSearchPicker
               id="resident_ids"
               name="resident_ids"
@@ -323,14 +331,14 @@ export function InteractionForm({
             )}
           </Field>
         ) : (
-          <Field label="Resident" htmlFor="resident_id" error={fieldErrors.resident_id}>
+          <Field label="Resident" htmlFor="resident_id" error={fieldErrors.resident_id} required={residentRequired}>
             <SearchPicker
               id="resident_id"
               name="resident_id"
               value={residentIds[0] ?? ""}
               onChange={(id) => chooseResidents(id ? [id] : [])}
               options={residentOptions}
-              emptyLabel="No specific resident (general facility entry)"
+              emptyLabel={residentRequired ? undefined : "No specific resident (general facility entry)"}
               placeholder="Type a resident's name…"
             />
             {interactionType === "family_communication" ? (
