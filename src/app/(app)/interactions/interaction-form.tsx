@@ -2,6 +2,7 @@
 
 import { FacilityPicker } from "@/components/facility-picker";
 import { MultiSearchPicker, SearchPicker } from "@/components/search-picker";
+import { DateTimeInput } from "@/components/date-time-input";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,7 +66,7 @@ export function InteractionForm({
   fixedResident?: { id: string; name: string };
   /** Set when logging from a facility's page (no fixed resident) — an
    * optional picker limited to that facility's residents. */
-  residents?: { id: string; name: string; detail?: string | null }[];
+  residents?: { id: string; name: string; detail?: string | null; facilityId?: string | null }[];
   /** Any contact this interaction is with directly (e.g., a facility
    * staff communication, a family call) — separate from the resident. */
   contacts?: { id: string; name: string; detail?: string | null }[];
@@ -107,6 +108,18 @@ export function InteractionForm({
   const formKey = JSON.stringify(values);
 
   const [interactionType, setInteractionType] = useState(values.interaction_type);
+  // Picking a resident fills in their facility when none is chosen yet;
+  // a chosen facility's residents are offered first.
+  const [facilityId, setFacilityId] = useState(values.facility_id);
+  const [residentId, setResidentId] = useState(values.resident_id);
+  const residentOptions = (residents ?? [])
+    .map((r) => ({ id: r.id, label: r.name, detail: r.detail, here: !!facilityId && r.facilityId === facilityId }))
+    .sort((a, b) => Number(b.here) - Number(a.here));
+  function chooseResident(id: string) {
+    setResidentId(id);
+    const home = residents?.find((r) => r.id === id)?.facilityId;
+    if (home && !facilityId) setFacilityId(home);
+  }
   const isVolunteerVisit = interactionType === "volunteer_visit";
   const facilityRequired = !FACILITY_OPTIONAL_TYPES.includes(interactionType);
   const serviceFields = SERVICE_FIELDS_BY_TYPE[interactionType as InteractionType] ?? [];
@@ -210,8 +223,9 @@ export function InteractionForm({
           <SearchPicker
             id="resident_id"
             name="resident_id"
-            defaultValue={values.resident_id}
-            options={residents.map((r) => ({ id: r.id, label: r.name, detail: r.detail }))}
+            value={residentId}
+            onChange={chooseResident}
+            options={residentOptions}
             emptyLabel="No specific resident (general facility entry)"
             placeholder="Type a resident's name…"
           />
@@ -228,19 +242,14 @@ export function InteractionForm({
           id="facility_id"
           name="facility_id"
           facilities={facilities}
-          defaultValue={values.facility_id}
+          value={facilityId}
+          onChange={setFacilityId}
           emptyLabel={facilityRequired ? undefined : "No facility yet"}
         />
       </Field>
 
       <Field label="Date & time" htmlFor="occurred_at" error={fieldErrors.occurred_at} required>
-        <Input
-          id="occurred_at"
-          name="occurred_at"
-          type="datetime-local"
-          defaultValue={values.occurred_at}
-          required
-        />
+        <DateTimeInput id="occurred_at" name="occurred_at" defaultValue={values.occurred_at} required />
       </Field>
 
       <Field

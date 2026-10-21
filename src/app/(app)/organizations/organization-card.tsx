@@ -18,13 +18,13 @@ export function OrganizationCard({ organization }: { organization: Organization 
   const mapsHref = fullAddress ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}` : null;
 
   return (
-    <Card className="group transition-colors hover:border-primary/50">
+    <Card className="group relative transition-colors hover:border-primary/50">
       <CardContent className="flex items-center gap-3 p-4 sm:p-4">
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <Link
               href={`/organizations/${organization.id}`}
-              className="text-base font-semibold leading-tight hover:underline"
+              className="stretched-link text-base font-semibold leading-tight hover:underline"
             >
               {organization.name}
             </Link>
@@ -39,7 +39,7 @@ export function OrganizationCard({ organization }: { organization: Organization 
                 href={mapsHref}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center gap-1 hover:text-foreground hover:underline"
+                className="relative z-10 flex items-center gap-1 hover:text-foreground hover:underline"
               >
                 <MapPin className="size-3.5" />
                 {fullAddress}
@@ -49,13 +49,7 @@ export function OrganizationCard({ organization }: { organization: Organization 
             ) : null}
           </div>
         </div>
-        <Link
-          href={`/organizations/${organization.id}`}
-          aria-label={`Open ${organization.name}`}
-          className="shrink-0 rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-        >
-          <ChevronRight className="size-4" />
-        </Link>
+        <ChevronRight aria-hidden className="size-4 shrink-0 text-muted-foreground" />
       </CardContent>
     </Card>
   );

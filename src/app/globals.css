@@ -260,6 +260,34 @@
   button {
     -webkit-touch-callout: none;
   }
+  /* Anything clickable shows the hand, everywhere (Tailwind 4 leaves
+     buttons on the plain arrow). */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="option"],
+  [role="combobox"],
+  summary,
+  label[for],
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  input[type="date"]:not(:disabled),
+  input[type="time"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+/* A whole tile clickable, not just its name (director, Oct 2026): put
+   this on the tile's main link and `relative` on the tile; the link's
+   tap area then covers the tile. Any other link or button inside the
+   tile needs `relative z-10` to stay clickable on its own. */
+@utility stretched-link {
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+  }
 }
 
 /* A gentle shimmer for loading placeholders (see (app)/loading.tsx). */

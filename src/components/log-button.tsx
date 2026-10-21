@@ -9,20 +9,28 @@ import { cn } from "@/lib/utils";
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const RESIDENT_PAGE = new RegExp(`^/residents/(${UUID})`, "i");
 const FACILITY_PAGE = new RegExp(`^/facilities/(${UUID})`, "i");
+// Pages that are themselves a log or edit form -- nothing to come back to.
+const NO_RETURN = /^\/(interactions\/new|quick-log)|\/edit$/;
 
 /** Where "+ Log" goes from this page: the notes box, already set to the
- * resident or facility you're looking at. Without Quick Log, the form. */
+ * resident or facility you're looking at. Without Quick Log, the form,
+ * which comes back to this page after saving. */
 export function logHref(pathname: string, quickLog: boolean): string {
   const base = quickLog ? "/quick-log" : "/interactions/new";
   const resident = pathname.match(RESIDENT_PAGE)?.[1];
   if (resident) return `${base}?resident=${resident}`;
   const facility = pathname.match(FACILITY_PAGE)?.[1];
   if (facility) return `${base}?facility=${facility}`;
+  if (!quickLog && pathname !== "/" && !NO_RETURN.test(pathname)) {
+    return `${base}?returnTo=${encodeURIComponent(pathname)}`;
+  }
   return base;
 }
 
 /** The one way to log anything (decided Oct 8, 2026): a single red
- * "+ Log" button on every page. */
+ * "+ Log" button on every page. On a computer it opens the standard
+ * form (director, Oct 21, 2026); Quick Log stays one link away on the
+ * form, and is still what the phone's button opens. */
 export function LogButton({ quickLog, className }: { quickLog: boolean; className?: string }) {
   const pathname = usePathname();
   return (

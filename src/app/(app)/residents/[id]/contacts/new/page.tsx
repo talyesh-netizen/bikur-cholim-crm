@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getResident } from "@/lib/queries/residents";
@@ -31,6 +32,13 @@ export default async function NewFamilyContactPage({
       <div>
         <h1 className="text-2xl font-semibold">Add a family contact</h1>
         <p className="text-sm text-muted-foreground">For {displayName}</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Already in the CRM?{" "}
+          <Link href={`/residents/${resident.id}/contacts/link`} className="font-medium text-primary underline-offset-4 hover:underline">
+            Link them instead
+          </Link>{" "}
+          so they aren&apos;t entered twice.
+        </p>
       </div>
 
       <Card>

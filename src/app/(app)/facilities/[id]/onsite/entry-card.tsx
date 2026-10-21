@@ -9,6 +9,7 @@ import { VoiceButton } from "@/components/voice-button";
 import { saveOnsiteEntry, type OnsiteEntryKind } from "@/lib/actions/onsite-entries";
 import { getLocalToday, orgLocalToIso, toOrgDatetimeLocalValue, formatDateOnly } from "@/lib/format-date";
 import { draftKey, newSubmissionId, readDraft, removeDraft, writeDraft } from "./onsite-drafts";
+import { DateTimeInput } from "@/components/date-time-input";
 
 const SAVE_LABEL: Record<OnsiteEntryKind, string> = { visit: "Save visit", staff: "Save conversation", family: "Save conversation" };
 const SAVED_LABEL: Record<OnsiteEntryKind, string> = { visit: "Visit saved", staff: "Conversation saved", family: "Family support saved" };
@@ -155,11 +156,9 @@ export function EntryCard({
           <span className="font-medium text-[var(--tone-attention-fg)]">
             This note was started on an earlier day. It will be saved for when the visit happened:
           </span>
-          <input
-            type="datetime-local"
+          <DateTimeInput
             value={earlierAt}
-            onChange={(e) => setEarlierAt(e.target.value || earlierAt)}
-            className="h-11 rounded-md border border-input bg-background px-2 text-base"
+            onChange={(v) => setEarlierAt(v || earlierAt)}
             aria-label="When the visit happened"
           />
         </label>

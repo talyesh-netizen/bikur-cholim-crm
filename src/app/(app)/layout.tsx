@@ -40,7 +40,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </Link>
 
         <div className="mb-4 px-1">
-          <LogButton quickLog={quickLogEnabled()} className="w-full" />
+          {/* On a computer, the standard form (Quick Log is linked from it). */}
+          <LogButton quickLog={false} className="w-full" />
         </div>
 
         <SidebarNavLinks quickLog={quickLogEnabled()} />

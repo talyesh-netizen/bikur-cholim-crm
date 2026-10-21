@@ -124,6 +124,7 @@ export type InteractionListFilters = {
   interactionTypes?: string[];
   holiday?: string;
   familyNeed?: string;
+  residentId?: string;
 };
 
 export async function listInteractions(filters: InteractionListFilters = {}) {
@@ -149,6 +150,9 @@ export async function listInteractions(filters: InteractionListFilters = {}) {
   }
   if (filters.facilityId) {
     query = query.eq("facility_id", filters.facilityId);
+  }
+  if (filters.residentId) {
+    query = query.eq("resident_id", filters.residentId);
   }
   if (filters.staffId) {
     query = query.eq("staff_member_id", filters.staffId);
@@ -225,6 +229,22 @@ export async function listInteractionsForFacility(facilityId: string) {
  * volunteers involved (interaction_volunteers). Used on a contact's own
  * page so a volunteer's or staff member's history is visible there,
  * not just on the resident/facility side. */
+/** Recent entries with any of these people (e.g. everyone at one
+ * Strategic Partner) -- volunteer visits excluded, as above. */
+export async function listInteractionsWithContacts(contactIds: string[]) {
+  if (contactIds.length === 0) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("interactions")
+    .select(SELECT_WITH_NAMES)
+    .in("contact_id", contactIds)
+    .neq("interaction_type", "volunteer_visit")
+    .order("occurred_at", { ascending: false })
+    .limit(RECENT_INTERACTIONS_LIMIT);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => toInteractionWithNames(row as unknown as Parameters<typeof toInteractionWithNames>[0]));
+}
+
 export async function listInteractionsForContact(contactId: string) {
   const supabase = await createClient();
 

@@ -89,7 +89,14 @@ export default async function ResidentDetailPage({
         <div className="flex flex-wrap gap-2">
           {/* One way to log (decided Oct 8, 2026): visits, family, food,
               notes about them and follow-ups all start here. */}
-          <Button asChild size="lg" className="text-base">
+          {/* On a computer, the standard form; on a phone, Quick Log. */}
+          <Button asChild size="lg" className="hidden text-base md:inline-flex">
+            <Link href={`/interactions/new?resident=${resident.id}`}>
+              <Plus className="size-5" />
+              Log
+            </Link>
+          </Button>
+          <Button asChild size="lg" className="text-base md:hidden">
             <Link href={`${quickLogEnabled() ? "/quick-log" : "/interactions/new"}?resident=${resident.id}`}>
               <Plus className="size-5" />
               Log
@@ -147,7 +154,18 @@ export default async function ResidentDetailPage({
         <ProfileNotesCard targetType="resident" targetId={resident.id} notes={profileNotes} compact />
       </Fold>
 
-      <Fold title="Recent interactions" count={interactions.length} open>
+      <Fold
+        title="Recent interactions"
+        count={interactions.length}
+        open
+        action={
+          interactions.length > 0 ? (
+            <Link href={`/interactions?resident=${resident.id}`} className="text-sm font-medium text-primary hover:underline">
+              See all
+            </Link>
+          ) : undefined
+        }
+      >
         <InteractionList interactions={interactions} variant="resident" />
       </Fold>
 
@@ -155,12 +173,17 @@ export default async function ResidentDetailPage({
         title="Family"
         count={familyContacts.filter((rc) => rc.active).length}
         action={
-          <Button size="sm" variant="outline" asChild>
-            <Link href={`/residents/${resident.id}/contacts/new`}>
-              <Plus className="size-4" />
-              Add family contact
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" asChild>
+              <Link href={`/residents/${resident.id}/contacts/new`}>
+                <Plus className="size-4" />
+                Add family contact
+              </Link>
+            </Button>
+            <Button size="sm" variant="ghost" asChild>
+              <Link href={`/residents/${resident.id}/contacts/link`}>Link someone already in the CRM</Link>
+            </Button>
+          </div>
         }
       >
           {familyContacts.length === 0 ? (

@@ -54,6 +54,7 @@ import { CONTACT_TYPES, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/cont
 import { ENGAGEMENT_STATUSES, VISIT_PRIORITIES, KOSHER_FOOD_OPTIONS, FACILITY_TYPES } from "@/lib/domain/facility";
 import { formatDateOnly, formatDateTimeWithTime, getLocalToday, orgLocalToIso, toOrgDatetimeLocalValue } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
+import { DateTimeInput } from "@/components/date-time-input";
 
 type Section = keyof Omit<Plan, "summary" | "questions">;
 /** Where a line on the check screen will be saved -- one plain label
@@ -989,9 +990,11 @@ function CardEditor({
                 </option>
               ))}
             </select>
+          ) : f.kind === "datetime" ? (
+            <DateTimeInput value={draft[f.key]} onChange={(v) => set(f.key, v)} inputClassName={cn(inputClass, "h-9 md:h-9")} />
           ) : (
             <input
-              type={f.kind === "datetime" ? "datetime-local" : f.kind === "date" ? "date" : f.kind === "number" ? "number" : "text"}
+              type={f.kind === "date" ? "date" : f.kind === "number" ? "number" : "text"}
               inputMode={f.kind === "number" ? "numeric" : undefined}
               min={f.kind === "number" ? 0 : undefined}
               value={draft[f.key]}
@@ -1032,12 +1035,11 @@ function CheckDate({
         <CalendarClock className="size-4" /> Check the date: {reason}
       </p>
       <div className="flex flex-wrap items-center gap-2">
-        <input
-          type="datetime-local"
+        <DateTimeInput
           value={date}
-          onChange={(e) => setDate(e.target.value)}
+          onChange={setDate}
           aria-label="When it happened"
-          className="h-9 rounded-md border border-input bg-background px-2 text-foreground"
+          inputClassName="h-9 md:h-9 px-2 text-foreground"
         />
         <Button type="button" size="sm" disabled={!date} onClick={() => onConfirm(date)}>
           This date is right

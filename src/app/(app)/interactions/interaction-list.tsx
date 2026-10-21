@@ -49,7 +49,7 @@ export function InteractionList({
           <li key={interaction.id} className="relative flex flex-col gap-0.5 text-sm">
             <Link
               href={`/interactions/${interaction.id}`}
-              className="-mx-1.5 flex flex-col gap-0.5 rounded-md px-1.5 py-0.5 pr-14 hover:bg-accent/50"
+              className="stretched-link -mx-1.5 flex flex-col gap-0.5 rounded-md px-1.5 py-0.5 pr-14 hover:bg-accent/50"
             >
               <div className="flex items-start justify-between gap-4">
                 <span className="font-medium">
@@ -81,7 +81,7 @@ export function InteractionList({
                 <p className="whitespace-pre-wrap text-muted-foreground">{interaction.notes}</p>
               ) : null}
             </Link>
-            <span className="absolute right-1.5 top-0.5 flex items-center gap-2">
+            <span className="absolute right-1.5 top-0.5 z-10 flex items-center gap-2">
               <Link
                 href={`/tasks/new?interaction=${interaction.id}`}
                 title="Add a follow-up task for this interaction"

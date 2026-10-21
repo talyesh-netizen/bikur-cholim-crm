@@ -215,7 +215,10 @@ export default async function ContactDetailPage({
         </CardHeader>
         <CardContent>
           {residentLinks.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Not linked to any residents yet.</p>
+            <p className="text-sm text-muted-foreground">
+              Not linked to any residents yet. To add them as family, open the resident&apos;s page → Family →
+              &ldquo;Link someone already in the CRM&rdquo;.
+            </p>
           ) : (
             <ul className="flex flex-col gap-2">
               {residentLinks.map((link) => (
@@ -282,7 +285,7 @@ export default async function ContactDetailPage({
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-base">Interactions ({interactions.length})</CardTitle>
           <Button size="sm" variant="outline" asChild>
-            <Link href="/interactions/new">
+            <Link href={`/interactions/new?contact=${contact.id}&returnTo=${encodeURIComponent(`/contacts/${contact.id}`)}`}>
               <Plus className="size-4" />
               Log an interaction
             </Link>
