@@ -124,3 +124,11 @@ Decisions so far:
   visit. Facility visits, resident interactions and staff meetings are
   counted separately; a Facility Visit is a staff meeting only when
   staff were actually met.
+- Staff appreciation (Oct 22, 2026, Option A): each gesture (package,
+  meal, treats, gift) is one "Staff conversation" at that facility,
+  counted once however many staff it reached. Notes start with "Staff
+  appreciation:" so they can be found and reported. Only staff
+  actually met are named (and counted as staff people). A facility
+  visit only when our staff delivered it in person; mailed or
+  couriered leaves "How?" blank. Headcounts are estimates and stay in
+  the notes, never in the official numbers.
