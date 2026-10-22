@@ -50,7 +50,14 @@ export function TaskForm({
   facilities: { id: string; name: string }[];
   /** Set when creating a task from a resident/facility/interaction page
    * — that connection is fixed rather than user-editable. */
-  fixedContext?: { label: string; residentId?: string; facilityId?: string; interactionId?: string };
+  fixedContext?: {
+    label: string;
+    residentId?: string;
+    facilityId?: string;
+    interactionId?: string;
+    contactId?: string;
+    organizationId?: string;
+  };
   /** New tasks start assigned to whoever is creating them, so a task is
    * never accidentally nobody's (and so gets due-date reminders). */
   defaultAssigneeId?: string;
@@ -94,6 +101,10 @@ export function TaskForm({
           ) : null}
           {fixedContext.interactionId ? (
             <input type="hidden" name="interaction_id" value={fixedContext.interactionId} />
+          ) : null}
+          {fixedContext.contactId ? <input type="hidden" name="contact_id" value={fixedContext.contactId} /> : null}
+          {fixedContext.organizationId ? (
+            <input type="hidden" name="organization_id" value={fixedContext.organizationId} />
           ) : null}
         </div>
       ) : null}

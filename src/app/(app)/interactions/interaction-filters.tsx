@@ -146,6 +146,7 @@ export function InteractionFilters({
               <SelectItem value="all">Everything</SelectItem>
               <SelectItem value="funder_story">Good stories for funders</SelectItem>
               <SelectItem value="unmet_need">Requests we couldn&apos;t meet</SelectItem>
+              <SelectItem value="voided">Voided entries</SelectItem>
             </SelectContent>
           </Select>
         </div>

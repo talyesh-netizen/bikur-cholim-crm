@@ -54,8 +54,10 @@ Decisions so far:
 - "Family" support needs no sub-type; the kind of support is optional.
 - Staff meetings with volunteers (recruiting, onboarding, check-ins) are
   "Meeting with a volunteer" entries, separate from volunteer visits.
-- Food deliveries count once and are never copied to a colleague who was
-  there; visits, calls and family entries are.
+- Food deliveries count once and are never credited to a colleague who
+  was there; visits, calls and family entries are. Since Oct 16, 2026
+  (decision B1) a colleague is a team member on the same single entry,
+  not a copy of it, so the visit counts once and both are credited.
 - A note started with "+ Log" on a resident's page is about that
   resident unless it names someone else ("visited her" = them), even
   when another resident shares the first name (Oct 8, 2026).
@@ -67,8 +69,58 @@ Decisions so far:
   read on Saturday is dated Friday, never "now". On site there is a
   "Visit date" line; a note kept from before start times were recorded
   asks for the day before it can be read. Visit/Talked notes keep the
-  time they were started, shown and changeable before saving.
+  time they were started; only the day is shown and changeable before
+  saving (Oct 19, 2026, below).
+- Dates, not times (Oct 19, 2026, decision B1): logging asks for the
+  day only and lists show the day only. No time is made up: a past day
+  is saved at noon, today at the moment of saving, and an edit that
+  keeps the day keeps the time already saved. When it was typed in is
+  still recorded (created_at).
+- In person (Oct 19, 2026, decision B; widened Oct 21): a staff
+  conversation saved from the on-site notes box is marked in person, so
+  it counts as a facility visit-day; elsewhere Quick Log leaves it
+  unmarked (the person picks In person at facility / In person
+  elsewhere / Phone / Email / Video when fixing it). Visits, programs and deliveries are in person and phone
+  calls by phone, without asking. Calls, email and video never count.
+- Outside professionals (Oct 19, 2026): a conversation with someone who
+  isn't staff at a facility we serve (a hospice or agency contact, e.g.
+  Tina at Affinity Care) is "Other", no facility needed, never a staff
+  conversation, so it isn't counted as facility staff support.
 - Already logged that day (Oct 9, 2026): an entry with the same resident,
   kind and day as one already saved is flagged on the check screen,
   "Is this a second visit?" Yes saves it as its own visit; No unticks
   it. Never dropped or added without the person answering.
+
+## Reporting definitions (director, Oct 21, 2026)
+
+- Facility numbers, each facility once per Cleveland day: staff visits
+  (our staff there in person), volunteer-only visits, total facility
+  presence (either); plus facilities visited and facilities engaged
+  (any contact, calls included). Kept apart on every screen. Entries
+  with no recorded method are never assumed in person, except kinds
+  that can only happen in person. Off-site entries (no facility) never
+  count as visits.
+- Staff interactions: each distinct meeting or conversation once,
+  however many staff were in it (four staff = one meeting, four
+  people); staff people counted separately. A first visit to a new
+  facility always counts as a facility visit, and as a staff meeting
+  only when someone was actually met.
+- Mistakes are voided (reason required, restorable, in the change
+  history), never deleted, and never counted. Historical entries are
+  only ever combined or voided by a person's answer, one at a time.
+- A resident is required only on resident entries (a visit or a phone
+  call with a resident), not on facility visits, staff conversations,
+  programs, or group visits counted with "Residents reached".
+- Reports can cover any month, quarter, year or range of days.
+- Where it happened (Oct 21, 2026, Option B): "How?" offers In person
+  at facility / In person elsewhere / Phone / Email / Video on every
+  kind that asks it. Only "In person at facility" counts as a visit;
+  "elsewhere" (a shiva house, a hospital, a school) keeps the entry's
+  resident and facility. "At facility" needs a facility, so without one
+  it is saved as elsewhere. Older entries stay "not recorded".
+- Facility Visit entry stays (Oct 21, 2026, Option A): for a visit
+  where no resident interaction or staff meeting happened. A Facility
+  Visit plus resident visits there the same day is still one facility
+  visit. Facility visits, resident interactions and staff meetings are
+  counted separately; a Facility Visit is a staff meeting only when
+  staff were actually met.

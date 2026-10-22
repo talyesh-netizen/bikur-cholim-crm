@@ -105,6 +105,7 @@ async function lastContactByContact() {
         .from("interactions")
         .select("contact_id, occurred_at, interaction_type")
         .not("contact_id", "is", null)
+        .is("voided_at", null)
         .order("id")
         .range(from, to)
     ),
@@ -112,7 +113,8 @@ async function lastContactByContact() {
       (from, to) =>
         supabase
           .from("interaction_volunteers")
-          .select("contact_id, interactions(occurred_at, interaction_type)")
+          .select("contact_id, interactions!inner(occurred_at, interaction_type)")
+          .is("interactions.voided_at", null)
           .order("interaction_id")
           .order("contact_id")
           .range(from, to) as unknown as PromiseLike<{

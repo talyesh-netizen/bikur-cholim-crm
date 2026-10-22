@@ -15,7 +15,8 @@ import { residentName } from "@/lib/domain/resident-name";
 
 import { OnsiteWorkspace } from "./onsite-workspace";
 import { listInteractionsAtFacilityOnDay } from "@/lib/queries/interactions";
-import { INTERACTION_TYPES, labelFor } from "@/lib/domain/interaction";
+import { ENGAGEMENT_TYPES, INTERACTION_TYPES, labelFor } from "@/lib/domain/interaction";
+import { listEngagedContacts } from "@/lib/queries/activity";
 import { RememberOnsite } from "@/components/remember-onsite";
 import { quickLogEnabled } from "@/lib/quick-log-enabled";
 import { getCurrentProfile } from "@/lib/get-current-profile";
@@ -76,6 +77,22 @@ export default async function FacilityOnsitePage({
       if (aNeeds !== bNeeds) return aNeeds - bNeeds;
       return (a.room_number ?? "ZZZ").localeCompare(b.room_number ?? "ZZZ", undefined, { numeric: true });
     });
+
+  // Staff talked with here today (by anyone): an entry's own contact,
+  // plus anyone marked "worked with or spoke to" on it -- the same way
+  // residents are marked "Visited today".
+  const engagedToday = await listEngagedContacts(loggedToday.map((x) => x.id));
+  const talkedTodayBy = new Map<string, Set<string>>();
+  for (const x of loggedToday) {
+    if (!ENGAGEMENT_TYPES.includes(x.interaction_type)) continue;
+    const people = [x.contact_id, ...engagedToday.filter((e) => e.interaction_id === x.id).map((e) => e.contact_id)];
+    for (const contactId of people) {
+      if (!contactId) continue;
+      const by = talkedTodayBy.get(contactId) ?? new Set<string>();
+      by.add(x.staff_member_name ?? "someone");
+      talkedTodayBy.set(contactId, by);
+    }
+  }
 
   const today = getLocalToday();
   const urgentTasks = tasks.filter((task) => task.due_date && task.due_date <= today);
@@ -170,6 +187,7 @@ export default async function FacilityOnsitePage({
             role: fc.role_at_facility,
             phone: fc.contact.phone,
             primary: fc.is_primary_contact,
+            talkedTodayBy: talkedTodayBy.has(fc.contact_id) ? [...talkedTodayBy.get(fc.contact_id)!] : undefined,
           }))}
         // Newest first, to check (and fix) what was just saved.
         loggedToday={[...loggedToday].reverse().map((x) => ({

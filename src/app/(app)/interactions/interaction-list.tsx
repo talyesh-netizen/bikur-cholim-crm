@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { labelFor, INTERACTION_TYPES } from "@/lib/domain/interaction";
+import { labelFor, INTERACTION_TYPES, serviceNumbersLine } from "@/lib/domain/interaction";
 import type { InteractionWithNames } from "@/lib/domain/interaction";
 import { ClusterBadge } from "@/components/cluster-badge";
 import { ListPlus, Pencil } from "lucide-react";
-import { formatDateTimeWithTime } from "@/lib/format-date";
+import { formatDateTime } from "@/lib/format-date";
 import { withContactLabel } from "@/lib/domain/contact";
 
 /** Who the staff member was on an entry: the one who made a visit or
@@ -56,11 +56,14 @@ export function InteractionList({
                   {labelFor(INTERACTION_TYPES, interaction.interaction_type)}
                 </span>
                 <span className="whitespace-nowrap text-xs text-muted-foreground">
-                  {formatDateTimeWithTime(interaction.occurred_at)}
+                  {formatDateTime(interaction.occurred_at)}
                 </span>
               </div>
               {variant === "resident" && interaction.facility_name ? (
                 <ClusterBadge clusterId={interaction.facility_cluster_id} name={interaction.facility_name} />
+              ) : null}
+              {serviceNumbersLine(interaction) ? (
+                <p className="text-xs font-medium text-foreground">{serviceNumbersLine(interaction)}</p>
               ) : null}
               {isVolunteerVisit ? (
                 <p className="text-xs text-muted-foreground">

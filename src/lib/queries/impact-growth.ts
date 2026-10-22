@@ -34,10 +34,10 @@ export async function getImpactGrowth(): Promise<ImpactGrowth> {
   const [rows, volunteerTags, links, residents] = await Promise.all([
     selectAllPages<{ interaction_type: string; occurred_at: string; resident_id: string | null; contact_id: string | null; facility_id: string | null }>(
       (from, to) =>
-        supabase.from("interactions").select("interaction_type, occurred_at, resident_id, contact_id, facility_id").order("id").range(from, to)
+        supabase.from("interactions").select("interaction_type, occurred_at, resident_id, contact_id, facility_id").is("voided_at", null).is("counted_in_id", null).order("id").range(from, to)
     ),
     selectAllPages<{ contact_id: string; interactions: { occurred_at: string } | { occurred_at: string }[] | null }>((from, to) =>
-      supabase.from("interaction_volunteers").select("contact_id, interactions(occurred_at)").order("interaction_id").order("contact_id").range(from, to)
+      supabase.from("interaction_volunteers").select("contact_id, interactions!inner(occurred_at)").is("interactions.voided_at", null).order("interaction_id").order("contact_id").range(from, to)
     ),
     selectAllPages<{ resident_id: string; created_at: string }>((from, to) =>
       supabase.from("resident_contacts").select("resident_id, created_at").eq("active", true).order("id").range(from, to)

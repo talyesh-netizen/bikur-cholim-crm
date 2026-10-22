@@ -10,6 +10,7 @@ import { setTaskStatus, finishTaskAndReturn } from "@/lib/actions/tasks";
 import { labelFor, TASK_CATEGORIES, TASK_STATUSES } from "@/lib/domain/task";
 import { formatDateOnly } from "@/lib/format-date";
 import { ArrowLeft, Pencil } from "lucide-react";
+import { safeReturnTo } from "@/lib/return-to";
 
 export default async function TaskDetailPage({
   params,
@@ -17,24 +18,26 @@ export default async function TaskDetailPage({
 }: {
   params: Promise<{ id: string }>;
   /** The task list's tab and search, to go back to (see TaskWorkspace). */
-  searchParams: Promise<{ back?: string }>;
+  searchParams: Promise<{ back?: string; return?: string }>;
 }) {
   const { id } = await params;
-  const { back = "" } = await searchParams;
+  const { back = "", return: returnParam } = await searchParams;
+  // Opened from a resident or facility page: Done goes back there.
+  const returnTo = safeReturnTo(returnParam);
   const task = await getTask(id);
   if (!task) notFound();
 
   const changeStatus = setTaskStatus.bind(null, task.id);
   // Done or Cancel goes straight back to the task list as it was.
-  const finish = finishTaskAndReturn.bind(null, task.id, back);
+  const finish = finishTaskAndReturn.bind(null, task.id, back, returnTo ?? null);
   const isOpen = task.status === "open" || task.status === "in_progress" || task.status === "waiting";
 
   return (
     <div className="flex flex-col gap-4">
       <Button variant="ghost" size="sm" asChild className="-ml-2 -mb-2 self-start">
-        <Link href={`/tasks${back ? `?${back}` : ""}`}>
+        <Link href={returnTo ?? `/tasks${back ? `?${back}` : ""}`}>
           <ArrowLeft className="size-4" />
-          Tasks
+          {returnTo ? "Back" : "Tasks"}
         </Link>
       </Button>
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -55,6 +58,22 @@ export default async function TaskDetailPage({
                 {" · "}
                 <Link href={`/facilities/${task.facility_id}`} className="font-medium text-foreground hover:underline">
                   {task.facility_name}
+                </Link>
+              </>
+            ) : null}
+            {task.contact_id && task.contact_name ? (
+              <>
+                {" · "}
+                <Link href={`/contacts/${task.contact_id}`} className="font-medium text-foreground hover:underline">
+                  {task.contact_name}
+                </Link>
+              </>
+            ) : null}
+            {task.organization_id && task.organization_name ? (
+              <>
+                {" · "}
+                <Link href={`/organizations/${task.organization_id}`} className="font-medium text-foreground hover:underline">
+                  {task.organization_name}
                 </Link>
               </>
             ) : null}

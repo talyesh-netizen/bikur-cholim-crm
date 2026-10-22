@@ -107,6 +107,30 @@ export async function getOrganizationForContact(contactId: string) {
   };
 }
 
+/** Every organization a contact is linked to (a person can represent
+ * more than one) -- for "Works at / Represents" on their page. */
+export async function listOrganizationsForContact(contactId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("organization_contacts")
+    .select("id, role_at_organization, is_primary_contact, organizations(id, name, organization_type)")
+    .eq("contact_id", contactId)
+    .eq("active", true)
+    .order("is_primary_contact", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => {
+    const organization = row.organizations as unknown as { id: string; name: string; organization_type: string } | null;
+    return {
+      organization_contact_id: row.id as string,
+      role_at_organization: row.role_at_organization as string | null,
+      is_primary_contact: row.is_primary_contact as boolean,
+      organization_id: organization?.id ?? null,
+      organization_name: organization?.name ?? "Unknown organization",
+    };
+  });
+}
+
 /** The facilities a healthcare group owns: facilities whose "parent
  * healthcare group" is this group's name (any capitalization). */
 export async function listFacilitiesOwnedBy(groupName: string) {

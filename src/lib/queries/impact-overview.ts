@@ -1,15 +1,26 @@
 import { createClient } from "@/lib/supabase/server";
-import { orgDayStartIso, orgMonthStart, orgMonthKey } from "@/lib/format-date";
+import { orgDayStartIso, orgMonthKey } from "@/lib/format-date";
 import { ACTIVE_RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { HOLIDAYS, FAMILY_NEEDS } from "@/lib/domain/interaction";
-import { pad2, periodStart, selectAllPages, type ImpactPeriod } from "@/lib/queries/impact";
+import { pad2, selectAllPages } from "@/lib/queries/impact";
+import { inPeriod, monthsOf, periodBounds, previousPeriod, type ReportPeriod } from "@/lib/report-period";
+import {
+  facilityPresence,
+  fetchEngagedLinks,
+  groupVolunteersFor,
+  isCounted,
+  staffInteractionFor,
+  staffPeopleOn,
+  STAFF_SUPPORT_TYPES,
+  type EngagedLinks,
+} from "@/lib/queries/report-rules";
 
 // What each section of the Impact page counts. Kept here so every number
 // on the page uses the same definitions.
 const ONE_ON_ONE = new Set(["resident_visit", "resident_phone_call", "volunteer_visit"]);
 const STAFF_VISITS = new Set(["resident_visit", "resident_phone_call"]);
 const FAMILY = new Set(["family_communication", "care_navigation"]);
-const STAFF_SUPPORT = new Set(["facility_staff_communication", "facility_discovery_visit"]);
+const STAFF_SUPPORT = STAFF_SUPPORT_TYPES;
 const PROGRAMS = new Set(["program", "school_engagement"]);
 
 /** Where each headline number's entries live: the Interactions list,
@@ -29,23 +40,23 @@ function interactionsHref(params: Record<string, string | null | undefined>): st
   return `/interactions?${q.toString()}`;
 }
 
-/** First Cleveland calendar day of the period ("2026-10-01"), or null for all time. */
-function periodFromDate(period: ImpactPeriod): string | null {
-  if (period === "all") return null;
-  const { year, month } = orgMonthStart();
-  const first = period === "month" ? month : Math.floor((month - 1) / 3) * 3 + 1;
-  return `${year}-${pad2(first)}-01`;
-}
 
 type Row = {
+  id: string;
   interaction_type: string;
   occurred_at: string;
+  participants: number | null;
+  part_of_id: string | null;
+  counted_in_id: string | null;
   resident_id: string | null;
   contact_id: string | null;
   facility_id: string | null;
   people_reached: number | null;
   holiday: string | null;
   family_need: string | null;
+  in_person: boolean | null;
+  method: string | null;
+  voided_at: string | null;
 };
 
 export type Headline = {
@@ -53,20 +64,47 @@ export type Headline = {
   residentContacts: number;
   families: number;
   familyConversations: number;
+  /** Distinct staff meetings and conversations (one meeting with four
+   * staff is one). */
   staffTouchpoints: number;
+  /** Different staff people met. */
+  staffPeople: number;
   staffFacilities: number;
   reached: number;
   programs: number;
   deliveries: number;
+  /** Each facility once per day our staff were there in person. */
+  visitDays: number;
+  /** Each facility once per day only volunteers were there. */
+  volunteerOnlyDays: number;
+  /** Each facility once per day anyone from Bikur Cholim was there. */
+  presenceDays: number;
+  /** Different facilities with a presence day. */
+  facilitiesVisited: number;
+  /** Different facilities with any entry, calls included. */
+  facilitiesEngaged: number;
+  /** Volunteer visits, counted on their own (they make no staff visit-day). */
+  volunteerVisits: number;
+  /** School / shul / community group volunteers, each project counted once. */
+  groupVolunteers: number;
+  groupProjects: number;
 };
 
-function headlineFor(rows: Row[]): Headline {
+/** The headline numbers for a set of entries. Pass only counted entries
+ * for the corrected numbers, or every entry for "as first recorded". */
+function headlineFor(rows: Row[], engaged: EngagedLinks): Headline {
   const residents = new Set<string>();
   const families = new Set<string>();
   const staffFacilities = new Set<string>();
+  const staffPeople = new Set<string>();
+  const presence = facilityPresence(rows);
   const h: Headline = {
     residents: 0, residentContacts: 0, families: 0, familyConversations: 0,
-    staffTouchpoints: 0, staffFacilities: 0, reached: 0, programs: 0, deliveries: 0,
+    staffTouchpoints: 0, staffPeople: 0, staffFacilities: 0, reached: 0, programs: 0, deliveries: 0,
+    visitDays: presence.staffVisitDays, volunteerOnlyDays: presence.volunteerOnlyDays,
+    presenceDays: presence.presenceDays, facilitiesVisited: presence.facilitiesVisited,
+    facilitiesEngaged: presence.facilitiesEngaged,
+    volunteerVisits: 0, groupVolunteers: 0, groupProjects: 0,
   };
   for (const r of rows) {
     if (ONE_ON_ONE.has(r.interaction_type) && r.resident_id) {
@@ -79,9 +117,17 @@ function headlineFor(rows: Row[]): Headline {
       const key = r.contact_id ?? r.resident_id;
       if (key) families.add(key);
     }
-    if (STAFF_SUPPORT.has(r.interaction_type)) {
+    // Staff meetings and conversations, each once, and who was met.
+    if (staffInteractionFor(r, engaged) > 0) {
       h.staffTouchpoints += 1;
       if (r.facility_id) staffFacilities.add(r.facility_id);
+    }
+    staffPeopleOn(r, engaged).forEach((p) => staffPeople.add(p));
+    if (r.interaction_type === "volunteer_visit") h.volunteerVisits += 1;
+    const group = groupVolunteersFor(r);
+    if (group > 0) {
+      h.groupVolunteers += group;
+      h.groupProjects += 1;
     }
     if (PROGRAMS.has(r.interaction_type)) h.programs += 1;
     if (r.interaction_type === "food_delivery") h.deliveries += 1;
@@ -90,29 +136,22 @@ function headlineFor(rows: Row[]): Headline {
   h.residents = residents.size;
   h.families = families.size;
   h.staffFacilities = staffFacilities.size;
+  h.staffPeople = staffPeople.size;
   return h;
-}
-
-/** The month or quarter before the current one, as [start, end). */
-function previousRange(period: ImpactPeriod): { start: string; end: string } | null {
-  if (period === "all") return null;
-  const { year, month } = orgMonthStart();
-  const len = period === "month" ? 1 : 3;
-  const currentFirst = period === "month" ? month : Math.floor((month - 1) / 3) * 3 + 1;
-  const prevIndex = year * 12 + (currentFirst - 1) - len;
-  const py = Math.floor(prevIndex / 12);
-  const pm = (prevIndex % 12) + 1;
-  return {
-    start: orgDayStartIso(`${py}-${pad2(pm)}-01`)!,
-    end: orgDayStartIso(`${year}-${pad2(currentFirst)}-01`)!,
-  };
 }
 
 export type MonthBar = { label: string; values: number[]; href?: string };
 export type LabeledValue = { label: string; value: number; href?: string; color?: string };
 
 export type ImpactOverview = {
+  /** Corrected: entries reviewed as double entries are counted once. */
   headline: Headline;
+  /** The same numbers as first recorded (copies included) -- only when a
+   * reviewed double entry falls in the period, so the two can be shown
+   * side by side. */
+  asFirstRecorded: Headline | null;
+  /** Reviewed double entries in the period, and the list behind them. */
+  corrections: { entries: number; href: string } | null;
   /** The entries behind each headline number, for the period. */
   headlineLinks: Record<keyof typeof HEADLINE_TYPES, string>;
   previous: Headline | null;
@@ -132,22 +171,30 @@ export type ImpactOverview = {
   topFacilities: LabeledValue[];
 };
 
-export async function getImpactOverview(period: ImpactPeriod): Promise<ImpactOverview> {
+export async function getImpactOverview(period: ReportPeriod): Promise<ImpactOverview> {
   const supabase = await createClient();
-  const start = periodStart(period);
-  const prev = previousRange(period);
-  const sixMonthsFirst = orgMonthStart(5);
-  const sixMonthsStart = orgDayStartIso(`${sixMonthsFirst.year}-${pad2(sixMonthsFirst.month)}-01`)!;
-  const fetchFrom = period === "all" ? null : [sixMonthsStart, prev?.start ?? sixMonthsStart].sort()[0];
+  const bounds = periodBounds(period);
+  const prevPeriod = previousPeriod(period);
+  const prev = prevPeriod ? periodBounds(prevPeriod) : null;
+  // Monthly bars: the period's own months (the last 6 for all time).
+  const months = monthsOf(period);
+  const monthsStart = periodBounds(months[0]).start!;
+  const monthsEnd = periodBounds(months[months.length - 1]).end!;
+  // One fetch covering the period, the one before it, and the bars.
+  const fetchFrom = period.from ? [monthsStart, prev?.start ?? monthsStart, bounds.start!].sort()[0] : null;
+  const fetchTo = period.to ? [monthsEnd, bounds.end!].sort()[1] : null;
 
-  const [rows, residents, links, facilities] = await Promise.all([
+  const [allRows, residents, links, facilities, engaged] = await Promise.all([
     selectAllPages<Row>((from, to) => {
       let q = supabase
         .from("interactions")
-        .select("interaction_type, occurred_at, resident_id, contact_id, facility_id, people_reached, holiday, family_need")
+        .select(
+          "id, interaction_type, occurred_at, resident_id, contact_id, facility_id, people_reached, holiday, family_need, participants, part_of_id, counted_in_id, in_person, method, voided_at"
+        )
         .order("id")
         .range(from, to);
       if (fetchFrom) q = q.gte("occurred_at", fetchFrom);
+      if (fetchTo) q = q.lt("occurred_at", fetchTo);
       return q;
     }),
     selectAllPages<{ id: string; status: string; last_visit_at: string | null }>((from, to) =>
@@ -159,36 +206,37 @@ export async function getImpactOverview(period: ImpactPeriod): Promise<ImpactOve
     selectAllPages<{ id: string; name: string; engagement_status: string }>((from, to) =>
       supabase.from("facilities").select("id, name, engagement_status").eq("active", true).order("id").range(from, to)
     ),
+    fetchEngagedLinks(supabase, fetchFrom),
   ]);
 
-  const inPeriod = start ? rows.filter((r) => r.occurred_at >= start) : rows;
-  const inPrev = prev ? rows.filter((r) => r.occurred_at >= prev.start && r.occurred_at < prev.end) : null;
+  // Every number below counts each activity once: an entry an admin
+  // reviewed as a copy of another ("Same visit"), or one that was voided,
+  // is left out. The as-first-recorded numbers keep both, for comparison
+  // with reports already sent.
+  const rows = allRows.filter(isCounted);
+  const allInPeriod = allRows.filter((r) => inPeriod(r.occurred_at, bounds));
 
-  // Last 6 Cleveland months, oldest first.
-  const months: { key: string; label: string; from: string; to: string }[] = [];
-  for (let i = 5; i >= 0; i--) {
-    const { year, month } = orgMonthStart(i);
-    const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
-    months.push({
-      key: `${year}-${pad2(month)}`,
-      from: `${year}-${pad2(month)}-01`,
-      to: `${year}-${pad2(month)}-${pad2(lastDay)}`,
-      label: new Date(Date.UTC(year, month - 1, 15)).toLocaleDateString("en-US", { month: "short", timeZone: "UTC" }),
-    });
-  }
+  const counted = rows.filter((r) => inPeriod(r.occurred_at, bounds));
+  const inPrev = prev ? rows.filter((r) => inPeriod(r.occurred_at, prev)) : null;
+
   const monthIndex = new Map(months.map((m, i) => [m.key, i]));
-  const monthHref = (m: { from: string; to: string }, types: readonly string[]) =>
+  const monthHref = (m: ReportPeriod, types: readonly string[]) =>
     interactionsHref({ types: types.join(","), from: m.from, to: m.to });
-  const visitsByMonth = months.map((m) => ({ label: m.label, values: [0, 0], href: monthHref(m, HEADLINE_TYPES.residents) }));
-  const familyByMonth = months.map((m) => ({ label: m.label, values: [0], href: monthHref(m, HEADLINE_TYPES.families) }));
-  const staffByMonth = months.map((m) => ({ label: m.label, values: [0], href: monthHref(m, HEADLINE_TYPES.staff) }));
+  const monthLabel = (m: ReportPeriod) =>
+    new Date(Date.UTC(Number(m.key.slice(0, 4)), Number(m.key.slice(5, 7)) - 1, 15)).toLocaleDateString("en-US", {
+      month: "short",
+      timeZone: "UTC",
+    });
+  const visitsByMonth = months.map((m) => ({ label: monthLabel(m), values: [0, 0], href: monthHref(m, HEADLINE_TYPES.residents) }));
+  const familyByMonth = months.map((m) => ({ label: monthLabel(m), values: [0], href: monthHref(m, HEADLINE_TYPES.families) }));
+  const staffByMonth = months.map((m) => ({ label: monthLabel(m), values: [0], href: monthHref(m, HEADLINE_TYPES.staff) }));
   for (const r of rows) {
     const i = monthIndex.get(orgMonthKey(r.occurred_at));
     if (i === undefined) continue;
     if (STAFF_VISITS.has(r.interaction_type)) visitsByMonth[i].values[0] += 1;
     if (r.interaction_type === "volunteer_visit") visitsByMonth[i].values[1] += 1;
     if (FAMILY.has(r.interaction_type)) familyByMonth[i].values[0] += 1;
-    if (STAFF_SUPPORT.has(r.interaction_type)) staffByMonth[i].values[0] += 1;
+    staffByMonth[i].values[0] += staffInteractionFor(r, engaged);
   }
 
   // Time since last visit -- active residents, today (not the period).
@@ -214,27 +262,27 @@ export async function getImpactOverview(period: ImpactPeriod): Promise<ImpactOve
 
   // Holidays: people reached per holiday in the period (a one-on-one visit counts as 1).
   const holidayCounts = new Map<string, number>();
-  for (const r of inPeriod) {
+  for (const r of counted) {
     if (!r.holiday) continue;
     const reached = r.people_reached ?? (r.resident_id ? 1 : 0);
     holidayCounts.set(r.holiday, (holidayCounts.get(r.holiday) ?? 0) + reached);
   }
-  const from = periodFromDate(period);
+  const { from, to } = period;
   const holidays = HOLIDAYS.filter((h) => holidayCounts.has(h.value)).map((h) => ({
     label: h.label,
     value: holidayCounts.get(h.value)!,
-    href: interactionsHref({ holiday: h.value, from }),
+    href: interactionsHref({ holiday: h.value, from, to }),
   }));
 
   // What families needed, in the period (only entries where it was picked).
   const needCounts = new Map<string, number>();
-  for (const r of inPeriod) {
+  for (const r of counted) {
     if (r.family_need) needCounts.set(r.family_need, (needCounts.get(r.family_need) ?? 0) + 1);
   }
   const familyNeeds = FAMILY_NEEDS.filter((f) => needCounts.has(f.value)).map((f) => ({
     label: f.label,
     value: needCounts.get(f.value)!,
-    href: interactionsHref({ need: f.value, from }),
+    href: interactionsHref({ need: f.value, from, to }),
   }));
 
   // Facility relationship stage (active facilities).
@@ -261,8 +309,8 @@ export async function getImpactOverview(period: ImpactPeriod): Promise<ImpactOve
   // Most-supported facility teams in the period.
   const nameOf = new Map(facilities.map((f) => [f.id, f.name]));
   const perFacility = new Map<string, number>();
-  for (const r of inPeriod) {
-    if (STAFF_SUPPORT.has(r.interaction_type) && r.facility_id) {
+  for (const r of counted) {
+    if (staffInteractionFor(r, engaged) > 0 && r.facility_id) {
       perFacility.set(r.facility_id, (perFacility.get(r.facility_id) ?? 0) + 1);
     }
   }
@@ -272,15 +320,20 @@ export async function getImpactOverview(period: ImpactPeriod): Promise<ImpactOve
     .slice(0, 5)
     .map(([id, value]) => ({ label: nameOf.get(id)!, value, href: `/facilities/${id}` }));
 
+  const reviewedCopies = allInPeriod.filter((r) => !isCounted(r)).length;
+
   return {
-    headline: headlineFor(inPeriod),
+    headline: headlineFor(counted, engaged),
+    asFirstRecorded: reviewedCopies > 0 ? headlineFor(allInPeriod, engaged) : null,
+    corrections:
+      reviewedCopies > 0 ? { entries: reviewedCopies, href: interactionsHref({ corrected: "1", from, to }) } : null,
     headlineLinks: {
-      residents: interactionsHref({ types: HEADLINE_TYPES.residents.join(","), from }),
-      families: interactionsHref({ types: HEADLINE_TYPES.families.join(","), from }),
-      staff: interactionsHref({ types: HEADLINE_TYPES.staff.join(","), from }),
-      reached: interactionsHref({ types: HEADLINE_TYPES.reached.join(","), from }),
+      residents: interactionsHref({ types: HEADLINE_TYPES.residents.join(","), from, to }),
+      families: interactionsHref({ types: HEADLINE_TYPES.families.join(","), from, to }),
+      staff: interactionsHref({ types: HEADLINE_TYPES.staff.join(","), from, to }),
+      reached: interactionsHref({ types: HEADLINE_TYPES.reached.join(","), from, to }),
     },
-    previous: inPrev ? headlineFor(inPrev) : null,
+    previous: inPrev ? headlineFor(inPrev, engaged) : null,
     visitsByMonth,
     familyByMonth,
     staffByMonth,
@@ -288,7 +341,7 @@ export async function getImpactOverview(period: ImpactPeriod): Promise<ImpactOve
     activeResidents: active.length,
     notVisited30: recencyCounts[1] + recencyCounts[2] + recencyCounts[3],
     withFamily,
-    careNavigation: inPeriod.filter((r) => r.interaction_type === "care_navigation").length,
+    careNavigation: counted.filter((r) => r.interaction_type === "care_navigation").length,
     holidays,
     familyNeeds,
     stages,
@@ -296,4 +349,38 @@ export async function getImpactOverview(period: ImpactPeriod): Promise<ImpactOve
     noJewishResidentsKnown,
     topFacilities,
   };
+}
+
+/** "2026-Q4" and its Cleveland start/end, for the quarter a moment falls in. */
+export function quarterOf(value: string): { key: string; from: string; to: string } {
+  const [y, m] = orgMonthKey(value).split("-").map(Number);
+  const firstMonth = Math.floor((m - 1) / 3) * 3 + 1;
+  const next = firstMonth + 3 > 12 ? { y: y + 1, m: 1 } : { y, m: firstMonth + 3 };
+  return {
+    key: `${y}-Q${Math.floor((m - 1) / 3) + 1}`,
+    from: orgDayStartIso(`${y}-${pad2(firstMonth)}-01`)!,
+    to: orgDayStartIso(`${next.y}-${pad2(next.m)}-01`)!,
+  };
+}
+
+/** A quarter's headline numbers as first recorded -- every entry,
+ * including any later reviewed as a double entry -- for the one-time
+ * snapshot taken before that quarter's first correction. */
+export async function headlineAsFirstRecorded(fromIso: string, toIso: string): Promise<Headline> {
+  const supabase = await createClient();
+  const [rows, engaged] = await Promise.all([
+    selectAllPages<Row>((from, to) =>
+      supabase
+        .from("interactions")
+        .select(
+          "id, interaction_type, occurred_at, resident_id, contact_id, facility_id, people_reached, holiday, family_need, participants, part_of_id, counted_in_id, in_person, method, voided_at"
+        )
+        .gte("occurred_at", fromIso)
+        .lt("occurred_at", toIso)
+        .order("id")
+        .range(from, to)
+    ),
+    fetchEngagedLinks(supabase, fromIso),
+  ]);
+  return headlineFor(rows, engaged);
 }

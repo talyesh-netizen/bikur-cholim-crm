@@ -31,6 +31,9 @@ export default async function InteractionsPage({
     types.length ? types.map((t) => labelFor(INTERACTION_TYPES, t)).join(", ") : null,
     holiday ? `For ${holiday.label}` : null,
     need ? `Family need: ${need.label}` : null,
+    params.countedIn === "1" ? "Reviewed double entries (each counted in another entry)" : null,
+    params.voided === "1" ? "Voided entries (kept on file, never counted)" : null,
+    params.corrected === "1" ? "Corrections: reviewed double entries and voided entries" : null,
   ].filter(Boolean);
 
   const [{ interactions, totalCount, pageSize }, facilities, staff] = await Promise.all([
@@ -45,6 +48,9 @@ export default async function InteractionsPage({
       interactionTypes: types,
       holiday: holiday?.value,
       familyNeed: need?.value,
+      countedIn: params.countedIn === "1",
+      voided: params.voided === "1" || params.flag === "voided",
+      corrected: params.corrected === "1",
       residentId: resident?.id,
     }),
     listFacilityOptions(),
@@ -65,7 +71,7 @@ export default async function InteractionsPage({
           </p>
         </div>
         <Button asChild>
-          <Link href="/interactions/new?returnTo=%2Finteractions">
+          <Link href="/interactions/new?back=%2Finteractions">
             <Plus className="size-4" />
             Log interaction
           </Link>

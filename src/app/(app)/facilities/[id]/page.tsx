@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getFacility } from "@/lib/queries/facilities";
+import { getFacility, getFacilityAlsoOffers } from "@/lib/queries/facilities";
 import { setFacilityActive } from "@/lib/actions/facilities";
 import { listResidents } from "@/lib/queries/residents";
 import { listInteractionsForFacility } from "@/lib/queries/interactions";
@@ -30,18 +30,14 @@ import { InfoRow } from "@/components/info-row";
 import { ProfileNotesCard } from "@/components/profile-notes-card";
 import { listFacilityProfileNotes } from "@/lib/queries/profile-notes";
 import { ClipboardCheck, Pencil, Plus, UserX, Undo2, Star, User, Mail, Phone, Download } from "lucide-react";
-import { getImpactBreakdown, getServicesDelivered, type ImpactPeriod } from "@/lib/queries/impact";
+import { getImpactBreakdown, getServicesDelivered } from "@/lib/queries/impact";
+import { parsePeriod, periodChoices } from "@/lib/report-period";
 import { DonutChart } from "@/components/donut-chart";
 import { ServicesDeliveredTiles } from "@/components/services-delivered";
 import { residentName } from "@/lib/domain/resident-name";
 import { listFacilityMedia } from "@/lib/queries/facility-media";
 import { FacilityMediaCard } from "./facility-media-card";
 
-const IMPACT_PERIODS: { value: ImpactPeriod; label: string }[] = [
-  { value: "month", label: "This month" },
-  { value: "quarter", label: "This quarter" },
-  { value: "all", label: "All time" },
-];
 
 export default async function FacilityDetailPage({
   params,
@@ -52,9 +48,11 @@ export default async function FacilityDetailPage({
 }) {
   const { id } = await params;
   const { impact: impactParam } = await searchParams;
-  const impactPeriod: ImpactPeriod = impactParam === "month" || impactParam === "all" ? impactParam : "quarter";
-  const periodLabel = IMPACT_PERIODS.find((p) => p.value === impactPeriod)?.label ?? "This quarter";
-  const [facility, residents, interactions, facilityContacts, profileNotes, impact, services, media] = await Promise.all([
+  // Any month or quarter (?impact=2026-Q3); the chips offer the usual ones.
+  const impactPeriod = parsePeriod({ period: impactParam });
+  const IMPACT_PERIODS = periodChoices().quick.filter((q) => ["This month", "This quarter", "Last quarter", "All time"].includes(q.label));
+  const periodLabel = impactPeriod.label;
+  const [facility, residents, interactions, facilityContacts, profileNotes, impact, services, media, alsoOffers] = await Promise.all([
     getFacility(id),
     listResidents({ facilityId: id, showAllStatuses: true }),
     listInteractionsForFacility(id),
@@ -63,6 +61,7 @@ export default async function FacilityDetailPage({
     getImpactBreakdown(impactPeriod, id),
     getServicesDelivered(impactPeriod, id),
     listFacilityMedia(id),
+    getFacilityAlsoOffers(id),
   ]);
 
   if (!facility) notFound();
@@ -95,6 +94,7 @@ export default async function FacilityDetailPage({
           </div>
           <p className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
             {labelFor(FACILITY_TYPES, facility.facility_type)}
+            {alsoOffers.length > 0 ? ` · also ${alsoOffers.map((t) => labelFor(FACILITY_TYPES, t).toLowerCase()).join(", ")}` : ""}
             {facility.city ? ` · ${facility.city}` : ""}
             {facility.geographic_cluster_name ? (
               <ClusterBadge
@@ -230,7 +230,7 @@ export default async function FacilityDetailPage({
               {residents.map((resident) => (
                 <li key={resident.id}>
                   <Link
-                    href={`/residents/${resident.id}`}
+                    href={`/residents/${resident.id}?back=${encodeURIComponent(`/facilities/${facility.id}`)}`}
                     className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-accent"
                   >
                     <span>
@@ -341,7 +341,7 @@ export default async function FacilityDetailPage({
           </Button>
         </CardHeader>
         <CardContent>
-          <TaskList tasks={tasks} showResident />
+          <TaskList tasks={tasks} showResident returnTo={`/facilities/${facility.id}`} />
         </CardContent>
       </Card>
 
@@ -354,11 +354,11 @@ export default async function FacilityDetailPage({
             <div className="flex gap-1 rounded-md bg-muted p-1">
               {IMPACT_PERIODS.map((p) => (
                 <Link
-                  key={p.value}
-                  href={p.value === "quarter" ? `/facilities/${facility.id}` : `/facilities/${facility.id}?impact=${p.value}`}
+                  key={p.key}
+                  href={`/facilities/${facility.id}?impact=${encodeURIComponent(p.key)}`}
                   scroll={false}
                   className={
-                    impactPeriod === p.value
+                    impactPeriod.key === p.key
                       ? "rounded bg-card px-2.5 py-1 text-xs font-medium text-foreground shadow-sm"
                       : "rounded px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground"
                   }
@@ -368,7 +368,7 @@ export default async function FacilityDetailPage({
               ))}
             </div>
             <Button variant="outline" size="sm" asChild>
-              <a href={`/api/impact-report?period=${impactPeriod}&facility=${facility.id}`}>
+              <a href={`/api/impact-report?period=${encodeURIComponent(impactPeriod.key)}&facility=${facility.id}`}>
                 <Download className="size-4" />
                 Export
               </a>
@@ -378,8 +378,8 @@ export default async function FacilityDetailPage({
         <CardContent>
           {impact.total === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Nothing logged at this facility {impactPeriod === "all" ? "yet" : `in ${periodLabel.toLowerCase()}`}.
-              {impactPeriod !== "all" ? " Try “All time”." : ""}
+              Nothing logged at this facility {impactPeriod.from ? `in ${periodLabel}` : "yet"}.
+              {impactPeriod.from ? " Try “All time”." : ""}
             </p>
           ) : (
             <div className="flex flex-col gap-6">

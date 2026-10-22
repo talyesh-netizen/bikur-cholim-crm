@@ -1,6 +1,7 @@
 "use server";
 
 import { withSaved } from "@/lib/saved-flash";
+import { safeReturnTo } from "@/lib/return-to";
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -33,6 +34,10 @@ const taskSchema = z.object({
   resident_id: optionalUuid(),
   facility_id: optionalUuid(),
   interaction_id: optionalUuid(),
+  // Only sent when added from a contact's or partner's page; an edit
+  // leaves them as they are.
+  contact_id: optionalUuid(),
+  organization_id: optionalUuid(),
 });
 
 function flattenErrors(error: z.ZodError): Record<string, string> {
@@ -44,10 +49,12 @@ function flattenErrors(error: z.ZodError): Record<string, string> {
   return fieldErrors;
 }
 
-function revalidateTaskPaths(task: { resident_id?: string; facility_id?: string }) {
+function revalidateTaskPaths(task: { resident_id?: string; facility_id?: string; contact_id?: string; organization_id?: string }) {
   revalidatePath("/tasks");
   if (task.resident_id) revalidatePath(`/residents/${task.resident_id}`);
   if (task.facility_id) revalidatePath(`/facilities/${task.facility_id}`);
+  if (task.contact_id) revalidatePath(`/contacts/${task.contact_id}`);
+  if (task.organization_id) revalidatePath(`/organizations/${task.organization_id}`);
 }
 
 export async function createTask(
@@ -210,11 +217,15 @@ const finishSchema = z.object({ status: z.enum(["completed", "cancelled"]), comp
 /** Complete (or cancel) from a task's own page, then straight back to
  * the task list as it was -- same tab, same search -- where a short
  * message offers Undo. */
-export async function finishTaskAndReturn(taskId: string, back: string, formData: FormData) {
+export async function finishTaskAndReturn(taskId: string, back: string, returnTo: string | null, formData: FormData) {
   const parsed = finishSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) throw new Error("That task status isn't valid.");
   const result = await changeStatus(taskId, parsed.data.status, parsed.data.completion_notes ?? "");
   if (!result) throw new Error("This task's status was NOT changed. Please reload the page and try again.");
+
+  // Opened from a resident or facility page: back to that page.
+  const page = safeReturnTo(returnTo);
+  if (page) redirect(withSaved(page, parsed.data.status === "cancelled" ? "task-cancelled" : "task-done"));
 
   const query = taskListQuery(back);
   query.set("done", taskId);

@@ -3,50 +3,67 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle } from "lucide-react";
 import { getInteraction, getInteractionVolunteerIds } from "@/lib/queries/interactions";
 import { listFacilities } from "@/lib/queries/facilities";
-import { getResident, listResidents } from "@/lib/queries/residents";
+import { residentOptions } from "@/lib/resident-options";
 import { listContactOptions, listContactsByIds } from "@/lib/queries/contacts";
 import { updateInteraction } from "@/lib/actions/interactions";
 import { InteractionForm } from "../../interaction-form";
-import { toOrgDatetimeLocalValue } from "@/lib/format-date";
-import { residentName } from "@/lib/domain/resident-name";
+import { orgDayKey } from "@/lib/format-date";
 import { onsiteHref } from "@/lib/onsite-links";
 import { safeReturnTo } from "@/lib/return-to";
+import { getActivityExtras, getActivityFormOptions } from "@/lib/queries/activity";
+import { ENGAGEMENT_TYPES } from "@/lib/domain/interaction";
 
 export default async function EditInteractionPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ volunteersError?: string; from?: string; returnTo?: string }>;
+  searchParams: Promise<{ volunteersError?: string; peopleError?: string; from?: string; back?: string; returnTo?: string }>;
 }) {
   const { id } = await params;
-  const { volunteersError, from, returnTo } = await searchParams;
+  const { volunteersError, peopleError, from, back, returnTo } = await searchParams;
   const interaction = await getInteraction(id);
   if (!interaction) notFound();
 
   // Fixed from on-site mode's Today list: back to that list.
   // Otherwise back to the page the edit was started from, if it said.
-  const redirectTo = (from === "onsite" ? onsiteHref(interaction.facility_id, "today") : undefined) ?? safeReturnTo(returnTo) ?? (interaction.resident_id
+  const redirectTo = (from === "onsite" ? onsiteHref(interaction.facility_id, "today") : undefined) ?? safeReturnTo(back ?? returnTo) ?? (interaction.resident_id
     ? `/residents/${interaction.resident_id}`
     : interaction.facility_id
       ? `/facilities/${interaction.facility_id}`
       : "/interactions");
 
-  const [facilities, facilityResidents, currentResidents, contacts, activeVolunteers, volunteerIds, ownResident] = await Promise.all([
+  const [facilities, residents, contacts, activeVolunteers, volunteerIds, activity, extras] = await Promise.all([
     listFacilities(),
-    interaction.facility_id
-      ? listResidents({ facilityId: interaction.facility_id, showAllStatuses: true })
-      : Promise.resolve([]),
-    // Any current resident can be picked too (e.g. an entry saved
-    // without one, or under the wrong facility).
-    listResidents(),
+    residentOptions(interaction.resident_id),
     listContactOptions(),
     listContactOptions("volunteer"),
     getInteractionVolunteerIds(id),
-    // Its own resident is always offered, even if no longer current --
-    // so re-saving can never quietly drop them.
-    interaction.resident_id ? getResident(interaction.resident_id) : Promise.resolve(null),
+    getActivityFormOptions(),
+    getActivityExtras(id),
   ]);
+
+  // Who did it, as saved: the lead first, then the team. Staff engaged:
+  // a staff entry's own contact counts as engaged, as it always has.
+  const engaged = [
+    ...(ENGAGEMENT_TYPES.includes(interaction.interaction_type) && interaction.contact_id ? [interaction.contact_id] : []),
+    ...extras.engaged.map((c) => c.id),
+  ];
+  const initialPeople = {
+    doneBy: [interaction.staff_member_id, ...extras.team.map((t) => t.id).filter((tid) => tid !== interaction.staff_member_id)],
+    engaged: [...new Set(engaged)],
+    present: extras.present.map((c) => c.id),
+  };
+  const initialPartOf = extras.partOf
+    ? {
+        id: extras.partOf.id,
+        occurred_at: extras.partOf.occurred_at,
+        partner_organization_id: extras.partner?.id ?? "",
+        partner_name: extras.partner?.name ?? "the group",
+        participants: extras.partOf.participants ?? 0,
+        facility_name: extras.partOf.facility_name,
+      }
+    : null;
 
   // A volunteer already linked to this interaction might since have gone
   // inactive, which would drop them from the checkbox list above (and
@@ -69,6 +86,13 @@ export default async function EditInteractionPage({
         <p className="text-sm text-muted-foreground">Update the details of this logged interaction.</p>
       </div>
 
+      {peopleError ? (
+        <div className="flex items-center gap-2 rounded-lg bg-warning/10 px-3 py-2.5 text-sm text-warning">
+          <AlertTriangle className="size-4 shrink-0" />
+          <span>This entry was saved, but who did it and the staff linked couldn&apos;t be recorded. Please check them below and save again.</span>
+        </div>
+      ) : null}
+
       {volunteersError ? (
         <div className="flex items-center gap-2 rounded-lg bg-warning/10 px-3 py-2.5 text-sm text-warning">
           <AlertTriangle className="size-4 shrink-0" />
@@ -87,24 +111,25 @@ export default async function EditInteractionPage({
           <InteractionForm
             action={action}
             facilities={facilities}
-            residents={[...(ownResident ? [ownResident] : []), ...facilityResidents, ...currentResidents]
-              .filter((r, i, all) => all.findIndex((x) => x.id === r.id) === i)
-              .map((r) => ({
-              id: r.id,
-              name: residentName(r),
-              detail: r.current_facility_name,
-              facilityId: r.current_facility_id,
-            }))}
+            residents={residents}
             contacts={contacts}
             volunteers={volunteers}
             initialVolunteerIds={volunteerIds}
+            activity={activity}
+            initialPeople={initialPeople}
+            initialPartOf={initialPartOf}
+            selfId={id}
             initialValues={{
               facility_id: interaction.facility_id ?? "",
               resident_id: interaction.resident_id ?? "",
               contact_id: interaction.contact_id ?? "",
-              occurred_at: toOrgDatetimeLocalValue(interaction.occurred_at),
+              occurred_at: orgDayKey(interaction.occurred_at),
+              occurred_at_saved: interaction.occurred_at,
               interaction_type: interaction.interaction_type,
               notes: interaction.notes ?? "",
+              partner_organization_id: extras.partner?.id ?? "",
+              in_person: interaction.in_person ? "on" : "",
+              method: interaction.method ?? "",
               occasion: interaction.occasion ?? "",
               holiday: interaction.holiday ?? "",
               family_need: interaction.family_need ?? "",

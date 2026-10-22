@@ -80,6 +80,9 @@ export async function saveOnsiteEntry(input: z.input<typeof entrySchema>): Promi
       occurred_at: occurredAt,
       notes: notes || null,
       client_submission_id: submissionId,
+      // Logged on site: we were there (counts staff conversations as a
+      // facility visit-day, decision B, Oct 19, 2026).
+      in_person: true,
     })
     .select("id, occurred_at")
     .single();

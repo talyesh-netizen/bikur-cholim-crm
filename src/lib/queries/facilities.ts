@@ -51,6 +51,15 @@ export async function listFacilities(filters: FacilityFilters = {}) {
   return (data ?? []) as FacilityWithSummary[];
 }
 
+/** The other kinds of care a facility offers besides its main type
+ * ("also offers"), read from the facility itself. */
+export async function getFacilityAlsoOffers(id: string): Promise<string[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("facilities").select("also_offers").eq("id", id).maybeSingle();
+  if (error || !data) return [];
+  return (data.also_offers as string[] | null) ?? [];
+}
+
 export async function getFacility(id: string) {
   const supabase = await createClient();
   const { data, error } = await supabase

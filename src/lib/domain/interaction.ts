@@ -20,7 +20,9 @@ export const INTERACTION_TYPES = [
   { value: "medical_referral", label: "Medical referral (to Bikur Cholim)" },
   { value: "ride_arranged", label: "Ride arranged (through Bikur Cholim)" },
   { value: "referral", label: "Referral (other)" },
-  { value: "facility_staff_communication", label: "Facility staff (meeting, touchpoint, appreciation)" },
+  // Plain wording (director, Oct 19, 2026); meetings, check-ins and
+  // appreciation with facility staff are all this one kind.
+  { value: "facility_staff_communication", label: "Staff conversation" },
   { value: "facility_visit", label: "Facility visit" },
   { value: "facility_discovery_visit", label: "First visit to a new facility" },
   { value: "hospital_related_communication", label: "Hospital-related communication" },
@@ -30,7 +32,7 @@ export const INTERACTION_TYPES = [
 
 export type InteractionType = (typeof INTERACTION_TYPES)[number]["value"];
 
-/** The log form's one fixed list: 8 choices, one tap each, no
+/** The log form's one fixed list: 9 choices (Other added Oct 19, 2026), one tap each, no
  * follow-up questions. Decided by the director (Oct 8, 2026): fewer,
  * clearer choices beat a long list. Every stored type stays valid for
  * old records and reports -- this only changes what's offered. */
@@ -45,8 +47,12 @@ export const TYPE_BUTTONS: {
   { key: "family", label: "Family", choices: [{ value: "family_communication", label: "Family" }] },
   { key: "delivery", label: "Food", choices: [{ value: "food_delivery", label: "Food" }] },
   { key: "referral", label: "Referral", choices: [{ value: "medical_referral", label: "Referral" }] },
-  { key: "facility", label: "Staff", choices: [{ value: "facility_staff_communication", label: "Staff" }] },
+  { key: "facility", label: "Staff conversation", choices: [{ value: "facility_staff_communication", label: "Staff conversation" }] },
   { key: "program", label: "Program", choices: [{ value: "program", label: "Program" }] },
+  // A conversation that fits none of the above, e.g. with someone at an
+  // outside agency or hospice (director, Oct 19, 2026). Counted only
+  // under "Other": never as staff support or a facility visit-day.
+  { key: "other", label: "Other", choices: [{ value: "other", label: "Other" }] },
 ];
 
 /** No "more types": the 8 above are the whole list. An older entry with
@@ -123,6 +129,15 @@ export type Interaction = {
   staff_member_id: string;
   notes: string | null;
   created_at: string;
+  /** Our staff were there in person (set on site, or ticked on a staff
+   * conversation); null = not recorded. */
+  in_person?: boolean | null;
+  /** How it happened (see METHODS); null = not recorded. */
+  method?: string | null;
+  /** Set when voided (a mistake or duplicate): kept on file, never counted. */
+  voided_at?: string | null;
+  void_reason?: string | null;
+  voided_by?: string | null;
 } & ServiceDetails;
 
 /** An interaction row plus the resident/facility/contact/staff names needed
@@ -148,11 +163,93 @@ export type InteractionWithNames = Interaction & {
   contact_relationship: string | null;
   staff_member_name: string | null;
   volunteers: { id: string; name: string }[];
+  /** Set when an admin reviewed this as a copy of another entry. */
+  counted_in_id?: string | null;
 };
 
 /** Types where the facility can be left blank -- e.g. a family calling
  * for help finding a facility for their father doesn't have one yet. */
-export const FACILITY_OPTIONAL_TYPES: readonly string[] = ["care_navigation", "volunteer_meeting"];
+export const FACILITY_OPTIONAL_TYPES: readonly string[] = [
+  "care_navigation",
+  "volunteer_meeting",
+  // Community events and outreach, or students packing Shabbos packages
+  // at school (Build 2, Oct 16, 2026).
+  "program",
+  "school_engagement",
+  // Someone outside the facilities we serve (Oct 19, 2026).
+  "other",
+];
+
+/** Entries that ask "Staff you worked with or spoke to" (each counts
+ * once toward staff engagements) instead of a single Contact. */
+export const ENGAGEMENT_TYPES: readonly string[] = [
+  "facility_staff_communication",
+  "facility_discovery_visit",
+  "facility_visit",
+  "program",
+  "school_engagement",
+];
+
+/** Entries that ask "In person?" -- a facility visit-day only when ticked
+ * (or logged on site). Calls and emails are never asked and never count
+ * (decision B, Oct 19, 2026). */
+export const IN_PERSON_ONLY_TYPES: readonly string[] = ["facility_staff_communication"];
+
+/** How it happened (director, Oct 21, 2026). Only "In person at
+ * facility" can make a facility visit-day; "In person elsewhere" (a
+ * shiva house, a hospital, a school) keeps the entry's resident and
+ * facility but never counts as a visit. An entry saved before this has
+ * none ("not recorded") and is never assumed to be at the facility. */
+export const METHODS = [
+  { value: "in_person", label: "In person at facility" },
+  { value: "in_person_elsewhere", label: "In person elsewhere" },
+  { value: "phone", label: "Phone" },
+  { value: "email", label: "Email" },
+  { value: "video", label: "Video" },
+] as const;
+
+/** Entries that ask how it happened, and the choice a new one starts on. */
+export const METHOD_ASKED: Partial<Record<InteractionType, (typeof METHODS)[number]["value"] | null>> = {
+  facility_staff_communication: "in_person",
+  volunteer_meeting: "in_person",
+  family_communication: null,
+  care_navigation: null,
+  medical_referral: null,
+  referral: null,
+  hospital_related_communication: null,
+  kosher_food_coordination: null,
+  other: null,
+};
+
+/** Entries that can only happen one way: recorded for a new entry
+ * without asking. (An older entry keeps "not recorded".) */
+export const METHOD_FIXED: Partial<Record<InteractionType, (typeof METHODS)[number]["value"]>> = {
+  resident_visit: "in_person",
+  volunteer_visit: "in_person",
+  facility_visit: "in_person",
+  facility_discovery_visit: "in_person",
+  program: "in_person",
+  school_engagement: "in_person",
+  food_delivery: "in_person",
+  resident_phone_call: "phone",
+  email: "email",
+};
+
+export type Method = (typeof METHODS)[number]["value"];
+
+/** "In person at facility" needs a facility: one saved without a
+ * facility was in person somewhere else. */
+export function methodWhere(method: Method | null | undefined, facilityId: string | null | undefined): Method | null {
+  if (method === "in_person" && !facilityId) return "in_person_elsewhere";
+  return method ?? null;
+}
+
+/** Entries that can have a partner (school, shul, organization) and be
+ * "Part of" a group project. */
+export const PARTNER_TYPES: readonly string[] = ["program", "school_engagement", "food_delivery"];
+
+/** Entries that can hold a group's volunteer count. */
+export const GROUP_COUNT_TYPES: readonly string[] = ["program", "school_engagement"];
 
 export const OCCASIONS = [
   { value: "regular", label: "Regular / weekday" },
@@ -199,7 +296,7 @@ export const SERVICE_FIELDS_BY_TYPE: Partial<
   Record<InteractionType, readonly ("occasion" | "program_partner" | "quantity" | "people_reached" | "participants")[]>
 > = {
   food_delivery: ["occasion", "quantity", "people_reached"],
-  program: ["occasion", "people_reached"],
+  program: ["occasion", "participants", "people_reached"],
   school_engagement: ["program_partner", "occasion", "participants", "people_reached"],
   // Group visits: the old tracking sheet logged e.g. "1 to 1 Pesach visit,
   // 15 residents" or a volunteer group seeing 7 people as one entry.
@@ -233,4 +330,22 @@ export function formatMinutes(minutes: number): string {
   if (minutes < 60) return `${minutes} min`;
   const hours = minutes / 60;
   return `${Number.isInteger(hours) ? hours : hours.toFixed(1)} hr${hours === 1 ? "" : "s"}`;
+}
+
+/** The numbers worth seeing on an entry's card without opening it:
+ * "30 items delivered · 25 people reached" for food, a group visit's or
+ * program's reach, a program's head count. Null when there are none. */
+export function serviceNumbersLine(i: Pick<ServiceDetails, "quantity" | "people_reached" | "participants"> & { interaction_type: string }): string | null {
+  const plural = (n: number, one: string, many: string) => `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
+  const parts =
+    i.interaction_type === "food_delivery"
+      ? [
+          i.quantity ? `${plural(i.quantity, "item", "items")} delivered` : null,
+          i.people_reached ? `${plural(i.people_reached, "person", "people")} reached` : null,
+        ]
+      : [
+          i.participants ? `${plural(i.participants, "person", "people")} took part` : null,
+          i.people_reached ? `${plural(i.people_reached, "resident", "residents")} reached` : null,
+        ];
+  return parts.filter(Boolean).join(" · ") || null;
 }

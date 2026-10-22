@@ -24,6 +24,12 @@ const TABLES: { name: string; orderBy: string[] }[] = [
   { name: "organization_contacts", orderBy: ["id"] },
   { name: "interactions", orderBy: ["id"] },
   { name: "interaction_volunteers", orderBy: ["interaction_id", "contact_id"] },
+  // Build 2: staff spoken with / present, team members, double-entry
+  // answers and quarter totals as first recorded.
+  { name: "interaction_contacts", orderBy: ["interaction_id", "contact_id"] },
+  { name: "interaction_team_members", orderBy: ["interaction_id", "profile_id"] },
+  { name: "duplicate_reviews", orderBy: ["id"] },
+  { name: "report_snapshots", orderBy: ["period_key", "metric"] },
   { name: "tasks", orderBy: ["id"] },
   { name: "profile_notes", orderBy: ["id"] },
   { name: "profiles", orderBy: ["id"] },

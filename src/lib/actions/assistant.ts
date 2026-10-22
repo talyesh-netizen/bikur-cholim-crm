@@ -5,7 +5,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/get-current-profile";
-import { HOLIDAY_TYPES, FAMILY_NEED_TYPES, INTERACTION_TYPES, labelFor, SERVICE_FIELDS_BY_TYPE, occasionForHoliday, type InteractionType } from "@/lib/domain/interaction";
+import { HOLIDAY_TYPES, FAMILY_NEED_TYPES, IN_PERSON_ONLY_TYPES, INTERACTION_TYPES, METHOD_FIXED, methodWhere, labelFor, SERVICE_FIELDS_BY_TYPE, occasionForHoliday, type InteractionType } from "@/lib/domain/interaction";
 import { loadDirectory, type Directory } from "@/lib/assistant/directory";
 import { resolvePlan } from "@/lib/assistant/resolve";
 import { aboutThemNotes } from "@/lib/assistant/about-them";
@@ -203,8 +203,9 @@ async function findAlreadyLogged(plan: Plan): Promise<AlreadyLogged> {
     const supabase = await createClient();
     const { data, error } = await supabase
       .from("interactions")
-      .select("occurred_at, interaction_type, resident_id, profiles(full_name)")
+      .select("occurred_at, interaction_type, resident_id, profiles!interactions_staff_member_id_fkey(full_name)")
       .in("resident_id", [...new Set(wanted.map((w) => w.x.resident!))])
+      .is("voided_at", null)
       .gte("occurred_at", from)
       .lt("occurred_at", to)
       .order("occurred_at", { ascending: false });
@@ -286,7 +287,12 @@ function quickLogSubmissionId(parts: (string | number | null)[]) {
  * says exactly which part didn't.
  */
 
-export async function applyPlan(input: unknown, secondVisits: string[] = []): Promise<ApplyResult> {
+export async function applyPlan(
+  input: unknown,
+  secondVisits: string[] = [],
+  /** The on-site notes box: the facility we're standing in. */
+  onSiteFacilityId?: string
+): Promise<ApplyResult> {
   const parsed = planSchema.safeParse(input);
   if (!parsed.success) return { ok: false, steps: [{ label: "Nothing was saved: the plan looked wrong.", ok: false }] };
   const plan = aboutThemNotes(parsed.data);
@@ -610,7 +616,8 @@ export async function applyPlan(input: unknown, secondVisits: string[] = []): Pr
     const sameKey = idParts(user.id).join("|");
     const repeat = (repeats.get(sameKey) ?? 0) + 1;
     repeats.set(sameKey, repeat);
-    // One entry for the writer, plus one per colleague who was also there.
+    // One entry, once -- colleagues who were also there are its team
+    // members (decision B1, Oct 16, 2026), never a copy each.
     const insertFor = (staffId: string) =>
       supabase
         .from("interactions")
@@ -622,18 +629,14 @@ export async function applyPlan(input: unknown, secondVisits: string[] = []): Pr
         contact_id: contactId,
         notes: blankToNull(i.notes),
         minutes_spent: i.minutes_spent && i.minutes_spent > 0 ? i.minutes_spent : null,
-        // A colleague's copy credits them for being there, but the people
-        // reached are counted once (on the writer's entry), so a lunch for
-        // three isn't reported as six.
         people_reached:
-          staffId === user.id &&
           i.people_reached && i.people_reached > 0 && SERVICE_FIELDS_BY_TYPE[i.interaction_type as InteractionType]?.includes("people_reached")
             ? i.people_reached
             : null,
         // Food: one number -- how many packages, also how many people got
         // one (the funder report counts this one, Impact the one above).
         quantity:
-          staffId === user.id && i.interaction_type === "food_delivery" && i.people_reached && i.people_reached > 0
+          i.interaction_type === "food_delivery" && i.people_reached && i.people_reached > 0
             ? i.people_reached
             : null,
         holiday: i.holiday && HOLIDAY_TYPES.includes(i.interaction_type) ? i.holiday : null,
@@ -643,6 +646,15 @@ export async function applyPlan(input: unknown, secondVisits: string[] = []): Pr
             ? occasionForHoliday(i.holiday)
             : null,
         staff_member_id: staffId,
+        // Written on site: a staff conversation there was in person
+        // (decision B, Oct 19, 2026).
+        in_person: onSiteFacilityId && facilityId === onSiteFacilityId && IN_PERSON_ONLY_TYPES.includes(i.interaction_type) ? true : null,
+        // How it happened, for kinds that can only happen one way (a visit
+        // is in person, a phone call by phone); otherwise left to the tick
+        // above, never assumed (Oct 21, 2026).
+        ...(METHOD_FIXED[i.interaction_type as InteractionType]
+          ? { method: methodWhere(METHOD_FIXED[i.interaction_type as InteractionType], facilityId) }
+          : {}),
         client_submission_id: quickLogSubmissionId([
           ...idParts(staffId),
           ...(repeat > 1 ? [repeat] : []),
@@ -673,23 +685,23 @@ export async function applyPlan(input: unknown, secondVisits: string[] = []): Pr
     }
     if (residentId) touchedResidents.add(residentId);
     if (facilityId) touchedFacilities.add(facilityId);
-    steps.push({ label, ok: true, href: residentId ? `/residents/${residentId}` : facilityId ? `/facilities/${facilityId}` : "/interactions" });
-    for (const colleague of i.also_by.filter((id) => id !== user.id)) {
-      const { data: copy, error: copyError } = await insertFor(colleague);
-      const copyLabel = `${label} -- also for ${staffNames.get(colleague) ?? "a colleague"}`;
-      if (copyError?.code === "23505") {
-        steps.push({ label: `${copyLabel} (already saved earlier)`, ok: true });
+    const colleagues = [...new Set(i.also_by.filter((id) => id !== user.id))];
+    if (colleagues.length > 0) {
+      const { error: teamError } = await supabase.rpc("set_interaction_people", {
+        p_interaction_id: data.id,
+        p_engaged_contact_ids: [],
+        p_present_contact_ids: [],
+        p_team_profile_ids: colleagues,
+      });
+      const names = colleagues.map((c) => staffNames.get(c) ?? "a colleague").join(", ");
+      if (teamError) {
+        steps.push({ label, ok: false, href: `/interactions/${data.id}/edit`, error: `Saved, but ${names} wasn't added as also there -- please add them under Done by.` });
         continue;
       }
-      if (copyError || !copy) {
-        fail(copyLabel);
-        continue;
-      }
-      if (volunteerIds.length > 0) {
-        await supabase.rpc("set_interaction_volunteers", { p_interaction_id: copy.id, p_contact_ids: volunteerIds });
-      }
-      steps.push({ label: copyLabel, ok: true });
+      steps.push({ label: `${label} -- with ${names}`, ok: true, href: residentId ? `/residents/${residentId}` : facilityId ? `/facilities/${facilityId}` : "/interactions" });
+      continue;
     }
+    steps.push({ label, ok: true, href: residentId ? `/residents/${residentId}` : facilityId ? `/facilities/${facilityId}` : "/interactions" });
   }
 
   for (const t of plan.tasks) {

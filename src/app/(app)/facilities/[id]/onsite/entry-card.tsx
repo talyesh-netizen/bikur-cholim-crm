@@ -9,10 +9,9 @@ import { VoiceButton } from "@/components/voice-button";
 import { saveOnsiteEntry, type OnsiteEntryKind } from "@/lib/actions/onsite-entries";
 import { getLocalToday, orgLocalToIso, toOrgDatetimeLocalValue, formatDateOnly } from "@/lib/format-date";
 import { draftKey, newSubmissionId, readDraft, removeDraft, writeDraft } from "./onsite-drafts";
-import { DateTimeInput } from "@/components/date-time-input";
 
 const SAVE_LABEL: Record<OnsiteEntryKind, string> = { visit: "Save visit", staff: "Save conversation", family: "Save conversation" };
-const SAVED_LABEL: Record<OnsiteEntryKind, string> = { visit: "Visit saved", staff: "Conversation saved", family: "Family support saved" };
+const SAVED_LABEL: Record<OnsiteEntryKind, string> = { visit: "Visit saved", staff: "Staff conversation saved", family: "Family support saved" };
 
 /**
  * Record what happened with one person, right where they're listed:
@@ -132,7 +131,7 @@ export function EntryCard({
     return (
       <div role="status" className="flex flex-col gap-2 rounded-lg border border-success/40 bg-success/10 p-3 text-sm">
         <p className="flex items-center gap-2 font-semibold text-success">
-          <CheckCircle2 className="size-5 shrink-0" /> {SAVED_LABEL[kind]} {earlierAt ? `for ${formatDateOnly(earlierAt.slice(0, 10))}, ` : ""}at {saved.time}
+          <CheckCircle2 className="size-5 shrink-0" /> {SAVED_LABEL[kind]} {earlierAt ? `for ${formatDateOnly(earlierAt.slice(0, 10))}` : `at ${saved.time}`}
         </p>
         <p className="text-muted-foreground">{title}. It&apos;s in the CRM.</p>
         <div className="flex gap-2">
@@ -154,12 +153,15 @@ export function EntryCard({
       {earlierAt ? (
         <label className="flex flex-col gap-1 rounded-md border border-[var(--tone-attention-fg)]/40 bg-[var(--tone-attention-bg)] p-2 text-sm">
           <span className="font-medium text-[var(--tone-attention-fg)]">
-            This note was started on an earlier day. It will be saved for when the visit happened:
+            This note was started on an earlier day. It will be saved for the day the visit happened:
           </span>
-          <DateTimeInput
-            value={earlierAt}
-            onChange={(v) => setEarlierAt(v || earlierAt)}
-            aria-label="When the visit happened"
+          {/* The day only (decision B1); the time the note was started is kept. */}
+          <input
+            type="date"
+            value={earlierAt.slice(0, 10)}
+            onChange={(e) => setEarlierAt(e.target.value ? `${e.target.value}${earlierAt.slice(10)}` : earlierAt)}
+            className="h-11 rounded-md border border-input bg-background px-2 text-base"
+            aria-label="The day the visit happened"
           />
         </label>
       ) : null}

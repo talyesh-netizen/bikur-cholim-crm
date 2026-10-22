@@ -52,9 +52,8 @@ import { labelFor, INTERACTION_TYPES, HOLIDAYS, FAMILY_NEEDS } from "@/lib/domai
 import { RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { CONTACT_TYPES, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
 import { ENGAGEMENT_STATUSES, VISIT_PRIORITIES, KOSHER_FOOD_OPTIONS, FACILITY_TYPES } from "@/lib/domain/facility";
-import { formatDateOnly, formatDateTimeWithTime, getLocalToday, orgLocalToIso, toOrgDatetimeLocalValue } from "@/lib/format-date";
+import { formatDateOnly, formatDateTime, getLocalToday, orgLocalToIso, toOrgDatetimeLocalValue } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
-import { DateTimeInput } from "@/components/date-time-input";
 
 type Section = keyof Omit<Plan, "summary" | "questions">;
 /** Where a line on the check screen will be saved -- one plain label
@@ -158,7 +157,7 @@ function editFieldsFor(plan: Plan, section: Section, index: number): EditField[]
         // The same 8 choices as the log form (an unusual type it read
         // stays selectable so it isn't silently changed).
         { key: "interaction_type", label: "Type", kind: "select", options: offeredOptions(INTERACTION_TYPES, TYPE_BUTTONS.flatMap((b) => b.choices.map((c) => c.value)), plan.interactions[index].interaction_type) },
-        { key: "occurred_at", label: "When", kind: "datetime" },
+        { key: "occurred_at", label: "Date", kind: "datetime" },
         { key: "notes", label: "Notes", kind: "textarea" },
       ];
     case "tasks":
@@ -252,7 +251,7 @@ export function describe(plan: Plan, names: PlanNames, today: string): Item[] {
       [n(x.contact) && `with ${n(x.contact)}`, x.resident && n(x.facility) && `at ${n(x.facility)}`].filter(Boolean).join(" ") || null,
       // The date comes first: a past entry ("catching up from Monday")
       // must be visibly on the right day.
-      iso && `${x.occurred_at.slice(0, 10) === today ? "Today" : "Earlier"} · ${formatDateTimeWithTime(iso)}`,
+      iso && `${x.occurred_at.slice(0, 10) === today ? "Today" : "Earlier"} · ${formatDateTime(iso)}`,
       x.volunteers.length > 0 && `Volunteers: ${x.volunteers.map(n).join(", ")}`,
       x.also_by.length > 0 && `With ${x.also_by.map(n).join(", ")}`,
       x.minutes_spent ? `${x.minutes_spent} minutes` : null,
@@ -553,7 +552,7 @@ export function QuickLog({
         const secondVisits = Object.entries(repeatAnswers)
           .filter(([, answer]) => answer === "second")
           .map(([index]) => repeatVisitKey(dated.interactions[Number(index)]));
-        response = await applyPlan(withDecisions(withoutSkipped(dated, skipped), decisions), secondVisits);
+        response = await applyPlan(withDecisions(withoutSkipped(dated, skipped), decisions), secondVisits, onSite?.facilityId);
       } catch {
         // Saving twice is safe (each entry has a fixed id), so the list
         // stays up for another try.
@@ -991,7 +990,13 @@ function CardEditor({
               ))}
             </select>
           ) : f.kind === "datetime" ? (
-            <DateTimeInput value={draft[f.key]} onChange={(v) => set(f.key, v)} inputClassName={cn(inputClass, "h-9 md:h-9")} />
+            // The day only (decision B1): the time already there is kept.
+            <input
+              type="date"
+              value={draft[f.key].slice(0, 10)}
+              onChange={(e) => e.target.value && set(f.key, `${e.target.value}${draft[f.key].slice(10)}`)}
+              className={cn(inputClass, "h-9")}
+            />
           ) : (
             <input
               type={f.kind === "date" ? "date" : f.kind === "number" ? "number" : "text"}
@@ -1028,20 +1033,22 @@ function CheckDate({
   value: string;
   onConfirm: (value: string) => void;
 }) {
-  const [date, setDate] = useState(value.slice(0, 16));
+  // The day only (decision B1); the time already there is kept.
+  const [date, setDate] = useState(value.slice(0, 10));
   return (
     <div className="mt-1 rounded-lg border border-[var(--tone-attention-fg)]/30 bg-[var(--tone-attention-bg)] p-3 text-sm text-[var(--tone-attention-fg)]">
       <p className="mb-2 flex items-center gap-1.5 font-semibold">
         <CalendarClock className="size-4" /> Check the date: {reason}
       </p>
       <div className="flex flex-wrap items-center gap-2">
-        <DateTimeInput
+        <input
+          type="date"
           value={date}
-          onChange={setDate}
-          aria-label="When it happened"
-          inputClassName="h-9 md:h-9 px-2 text-foreground"
+          onChange={(e) => setDate(e.target.value)}
+          aria-label="The day it happened"
+          className="h-9 rounded-md border border-input bg-background px-2 text-foreground"
         />
-        <Button type="button" size="sm" disabled={!date} onClick={() => onConfirm(date)}>
+        <Button type="button" size="sm" disabled={!date} onClick={() => onConfirm(`${date}${value.slice(10, 16) || "T12:00"}`)}>
           This date is right
         </Button>
       </div>

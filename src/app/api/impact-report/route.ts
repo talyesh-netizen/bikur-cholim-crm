@@ -4,19 +4,14 @@ import {
   getStaffActivity,
   getVolunteerImpact,
   getServicesDelivered,
-  type ImpactPeriod,
 } from "@/lib/queries/impact";
+import { getImpactOverview } from "@/lib/queries/impact-overview";
+import { currentMonth, parsePeriod } from "@/lib/report-period";
 import { labelFor, UNMET_NEED_REASONS } from "@/lib/domain/interaction";
 import { ORGANIZATION_NAME, APP_NAME, ORGANIZATION_TIMEZONE } from "@/lib/config";
 import { getLocalToday } from "@/lib/format-date";
 import { csvRow } from "@/lib/csv";
 import { getFacility } from "@/lib/queries/facilities";
-
-const PERIOD_LABELS: Record<ImpactPeriod, string> = {
-  month: "This month",
-  quarter: "This quarter",
-  all: "All time",
-};
 
 /**
  * A funder/board-ready export of the same aggregate numbers already
@@ -25,8 +20,9 @@ const PERIOD_LABELS: Record<ImpactPeriod, string> = {
  * See PRIVACY_AND_SECURITY.md / ROADMAP.md on what may leave the app.
  */
 export async function GET(request: NextRequest) {
-  const periodParam = request.nextUrl.searchParams.get("period");
-  const period: ImpactPeriod = periodParam === "quarter" || periodParam === "all" ? periodParam : "month";
+  const q = request.nextUrl.searchParams;
+  // Any month, quarter, year or dates (director, Oct 21, 2026).
+  const period = parsePeriod({ period: q.get("period"), from: q.get("from"), to: q.get("to") }, currentMonth);
   // Optional: the same report for one facility (from its profile page).
   const facilityId = request.nextUrl.searchParams.get("facility") || undefined;
   const facility = facilityId ? await getFacility(facilityId) : null;
@@ -34,11 +30,13 @@ export async function GET(request: NextRequest) {
     return new NextResponse("Facility not found, or you don't have access to it.", { status: 404 });
   }
 
-  const [impact, staffActivity, volunteerImpact, services] = await Promise.all([
+  const [impact, staffActivity, volunteerImpact, services, overview] = await Promise.all([
     getImpactBreakdown(period, facilityId),
     getStaffActivity(period, facilityId),
     getVolunteerImpact(period, facilityId),
     getServicesDelivered(period, facilityId),
+    // The organization-wide facility and staff numbers (not per facility).
+    facilityId ? Promise.resolve(null) : getImpactOverview(period),
   ]);
 
   const generatedAt = new Date().toLocaleString("en-US", {
@@ -49,9 +47,23 @@ export async function GET(request: NextRequest) {
 
   let csv = "";
   csv += csvRow([`${ORGANIZATION_NAME} — ${APP_NAME}`]);
-  csv += csvRow([`Impact report — ${facility ? `${facility.name} — ` : ""}${PERIOD_LABELS[period]}`]);
+  csv += csvRow([`Impact report — ${facility ? `${facility.name} — ` : ""}${period.label}`]);
   csv += csvRow([`Generated ${generatedAt}`]);
   csv += csvRow([]);
+
+  if (overview) {
+    const h = overview.headline;
+    csv += csvRow(["Facility visits"]);
+    csv += csvRow(["Measure", "What it counts", "Count"]);
+    csv += csvRow(["Staff visits", "Days our staff were at a facility, each facility once a day", h.visitDays]);
+    csv += csvRow(["Volunteer-only visits", "Days only volunteers were at a facility", h.volunteerOnlyDays]);
+    csv += csvRow(["Total facility presence", "Staff, volunteers or both, each facility once a day", h.presenceDays]);
+    csv += csvRow(["Facilities visited", "Different facilities we were at", h.facilitiesVisited]);
+    csv += csvRow(["Facilities engaged", "Different facilities with any contact, calls included", h.facilitiesEngaged]);
+    csv += csvRow(["Staff meetings & conversations", "Each meeting once, however many staff were in it", h.staffTouchpoints]);
+    csv += csvRow(["Facility staff met", "Different staff people", h.staffPeople]);
+    csv += csvRow([]);
+  }
 
   const { food, volunteers, schoolShul, careNavigation, unmetNeed, peopleReached } = services;
   csv += csvRow(["Services delivered"]);
@@ -79,6 +91,8 @@ export async function GET(request: NextRequest) {
   csv += csvRow(["School & shul programs", "Shul programs", schoolShul.shul]);
   csv += csvRow(["School & shul programs", "Students / members who took part", schoolShul.participants]);
   csv += csvRow(["School & shul programs", "Residents reached (approx.)", schoolShul.peopleReached]);
+  csv += csvRow(["Group volunteers", "School, shul & community group projects", services.groupVolunteers.projects]);
+  csv += csvRow(["Group volunteers", "Volunteers (each group counted once, however many facilities)", services.groupVolunteers.volunteers]);
   csv += csvRow(["Medical referrals", "Referred to Bikur Cholim medical referrals", services.medicalReferrals]);
   csv += csvRow(["Rides", "Rides arranged through Bikur Cholim", services.rides]);
   csv += csvRow(["Care navigation", "Families helped", careNavigation.families]);
@@ -125,7 +139,7 @@ export async function GET(request: NextRequest) {
   }
 
   const facilitySlug = facility ? `${facility.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-` : "";
-  const filename = `impact-report-${facilitySlug}${period}-${getLocalToday()}.csv`;
+  const filename = `impact-report-${facilitySlug}${period.key.replace(/\.\./g, "_to_")}-${getLocalToday()}.csv`;
 
   return new NextResponse(csv, {
     headers: {
