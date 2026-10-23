@@ -490,6 +490,41 @@ through the usual QA review and the director's approval before merging.
 
 ---
 
+# Saved for Later: Making It Smoother
+
+Ideas the director has noticed in everyday use (Oct 23, 2026). Just
+being tracked; nothing decided or scheduled. Each one changes what
+staff see, so it needs the director's approval (with ChatGPT review)
+before any work.
+
+## Staff role as a drop-down
+
+"Role at this facility" is a typed box (`role_at_facility`), so the same
+role gets written several ways ("Activities Director", "Activities
+Dir.") and can't be filtered or counted. There has never been a
+drop-down. Idea: a set list (Activities Director, Social Worker,
+Administrator, Director of Nursing, Nurse, Chaplain, Front Desk,
+Admissions) plus "Other (type it in)", matching roles already typed.
+
+## No address for facility staff
+
+Every person gets the same address fields
+(`src/app/(app)/contacts/contact-form.tsx`), but addresses don't matter
+for nursing-home staff. Idea: hide the address lines for facility staff
+only; keep them for volunteers and family; anything already saved stays.
+
+## Staff log "How?" looks like it defaults to "elsewhere"
+
+A staff conversation is meant to start on "In person at facility", but a
+new form has no facility yet, so it shows "In person elsewhere" until one
+is picked (`src/app/(app)/interactions/interaction-form.tsx`, the
+`method` line). It switches by itself once a facility is chosen, but it
+looks wrong, and anyone who "fixes" it first locks in their pick. Idea:
+show "In person at facility" from the start; saving without a facility
+still saves as elsewhere, so counting is unchanged.
+
+---
+
 # Long-Term Direction
 
 Future phases may support additional Bikur Cholim departments, teams, volunteers, family communication, and automation.
