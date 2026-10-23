@@ -458,6 +458,38 @@ Do not implement these during Phase One without explicit approval:
 
 ---
 
+# Saved for Later: Slow Loading on Phones
+
+Diagnosed Oct 23, 2026. Parked by the director, not yet scheduled.
+
+## Why it is sometimes slow
+
+1. The server and the database are on opposite coasts. Vercel runs the
+   site in Washington, D.C. (`iad1`, the default, never changed) while
+   Supabase is in Oregon (`us-west-2`). Each screen makes about 5-7
+   back-to-back trips between them (a resident page: sign-in check in
+   `src/proxy.ts`, again in `src/app/(app)/layout.tsx`, again in
+   `getCurrentProfile`, then the page data, then the facility, then its
+   healthcare group). About half a second of travel per screen.
+2. Cold starts. On the free (Hobby) plan the server sleeps when idle, so
+   the first screen after a quiet spell waits an extra 1-3 seconds.
+3. Weak facility Wi-Fi or cell signal adds to both.
+
+## Planned fixes, in order
+
+1. Move the Vercel functions to Oregon: add `"regions": ["pdx1"]` to
+   `vercel.json`. Free, one line.
+2. Check sign-in once per screen instead of three times, and load the
+   facility and healthcare group alongside the rest of a page's data
+   instead of after it.
+3. Optional: Vercel Pro ($20/month) cuts cold starts and turns on
+   timing measurements (Observability), so the effect can be measured.
+
+None of these change what staff see or what is saved. Each still goes
+through the usual QA review and the director's approval before merging.
+
+---
+
 # Long-Term Direction
 
 Future phases may support additional Bikur Cholim departments, teams, volunteers, family communication, and automation.
