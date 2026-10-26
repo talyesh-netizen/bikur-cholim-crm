@@ -225,6 +225,15 @@ export function InteractionForm({
       initialPeople?.engaged ??
       (defaultContactId && ENGAGEMENT_TYPES.includes(values.interaction_type) ? [defaultContactId] : [])
   );
+  // The person picked under Contact (or the one the form was opened
+  // from) carries over to "Staff you worked with" when the kind is
+  // changed to a staff one -- a log started from a staff member's page
+  // keeps their name.
+  const [contactId, setContactId] = useState(values.contact_id);
+  function chooseType(type: string) {
+    setInteractionType(type);
+    if (ENGAGEMENT_TYPES.includes(type) && engaged.length === 0 && contactId) setEngaged([contactId]);
+  }
   const [present, setPresent] = useState<string[]>(state.people?.present ?? initialPeople?.present ?? []);
   const [presentOpened, setPresentOpened] = useState(false);
 
@@ -400,7 +409,7 @@ export function InteractionForm({
         error={fieldErrors.interaction_type}
         required
       >
-        <TypePicker value={interactionType} onChange={setInteractionType} />
+        <TypePicker value={interactionType} onChange={chooseType} />
       </Field>
 
       {/* How it happened (director, Oct 21, 2026): only in person can count
@@ -680,7 +689,8 @@ export function InteractionForm({
           <SearchPicker
             id="contact_id"
             name="contact_id"
-            defaultValue={values.contact_id}
+            value={contactId}
+            onChange={setContactId}
             options={contacts.map((c) => ({ id: c.id, label: c.name, detail: c.detail }))}
             emptyLabel="No specific contact"
             placeholder="Type a name…"
