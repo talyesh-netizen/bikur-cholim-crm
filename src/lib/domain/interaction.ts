@@ -171,6 +171,9 @@ export type InteractionWithNames = Interaction & {
  * for help finding a facility for their father doesn't have one yet. */
 export const FACILITY_OPTIONAL_TYPES: readonly string[] = [
   "care_navigation",
+  // A call with a resident's family member, wherever they are
+  // (director, Oct 26, 2026).
+  "family_communication",
   "volunteer_meeting",
   // Community events and outreach, or students packing Shabbos packages
   // at school (Build 2, Oct 16, 2026).

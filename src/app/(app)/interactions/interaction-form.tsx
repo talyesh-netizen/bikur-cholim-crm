@@ -370,7 +370,13 @@ export function InteractionForm({
         </div>
       ) : null}
 
-      <Field label="Facility" htmlFor="facility_id" error={fieldErrors.facility_id} required={facilityRequired}>
+      {/* A facility picked after a failed save clears its "Please choose" note. */}
+      <Field
+        label="Facility"
+        htmlFor="facility_id"
+        error={facilityId ? undefined : fieldErrors.facility_id}
+        required={facilityRequired}
+      >
         <FacilityPicker
           id="facility_id"
           name="facility_id"

@@ -243,7 +243,7 @@ One row per visit, call, program, or other logged activity.
 |---|---|
 | Date and time | |
 | Interaction type | Resident visit / Volunteer visit / Resident phone call / Family communication / Care navigation / Food delivery / Kosher food coordination / Program at a facility / School & shul program / Medical referral (to Bikur Cholim) / Ride arranged (through Bikur Cholim) / Referral (other) / Facility staff communication / Facility discovery visit / Hospital related communication / Email / Other |
-| Facility | Link to `facilities` (optional only for Care navigation, where the family hasn't chosen a facility yet) |
+| Facility | Link to `facilities` (optional for Care navigation, Family support, Meeting with a volunteer, Programs, School & shul programs and Other) |
 | Resident | Optional link to `residents` (some interactions, like a facility discovery visit, aren't about one resident) |
 | Contact | Optional link to `contacts` |
 | Staff member | Who completed it (link to `profiles`) |
