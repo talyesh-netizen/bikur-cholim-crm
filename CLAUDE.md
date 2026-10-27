@@ -170,3 +170,11 @@ These replace any earlier rule above that says otherwise.
   partner) starts with that person attached, whatever kind is picked.
 - Navigation stays as it is. Expanded On-site Mode, major redesigns and
   GitHub refactoring wait.
+- Stories (Oct 27, 2026, option C): a simple free-form log, kept apart
+  from interactions so it never counts in any report. Only the text is
+  needed; a resident and/or facility can be linked then, later or never.
+  The date is set automatically. Under More (in the sidebar on a
+  computer) and on linked resident and facility pages. Seen by active
+  staff who can see the linked resident and facility; an unlinked story
+  is hidden from facility-limited accounts unless they wrote it. Edits
+  are kept in the change history; stories can't be deleted from the app.

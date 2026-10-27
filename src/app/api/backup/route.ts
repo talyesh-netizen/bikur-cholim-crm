@@ -32,6 +32,8 @@ const TABLES: { name: string; orderBy: string[] }[] = [
   { name: "report_snapshots", orderBy: ["period_key", "metric"] },
   { name: "tasks", orderBy: ["id"] },
   { name: "profile_notes", orderBy: ["id"] },
+  // Stories (Oct 27, 2026).
+  { name: "stories", orderBy: ["id"] },
   { name: "profiles", orderBy: ["id"] },
   { name: "profile_facility_access", orderBy: ["profile_id", "facility_id"] },
   { name: "geographic_clusters", orderBy: ["id"] },

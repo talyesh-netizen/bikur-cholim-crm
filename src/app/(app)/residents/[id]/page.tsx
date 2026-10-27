@@ -28,6 +28,8 @@ import { residentName } from "@/lib/domain/resident-name";
 import { getCurrentProfile } from "@/lib/get-current-profile";
 import { listChangesForRecord } from "@/lib/queries/change-log";
 import { ChangeHistoryList } from "@/components/change-history-list";
+import { StoryList } from "@/components/story-list";
+import { listStories } from "@/lib/queries/stories";
 
 function residenceUnitLabel(facilityType: string | null) {
   return facilityType === "assisted_living" || facilityType === "independent_living" || facilityType === "senior_apartment" ? "Apt" : "Room";
@@ -45,7 +47,7 @@ export default async function ResidentDetailPage({
   const back = safeReturnTo((await searchParams).back);
   // Saving a log or task started here goes back where the person began.
   const backParam = back ? `&back=${encodeURIComponent(back)}` : "";
-  const [resident, history, interactions, volunteers, familyContacts, tasks, profileNotes, profile, changes] = await Promise.all([
+  const [resident, history, interactions, volunteers, familyContacts, tasks, profileNotes, profile, changes, stories] = await Promise.all([
     getResident(id),
     getResidentFacilityHistory(id),
     listInteractionsForResident(id),
@@ -55,6 +57,7 @@ export default async function ResidentDetailPage({
     listResidentProfileNotes(id),
     getCurrentProfile(),
     listChangesForRecord("residents", id),
+    listStories({ residentId: id }),
   ]);
 
   if (!resident) notFound();
@@ -175,6 +178,21 @@ export default async function ResidentDetailPage({
         }
       >
         <InteractionList interactions={interactions} variant="resident" />
+      </Fold>
+
+      <Fold
+        title="Stories"
+        count={stories.length}
+        action={
+          <Button size="sm" variant="outline" asChild>
+            <Link href={`/stories/new?resident=${resident.id}&back=${encodeURIComponent(`/residents/${resident.id}`)}`}>
+              <Plus className="size-4" />
+              Add a story
+            </Link>
+          </Button>
+        }
+      >
+        <StoryList stories={stories} back={`/residents/${resident.id}`} hideLinks="resident" />
       </Fold>
 
       <Fold

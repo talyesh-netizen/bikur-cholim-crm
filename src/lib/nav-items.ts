@@ -15,6 +15,7 @@ import {
   type LucideIcon,
   KeyRound,
   Network,
+  BookOpen,
 } from "lucide-react";
 import type { Section } from "@/lib/sections";
 
@@ -53,6 +54,8 @@ export const NAV_ITEMS: NavItem[] = [
   // Shuls, schools and other community organizations -- their own menu
   // item so they're one tap away, not tucked under People.
   { href: "/organizations", label: "Strategic Partners", icon: Landmark, section: "contacts" },
+  // A simple free-form log (Oct 27, 2026); on a phone it sits under More.
+  { href: "/stories", label: "Stories", icon: BookOpen, section: "log" },
   { href: "/settings", label: "Settings", icon: Settings, section: "neutral", alsoActive: ["/data-quality", "/settings/password"] },
 ];
 
