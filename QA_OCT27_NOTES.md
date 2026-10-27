@@ -9,7 +9,8 @@ https://bikur-cholim-crm-git-claude-oct-2-d26ccb-bikur-cholim-cleveland.vercel.a
 |---|---|---|
 | 1 | Logging from a staff member's page (Carlos Ruiz) | **Change requested:** director chose A (see below) |
 | 2 | Two staff in one conversation | **Pass:** two separate entries (Dana Activities, Carlos Ruiz), same day, place and note |
-| 3–10 | Food, Program, Family, More types, staff role, Impact, funder export, Stories | Not checked yet |
+| 3 | Food form | **Change requested:** hide the Resident box (see answer 2); number question still to confirm |
+| 4–10 | Program, Family, More types, staff role, Impact, funder export, Stories | Not checked yet |
 
 ## Step 1 finding (director, Oct 27, 2026)
 
@@ -61,3 +62,7 @@ Please reply A, B or C and why.
 1. **Side panel "+ Log": A.** The side panel button always opens a blank form.
    Every person's page (staff, family, volunteer, partner and resident) gets
    its own clear "Log with [name]" button at the top.
+2. **Resident box on Food and Programs: B (hide on both).** Food and programs
+   aren't about one person. If someone has a meaningful conversation with a
+   resident at a program, it's logged separately as its own entry. The 10
+   older food entries that already have a resident keep it, unchanged.
