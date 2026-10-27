@@ -55,17 +55,20 @@ export async function GET(request: NextRequest) {
     const h = overview.headline;
     csv += csvRow(["Facility visits"]);
     csv += csvRow(["Measure", "What it counts", "Count"]);
-    csv += csvRow(["Staff visits", "Days our staff were at a facility, each facility once a day", h.visitDays]);
+    csv += csvRow(["Facility visit-days (staff)", "Days our staff were at a facility, each facility once a day", h.visitDays]);
+    csv += csvRow(["Staff visits", "Each staff member once per facility per day they were there", h.staffVisits]);
     csv += csvRow(["Volunteer-only visits", "Days only volunteers were at a facility", h.volunteerOnlyDays]);
     csv += csvRow(["Total facility presence", "Staff, volunteers or both, each facility once a day", h.presenceDays]);
     csv += csvRow(["Facilities visited", "Different facilities we were at", h.facilitiesVisited]);
     csv += csvRow(["Facilities engaged", "Different facilities with any contact, calls included", h.facilitiesEngaged]);
-    csv += csvRow(["Staff meetings & conversations", "Each meeting once, however many staff were in it", h.staffTouchpoints]);
+    csv += csvRow(["Facility staff interactions", "Each staff person spoken with, once per conversation", h.staffTouchpoints]);
     csv += csvRow(["Facility staff met", "Different staff people", h.staffPeople]);
+    csv += csvRow(["Partner conversations", "Schools, shuls, hospices, agencies and other partners; each person once per conversation", h.partnerConversations]);
+    csv += csvRow(["Partners spoken with", "Different partner people", h.partnerPeople]);
     csv += csvRow([]);
   }
 
-  const { food, volunteers, schoolShul, careNavigation, unmetNeed, peopleReached } = services;
+  const { food, volunteers, schoolShul, unmetNeed, peopleReached } = services;
   csv += csvRow(["Services delivered"]);
   csv += csvRow(["Service", "Measure", "Count"]);
   csv += csvRow(["Residents served one-on-one", "Different residents (each counted once)", services.oneOnOne.residents]);
@@ -78,8 +81,7 @@ export async function GET(request: NextRequest) {
   csv += csvRow(["Reached through programs & deliveries", "School & shul programs", peopleReached.schoolShul]);
   csv += csvRow(["Reached through programs & deliveries", "Other activities", peopleReached.other]);
   csv += csvRow(["Food deliveries", "Deliveries", food.deliveries]);
-  csv += csvRow(["Food deliveries", "Items delivered", food.items]);
-  csv += csvRow(["Food deliveries", "Residents reached (approx.)", food.peopleReached]);
+  csv += csvRow(["Food deliveries", "People who received food (approx.)", food.peopleReached]);
   csv += csvRow(["Food deliveries", "Shabbos deliveries", food.byOccasion.shabbos]);
   csv += csvRow(["Food deliveries", "Yom Tov deliveries", food.byOccasion.yomTov]);
   csv += csvRow(["Volunteer impact", "Volunteer visits", volunteers.visits]);
@@ -89,14 +91,16 @@ export async function GET(request: NextRequest) {
   csv += csvRow(["School & shul programs", "Programs", schoolShul.programs]);
   csv += csvRow(["School & shul programs", "School programs", schoolShul.school]);
   csv += csvRow(["School & shul programs", "Shul programs", schoolShul.shul]);
-  csv += csvRow(["School & shul programs", "Students / members who took part", schoolShul.participants]);
+  csv += csvRow(["School & shul programs", "Students who took part", schoolShul.students]);
+  csv += csvRow(["School & shul programs", "Volunteers who took part", schoolShul.volunteers]);
+  csv += csvRow(["School & shul programs", "Took part, not split (older entries)", schoolShul.notSplit]);
   csv += csvRow(["School & shul programs", "Residents reached (approx.)", schoolShul.peopleReached]);
-  csv += csvRow(["Group volunteers", "School, shul & community group projects", services.groupVolunteers.projects]);
-  csv += csvRow(["Group volunteers", "Volunteers (each group counted once, however many facilities)", services.groupVolunteers.volunteers]);
+  csv += csvRow(["Program participation", "Programs with a head count (each group counted once, however many facilities)", services.groupVolunteers.projects]);
+  csv += csvRow(["Program participation", "Students", services.groupVolunteers.students]);
+  csv += csvRow(["Program participation", "Volunteers", services.groupVolunteers.volunteers]);
+  csv += csvRow(["Program participation", "Not split (older entries: students and volunteers together)", services.groupVolunteers.notSplit]);
   csv += csvRow(["Medical referrals", "Referred to Bikur Cholim medical referrals", services.medicalReferrals]);
   csv += csvRow(["Rides", "Rides arranged through Bikur Cholim", services.rides]);
-  csv += csvRow(["Care navigation", "Families helped", careNavigation.families]);
-  csv += csvRow(["Care navigation", "Hours spent", careNavigation.hours]);
   csv += csvRow(["Staff time", "Staff hours logged", services.staffHours]);
   csv += csvRow([]);
 

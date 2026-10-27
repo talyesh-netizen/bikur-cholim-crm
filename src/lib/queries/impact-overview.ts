@@ -7,12 +7,19 @@ import { inPeriod, monthsOf, periodBounds, previousPeriod, type ReportPeriod } f
 import {
   facilityPresence,
   fetchEngagedLinks,
-  groupVolunteersFor,
+  fetchPartnerContacts,
+  fetchTeamLinks,
+  groupCountsFor,
   isCounted,
+  partnerConversationsFor,
+  partnerPeopleOn,
   staffInteractionFor,
   staffPeopleOn,
+  staffVisits,
   STAFF_SUPPORT_TYPES,
   type EngagedLinks,
+  type PartnerContacts,
+  type TeamLinks,
 } from "@/lib/queries/report-rules";
 
 // What each section of the Impact page counts. Kept here so every number
@@ -45,7 +52,10 @@ type Row = {
   id: string;
   interaction_type: string;
   occurred_at: string;
+  staff_member_id: string | null;
   participants: number | null;
+  student_count: number | null;
+  volunteer_count: number | null;
   part_of_id: string | null;
   counted_in_id: string | null;
   resident_id: string | null;
@@ -64,17 +74,23 @@ export type Headline = {
   residentContacts: number;
   families: number;
   familyConversations: number;
-  /** Distinct staff meetings and conversations (one meeting with four
-   * staff is one). */
+  /** Staff interactions: each facility staff person spoken with, once per
+   * entry (Oct 27, 2026; no separate meetings number). */
   staffTouchpoints: number;
   /** Different staff people met. */
   staffPeople: number;
   staffFacilities: number;
+  /** Partner conversations (school, shul, hospice, agency...), each person
+   * once per entry, and the different partners spoken with. */
+  partnerConversations: number;
+  partnerPeople: number;
   reached: number;
   programs: number;
   deliveries: number;
   /** Each facility once per day our staff were there in person. */
   visitDays: number;
+  /** Each staff member once per facility per day they were there. */
+  staffVisits: number;
   /** Each facility once per day only volunteers were there. */
   volunteerOnlyDays: number;
   /** Each facility once per day anyone from Bikur Cholim was there. */
@@ -85,26 +101,31 @@ export type Headline = {
   facilitiesEngaged: number;
   /** Volunteer visits, counted on their own (they make no staff visit-day). */
   volunteerVisits: number;
-  /** School / shul / community group volunteers, each project counted once. */
+  /** Program head counts, each project counted once: students and
+   * volunteers, and older entries' single number (not split). */
+  groupStudents: number;
   groupVolunteers: number;
+  groupNotSplit: number;
   groupProjects: number;
 };
 
 /** The headline numbers for a set of entries. Pass only counted entries
  * for the corrected numbers, or every entry for "as first recorded". */
-function headlineFor(rows: Row[], engaged: EngagedLinks): Headline {
+function headlineFor(rows: Row[], engaged: EngagedLinks, partners: PartnerContacts, team: TeamLinks): Headline {
   const residents = new Set<string>();
   const families = new Set<string>();
   const staffFacilities = new Set<string>();
   const staffPeople = new Set<string>();
+  const partnerPeople = new Set<string>();
   const presence = facilityPresence(rows);
   const h: Headline = {
     residents: 0, residentContacts: 0, families: 0, familyConversations: 0,
-    staffTouchpoints: 0, staffPeople: 0, staffFacilities: 0, reached: 0, programs: 0, deliveries: 0,
-    visitDays: presence.staffVisitDays, volunteerOnlyDays: presence.volunteerOnlyDays,
+    staffTouchpoints: 0, staffPeople: 0, staffFacilities: 0, partnerConversations: 0, partnerPeople: 0,
+    reached: 0, programs: 0, deliveries: 0,
+    visitDays: presence.staffVisitDays, staffVisits: staffVisits(rows, team), volunteerOnlyDays: presence.volunteerOnlyDays,
     presenceDays: presence.presenceDays, facilitiesVisited: presence.facilitiesVisited,
     facilitiesEngaged: presence.facilitiesEngaged,
-    volunteerVisits: 0, groupVolunteers: 0, groupProjects: 0,
+    volunteerVisits: 0, groupStudents: 0, groupVolunteers: 0, groupNotSplit: 0, groupProjects: 0,
   };
   for (const r of rows) {
     if (ONE_ON_ONE.has(r.interaction_type) && r.resident_id) {
@@ -117,16 +138,22 @@ function headlineFor(rows: Row[], engaged: EngagedLinks): Headline {
       const key = r.contact_id ?? r.resident_id;
       if (key) families.add(key);
     }
-    // Staff meetings and conversations, each once, and who was met.
-    if (staffInteractionFor(r, engaged) > 0) {
-      h.staffTouchpoints += 1;
+    // Staff interactions, one per person spoken with, and who was met;
+    // partner conversations the same, on their own line.
+    const staffCount = staffInteractionFor(r, engaged, partners);
+    if (staffCount > 0) {
+      h.staffTouchpoints += staffCount;
       if (r.facility_id) staffFacilities.add(r.facility_id);
     }
-    staffPeopleOn(r, engaged).forEach((p) => staffPeople.add(p));
+    staffPeopleOn(r, engaged, partners).forEach((p) => staffPeople.add(p));
+    h.partnerConversations += partnerConversationsFor(r, engaged, partners);
+    partnerPeopleOn(r, engaged, partners).forEach((p) => partnerPeople.add(p));
     if (r.interaction_type === "volunteer_visit") h.volunteerVisits += 1;
-    const group = groupVolunteersFor(r);
-    if (group > 0) {
-      h.groupVolunteers += group;
+    const group = groupCountsFor(r);
+    if (group.students + group.volunteers + group.notSplit > 0) {
+      h.groupStudents += group.students;
+      h.groupVolunteers += group.volunteers;
+      h.groupNotSplit += group.notSplit;
       h.groupProjects += 1;
     }
     if (PROGRAMS.has(r.interaction_type)) h.programs += 1;
@@ -137,6 +164,7 @@ function headlineFor(rows: Row[], engaged: EngagedLinks): Headline {
   h.families = families.size;
   h.staffFacilities = staffFacilities.size;
   h.staffPeople = staffPeople.size;
+  h.partnerPeople = partnerPeople.size;
   return h;
 }
 
@@ -184,12 +212,12 @@ export async function getImpactOverview(period: ReportPeriod): Promise<ImpactOve
   const fetchFrom = period.from ? [monthsStart, prev?.start ?? monthsStart, bounds.start!].sort()[0] : null;
   const fetchTo = period.to ? [monthsEnd, bounds.end!].sort()[1] : null;
 
-  const [allRows, residents, links, facilities, engaged] = await Promise.all([
+  const [allRows, residents, links, facilities, engaged, partners, team] = await Promise.all([
     selectAllPages<Row>((from, to) => {
       let q = supabase
         .from("interactions")
         .select(
-          "id, interaction_type, occurred_at, resident_id, contact_id, facility_id, people_reached, holiday, family_need, participants, part_of_id, counted_in_id, in_person, method, voided_at"
+          "id, interaction_type, occurred_at, staff_member_id, resident_id, contact_id, facility_id, people_reached, holiday, family_need, participants, student_count, volunteer_count, part_of_id, counted_in_id, in_person, method, voided_at"
         )
         .order("id")
         .range(from, to);
@@ -207,6 +235,8 @@ export async function getImpactOverview(period: ReportPeriod): Promise<ImpactOve
       supabase.from("facilities").select("id, name, engagement_status").eq("active", true).order("id").range(from, to)
     ),
     fetchEngagedLinks(supabase, fetchFrom),
+    fetchPartnerContacts(supabase),
+    fetchTeamLinks(supabase),
   ]);
 
   // Every number below counts each activity once: an entry an admin
@@ -236,7 +266,7 @@ export async function getImpactOverview(period: ReportPeriod): Promise<ImpactOve
     if (STAFF_VISITS.has(r.interaction_type)) visitsByMonth[i].values[0] += 1;
     if (r.interaction_type === "volunteer_visit") visitsByMonth[i].values[1] += 1;
     if (FAMILY.has(r.interaction_type)) familyByMonth[i].values[0] += 1;
-    staffByMonth[i].values[0] += staffInteractionFor(r, engaged);
+    staffByMonth[i].values[0] += staffInteractionFor(r, engaged, partners);
   }
 
   // Time since last visit -- active residents, today (not the period).
@@ -310,8 +340,9 @@ export async function getImpactOverview(period: ReportPeriod): Promise<ImpactOve
   const nameOf = new Map(facilities.map((f) => [f.id, f.name]));
   const perFacility = new Map<string, number>();
   for (const r of counted) {
-    if (staffInteractionFor(r, engaged) > 0 && r.facility_id) {
-      perFacility.set(r.facility_id, (perFacility.get(r.facility_id) ?? 0) + 1);
+    const staffCount = staffInteractionFor(r, engaged, partners);
+    if (staffCount > 0 && r.facility_id) {
+      perFacility.set(r.facility_id, (perFacility.get(r.facility_id) ?? 0) + staffCount);
     }
   }
   const topFacilities = [...perFacility.entries()]
@@ -323,8 +354,8 @@ export async function getImpactOverview(period: ReportPeriod): Promise<ImpactOve
   const reviewedCopies = allInPeriod.filter((r) => !isCounted(r)).length;
 
   return {
-    headline: headlineFor(counted, engaged),
-    asFirstRecorded: reviewedCopies > 0 ? headlineFor(allInPeriod, engaged) : null,
+    headline: headlineFor(counted, engaged, partners, team),
+    asFirstRecorded: reviewedCopies > 0 ? headlineFor(allInPeriod, engaged, partners, team) : null,
     corrections:
       reviewedCopies > 0 ? { entries: reviewedCopies, href: interactionsHref({ corrected: "1", from, to }) } : null,
     headlineLinks: {
@@ -333,7 +364,7 @@ export async function getImpactOverview(period: ReportPeriod): Promise<ImpactOve
       staff: interactionsHref({ types: HEADLINE_TYPES.staff.join(","), from, to }),
       reached: interactionsHref({ types: HEADLINE_TYPES.reached.join(","), from, to }),
     },
-    previous: inPrev ? headlineFor(inPrev, engaged) : null,
+    previous: inPrev ? headlineFor(inPrev, engaged, partners, team) : null,
     visitsByMonth,
     familyByMonth,
     staffByMonth,
@@ -368,12 +399,12 @@ export function quarterOf(value: string): { key: string; from: string; to: strin
  * snapshot taken before that quarter's first correction. */
 export async function headlineAsFirstRecorded(fromIso: string, toIso: string): Promise<Headline> {
   const supabase = await createClient();
-  const [rows, engaged] = await Promise.all([
+  const [rows, engaged, partners, team] = await Promise.all([
     selectAllPages<Row>((from, to) =>
       supabase
         .from("interactions")
         .select(
-          "id, interaction_type, occurred_at, resident_id, contact_id, facility_id, people_reached, holiday, family_need, participants, part_of_id, counted_in_id, in_person, method, voided_at"
+          "id, interaction_type, occurred_at, staff_member_id, resident_id, contact_id, facility_id, people_reached, holiday, family_need, participants, student_count, volunteer_count, part_of_id, counted_in_id, in_person, method, voided_at"
         )
         .gte("occurred_at", fromIso)
         .lt("occurred_at", toIso)
@@ -381,6 +412,8 @@ export async function headlineAsFirstRecorded(fromIso: string, toIso: string): P
         .range(from, to)
     ),
     fetchEngagedLinks(supabase, fromIso),
+    fetchPartnerContacts(supabase),
+    fetchTeamLinks(supabase),
   ]);
-  return headlineFor(rows, engaged);
+  return headlineFor(rows, engaged, partners, team);
 }

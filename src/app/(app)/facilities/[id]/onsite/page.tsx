@@ -192,7 +192,7 @@ export default async function FacilityOnsitePage({
         // Newest first, to check (and fix) what was just saved.
         loggedToday={[...loggedToday].reverse().map((x) => ({
           id: x.id,
-          what: labelFor(INTERACTION_TYPES, x.interaction_type) + (x.quantity ? ` (${x.quantity})` : ""),
+          what: labelFor(INTERACTION_TYPES, x.interaction_type) + (x.interaction_type === "food_delivery" && x.people_reached ? ` (${x.people_reached})` : ""),
           who: x.resident_name ?? x.contact_name,
           time: formatTimeOfDay(x.occurred_at) ?? "",
           by: x.staff_member_name,

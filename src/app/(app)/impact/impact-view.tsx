@@ -103,7 +103,7 @@ export function ImpactView({
           label="Facility staff supported"
           href={o.headlineLinks.staff}
           value={n(h.staffTouchpoints)}
-          detail={`staff meetings & conversations · ${n(h.staffPeople)} different staff · ${n(h.staffFacilities)} facilities`}
+          detail={`staff interactions, one per person · ${n(h.staffPeople)} different staff · ${n(h.staffFacilities)} facilities`}
           current={h.staffTouchpoints}
           previous={prev?.staffTouchpoints ?? null}
           periodWord={p.word}
@@ -120,14 +120,20 @@ export function ImpactView({
         />
       </section>
 
-      {/* Four facility numbers, kept apart on purpose (director, Oct 21,
+      {/* Facility numbers, kept apart on purpose (director, Oct 21,
           2026): each facility counts once per day; phone calls and
-          off-site programs never make a visit. */}
+          off-site programs never make a visit. Staff visits per person
+          beside them (Oct 27, 2026). */}
       <section aria-labelledby="facility-presence" className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5">
         <h2 id="facility-presence" className="text-base font-semibold">Facility visits {periodPhrase}</h2>
-        <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
           <div>
             <dt className="text-sm text-muted-foreground">Staff visits</dt>
+            <dd className="text-2xl font-bold tabular-nums">{n(h.staffVisits)}</dd>
+            <dd className="text-xs text-muted-foreground">each staff member once per facility per day they were there</dd>
+          </div>
+          <div>
+            <dt className="text-sm text-muted-foreground">Facility visit-days</dt>
             <dd className="text-2xl font-bold tabular-nums">{n(h.visitDays)}</dd>
             <dd className="text-xs text-muted-foreground">days our staff were at a facility, each facility once a day</dd>
           </div>
@@ -157,14 +163,41 @@ export function ImpactView({
             <span className="font-semibold text-foreground tabular-nums">{n(h.volunteerVisits)}</span> volunteer visits
           </span>
           <span>
-            <span className="font-semibold text-foreground tabular-nums">{n(h.groupVolunteers)}</span> group volunteers
-            <span className="text-xs">
-              {" "}
-              ({n(h.groupProjects)} school, shul &amp; community {h.groupProjects === 1 ? "project" : "projects"}, each counted once)
-            </span>
+            <span className="font-semibold text-foreground tabular-nums">{n(h.partnerConversations)}</span> partner conversations
+            <span className="text-xs"> (schools, shuls, hospices, agencies; {n(h.partnerPeople)} different people; not counted as facility staff)</span>
           </span>
         </p>
       </section>
+
+      {/* Programs (Oct 27, 2026): one entry each, students and volunteers
+          asked separately; older entries' single number is "not split". */}
+      {h.programs > 0 ? (
+        <section aria-labelledby="programs" className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5">
+          <h2 id="programs" className="text-base font-semibold">Programs {periodPhrase}</h2>
+          <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div>
+              <dt className="text-sm text-muted-foreground">Programs</dt>
+              <dd className="text-2xl font-bold tabular-nums">{n(h.programs)}</dd>
+              <dd className="text-xs text-muted-foreground">facility, school &amp; shul programs</dd>
+            </div>
+            <div>
+              <dt className="text-sm text-muted-foreground">Students</dt>
+              <dd className="text-2xl font-bold tabular-nums">{n(h.groupStudents)}</dd>
+              <dd className="text-xs text-muted-foreground">each group counted once</dd>
+            </div>
+            <div>
+              <dt className="text-sm text-muted-foreground">Volunteers</dt>
+              <dd className="text-2xl font-bold tabular-nums">{n(h.groupVolunteers)}</dd>
+              <dd className="text-xs text-muted-foreground">each group counted once</dd>
+            </div>
+            <div>
+              <dt className="text-sm text-muted-foreground">Not split</dt>
+              <dd className="text-2xl font-bold tabular-nums">{n(h.groupNotSplit)}</dd>
+              <dd className="text-xs text-muted-foreground">older entries: students and volunteers together</dd>
+            </div>
+          </dl>
+        </section>
+      ) : null}
 
       {o.asFirstRecorded && o.corrections ? (
         <section aria-label="Corrections" className="rounded-lg border border-border bg-card px-4 py-3 text-sm">
@@ -175,7 +208,7 @@ export function ImpactView({
           </p>
           <p className="text-muted-foreground">
             As first recorded: {n(o.asFirstRecorded.residentContacts)} visits &amp; calls, {n(o.asFirstRecorded.familyConversations)}{" "}
-            family conversations, {n(o.asFirstRecorded.staffTouchpoints)} staff meetings. Corrected (above):{" "}
+            family conversations, {n(o.asFirstRecorded.staffTouchpoints)} staff interactions. Corrected (above):{" "}
             {n(h.residentContacts)}, {n(h.familyConversations)}, {n(h.staffTouchpoints)}.{" "}
             <Link href={o.corrections.href} className="font-medium text-primary underline-offset-4 hover:underline">
               See the corrected entries
@@ -210,7 +243,7 @@ export function ImpactView({
 
       <Section id="fam" color={SERIES.families} title="Family support" intro="How we're keeping families informed and helping them care for their loved ones.">
         <ChartCard title="Family conversations per month" subtitle={`Calls, visits and messages with family · ${period.from ? period.label : "last 6 months"}`}>
-          <MonthBars data={o.familyByMonth} colors={[SERIES.families]} names={["meetings & conversations"]} />
+          <MonthBars data={o.familyByMonth} colors={[SERIES.families]} names={["conversations"]} />
         </ChartCard>
         <ChartCard title="Family connections on file" subtitle="Active residents with at least one family contact">
           <div className="flex items-baseline gap-2.5">
@@ -267,8 +300,8 @@ export function ImpactView({
       ) : null}
 
       <Section id="staff" color={SERIES.staff} title="Staff & facility support" intro="The relationships with facility teams that open the door to residents.">
-        <ChartCard title="Staff meetings & conversations per month" subtitle={`Each meeting once, however many staff · ${period.from ? period.label : "last 6 months"}`}>
-          <MonthBars data={o.staffByMonth} colors={[SERIES.staff]} names={["meetings & conversations"]} />
+        <ChartCard title="Staff interactions per month" subtitle={`Each staff person spoken with, once per conversation · ${period.from ? period.label : "last 6 months"}`}>
+          <MonthBars data={o.staffByMonth} colors={[SERIES.staff]} names={["staff interactions"]} />
         </ChartCard>
         <ChartCard
           title="Where each facility relationship stands"
@@ -292,7 +325,7 @@ export function ImpactView({
             <p className="text-sm text-muted-foreground">Who did the work {periodPhrase}. Tap a staff member to see their entries.</p>
           </div>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <ChartCard title="Staff" subtitle="Interactions logged">
+            <ChartCard title="Staff" subtitle="Interactions logged (volunteer-only visits not included)">
               <ImpactLeaderboard
                 rows={team.staff}
                 hrefFor={(row) => `/interactions?staff=${row.id}${periodLink}`}

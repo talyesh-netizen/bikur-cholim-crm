@@ -27,7 +27,7 @@ const BUCKET_DEFS: { key: string; label: string; color: string; types: Interacti
   { key: "programs", label: "Programs (facility, school & shul)", color: "#1baf7a", types: ["program", "school_engagement"] },
   { key: "volunteers", label: "Volunteers (visits & meetings)", color: "#e34948", types: ["volunteer_visit", "volunteer_meeting"] },
   { key: "food", label: "Food", color: "#eda100", types: ["food_delivery", "kosher_food_coordination"] },
-  { key: "family", label: "Families & care navigation", color: "#e87ba4", types: ["family_communication", "care_navigation"] },
+  { key: "family", label: "Families", color: "#e87ba4", types: ["family_communication", "care_navigation"] },
   { key: "referrals", label: "Referrals & rides", color: "#008300", types: ["medical_referral", "ride_arranged", "referral", "hospital_related_communication"] },
   { key: "other", label: "Other", color: "#4a3aa7", types: ["email", "other"] },
 ];
@@ -105,6 +105,8 @@ export async function getStaffActivity(period: ImpactPeriod, facilityId?: string
         .from("interactions")
         .select("id, staff_member_id")
         .is("counted_in_id", null).is("voided_at", null)
+        // A volunteer-only visit gives no staff credit (Oct 27, 2026).
+        .neq("interaction_type", "volunteer_visit")
         .order("id")
         .range(from, to);
       if (start) query = query.gte("occurred_at", start);
@@ -216,15 +218,16 @@ export async function getVolunteerImpact(period: ImpactPeriod, facilityId?: stri
 export type ServicesDelivered = {
   food: {
     deliveries: number;
-    items: number;
+    /** People who received food (Oct 27, 2026: the one food number). */
     peopleReached: number;
     byOccasion: { shabbos: number; yomTov: number; other: number };
   };
   volunteers: { volunteers: number; visits: number; hours: number; residentsVisited: number };
-  schoolShul: { programs: number; school: number; shul: number; participants: number; peopleReached: number };
-  /** School, shul and community groups: each project's head count once,
-   * however many facilities it reached. */
-  groupVolunteers: { projects: number; volunteers: number };
+  schoolShul: { programs: number; school: number; shul: number; students: number; volunteers: number; notSplit: number; peopleReached: number };
+  /** Programs with a head count (school, shul, community groups, facility
+   * programs): each project's students and volunteers once, however many
+   * facilities it reached, plus older entries' single number (not split). */
+  groupVolunteers: { projects: number; students: number; volunteers: number; notSplit: number };
   /** Different residents who had a one-on-one visit or call (staff or
    * volunteer) in the period -- each person counted once -- and how many
    * such visits and calls there were. */
@@ -255,9 +258,10 @@ type ServiceRow = {
   resident_id: string | null;
   occasion: string | null;
   program_partner: string | null;
-  quantity: number | null;
   people_reached: number | null;
   participants: number | null;
+  student_count: number | null;
+  volunteer_count: number | null;
   minutes_spent: number | null;
   unmet_need: boolean;
   unmet_need_reason: string | null;
@@ -287,7 +291,7 @@ export async function getServicesDelivered(period: ImpactPeriod, facilityId?: st
       let query = supabase
         .from("interactions")
         .select(
-          "id, interaction_type, resident_id, occasion, program_partner, quantity, people_reached, participants, minutes_spent, unmet_need, unmet_need_reason, funder_story, part_of_id"
+          "id, interaction_type, resident_id, occasion, program_partner, people_reached, participants, student_count, volunteer_count, minutes_spent, unmet_need, unmet_need_reason, funder_story, part_of_id"
         )
         .is("counted_in_id", null).is("voided_at", null)
         .order("id")
@@ -323,10 +327,10 @@ export async function getServicesDelivered(period: ImpactPeriod, facilityId?: st
   }
 
   const result: ServicesDelivered = {
-    food: { deliveries: 0, items: 0, peopleReached: 0, byOccasion: { shabbos: 0, yomTov: 0, other: 0 } },
+    food: { deliveries: 0, peopleReached: 0, byOccasion: { shabbos: 0, yomTov: 0, other: 0 } },
     volunteers: { volunteers: 0, visits: 0, hours: 0, residentsVisited: 0 },
-    schoolShul: { programs: 0, school: 0, shul: 0, participants: 0, peopleReached: 0 },
-    groupVolunteers: { projects: 0, volunteers: 0 },
+    schoolShul: { programs: 0, school: 0, shul: 0, students: 0, volunteers: 0, notSplit: 0, peopleReached: 0 },
+    groupVolunteers: { projects: 0, students: 0, volunteers: 0, notSplit: 0 },
     oneOnOne: { residents: 0, contacts: 0 },
     peopleReached: { total: 0, programs: 0, food: 0, schoolShul: 0, volunteerGroups: 0, residentGroups: 0, other: 0 },
     medicalReferrals: 0,
@@ -350,7 +354,6 @@ export async function getServicesDelivered(period: ImpactPeriod, facilityId?: st
     switch (row.interaction_type) {
       case "food_delivery":
         result.food.deliveries += 1;
-        result.food.items += row.quantity ?? 0;
         result.food.peopleReached += row.people_reached ?? 0;
         if (row.occasion === "shabbos") result.food.byOccasion.shabbos += 1;
         else if (row.occasion === "yom_tov") result.food.byOccasion.yomTov += 1;
@@ -369,18 +372,12 @@ export async function getServicesDelivered(period: ImpactPeriod, facilityId?: st
         if (row.program_partner === "shul") result.schoolShul.shul += 1;
         else result.schoolShul.school += 1;
         // A group's head count is held once, on its project's first activity.
-        if (!row.part_of_id) result.schoolShul.participants += row.participants ?? 0;
-        if (!row.part_of_id && row.participants) {
-          result.groupVolunteers.projects += 1;
-          result.groupVolunteers.volunteers += row.participants;
+        if (!row.part_of_id) {
+          result.schoolShul.students += row.student_count ?? 0;
+          result.schoolShul.volunteers += row.volunteer_count ?? 0;
+          result.schoolShul.notSplit += row.participants ?? 0;
         }
         result.schoolShul.peopleReached += row.people_reached ?? 0;
-        break;
-      case "program":
-        if (!row.part_of_id && row.participants) {
-          result.groupVolunteers.projects += 1;
-          result.groupVolunteers.volunteers += row.participants;
-        }
         break;
       case "medical_referral":
         result.medicalReferrals += 1;
@@ -392,6 +389,15 @@ export async function getServicesDelivered(period: ImpactPeriod, facilityId?: st
         result.careNavigation.families += 1;
         careMinutes += minutes;
         break;
+    }
+    if ((row.interaction_type === "program" || row.interaction_type === "school_engagement") && !row.part_of_id) {
+      const group = { students: row.student_count ?? 0, volunteers: row.volunteer_count ?? 0, notSplit: row.participants ?? 0 };
+      if (group.students + group.volunteers + group.notSplit > 0) {
+        result.groupVolunteers.projects += 1;
+        result.groupVolunteers.students += group.students;
+        result.groupVolunteers.volunteers += group.volunteers;
+        result.groupVolunteers.notSplit += group.notSplit;
+      }
     }
     if (row.resident_id && ONE_ON_ONE_TYPES.has(row.interaction_type)) {
       result.oneOnOne.contacts += 1;
