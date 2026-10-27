@@ -9,7 +9,7 @@ https://bikur-cholim-crm-git-claude-oct-2-d26ccb-bikur-cholim-cleveland.vercel.a
 |---|---|---|
 | 1 | Logging from a staff member's page (Carlos Ruiz) | **Change requested:** director chose A (see below) |
 | 2 | Two staff in one conversation | **Pass:** two separate entries (Dana Activities, Carlos Ruiz), same day, place and note |
-| 3 | Food form | **Change requested:** hide the Resident box (see answer 2); number question still to confirm |
+| 3 | Food form | **Pass:** one number, "How many people received food?", no item count. **Change requested:** hide the Resident box (answer 2) |
 | 4–10 | Program, Family, More types, staff role, Impact, funder export, Stories | Not checked yet |
 
 ## Step 1 finding (director, Oct 27, 2026)
