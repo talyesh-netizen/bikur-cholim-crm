@@ -55,9 +55,10 @@ export const TYPE_BUTTONS: {
   { key: "other", label: "Other", choices: [{ value: "other", label: "Other" }] },
 ];
 
-/** No "more types": the 8 above are the whole list. An older entry with
+/** Offered under "More types…" (director, Oct 27, 2026): a visit where
+ * no resident interaction or staff meeting happened. An older entry with
  * another type still shows (and keeps) it when edited. */
-export const MORE_TYPES: InteractionType[] = [];
+export const MORE_TYPES: InteractionType[] = ["facility_visit"];
 
 /** What kind of food, the one question a Food entry asks. Stored in the
  * existing holiday field: Snack = none, Shabbos = "shabbos", Holiday =
@@ -171,6 +172,8 @@ export type InteractionWithNames = Interaction & {
  * for help finding a facility for their father doesn't have one yet. */
 export const FACILITY_OPTIONAL_TYPES: readonly string[] = [
   "care_navigation",
+  // Family support needs no resident or facility (Oct 27, 2026).
+  "family_communication",
   "volunteer_meeting",
   // Community events and outreach, or students packing Shabbos packages
   // at school (Build 2, Oct 16, 2026).
@@ -189,6 +192,22 @@ export const ENGAGEMENT_TYPES: readonly string[] = [
   "program",
   "school_engagement",
 ];
+
+/** One record per person (director, Oct 27, 2026): picking several people
+ * on a new entry of these kinds saves a separate record for each, with
+ * the same day, place, notes and team, all-or-nothing. "Others who were
+ * there (not counted)" isn't asked on them. Programs stay one entry. */
+export const ONE_PER_PERSON_TYPES: readonly string[] = [
+  "facility_staff_communication",
+  "family_communication",
+  "volunteer_meeting",
+  "other",
+];
+
+/** A staff conversation needs a facility unless everyone in it is a
+ * partner (school, shul, hospice or agency contact); see
+ * PARTNER_CONTACT_TYPES. */
+export const PARTNER_FACILITY_OPTIONAL_TYPES: readonly string[] = ["facility_staff_communication"];
 
 /** Entries that ask "In person?" -- a facility visit-day only when ticked
  * (or logged on site). Calls and emails are never asked and never count
@@ -293,11 +312,18 @@ export const TIME_SPENT_OPTIONS = [
  * so switching an entry's type can't leave stale numbers behind that
  * would still be counted in the impact report. */
 export const SERVICE_FIELDS_BY_TYPE: Partial<
-  Record<InteractionType, readonly ("occasion" | "program_partner" | "quantity" | "people_reached" | "participants")[]>
+  Record<
+    InteractionType,
+    readonly ("occasion" | "program_partner" | "quantity" | "people_reached" | "participants" | "student_count" | "volunteer_count")[]
+  >
 > = {
+  // Food asks one number, people who got food (Oct 27, 2026); an item
+  // count already saved rides along unseen and is kept.
   food_delivery: ["occasion", "quantity", "people_reached"],
-  program: ["occasion", "participants", "people_reached"],
-  school_engagement: ["program_partner", "occasion", "participants", "people_reached"],
+  // Programs ask students and volunteers separately (Oct 27, 2026); the
+  // older single number (participants) is kept and shown as "Not split".
+  program: ["occasion", "participants", "student_count", "volunteer_count", "people_reached"],
+  school_engagement: ["program_partner", "occasion", "participants", "student_count", "volunteer_count", "people_reached"],
   // Group visits: the old tracking sheet logged e.g. "1 to 1 Pesach visit,
   // 15 residents" or a volunteer group seeing 7 people as one entry.
   resident_visit: ["people_reached"],
@@ -319,7 +345,12 @@ export type ServiceDetails = {
   program_partner: string | null;
   quantity: number | null;
   people_reached: number | null;
+  /** The older single head count, before students and volunteers were
+   * asked separately ("Not split"). */
   participants: number | null;
+  /** Students and volunteers who took part (Oct 27, 2026). */
+  student_count?: number | null;
+  volunteer_count?: number | null;
   minutes_spent: number | null;
   unmet_need: boolean;
   unmet_need_reason: string | null;
@@ -333,19 +364,26 @@ export function formatMinutes(minutes: number): string {
 }
 
 /** The numbers worth seeing on an entry's card without opening it:
- * "30 items delivered · 25 people reached" for food, a group visit's or
- * program's reach, a program's head count. Null when there are none. */
-export function serviceNumbersLine(i: Pick<ServiceDetails, "quantity" | "people_reached" | "participants"> & { interaction_type: string }): string | null {
+ * "25 people got food" for food, a group visit's or program's reach, a
+ * program's students and volunteers. Null when there are none. */
+export function serviceNumbersLine(
+  i: Pick<ServiceDetails, "people_reached" | "participants" | "student_count" | "volunteer_count"> & { interaction_type: string }
+): string | null {
   const plural = (n: number, one: string, many: string) => `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
   const parts =
     i.interaction_type === "food_delivery"
-      ? [
-          i.quantity ? `${plural(i.quantity, "item", "items")} delivered` : null,
-          i.people_reached ? `${plural(i.people_reached, "person", "people")} reached` : null,
-        ]
+      ? [i.people_reached ? `${plural(i.people_reached, "person", "people")} got food` : null]
       : [
-          i.participants ? `${plural(i.participants, "person", "people")} took part` : null,
+          i.student_count ? plural(i.student_count, "student", "students") : null,
+          i.volunteer_count ? plural(i.volunteer_count, "volunteer", "volunteers") : null,
+          i.participants ? `${plural(i.participants, "person", "people")} took part (not split)` : null,
           i.people_reached ? `${plural(i.people_reached, "resident", "residents")} reached` : null,
         ];
   return parts.filter(Boolean).join(" · ") || null;
+}
+
+/** A group's head count on its first activity: students and volunteers,
+ * plus an older entry's single number (not split). */
+export function headCount(i: Pick<ServiceDetails, "participants" | "student_count" | "volunteer_count">): number {
+  return (i.participants ?? 0) + (i.student_count ?? 0) + (i.volunteer_count ?? 0);
 }

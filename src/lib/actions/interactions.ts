@@ -16,6 +16,8 @@ import {
   FAMILY_NEEDS,
   FAMILY_NEED_TYPES,
   ENGAGEMENT_TYPES,
+  ONE_PER_PERSON_TYPES,
+  PARTNER_FACILITY_OPTIONAL_TYPES,
   PARTNER_TYPES,
   METHOD_ASKED,
   METHOD_FIXED,
@@ -25,6 +27,7 @@ import {
   type InteractionType,
 } from "@/lib/domain/interaction";
 import { orgDateToIso } from "@/lib/format-date";
+import { PARTNER_CONTACT_TYPES } from "@/lib/domain/contact";
 import { withSaved } from "@/lib/saved-flash";
 import { saveQuarterAsFirstRecorded } from "@/lib/actions/double-entries";
 
@@ -60,6 +63,9 @@ export type PeopleChoice = {
   engaged: string[];
   /** Linked but not counted. */
   present: string[];
+  /** Who it was with, on a new entry that saves one record per person
+   * (family, volunteer met, other); see ONE_PER_PERSON_TYPES. */
+  contacts: string[];
 };
 
 const uuidList = (values: FormDataEntryValue[]) =>
@@ -70,6 +76,7 @@ function readPeople(formData: FormData): PeopleChoice {
     doneBy: uuidList(formData.getAll("done_by_ids")),
     engaged: uuidList(formData.getAll("engaged_contact_ids")),
     present: uuidList(formData.getAll("present_contact_ids")),
+    contacts: uuidList(formData.getAll("contact_ids")),
   };
 }
 
@@ -93,6 +100,8 @@ const interactionSchema = z
     quantity: optionalCount,
     people_reached: optionalCount,
     participants: optionalCount,
+    student_count: optionalCount,
+    volunteer_count: optionalCount,
     minutes_spent: optionalCount,
     unmet_need: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
     unmet_need_reason: z.preprocess(emptyToUndefined, z.enum(enumValues(UNMET_NEED_REASONS)).optional()),
@@ -103,7 +112,13 @@ const interactionSchema = z
     part_of_id: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
   })
   .superRefine((data, ctx) => {
-    if (!data.facility_id && !FACILITY_OPTIONAL_TYPES.includes(data.interaction_type)) {
+    // A staff conversation with only partners needs no facility: checked
+    // against the people chosen once they're known (needsFacility).
+    if (
+      !data.facility_id &&
+      !FACILITY_OPTIONAL_TYPES.includes(data.interaction_type) &&
+      !PARTNER_FACILITY_OPTIONAL_TYPES.includes(data.interaction_type)
+    ) {
       ctx.addIssue({ code: "custom", path: ["facility_id"], message: "Please choose a facility." });
     }
     if (data.method === "in_person" && !data.facility_id && data.interaction_type in METHOD_ASKED) {
@@ -147,9 +162,11 @@ function toInteractionRow(data: z.infer<typeof interactionSchema>, people: Peopl
     program_partner: pick("program_partner"),
     quantity: pick("quantity"),
     people_reached: pick("people_reached"),
-    // Part of a group project: its volunteers are counted on the
-    // project's first activity, never again here.
+    // Part of a group project: its head count is held on the project's
+    // first activity, never again here.
     participants: partOf ? null : pick("participants"),
+    student_count: partOf ? null : pick("student_count"),
+    volunteer_count: partOf ? null : pick("volunteer_count"),
     partner_organization_id: partnered ? data.partner_organization_id ?? null : null,
     part_of_id: partOf,
     minutes_spent: data.minutes_spent ?? null,
@@ -222,6 +239,30 @@ async function projectRoot(
 const submissionIdSchema = z.string().uuid();
 
 const RESIDENT_REQUIRED_MESSAGE = "Please choose the resident.";
+const FACILITY_REQUIRED_MESSAGE = "Please choose a facility (only a conversation with partners can be without one).";
+
+/** A staff conversation saved without a facility is fine only when
+ * everyone in it is a partner (Oct 27, 2026). */
+async function needsFacility(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  data: { interaction_type: string; facility_id?: string },
+  people: string[]
+): Promise<boolean> {
+  if (data.facility_id || !PARTNER_FACILITY_OPTIONAL_TYPES.includes(data.interaction_type)) return false;
+  if (people.length === 0) return true;
+  const { data: rows } = await supabase.from("contacts").select("id, contact_type").in("id", people);
+  const types = (rows ?? []) as { id: string; contact_type: string }[];
+  return types.length < people.length || types.some((c) => !PARTNER_CONTACT_TYPES.includes(c.contact_type));
+}
+
+/** Who a new entry is with, one record each (ONE_PER_PERSON_TYPES): the
+ * staff picked for a staff conversation, else the people picked as its
+ * contact. Empty for any other kind of entry. */
+function peopleForRecords(interactionType: string, people: PeopleChoice, contactId: string | undefined): string[] {
+  if (!ONE_PER_PERSON_TYPES.includes(interactionType)) return [];
+  if (ENGAGEMENT_TYPES.includes(interactionType)) return people.engaged;
+  return people.contacts.length > 0 ? people.contacts : contactId ? [contactId] : [];
+}
 
 /** Entries that are specifically with one resident must name them
  * (director, Oct 20 and 21, 2026). Not facility visits, staff, programs
@@ -272,6 +313,17 @@ export async function createInteraction(
   }
 
   const supabase = await createClient();
+  const persons = peopleForRecords(parsed.data.interaction_type, people, parsed.data.contact_id);
+  if (await needsFacility(supabase, parsed.data, persons)) {
+    return {
+      error: "Please fix the highlighted fields.",
+      fieldErrors: { facility_id: FACILITY_REQUIRED_MESSAGE },
+      values: raw,
+      checkedVolunteerIds: volunteerIds,
+      people,
+      residentIds: chosenResidents,
+    };
+  }
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -293,6 +345,9 @@ export async function createInteraction(
   // recognize a repeat. A group head count isn't copied to each.
   const row = toInteractionRow(parsed.data, people, true);
   const residentIds = parsed.data.interaction_type === "resident_visit" ? chosenResidents : [];
+  // One record per person (Oct 27, 2026), the same way: a staff
+  // conversation, family conversation, volunteer meeting or "other" with
+  // several people is a record for each, same day, place, notes and team.
   const rows =
     residentIds.length > 0
       ? residentIds.map((residentId, i) => ({
@@ -302,7 +357,14 @@ export async function createInteraction(
           staff_member_id: lead,
           client_submission_id: i === 0 ? clientSubmissionId : null,
         }))
-      : [{ ...row, staff_member_id: lead, client_submission_id: clientSubmissionId }];
+      : persons.length > 0
+        ? persons.map((contactId, i) => ({
+            ...row,
+            contact_id: contactId,
+            staff_member_id: lead,
+            client_submission_id: i === 0 ? clientSubmissionId : null,
+          }))
+        : [{ ...row, staff_member_id: lead, client_submission_id: clientSubmissionId }];
 
   const { data: createdRows, error } = await supabase.from("interactions").insert(rows).select("id");
   const createdIds = (createdRows ?? []).map((r) => r.id as string);
@@ -338,9 +400,14 @@ export async function createInteraction(
     };
   }
 
-  for (const createdId of createdIds) {
-    if (people.engaged.length > 0 || people.present.length > 0 || people.doneBy.some((id) => id !== lead)) {
-      const peopleError = await saveInteractionPeople(supabase, createdId, lead, people);
+  for (const [i, createdId] of createdIds.entries()) {
+    // A record per person carries only its own person (and the team).
+    const recordPeople =
+      persons.length > 0
+        ? { ...people, engaged: ENGAGEMENT_TYPES.includes(parsed.data.interaction_type) ? [persons[i]] : [], present: [] }
+        : people;
+    if (recordPeople.engaged.length > 0 || recordPeople.present.length > 0 || people.doneBy.some((id) => id !== lead)) {
+      const peopleError = await saveInteractionPeople(supabase, createdId, lead, recordPeople);
       // Saved already -- fix the people on the edit page rather than risk
       // a second copy of the entry from a retry here.
       if (peopleError) redirect(`/interactions/${createdId}/edit?peopleError=1`);
@@ -366,7 +433,9 @@ export async function createInteraction(
     withSaved(
       redirectTo,
       createdIds.length > 1
-        ? "visits-logged"
+        ? residentIds.length > 1
+          ? "visits-logged"
+          : "records-logged"
         : parsed.data.interaction_type === "resident_visit"
           ? "visit-logged"
           : parsed.data.interaction_type === "facility_staff_communication"
@@ -417,6 +486,21 @@ export async function updateInteraction(
         people,
       };
     }
+  }
+
+  const editPeople = ENGAGEMENT_TYPES.includes(parsed.data.interaction_type)
+    ? people.engaged
+    : parsed.data.contact_id
+      ? [parsed.data.contact_id]
+      : [];
+  if (await needsFacility(supabase, parsed.data, editPeople)) {
+    return {
+      error: "Please fix the highlighted fields.",
+      fieldErrors: { facility_id: FACILITY_REQUIRED_MESSAGE },
+      values: raw,
+      checkedVolunteerIds: volunteerIds,
+      people,
+    };
   }
 
   const lead = people.doneBy[0] ?? undefined;
@@ -487,6 +571,8 @@ const reviewSchema = z.object({
   quantity: optionalCount,
   people_reached: optionalCount,
   participants: optionalCount,
+  student_count: optionalCount,
+  volunteer_count: optionalCount,
 });
 
 /** One-tap save from the "Review past entries" screen: confirms (or
@@ -505,19 +591,22 @@ export async function saveInteractionReview(
   }
 
   const data = parsed.data;
-  const applies = SERVICE_FIELDS_BY_TYPE[data.interaction_type as InteractionType] ?? [];
-  const pick = <K extends (typeof applies)[number]>(key: K) => (applies.includes(key) ? data[key] ?? null : null);
+  const applies: readonly string[] = SERVICE_FIELDS_BY_TYPE[data.interaction_type as InteractionType] ?? [];
+  // A number this kind doesn't ask about is cleared; one it asks about but
+  // this screen doesn't show (a food entry's item count, an older
+  // program's single number) is left exactly as saved.
+  const fields: Record<string, string | number | null> = {};
+  for (const key of ["occasion", "program_partner", "quantity", "people_reached", "participants", "student_count", "volunteer_count"] as const) {
+    if (!applies.includes(key)) fields[key] = null;
+    else if (formData.has(key)) fields[key] = data[key] ?? null;
+  }
 
   const supabase = await createClient();
   const { data: updated, error } = await supabase
     .from("interactions")
     .update({
       interaction_type: data.interaction_type,
-      occasion: pick("occasion"),
-      program_partner: pick("program_partner"),
-      quantity: pick("quantity"),
-      people_reached: pick("people_reached"),
-      participants: pick("participants"),
+      ...fields,
       service_reviewed_at: new Date().toISOString(),
     })
     .eq("id", id)

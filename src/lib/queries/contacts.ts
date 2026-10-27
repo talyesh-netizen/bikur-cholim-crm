@@ -153,6 +153,7 @@ export async function listContactOptions(contactType?: string) {
   return ((data ?? []) as { id: string; name: string; contact_type: string; organization: string | null }[]).map((c) => ({
     id: c.id,
     name: c.name,
+    contact_type: c.contact_type,
     detail: [contactType ? null : labelFor(CONTACT_TYPES, c.contact_type), c.organization].filter(Boolean).join(" · ") || null,
   }));
 }

@@ -85,8 +85,11 @@ export default async function ContactDetailPage({
       .filter((o) => !organizationLinks.some((l) => l.organization_id === o.id))
       .map((o) => ({ id: `organization:${o.id}`, label: o.name, detail: "Strategic Partner" })),
   ];
+  // Facility staff addresses aren't shown (director, Oct 27, 2026).
   const fullAddress =
-    [contact.address, [contact.city, contact.state, contact.zip].filter(Boolean).join(" ")]
+    contact.contact_type === "facility_staff"
+      ? undefined
+      : [contact.address, [contact.city, contact.state, contact.zip].filter(Boolean).join(" ")]
       .filter(Boolean)
       .join(", ") || undefined;
 

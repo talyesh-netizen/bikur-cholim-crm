@@ -1,9 +1,9 @@
 "use client";
 
+import { StaffRoleField } from "@/components/staff-role-field";
 import { FormActions, FormError } from "@/components/form-actions";
 import { useActionState, useState } from "react";
 import Link from "next/link";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SearchPicker } from "@/components/search-picker";
@@ -61,12 +61,7 @@ export function LinkExistingContactForm({
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="role_at_facility">Role at this facility</Label>
-        <Input
-          id="role_at_facility"
-          name="role_at_facility"
-          placeholder="e.g., Activities Director, Social Worker, Administrator"
-          defaultValue={state.values?.role_at_facility}
-        />
+        <StaffRoleField id="role_at_facility" name="role_at_facility" defaultValue={state.values?.role_at_facility} />
       </div>
 
       <div className="flex items-center gap-2">

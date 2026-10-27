@@ -9,6 +9,9 @@ import { cn } from "@/lib/utils";
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const RESIDENT_PAGE = new RegExp(`^/residents/(${UUID})`, "i");
 const FACILITY_PAGE = new RegExp(`^/facilities/(${UUID})`, "i");
+// Anyone else's page: a family member, staff, volunteer or partner contact.
+const CONTACT_PAGE = new RegExp(`^/contacts/(${UUID})(?:/|$)`, "i");
+const ORGANIZATION_PAGE = new RegExp(`^/organizations/(${UUID})(?:/|$)`, "i");
 // Pages that are themselves a log or edit form -- nothing to come back to.
 const NO_RETURN = /^\/(interactions\/new|quick-log)|\/edit$/;
 
@@ -16,11 +19,21 @@ const NO_RETURN = /^\/(interactions\/new|quick-log)|\/edit$/;
  * facility you're looking at. Without Quick Log, the form, which comes
  * back to this page after saving. On a resident's page, always the
  * written form with them chosen (director, Oct 19, 2026); their page has
- * its own "Voice note". */
+ * its own "Voice note". On anyone else's page, the written form with
+ * that person chosen, whatever kind of entry is then picked, and back to
+ * their page after saving (Oct 27, 2026). */
 export function logHref(pathname: string, quickLog: boolean): string {
   const base = quickLog ? "/quick-log" : "/interactions/new";
   const resident = pathname.match(RESIDENT_PAGE)?.[1];
   if (resident) return `/interactions/new?resident=${resident}`;
+  const contact = pathname.match(CONTACT_PAGE)?.[1];
+  if (contact && !NO_RETURN.test(pathname)) {
+    return `/interactions/new?contact=${contact}&back=${encodeURIComponent(`/contacts/${contact}`)}`;
+  }
+  const organization = pathname.match(ORGANIZATION_PAGE)?.[1];
+  if (organization && !NO_RETURN.test(pathname)) {
+    return `/interactions/new?partner=${organization}&back=${encodeURIComponent(`/organizations/${organization}`)}`;
+  }
   const facility = pathname.match(FACILITY_PAGE)?.[1];
   if (facility) return `${base}?facility=${facility}`;
   if (!quickLog && pathname !== "/" && !NO_RETURN.test(pathname)) {

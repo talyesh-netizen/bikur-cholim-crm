@@ -53,6 +53,7 @@ export default async function EditInteractionPage({
     doneBy: [interaction.staff_member_id, ...extras.team.map((t) => t.id).filter((tid) => tid !== interaction.staff_member_id)],
     engaged: [...new Set(engaged)],
     present: extras.present.map((c) => c.id),
+    contacts: [],
   };
   const initialPartOf = extras.partOf
     ? {
@@ -137,6 +138,8 @@ export default async function EditInteractionPage({
               quantity: interaction.quantity?.toString() ?? "",
               people_reached: interaction.people_reached?.toString() ?? "",
               participants: interaction.participants?.toString() ?? "",
+              student_count: interaction.student_count?.toString() ?? "",
+              volunteer_count: interaction.volunteer_count?.toString() ?? "",
               minutes_spent: interaction.minutes_spent?.toString() ?? "",
               unmet_need: interaction.unmet_need ? "on" : "",
               unmet_need_reason: interaction.unmet_need_reason ?? "",

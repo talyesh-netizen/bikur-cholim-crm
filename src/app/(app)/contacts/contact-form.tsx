@@ -176,21 +176,34 @@ export function ContactForm({
         </Field>
       </div>
 
-      <Field label="Address" htmlFor="address">
-        <Input id="address" name="address" defaultValue={values.address} />
-      </Field>
+      {contactType === "facility_staff" ? (
+        // Not asked for facility staff (director, Oct 27, 2026); anything
+        // already saved is kept as it is.
+        <>
+          <input type="hidden" name="address" value={values.address ?? ""} readOnly />
+          <input type="hidden" name="city" value={values.city ?? ""} readOnly />
+          <input type="hidden" name="state" value={values.state ?? ""} readOnly />
+          <input type="hidden" name="zip" value={values.zip ?? ""} readOnly />
+        </>
+      ) : (
+        <>
+          <Field label="Address" htmlFor="address">
+            <Input id="address" name="address" defaultValue={values.address} />
+          </Field>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Field label="City" htmlFor="city">
-          <Input id="city" name="city" defaultValue={values.city} autoCapitalize="words" onChange={capitalizeAsYouType} />
-        </Field>
-        <Field label="State" htmlFor="state">
-          <Input id="state" name="state" defaultValue={values.state} />
-        </Field>
-        <Field label="ZIP" htmlFor="zip">
-          <Input id="zip" name="zip" defaultValue={values.zip} />
-        </Field>
-      </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field label="City" htmlFor="city">
+              <Input id="city" name="city" defaultValue={values.city} autoCapitalize="words" onChange={capitalizeAsYouType} />
+            </Field>
+            <Field label="State" htmlFor="state">
+              <Input id="state" name="state" defaultValue={values.state} />
+            </Field>
+            <Field label="ZIP" htmlFor="zip">
+              <Input id="zip" name="zip" defaultValue={values.zip} />
+            </Field>
+          </div>
+        </>
+      )}
 
       {/* Not asked any more (kept simple); a saved value is kept. */}
       <input type="hidden" name="preferred_communication_method" value={values.preferred_communication_method ?? ""} readOnly />

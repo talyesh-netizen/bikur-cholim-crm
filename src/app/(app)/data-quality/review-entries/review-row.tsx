@@ -97,14 +97,21 @@ export function ReviewRow({ entry }: { entry: UnreviewedEntry }) {
           {fields.includes("occasion") ? (
             <MiniSelect name="occasion" label="Occasion" options={OCCASIONS} defaultValue={entry.occasion ?? ""} />
           ) : null}
-          {fields.includes("quantity") ? (
-            <MiniNumber name="quantity" label="How many items?" defaultValue={entry.quantity} />
+          {fields.includes("student_count") ? (
+            <MiniNumber name="student_count" label="Students (about)" defaultValue={entry.student_count ?? null} />
           ) : null}
-          {fields.includes("participants") ? (
-            <MiniNumber name="participants" label="Students / members" defaultValue={entry.participants} />
+          {fields.includes("volunteer_count") ? (
+            <MiniNumber name="volunteer_count" label="Volunteers (about)" defaultValue={entry.volunteer_count ?? null} />
           ) : null}
           {fields.includes("people_reached") ? (
-            <MiniNumber name="people_reached" label="Residents reached (about)" defaultValue={entry.people_reached} />
+            <MiniNumber
+              name="people_reached"
+              label={type === "food_delivery" ? "People who received food" : "Residents reached (about)"}
+              defaultValue={entry.people_reached}
+            />
+          ) : null}
+          {fields.includes("participants") && entry.participants ? (
+            <p className="self-end text-xs text-muted-foreground">Saved earlier, not split: about {entry.participants} took part.</p>
           ) : null}
         </div>
 

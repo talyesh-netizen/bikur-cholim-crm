@@ -19,6 +19,7 @@ export const SAVED_MESSAGES = {
   "facility-saved": "Facility details saved",
   "visit-logged": "Visit logged",
   "visits-logged": "Visits logged, one for each resident",
+  "records-logged": "Saved, one entry for each person",
   "staff-talk-logged": "Staff conversation saved",
   "interaction-logged": "Interaction logged",
   "interaction-saved": "Interaction updated",

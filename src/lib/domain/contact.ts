@@ -23,6 +23,32 @@ export const OFFERED_RELATIONSHIPS = ["son", "daughter", "spouse", "grandchild",
 
 export type ContactType = (typeof CONTACT_TYPES)[number]["value"];
 
+/** Partners (director, Oct 27, 2026), decided by how a person is already
+ * filed: schools, shuls, Jewish organizations, hospices, agencies and
+ * other healthcare organizations are all Community partner, Rabbi or Shul
+ * contacts. A conversation with one counts as a partner conversation,
+ * never as facility staff support or a facility visit. Facility staff
+ * stay facility staff, even when their facility belongs to a healthcare
+ * group. */
+export const PARTNER_CONTACT_TYPES: readonly string[] = ["community_partner", "rabbi", "synagogue_contact"];
+
+/** The roles offered for facility staff (director, Oct 27, 2026). Anything
+ * else is "Other" with its own title; a title already typed in is kept
+ * exactly as it is. */
+export const FACILITY_STAFF_ROLES = [
+  "Executive Director",
+  "Administrator (LNHA)",
+  "Activities Director",
+  "Life Enrichment Director",
+  "Social Worker",
+  "Chaplain",
+  "Assisted Living Director",
+  "Director of Nursing",
+  "Business Office Manager",
+  "Sales & Marketing",
+  "Receptionist",
+] as const;
+
 // A contact who has left their role reads better as "Left role" than
 // the generic "Inactive" — it's the far more common reason a facility
 // staff or community contact gets deactivated here.
