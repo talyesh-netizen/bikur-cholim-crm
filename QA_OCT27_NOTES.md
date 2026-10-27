@@ -8,7 +8,8 @@ https://bikur-cholim-crm-git-claude-oct-2-d26ccb-bikur-cholim-cleveland.vercel.a
 | Step | What was checked | Result |
 |---|---|---|
 | 1 | Logging from a staff member's page (Carlos Ruiz) | **Change requested:** director chose A (see below) |
-| 2–10 | Two people in one entry, Food, Program, Family, More types, staff role, Impact, funder export, Stories | Not checked yet |
+| 2 | Two staff in one conversation | **Pass:** two separate entries (Dana Activities, Carlos Ruiz), same day, place and note |
+| 3–10 | Food, Program, Family, More types, staff role, Impact, funder export, Stories | Not checked yet |
 
 ## Step 1 finding (director, Oct 27, 2026)
 
