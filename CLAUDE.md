@@ -124,3 +124,49 @@ Decisions so far:
   visit. Facility visits, resident interactions and staff meetings are
   counted separately; a Facility Visit is a staff meeting only when
   staff were actually met.
+
+## October 27 cleanup decisions (director, Oct 27, 2026)
+
+These replace any earlier rule above that says otherwise.
+
+- One record per person: each person spoken with gets their own
+  interaction record (staff, family, partners, volunteers met). Picking
+  several people in one form saves a separate record for each, with the
+  same day, place, notes and team members, all-or-nothing like resident
+  visits. "Others who were there (not counted)" is not asked on these.
+  Programs stay one group activity.
+- Staff interactions count each person spoken with once per record; there
+  is no separate "meetings" number any more, and Data Quality no longer
+  suggests combining a meeting saved once per person ("Same meeting").
+- Staff visits: each staff member (lead or team) once per facility per
+  Cleveland day, shown beside facility visit-days (each facility once a
+  day), which stay. Repeat trips on the same day aren't counted
+  separately yet.
+- Volunteer-only visits give no staff credit (not a staff visit and not
+  in the staff activity list). Meetings and conversations with
+  volunteers are still recorded and credited.
+- Partner conversations are counted on their own line, never as facility
+  staff support or a facility visit. A partner is decided by how the
+  person is already filed: Community partner, Rabbi or Shul contact
+  (schools, shuls, Jewish organizations, hospices, agencies and other
+  healthcare organizations). Facility staff stay facility staff, even
+  when their facility belongs to a healthcare group. Past reports use
+  this classification; saved records are not changed.
+- Programs: one entry, with students and volunteers asked separately
+  (plus residents reached). Older programs' single number is shown as
+  "Not split".
+- Food: one number, people who received food. Item counts already saved
+  stay on file but are no longer asked or reported.
+- Family: needs no resident or facility; no separate care navigation
+  kind (older care navigation entries count as family).
+- Facility visit is offered under "More types" on the log form.
+- Facility staff: addresses are not asked or shown. Role is a list:
+  Executive Director, Administrator (LNHA), Activities Director, Life
+  Enrichment Director, Social Worker, Chaplain, Assisted Living
+  Director, Director of Nursing, Business Office Manager, Sales &
+  Marketing, Receptionist, Other (type a title). Titles already typed
+  in are kept exactly as they are.
+- "+ Log" from anyone's page (resident, family member, staff, volunteer,
+  partner) starts with that person attached, whatever kind is picked.
+- Navigation stays as it is. Expanded On-site Mode, major redesigns and
+  GitHub refactoring wait.
