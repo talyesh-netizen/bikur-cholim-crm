@@ -150,3 +150,19 @@ Please reply Q5 A/B, Q6 A/B/C and Q7 A/B/C, with a line of reasoning each.
 
 Checks: type check, lint and build pass; 44 counting and "+ Log" checks pass;
 32 browser checks on the log form pass.
+
+## Final check: director's notes (Oct 28, 2026)
+
+"Save and log a conversation" worked (the new staff member and the
+conversation saved at Hillcrest, in person at the facility). Two changes
+asked for, built on the TEST preview:
+
+1. Picking a facility staff member fills in the facility they work at,
+   when no facility is chosen yet (also "Log with [name]" from their page).
+   Someone linked to two or more facilities fills in nothing; pick one.
+2. "How?" has nothing picked in advance on a staff conversation or a
+   volunteer meeting, and a new one must pick. On-site mode still starts
+   on in person, since you are at the facility.
+
+Checks: type check, lint and build pass; counting checks pass; 38 browser
+checks on the log form pass.

@@ -20,6 +20,7 @@ import {
   PARTNER_FACILITY_OPTIONAL_TYPES,
   PARTNER_TYPES,
   METHOD_ASKED,
+  METHOD_REQUIRED_NEW,
   METHOD_FIXED,
   METHODS,
   methodWhere,
@@ -314,6 +315,19 @@ export async function createInteraction(
     return {
       error: "Please fix the highlighted fields.",
       fieldErrors: { resident_id: RESIDENT_REQUIRED_MESSAGE },
+      values: raw,
+      checkedVolunteerIds: volunteerIds,
+      people,
+      residentIds: chosenResidents,
+    };
+  }
+
+  // Nothing is picked in advance on these, so a new one says how it
+  // happened (Oct 28, 2026); older entries keep "not recorded".
+  if (METHOD_REQUIRED_NEW.includes(parsed.data.interaction_type) && !parsed.data.method) {
+    return {
+      error: "Please fix the highlighted fields.",
+      fieldErrors: { method: "Please pick how it happened." },
       values: raw,
       checkedVolunteerIds: volunteerIds,
       people,

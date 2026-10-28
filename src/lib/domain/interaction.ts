@@ -227,10 +227,12 @@ export const METHODS = [
   { value: "video", label: "Video" },
 ] as const;
 
-/** Entries that ask how it happened, and the choice a new one starts on. */
+/** Entries that ask how it happened, and the choice a new one starts on.
+ * Nothing is picked in advance (director, Oct 28, 2026): the person says
+ * whether it was at the facility; on site starts on in person. */
 export const METHOD_ASKED: Partial<Record<InteractionType, (typeof METHODS)[number]["value"] | null>> = {
-  facility_staff_communication: "in_person",
-  volunteer_meeting: "in_person",
+  facility_staff_communication: null,
+  volunteer_meeting: null,
   family_communication: null,
   care_navigation: null,
   medical_referral: null,
@@ -239,6 +241,10 @@ export const METHOD_ASKED: Partial<Record<InteractionType, (typeof METHODS)[numb
   kosher_food_coordination: null,
   other: null,
 };
+
+/** New entries that must say how they happened, since nothing is picked
+ * for them and a blank one never counts as a facility visit (Oct 28, 2026). */
+export const METHOD_REQUIRED_NEW: string[] = ["facility_staff_communication", "volunteer_meeting"];
 
 /** Entries that can only happen one way: recorded for a new entry
  * without asking. (An older entry keeps "not recorded".) */

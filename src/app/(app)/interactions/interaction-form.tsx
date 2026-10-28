@@ -26,6 +26,7 @@ import {
   PARTNER_TYPES,
   METHODS,
   METHOD_ASKED,
+  METHOD_REQUIRED_NEW,
   GROUP_COUNT_TYPES,
   PROGRAM_PARTNERS,
   SERVICE_FIELDS_BY_TYPE,
@@ -161,7 +162,14 @@ export function InteractionForm({
 
   // Where and who: picking a resident fills in their facility; once a
   // facility is chosen, only its residents are offered.
-  const [facilityId, setFacilityId] = useState(values.facility_id);
+  // Picking a facility staff member who works at one facility fills it
+  // in, when none is chosen yet (director, Oct 28, 2026).
+  const staffFacilities = new Map((activity?.facilityStaff ?? []).map((c) => [c.id, c.facilityIds ?? []]));
+  const facilityOfStaff = (ids: string[]) =>
+    ids.map((id) => staffFacilities.get(id)).find((f) => f?.length === 1)?.[0];
+  const [facilityId, setFacilityId] = useState(
+    () => values.facility_id || (!initialValues && !state.values && defaultContactId ? facilityOfStaff([defaultContactId]) ?? "" : "")
+  );
   // "In person" starts as at the facility when one is chosen, else
   // elsewhere (a volunteer meeting at the office).
   const usualMethod = isNewEntry ? (values.in_person === "on" ? "in_person" : METHOD_ASKED[interactionType as InteractionType] ?? "") : "";
@@ -460,7 +468,7 @@ export function InteractionForm({
           as a facility visit. An older entry with none shows nothing
           picked ("not recorded") and keeps it unless changed. */}
       {interactionType in METHOD_ASKED ? (
-        <Field label="How?" htmlFor="method" error={fieldErrors.method}>
+        <Field label="How?" htmlFor="method" error={fieldErrors.method} required={isNewEntry && METHOD_REQUIRED_NEW.includes(interactionType)}>
           <input type="hidden" name="method" value={method} readOnly />
           <div id="method" role="group" aria-label="How it happened" className="flex flex-wrap gap-2">
             {METHODS.map((m) => (
@@ -483,7 +491,7 @@ export function InteractionForm({
             ))}
           </div>
           <p className="text-xs text-muted-foreground">
-            {!method ? "Not recorded. " : ""}Only “In person at facility” counts as a facility visit.
+            {!method && !isNewEntry ? "Not recorded. " : ""}Only “In person at facility” counts as a facility visit.
           </p>
         </Field>
       ) : null}
@@ -722,7 +730,13 @@ export function InteractionForm({
               rank: facilityId && c.facilityIds?.includes(facilityId) ? 0 : 1,
             }))}
             value={engaged}
-            onChange={setEngaged}
+            onChange={(ids) => {
+              setEngaged(ids);
+              if (!facilityId) {
+                const facility = facilityOfStaff(ids.filter((id) => !engaged.includes(id)));
+                if (facility) setFacilityId(facility);
+              }
+            }}
             placeholder={interactionType === "facility_staff_communication" ? "Type a staff member's or partner's name…" : "Type a staff member's name…"}
           />
           {onePerPerson ? (

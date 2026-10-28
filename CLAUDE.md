@@ -179,6 +179,11 @@ These replace any earlier rule above that says otherwise.
   "Save and log a conversation" in one step. "Who you spoke with" lists the
   chosen facility's staff first, each showing where they work. Impact
   numbers carry a few words each, with the full definition behind an "i".
+- QA (director, Oct 28, 2026): a staff conversation or volunteer meeting
+  starts with nothing picked under "How?", and a new one must pick
+  (on site still starts on in person). Picking a facility staff member
+  who works at one facility fills in that facility when none is chosen
+  yet, including "Log with [name]" from their page.
 - Navigation stays as it is. Expanded On-site Mode, major redesigns and
   GitHub refactoring wait.
 - Stories (Oct 27, 2026, option C): a simple free-form log, kept apart
