@@ -13,7 +13,9 @@ https://bikur-cholim-crm-git-claude-oct-2-d26ccb-bikur-cholim-cleveland.vercel.a
 | 4 | Program form | **Pass:** saved with 5 students, 4 volunteers, 11 residents reached, no facility (checked in the TEST database) |
 | 5 | Family form | **Pass:** saved with no resident or facility (checked in the TEST database). **Change requested:** the family box offered a staff member (answer 3) |
 | 6 | Facility visit under "More types" | **Pass:** saved at Hillcrest Independent Living, in person, counts as a facility visit (checked in the TEST database). **Change requested:** a short reminder of when to use it (answer 4) |
-| 7–10 | Staff role, Impact, funder export, Stories | Not checked yet |
+| 7 | Facility staff: address and role | **Pass:** no address fields; role is a dropdown. Extra check added by the director: a newly added staff member must show up when logging (7b) |
+| 7b | New staff member appears when logging | In progress |
+| 8–10 | Impact, funder export, Stories | Not checked yet |
 
 ## Step 1 finding (director, Oct 27, 2026)
 
