@@ -223,6 +223,20 @@ employee's tasks (due today, tomorrow, next 7 days).
    conversation, and the bottom list counts every entry a volunteer is
    on. Suggest counting only volunteer visits there, or renaming the
    column "Entries".
+6. **Interactions date range kicks you out while typing** (also on the
+   live site): the list reloads as soon as the box holds any complete
+   date, and typing "2026" counts as complete at the first "2". Fix:
+   reload only when done (click away / Enter) or an Apply button.
+7. **Quick Log can't be tried on TEST:** the AI key is set for the live
+   site only, so the test site hides Quick Log. A: add the key to the
+   test site; B: rely on the automatic checks.
+8. **Daily task email** (assessment, separate from PR #145): a daily
+   email already exists in the code but has never sent (Resend account,
+   sending domain and three settings never set up; LAUNCH_READINESS.md).
+   It sends counts only (overdue, due today), Sun-Fri around 8 am.
+   Adding tomorrow and next 7 days is small. Cost: free at our size.
+9. **Pre-existing (not this PR):** the live service-role key is set for
+   every preview deployment; preview-only builds don't need it.
 5. **CSV opens in the ChatGPT app** on the director's Mac. Not a CRM
    problem (the Mac's default app for .csv); open with Numbers or Google
    Sheets, or a later option to download as Excel.
