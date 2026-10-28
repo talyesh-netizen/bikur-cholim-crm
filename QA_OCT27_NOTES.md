@@ -166,3 +166,12 @@ asked for, built on the TEST preview:
 
 Checks: type check, lint and build pass; counting checks pass; 38 browser
 checks on the log form pass.
+
+## Later, not in this round (director, Oct 28, 2026)
+
+- **Stories: a date option.** Today a story takes the day it was written
+  automatically. The director would like to be able to set the date (for
+  a story written down days later). Not built now: the priority is
+  finishing this round so the CRM can be used.
+- The "How?" choice (required or optional) goes to ChatGPT; it is built
+  as required on the TEST preview until answered.
