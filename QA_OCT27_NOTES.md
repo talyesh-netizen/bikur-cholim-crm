@@ -181,3 +181,16 @@ the "i"). Open: the "How?" question (required or optional) with ChatGPT.
   finishing this round so the CRM can be used.
 - The "How?" choice (required or optional) goes to ChatGPT; it is built
   as required on the TEST preview until answered.
+
+## Final decisions (ChatGPT and director, Oct 28, 2026)
+
+1. "How?": **A**, required on new staff conversations and volunteer
+   meetings (as built), for accurate visit counting.
+2. Manual QA before going live: items 14 (side panel "+ Log" blank),
+   15 ("Log with [name]"), 28 (funder export opened in a spreadsheet)
+   and 31 (Quick Log) are to be clicked through on TEST.
+3. Production: **not yet approved.** The merge and the two production
+   database updates wait for those checks and the director's approval.
+
+Later, separate from PR #145: assess a daily morning email of each
+employee's tasks (due today, tomorrow, next 7 days).
