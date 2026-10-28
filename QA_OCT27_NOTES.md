@@ -15,7 +15,8 @@ https://bikur-cholim-crm-git-claude-oct-2-d26ccb-bikur-cholim-cleveland.vercel.a
 | 6 | Facility visit under "More types" | **Pass:** saved at Hillcrest Independent Living, in person, counts as a facility visit (checked in the TEST database). **Change requested:** a short reminder of when to use it (answer 4) |
 | 7 | Facility staff: address and role | **Pass:** no address fields; role is a dropdown. Extra check added by the director: a newly added staff member must show up when logging (7b) |
 | 7b | New staff member appears when logging | **Pass:** "Test" saved as facility staff (Life Enrichment Director, Cedarbrook) and a staff conversation with them saved (checked in the TEST database). Two open questions for ChatGPT below (Q5, Q6) |
-| 8–10 | Impact, funder export, Stories | Not checked yet |
+| 8 | Impact page | **Pass:** shows staff interactions (one per person), Staff visits beside Facility visit-days, partner conversations and the Programs box (5 students, 4 volunteers) matching what was logged. Open question Q7 on wording |
+| 9–10 | Funder export, Stories | Not checked yet |
 
 ## Step 1 finding (director, Oct 27, 2026)
 
@@ -107,4 +108,18 @@ on the form.
 - **C.** Keep it as it is.
 - Claude recommends **A**.
 
-Please reply Q5 A/B and Q6 A/B/C, with a line of reasoning each.
+**Q7. How much explanation on the Impact page.** Under each number on the
+Impact page there is a line explaining what it counts, for example "each staff
+member once per facility per day they were there". The director finds this
+too much to read.
+- **A.** Shorten each line to a few words ("per person, per day", "per
+  facility, per day", "calls included"), with the full explanation shown only
+  when you hover or tap a small "i" next to the number. Upside: much calmer
+  page, and the difference between similar numbers is still visible.
+  Downside: the full meaning is one tap away.
+- **B.** Remove the lines entirely. Upside: cleanest. Downside: "Staff visits"
+  and "Facility visit-days" look alike with nothing to tell them apart.
+- **C.** Keep them as they are.
+- Claude recommends **A**.
+
+Please reply Q5 A/B, Q6 A/B/C and Q7 A/B/C, with a line of reasoning each.
