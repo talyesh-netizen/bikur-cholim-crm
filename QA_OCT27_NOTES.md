@@ -194,3 +194,35 @@ the "i"). Open: the "How?" question (required or optional) with ChatGPT.
 
 Later, separate from PR #145: assess a daily morning email of each
 employee's tasks (due today, tomorrow, next 7 days).
+
+## Manual checks (Oct 28, 2026)
+
+- 14 Side panel "+ Log" opens blank: **Pass.** (Found: an empty "Address"
+  line still showed on facility staff pages; removed.)
+- 15 "Log with [name]": **Pass.** Carlos Ruiz and Cedarbrook filled in;
+  Family left him out (not family).
+- 28 Funder export: **Pass.** Read by Claude from the downloaded file: no
+  item count; Staff visits, Partner conversations and Program
+  participation (students 5, volunteers 4, not split 0) present.
+- 31 Quick Log: to do.
+
+## Open list for ChatGPT (collect now, build after approval)
+
+1. **Resident box on the log form** (question sent): A clearer wording
+   "About a resident? (optional)"; B hide on staff conversations and
+   Other; C leave. Claude recommends A.
+2. **Stories date option** (director): set the date of a story written
+   down later.
+3. **Funder export, students shown twice:** "School & shul programs"
+   has its own Students/Volunteers lines (0) and "Program participation"
+   has the totals (5 and 4), because the test program was at a facility.
+   Two places for the same thing may confuse a funder; suggest one.
+4. **Funder export, volunteer list:** the bottom "Volunteer impact"
+   list shows Ben Horowitz with 1 visit, while the summary above says 0
+   volunteer visits. He was tagged as a volunteer on a staff
+   conversation, and the bottom list counts every entry a volunteer is
+   on. Suggest counting only volunteer visits there, or renaming the
+   column "Entries".
+5. **CSV opens in the ChatGPT app** on the director's Mac. Not a CRM
+   problem (the Mac's default app for .csv); open with Numbers or Google
+   Sheets, or a later option to download as Excel.

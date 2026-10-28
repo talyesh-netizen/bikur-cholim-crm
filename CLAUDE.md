@@ -27,6 +27,14 @@ ready-to-paste question for ChatGPT:
 Routine engineering choices (naming, file layout, how a fix is coded)
 don't get one; just make the call and mention it.
 
+## Working rule: list first, build after (director, Oct 28, 2026)
+
+While testing, don't build. Collect every issue, question and idea into
+one running list (`QA_OCT27_NOTES.md`, "Open list for ChatGPT"); the
+director sends the whole list to ChatGPT, and only what comes back
+approved gets built. Small factual checks (reading data, explaining
+how something works) are fine; changes wait for the list.
+
 ## Other context
 
 - Live site deploys from lowercase `main` (see `LAUNCH_READINESS.md`).
