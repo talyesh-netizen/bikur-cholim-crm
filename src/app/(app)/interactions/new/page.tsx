@@ -57,6 +57,8 @@ export default async function NewInteractionPage({
       : [];
   const contacts = [...family, ...allContacts.filter((c) => !familyIds.has(c.id)), ...inactiveChosen];
   const chosenContact = contactId ? contacts.find((c) => c.id === contactId) : undefined;
+  // The only people a Family entry offers (Oct 27, 2026 QA).
+  const familyContactIds = [...familyIds, ...allContacts.filter((c) => c.contact_type === "family_member").map((c) => c.id)];
 
   if (residentId && !resident) notFound();
   if (facilityId) {
@@ -131,6 +133,7 @@ export default async function NewInteractionPage({
             defaultFacilityId={facilityId ?? resident?.current_facility_id ?? undefined}
             defaultInteractionType={defaultType}
             defaultContactId={chosenContact?.id}
+            familyContactIds={familyContactIds}
             defaultInPerson={from === "onsite"}
             defaultPartnerId={activity.partners.some((p) => p.id === partner) ? partner : undefined}
             fixedResident={fixedResident}

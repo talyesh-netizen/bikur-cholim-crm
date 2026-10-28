@@ -267,6 +267,12 @@ export function methodWhere(method: Method | null | undefined, facilityId: strin
  * "Part of" a group project. */
 export const PARTNER_TYPES: readonly string[] = ["program", "school_engagement", "food_delivery"];
 
+/** No Resident box on these (director, Oct 27, 2026 QA): a program is a
+ * group activity. A meaningful conversation with someone there is its own
+ * entry. Food keeps an optional Resident, for a delivery made for one
+ * person. An older entry's resident is kept as it was. */
+export const NO_RESIDENT_TYPES: readonly string[] = ["program", "school_engagement"];
+
 /** Entries that can hold a group's volunteer count. */
 export const GROUP_COUNT_TYPES: readonly string[] = ["program", "school_engagement"];
 

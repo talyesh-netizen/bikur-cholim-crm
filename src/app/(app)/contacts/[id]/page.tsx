@@ -118,6 +118,16 @@ export default async function ContactDetailPage({
           ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
+          {/* Logging with this person starts here, with them filled in
+              (Oct 27, 2026 QA); the side panel's + Log is always blank. */}
+          {contact.active && !contact.merged_into_id ? (
+            <Button asChild>
+              <Link href={`/interactions/new?contact=${contact.id}&back=${encodeURIComponent(`/contacts/${contact.id}`)}`}>
+                <Plus className="size-4" />
+                Log with {contact.name}
+              </Link>
+            </Button>
+          ) : null}
           <Button variant="outline" asChild>
             <Link href={`/contacts/${contact.id}/edit`}>
               <Pencil className="size-4" />

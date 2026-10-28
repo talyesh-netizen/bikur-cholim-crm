@@ -102,7 +102,7 @@ export default async function ResidentDetailPage({
           <Button asChild size="lg" className="text-base">
             <Link href={`/interactions/new?resident=${resident.id}${backParam}`}>
               <Plus className="size-5" />
-              Log
+              Log with {displayName}
             </Link>
           </Button>
           {quickLogEnabled() ? (

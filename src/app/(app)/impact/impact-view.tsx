@@ -10,8 +10,24 @@ import type { ImpactGrowth } from "@/lib/queries/impact-growth";
 import { IMPACT_GOALS } from "@/lib/impact-goals";
 import { formatDateOnly } from "@/lib/format-date";
 import { Download } from "lucide-react";
+import { InfoTip } from "@/components/info-tip";
 
 const n = (v: number) => v.toLocaleString("en-US");
+
+/** One number with a few words under it; the full definition is behind
+ * the "i" (director, Oct 27, 2026 QA). */
+function Stat({ label, value, short, full }: { label: string; value: number; short: string; full: string }) {
+  return (
+    <div>
+      <dt className="flex items-center gap-1 text-sm text-muted-foreground">
+        {label}
+        <InfoTip label={label}>{full}</InfoTip>
+      </dt>
+      <dd className="text-2xl font-bold tabular-nums">{n(value)}</dd>
+      <dd className="text-xs text-muted-foreground">{short}</dd>
+    </div>
+  );
+}
 
 function Section({ id, color, title, intro, children }: { id: string; color: string; title: string; intro: string; children: React.ReactNode }) {
   return (
@@ -103,7 +119,7 @@ export function ImpactView({
           label="Facility staff supported"
           href={o.headlineLinks.staff}
           value={n(h.staffTouchpoints)}
-          detail={`staff interactions, one per person · ${n(h.staffPeople)} different staff · ${n(h.staffFacilities)} facilities`}
+          detail={`interactions · ${n(h.staffPeople)} staff · ${n(h.staffFacilities)} facilities`}
           current={h.staffTouchpoints}
           previous={prev?.staffTouchpoints ?? null}
           periodWord={p.word}
@@ -127,36 +143,12 @@ export function ImpactView({
       <section aria-labelledby="facility-presence" className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5">
         <h2 id="facility-presence" className="text-base font-semibold">Facility visits {periodPhrase}</h2>
         <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-          <div>
-            <dt className="text-sm text-muted-foreground">Staff visits</dt>
-            <dd className="text-2xl font-bold tabular-nums">{n(h.staffVisits)}</dd>
-            <dd className="text-xs text-muted-foreground">each staff member once per facility per day they were there</dd>
-          </div>
-          <div>
-            <dt className="text-sm text-muted-foreground">Facility visit-days</dt>
-            <dd className="text-2xl font-bold tabular-nums">{n(h.visitDays)}</dd>
-            <dd className="text-xs text-muted-foreground">days our staff were at a facility, each facility once a day</dd>
-          </div>
-          <div>
-            <dt className="text-sm text-muted-foreground">Volunteer-only visits</dt>
-            <dd className="text-2xl font-bold tabular-nums">{n(h.volunteerOnlyDays)}</dd>
-            <dd className="text-xs text-muted-foreground">days only volunteers were there</dd>
-          </div>
-          <div>
-            <dt className="text-sm text-muted-foreground">Total facility presence</dt>
-            <dd className="text-2xl font-bold tabular-nums">{n(h.presenceDays)}</dd>
-            <dd className="text-xs text-muted-foreground">staff, volunteers or both, each facility once a day</dd>
-          </div>
-          <div>
-            <dt className="text-sm text-muted-foreground">Facilities visited</dt>
-            <dd className="text-2xl font-bold tabular-nums">{n(h.facilitiesVisited)}</dd>
-            <dd className="text-xs text-muted-foreground">different facilities we were at</dd>
-          </div>
-          <div>
-            <dt className="text-sm text-muted-foreground">Facilities engaged</dt>
-            <dd className="text-2xl font-bold tabular-nums">{n(h.facilitiesEngaged)}</dd>
-            <dd className="text-xs text-muted-foreground">different facilities with any contact, calls included</dd>
-          </div>
+          <Stat label="Staff visits" value={h.staffVisits} short="per person, per day" full="Each staff member once per facility per day they were there in person." />
+          <Stat label="Facility visit-days" value={h.visitDays} short="per facility, per day" full="Days our staff were at a facility in person, each facility once a day however many staff went." />
+          <Stat label="Volunteer-only visits" value={h.volunteerOnlyDays} short="only volunteers there" full="Days only volunteers were at a facility (no staff), each facility once a day." />
+          <Stat label="Total facility presence" value={h.presenceDays} short="staff or volunteers" full="Days anyone from Bikur Cholim was at a facility (staff, volunteers or both), each facility once a day." />
+          <Stat label="Facilities visited" value={h.facilitiesVisited} short="different facilities" full="Different facilities we were at in person." />
+          <Stat label="Facilities engaged" value={h.facilitiesEngaged} short="any contact" full="Different facilities with any contact at all, calls and emails included." />
         </dl>
         <p className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted-foreground">
           <span>
@@ -164,7 +156,10 @@ export function ImpactView({
           </span>
           <span>
             <span className="font-semibold text-foreground tabular-nums">{n(h.partnerConversations)}</span> partner conversations
-            <span className="text-xs"> (schools, shuls, hospices, agencies; {n(h.partnerPeople)} different people; not counted as facility staff)</span>
+            <span className="text-xs"> ({n(h.partnerPeople)} people)</span>{" "}
+            <InfoTip label="Partner conversations">
+              Conversations with schools, shuls, hospices, agencies and other partners, each person once per conversation. Never counted as facility staff.
+            </InfoTip>
           </span>
         </p>
       </section>
@@ -175,26 +170,10 @@ export function ImpactView({
         <section aria-labelledby="programs" className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5">
           <h2 id="programs" className="text-base font-semibold">Programs {periodPhrase}</h2>
           <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <div>
-              <dt className="text-sm text-muted-foreground">Programs</dt>
-              <dd className="text-2xl font-bold tabular-nums">{n(h.programs)}</dd>
-              <dd className="text-xs text-muted-foreground">facility, school &amp; shul programs</dd>
-            </div>
-            <div>
-              <dt className="text-sm text-muted-foreground">Students</dt>
-              <dd className="text-2xl font-bold tabular-nums">{n(h.groupStudents)}</dd>
-              <dd className="text-xs text-muted-foreground">each group counted once</dd>
-            </div>
-            <div>
-              <dt className="text-sm text-muted-foreground">Volunteers</dt>
-              <dd className="text-2xl font-bold tabular-nums">{n(h.groupVolunteers)}</dd>
-              <dd className="text-xs text-muted-foreground">each group counted once</dd>
-            </div>
-            <div>
-              <dt className="text-sm text-muted-foreground">Not split</dt>
-              <dd className="text-2xl font-bold tabular-nums">{n(h.groupNotSplit)}</dd>
-              <dd className="text-xs text-muted-foreground">older entries: students and volunteers together</dd>
-            </div>
+            <Stat label="Programs" value={h.programs} short="facility, school & shul" full="Facility, school and shul programs, each counted once." />
+            <Stat label="Students" value={h.groupStudents} short="each group once" full="Students who took part, each group counted once however many facilities its project reached." />
+            <Stat label="Volunteers" value={h.groupVolunteers} short="each group once" full="Volunteers who took part, each group counted once however many facilities its project reached." />
+            <Stat label="Not split" value={h.groupNotSplit} short="older entries" full="Programs saved before students and volunteers were asked separately: the one number they had, students and volunteers together." />
           </dl>
         </section>
       ) : null}

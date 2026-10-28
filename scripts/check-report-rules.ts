@@ -143,19 +143,18 @@ check(
     !ONE_PER_PERSON_TYPES.includes("program")
 );
 
-// --- "+ Log" from anyone's page keeps them --------------------------------
+// --- Side panel "+ Log" is always blank (Oct 27, 2026 QA, decision A) ---
 const C = "11111111-1111-4111-8111-111111111111";
 const O = "22222222-2222-4222-8222-222222222222";
 const R = "33333333-3333-4333-8333-333333333333";
 const F = "44444444-4444-4444-8444-444444444444";
-for (const quickLog of [false, true]) {
-  const mode = quickLog ? "phone (Quick Log on)" : "computer";
-  check(`${mode}: contact page -> form with that person`, logHref(`/contacts/${C}`, quickLog) === `/interactions/new?contact=${C}&back=%2Fcontacts%2F${C}`, logHref(`/contacts/${C}`, quickLog));
-  check(`${mode}: partner page -> form with that partner`, logHref(`/organizations/${O}`, quickLog).startsWith(`/interactions/new?partner=${O}`));
-  check(`${mode}: resident page -> form with that resident`, logHref(`/residents/${R}`, quickLog) === `/interactions/new?resident=${R}`);
-  check(`${mode}: facility page keeps the facility`, logHref(`/facilities/${F}`, quickLog).includes(`facility=${F}`));
-  check(`${mode}: contact's edit page isn't treated as their profile`, !logHref(`/contacts/${C}/edit`, quickLog).includes("contact="));
+for (const path of [`/contacts/${C}`, `/organizations/${O}`, `/residents/${R}`, `/facilities/${F}`]) {
+  const computer = logHref(path, false);
+  const phone = logHref(path, true);
+  check(`computer: + Log on ${path.split("/")[1]} page opens a blank form`, computer === `/interactions/new?back=${encodeURIComponent(path)}`, computer);
+  check(`phone: + Log on ${path.split("/")[1]} page opens a blank note`, phone === "/quick-log", phone);
 }
+check("+ Log on a form page doesn't come back to the form", logHref("/interactions/new", false) === "/interactions/new");
 
 console.log(failures === 0 ? "\nAll checks passed." : `\n${failures} check(s) FAILED.`);
 process.exit(failures === 0 ? 0 : 1);

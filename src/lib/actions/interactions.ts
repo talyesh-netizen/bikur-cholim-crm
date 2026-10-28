@@ -255,6 +255,15 @@ async function needsFacility(
   return types.length < people.length || types.some((c) => !PARTNER_CONTACT_TYPES.includes(c.contact_type));
 }
 
+/** A Family entry is only ever with people filed as family members
+ * (Oct 27, 2026 QA). */
+async function notAllFamily(supabase: Awaited<ReturnType<typeof createClient>>, people: string[]): Promise<boolean> {
+  if (people.length === 0) return false;
+  const { data: rows } = await supabase.from("contacts").select("id, contact_type").in("id", people);
+  const types = (rows ?? []) as { id: string; contact_type: string }[];
+  return types.length < people.length || types.some((c) => c.contact_type !== "family_member");
+}
+
 /** Who a new entry is with, one record each (ONE_PER_PERSON_TYPES): the
  * staff picked for a staff conversation, else the people picked as its
  * contact. Empty for any other kind of entry. */
@@ -314,6 +323,16 @@ export async function createInteraction(
 
   const supabase = await createClient();
   const persons = peopleForRecords(parsed.data.interaction_type, people, parsed.data.contact_id);
+  if (parsed.data.interaction_type === "family_communication" && (await notAllFamily(supabase, persons))) {
+    return {
+      error: "Please fix the highlighted fields.",
+      fieldErrors: { contact_id: "Only family members can be picked for a Family entry." },
+      values: raw,
+      checkedVolunteerIds: volunteerIds,
+      people,
+      residentIds: chosenResidents,
+    };
+  }
   if (await needsFacility(supabase, parsed.data, persons)) {
     return {
       error: "Please fix the highlighted fields.",

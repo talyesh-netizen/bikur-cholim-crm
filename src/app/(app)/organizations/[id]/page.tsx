@@ -71,7 +71,7 @@ export default async function OrganizationDetailPage({
             <Button asChild>
               <Link href={logHref}>
                 <Plus className="size-4" />
-                Log interaction
+                Log with {organization.name}
               </Link>
             </Button>
           )}

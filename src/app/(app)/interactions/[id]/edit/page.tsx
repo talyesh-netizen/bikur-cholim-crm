@@ -120,6 +120,7 @@ export default async function EditInteractionPage({
             initialPeople={initialPeople}
             initialPartOf={initialPartOf}
             selfId={id}
+            familyContactIds={contacts.filter((c) => c.contact_type === "family_member").map((c) => c.id)}
             initialValues={{
               facility_id: interaction.facility_id ?? "",
               resident_id: interaction.resident_id ?? "",

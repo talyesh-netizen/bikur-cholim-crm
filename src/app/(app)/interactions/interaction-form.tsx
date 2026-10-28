@@ -21,6 +21,7 @@ import {
   VOLUNTEER_TYPES,
   ENGAGEMENT_TYPES,
   ONE_PER_PERSON_TYPES,
+  NO_RESIDENT_TYPES,
   PARTNER_FACILITY_OPTIONAL_TYPES,
   PARTNER_TYPES,
   METHODS,
@@ -67,6 +68,7 @@ export function InteractionForm({
   initialPeople,
   initialPartOf,
   selfId,
+  familyContactIds,
   submitLabel = "Log interaction",
   savingLabel = "Saving…",
 }: {
@@ -119,6 +121,9 @@ export function InteractionForm({
   initialPartOf?: GroupProjectOption | null;
   /** Editing: this entry's own id (never suggested as its own project). */
   selfId?: string;
+  /** People filed as family members: the only ones a Family entry offers
+   * (Oct 27, 2026 QA). */
+  familyContactIds?: string[];
   submitLabel?: string;
   savingLabel?: string;
 }) {
@@ -245,6 +250,15 @@ export function InteractionForm({
   const facilityRequired = !FACILITY_OPTIONAL_TYPES.includes(interactionType) && !partnersOnly;
 
   // Started from a volunteer's page: a volunteer visit has them on it.
+  const familyIds = new Set(familyContactIds ?? []);
+  // A Family entry is only ever with family members (Oct 27, 2026 QA):
+  // anyone else picked so far is set aside, never saved as family, and
+  // comes back if another kind is picked.
+  const familyOnly = interactionType === "family_communication" && !!familyContactIds;
+  const peopleShown = familyOnly ? engaged.filter((id) => familyIds.has(id)) : engaged;
+  function choosePeople(ids: string[]) {
+    setEngaged(familyOnly ? [...engaged.filter((id) => !familyIds.has(id)), ...ids] : ids);
+  }
   function chooseType(type: string) {
     setInteractionType(type);
     if (
@@ -354,7 +368,10 @@ export function InteractionForm({
         </p>
       ) : null}
 
-      {residents && residents.length > 0 ? (
+      {NO_RESIDENT_TYPES.includes(interactionType) ? (
+        // Not asked on a program; an older entry keeps its resident.
+        isEditing && values.resident_id ? <input type="hidden" name="resident_id" value={values.resident_id} readOnly /> : null
+      ) : residents && residents.length > 0 ? (
         multiResident ? (
           <Field label="Residents visited" htmlFor="resident_ids" error={fieldErrors.resident_id} required={!service.people_reached && !groupOpened}>
             <MultiSearchPicker
@@ -431,6 +448,12 @@ export function InteractionForm({
         required
       >
         <TypePicker value={interactionType} onChange={chooseType} />
+        {interactionType === "facility_visit" ? (
+          <p className="text-xs text-muted-foreground">
+            Use this when you went to the facility but didn&apos;t meet any residents or staff. If you did, log those visits
+            or conversations instead.
+          </p>
+        ) : null}
       </Field>
 
       {/* How it happened (director, Oct 21, 2026): only in person can count
@@ -686,11 +709,18 @@ export function InteractionForm({
           <MultiSearchPicker
             id="engaged_contact_ids"
             name="engaged_contact_ids"
-            options={withChosen(
+            options={withChosen<{ id: string; name: string; detail?: string | null; facilityIds?: string[] }>(
               interactionType === "facility_staff_communication" ? [...activity.facilityStaff, ...activity.partnerContacts] : activity.facilityStaff,
               activity.anyone,
               engaged
-            ).map((c) => ({ id: c.id, label: c.name, detail: c.detail }))}
+            ).map((c) => ({
+              id: c.id,
+              label: c.name,
+              detail: c.detail,
+              // The chosen facility's staff first; everyone else after,
+              // each showing where they work (Oct 27, 2026 QA).
+              rank: facilityId && c.facilityIds?.includes(facilityId) ? 0 : 1,
+            }))}
             value={engaged}
             onChange={setEngaged}
             placeholder={interactionType === "facility_staff_communication" ? "Type a staff member's or partner's name…" : "Type a staff member's name…"}
@@ -744,20 +774,24 @@ export function InteractionForm({
             <MultiSearchPicker
               id="contact_ids"
               name="contact_ids"
-              options={contacts.map((c) => ({ id: c.id, label: c.name, detail: c.detail }))}
-              value={engaged}
-              onChange={setEngaged}
+              options={contacts
+                .filter((c) => !familyOnly || familyIds.has(c.id))
+                .map((c) => ({ id: c.id, label: c.name, detail: c.detail }))}
+              value={peopleShown}
+              onChange={choosePeople}
               placeholder="Type a name…"
             />
-            <OnePerPersonNote count={engaged.length} />
+            <OnePerPersonNote count={peopleShown.length} />
           </Field>
         ) : (
           <Field label={interactionType === "volunteer_meeting" ? "Volunteer you met" : "Contact"} htmlFor="contact_id" error={fieldErrors.contact_id}>
             <SearchPicker
               id="contact_id"
               name="contact_id"
-              defaultValue={isEditing ? values.contact_id : engaged[0] ?? values.contact_id}
-              options={contacts.map((c) => ({ id: c.id, label: c.name, detail: c.detail }))}
+              defaultValue={isEditing ? values.contact_id : peopleShown[0] ?? values.contact_id}
+              options={contacts
+                .filter((c) => !familyOnly || familyIds.has(c.id) || c.id === values.contact_id)
+                .map((c) => ({ id: c.id, label: c.name, detail: c.detail }))}
               emptyLabel="No specific contact"
               placeholder="Type a name…"
             />

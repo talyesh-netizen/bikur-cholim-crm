@@ -124,3 +124,29 @@ too much to read.
 - Claude recommends **A**.
 
 Please reply Q5 A/B, Q6 A/B/C and Q7 A/B/C, with a line of reasoning each.
+
+## Final answers (ChatGPT and director, Oct 27, 2026)
+
+- Q5: **A**, "Save and log a conversation" on the new-staff form.
+- Q6: **A**, the chosen facility's staff first, each person showing where they work.
+- Q7: **A**, short explanations with the full definitions behind an "i".
+- Change to answer 2: **Food keeps an optional Resident** (a delivery made for one
+  person stays on their history); the Resident box is hidden on Programs only.
+
+## Built on the TEST preview for the final check
+
+1. Side panel "+ Log" opens a blank form on every page; resident, staff, family,
+   volunteer and partner pages have "Log with [name]" at the top.
+2. No Resident box on Programs; Food keeps an optional Resident.
+3. Family offers family members only. Anyone picked before is set aside, not
+   saved as family, and comes back if another kind is picked.
+4. Facility visit shows: "Use this when you went to the facility but didn't
+   meet any residents or staff. If you did, log those visits or conversations
+   instead."
+5. New-staff form: "Save and log a conversation".
+6. "Who you spoke with": the chosen facility's staff first, each showing role
+   and facility.
+7. Impact: a few words under each number; full definitions behind an "i".
+
+Checks: type check, lint and build pass; 44 counting and "+ Log" checks pass;
+32 browser checks on the log form pass.

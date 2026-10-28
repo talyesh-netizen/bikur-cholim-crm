@@ -166,8 +166,19 @@ These replace any earlier rule above that says otherwise.
   Director, Director of Nursing, Business Office Manager, Sales &
   Marketing, Receptionist, Other (type a title). Titles already typed
   in are kept exactly as they are.
-- "+ Log" from anyone's page (resident, family member, staff, volunteer,
-  partner) starts with that person attached, whatever kind is picked.
+- Logging from a person's page (QA, Oct 27, 2026, decision A): the side
+  panel's "+ Log" always opens a blank form, on every page. Each person's
+  page (resident, family member, staff, volunteer, partner) has its own
+  "Log with [name]" button at the top, which starts with that person
+  attached, whatever kind is picked.
+- QA adjustments (Oct 27, 2026): no Resident box on Programs (a meaningful
+  conversation there is its own entry); Food keeps an optional Resident,
+  for a delivery made for one person. A Family entry offers family members
+  only. Facility visit shows "Use this when you went to the facility but
+  didn't meet any residents or staff". Adding a facility staff member can
+  "Save and log a conversation" in one step. "Who you spoke with" lists the
+  chosen facility's staff first, each showing where they work. Impact
+  numbers carry a few words each, with the full definition behind an "i".
 - Navigation stays as it is. Expanded On-site Mode, major redesigns and
   GitHub refactoring wait.
 - Stories (Oct 27, 2026, option C): a simple free-form log, kept apart
