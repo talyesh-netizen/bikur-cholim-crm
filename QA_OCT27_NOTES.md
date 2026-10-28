@@ -251,3 +251,18 @@ preview environments before going live, production unaffected.
 
 Built on the development branch: 1, 3, 4, 6. Settings: 7, 9 (see the
 final report).
+
+## Settings for the final check (Oct 28, 2026)
+
+- Item 9: `SUPABASE_SERVICE_ROLE_KEY` is now Production only (was
+  Production and Preview). Only staff sign-in creation/removal and the
+  daily reminder (live only) use it. Older preview deployments built
+  before today still hold it; all are behind Vercel login and it is
+  server-only. Full fix at go-live, with approval: create a new key in
+  Supabase, set it for Production, merge, check staff sign-ins, then
+  switch off the old key.
+- Item 7: a separate test Anthropic key was added for Preview on this
+  branch only (server-side name, no NEXT_PUBLIC). Delete it in the
+  Claude Console after Quick Log passes.
+- Noticed: the live Anthropic key appears to expire Nov 5, 2026; renew
+  or replace before then or live Quick Log stops.
