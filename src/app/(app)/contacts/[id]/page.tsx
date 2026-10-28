@@ -186,7 +186,9 @@ export default async function ContactDetailPage({
         <CardContent className="flex flex-col gap-2 text-sm">
           <InfoRow label="Phone" value={contact.phone} href={telHref(contact.phone)} />
           <InfoRow label="Email" value={contact.email} href={mailtoHref(contact.email)} />
-          <InfoRow label="Address" value={fullAddress} href={mapsHref(fullAddress)} />
+          {contact.contact_type === "facility_staff" ? null : (
+            <InfoRow label="Address" value={fullAddress} href={mapsHref(fullAddress)} />
+          )}
           <InfoRow
             label="Preferred communication method"
             value={
