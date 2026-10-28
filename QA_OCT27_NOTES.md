@@ -12,7 +12,8 @@ https://bikur-cholim-crm-git-claude-oct-2-d26ccb-bikur-cholim-cleveland.vercel.a
 | 3 | Food form | **Pass:** one number, "How many people received food?", no item count. **Change requested:** hide the Resident box (answer 2) |
 | 4 | Program form | **Pass:** saved with 5 students, 4 volunteers, 11 residents reached, no facility (checked in the TEST database) |
 | 5 | Family form | **Pass:** saved with no resident or facility (checked in the TEST database). **Change requested:** the family box offered a staff member (answer 3) |
-| 6–10 | More types, staff role, Impact, funder export, Stories | Not checked yet |
+| 6 | Facility visit under "More types" | **Pass:** saved at Hillcrest Independent Living, in person, counts as a facility visit (checked in the TEST database). **Change requested:** a short reminder of when to use it (answer 4) |
+| 7–10 | Staff role, Impact, funder export, Stories | Not checked yet |
 
 ## Step 1 finding (director, Oct 27, 2026)
 
@@ -71,3 +72,7 @@ Please reply A, B or C and why.
 3. **Who appears in the Family box: A (family members only).** In QA the
    family box offered everyone, and a staff member (Carlos Ruiz) was saved as
    "family". Only people filed as family members should be offered.
+4. **Reminder on Facility visit: yes.** When Facility visit is picked, the form
+   shows: "Use this when you went to the facility but didn't meet any
+   residents or staff. If you did, log those visits or conversations
+   instead." (Matches the Oct 21 rule for Facility visit.)
