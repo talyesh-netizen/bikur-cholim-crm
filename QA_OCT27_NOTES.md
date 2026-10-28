@@ -14,7 +14,7 @@ https://bikur-cholim-crm-git-claude-oct-2-d26ccb-bikur-cholim-cleveland.vercel.a
 | 5 | Family form | **Pass:** saved with no resident or facility (checked in the TEST database). **Change requested:** the family box offered a staff member (answer 3) |
 | 6 | Facility visit under "More types" | **Pass:** saved at Hillcrest Independent Living, in person, counts as a facility visit (checked in the TEST database). **Change requested:** a short reminder of when to use it (answer 4) |
 | 7 | Facility staff: address and role | **Pass:** no address fields; role is a dropdown. Extra check added by the director: a newly added staff member must show up when logging (7b) |
-| 7b | New staff member appears when logging | In progress |
+| 7b | New staff member appears when logging | **Pass:** "Test" saved as facility staff (Life Enrichment Director, Cedarbrook) and a staff conversation with them saved (checked in the TEST database). Two open questions for ChatGPT below (Q5, Q6) |
 | 8–10 | Impact, funder export, Stories | Not checked yet |
 
 ## Step 1 finding (director, Oct 27, 2026)
@@ -78,3 +78,33 @@ Please reply A, B or C and why.
    shows: "Use this when you went to the facility but didn't meet any
    residents or staff. If you did, log those visits or conversations
    instead." (Matches the Oct 21 rule for Facility visit.)
+
+## Open questions for ChatGPT (director wants ChatGPT's view first)
+
+**Q5. Logging right after adding a new staff member.** Today, adding a new
+facility staff member and logging a conversation with them are two separate
+steps: save the person, then click "+ Log" and find them again. The director
+felt it should be one smooth step.
+- **A.** The new-staff form gets a second button, "Save and log a
+  conversation". It saves the person, then opens the log form with that person
+  and their facility already filled in. Upside: one step when you've just met
+  someone new. Downside: one extra button on the form.
+- **B.** Keep it as it is. Upside: no change. Downside: two steps, and you have
+  to find the person again.
+- Claude recommends **A**.
+
+**Q6. Which staff appear in "Who you spoke with".** In QA, a staff member who
+works at Cedarbrook was picked for a conversation logged at Deer Creek Lodge.
+The box offers facility staff from every facility, whatever facility is chosen
+on the form.
+- **A.** Once a facility is chosen, list that facility's staff first, then
+  everyone else below. Upside: the right people are on top, and someone who
+  works at two places can still be picked. Downside: a mismatch is still
+  possible, just less likely.
+- **B.** Once a facility is chosen, show only that facility's staff. Upside: no
+  mismatches. Downside: someone not yet linked to that facility can't be picked
+  until they're linked.
+- **C.** Keep it as it is.
+- Claude recommends **A**.
+
+Please reply Q5 A/B and Q6 A/B/C, with a line of reasoning each.
