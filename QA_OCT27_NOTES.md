@@ -16,7 +16,8 @@ https://bikur-cholim-crm-git-claude-oct-2-d26ccb-bikur-cholim-cleveland.vercel.a
 | 7 | Facility staff: address and role | **Pass:** no address fields; role is a dropdown. Extra check added by the director: a newly added staff member must show up when logging (7b) |
 | 7b | New staff member appears when logging | **Pass:** "Test" saved as facility staff (Life Enrichment Director, Cedarbrook) and a staff conversation with them saved (checked in the TEST database). Two open questions for ChatGPT below (Q5, Q6) |
 | 8 | Impact page | **Pass:** shows staff interactions (one per person), Staff visits beside Facility visit-days, partner conversations and the Programs box (5 students, 4 volunteers) matching what was logged. Open question Q7 on wording |
-| 9–10 | Funder export, Stories | Not checked yet |
+| 9 | Funder export | **Pass (with a note):** the report downloads. The director's Mac opens CSV files with the ChatGPT app, which couldn't open it, so Claude checked the contents in the code: no item count, "People who received food", Staff visits, Partner conversations, Program participation (students / volunteers / not split). Worth opening once in Numbers or Excel |
+| 10 | Stories | **Pass:** story saved, written by Director (practice), linked to resident Esther Practice and Deer Creek Lodge; no activity entry created (checked in the TEST database). Linking an existing story later was covered by the automated access checks |
 
 ## Step 1 finding (director, Oct 27, 2026)
 
