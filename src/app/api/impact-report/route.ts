@@ -91,10 +91,9 @@ export async function GET(request: NextRequest) {
   csv += csvRow(["School & shul programs", "Programs", schoolShul.programs]);
   csv += csvRow(["School & shul programs", "School programs", schoolShul.school]);
   csv += csvRow(["School & shul programs", "Shul programs", schoolShul.shul]);
-  csv += csvRow(["School & shul programs", "Students who took part", schoolShul.students]);
-  csv += csvRow(["School & shul programs", "Volunteers who took part", schoolShul.volunteers]);
-  csv += csvRow(["School & shul programs", "Took part, not split (older entries)", schoolShul.notSplit]);
   csv += csvRow(["School & shul programs", "Residents reached (approx.)", schoolShul.peopleReached]);
+  // Students and volunteers are counted here only, for every program
+  // (director, Oct 28, 2026), not again under School & shul.
   csv += csvRow(["Program participation", "Programs with a head count (each group counted once, however many facilities)", services.groupVolunteers.projects]);
   csv += csvRow(["Program participation", "Students", services.groupVolunteers.students]);
   csv += csvRow(["Program participation", "Volunteers", services.groupVolunteers.volunteers]);

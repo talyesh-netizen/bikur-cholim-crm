@@ -139,9 +139,6 @@ export function ServicesDeliveredTiles({
         unit={schoolShul.programs === 1 ? "program" : "programs"}
         details={[
           schoolShul.programs > 0 ? `School: ${n(schoolShul.school)} · Shul: ${n(schoolShul.shul)}` : null,
-          schoolShul.students > 0 ? `${n(schoolShul.students)} students` : null,
-          schoolShul.volunteers > 0 ? `${n(schoolShul.volunteers)} volunteers` : null,
-          schoolShul.notSplit > 0 ? `${n(schoolShul.notSplit)} took part (not split)` : null,
           schoolShul.peopleReached > 0 ? `~${n(schoolShul.peopleReached)} residents reached` : null,
         ]}
       />

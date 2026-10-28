@@ -192,6 +192,12 @@ These replace any earlier rule above that says otherwise.
   (on site still starts on in person). Picking a facility staff member
   who works at one facility fills in that facility when none is chosen
   yet, including "Log with [name]" from their page.
+- Before going live (ChatGPT and director, Oct 28, 2026): where the
+  Resident box is optional it reads "About a resident? (optional)"
+  ("No resident" when empty). Students and volunteers are reported only
+  under Program participation, not again under School & shul. The
+  volunteer list counts volunteer visits only. Interactions date boxes
+  apply when the person is done (click away or Enter), not mid-typing.
 - Navigation stays as it is. Expanded On-site Mode, major redesigns and
   GitHub refactoring wait.
 - Stories (Oct 27, 2026, option C): a simple free-form log, kept apart

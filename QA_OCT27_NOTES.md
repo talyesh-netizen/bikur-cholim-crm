@@ -240,3 +240,14 @@ employee's tasks (due today, tomorrow, next 7 days).
 5. **CSV opens in the ChatGPT app** on the director's Mac. Not a CRM
    problem (the Mac's default app for .csv); open with Numbers or Google
    Sheets, or a later option to download as Excel.
+
+## Decisions on the open list (ChatGPT and director, Oct 28, 2026)
+
+1 A before · 2 A after · 3 A before · 4 A before · 5 B after (no Excel
+export) · 6 A before · 7 A before (TEST only; AI key server-side only)
+· 8 A/A after (counts only; only when something is due within 7 days;
+assessment only) · 9 remove the live administrator key from test and
+preview environments before going live, production unaffected.
+
+Built on the development branch: 1, 3, 4, 6. Settings: 7, 9 (see the
+final report).

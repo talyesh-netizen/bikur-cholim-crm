@@ -183,8 +183,11 @@ export async function getVolunteerImpact(period: ImpactPeriod, facilityId?: stri
   const data = await selectAllPages((from, to) => {
     let query = supabase
       .from("interaction_volunteers")
-      .select("interaction_id, contact_id, contacts(name), interactions!inner(occurred_at, facility_id, counted_in_id)")
-      .is("interactions.voided_at", null);
+      .select("interaction_id, contact_id, contacts(name), interactions!inner(occurred_at, facility_id, counted_in_id, interaction_type)")
+      .is("interactions.voided_at", null)
+      // Volunteer visits only: a volunteer tagged on a staff conversation
+      // or program isn't a visit (director, Oct 28, 2026).
+      .eq("interactions.interaction_type", "volunteer_visit");
     if (start) query = query.gte("interactions.occurred_at", start);
     if (end) query = query.lt("interactions.occurred_at", end);
     return query.order("interaction_id").order("contact_id").range(from, to);
@@ -195,9 +198,10 @@ export async function getVolunteerImpact(period: ImpactPeriod, facilityId?: stri
     const r = row as unknown as {
       contact_id: string;
       contacts: { name: string } | null;
-      interactions: { occurred_at: string; facility_id: string | null; counted_in_id: string | null } | null;
+      interactions: { occurred_at: string; facility_id: string | null; counted_in_id: string | null; interaction_type: string } | null;
     };
     if (r.interactions?.counted_in_id) continue;
+    if (r.interactions?.interaction_type !== "volunteer_visit") continue;
     if (!r.interactions || !inPeriod(r.interactions.occurred_at, bounds)) continue;
     if (facilityId && r.interactions?.facility_id !== facilityId) continue;
     const existing = counts.get(r.contact_id);

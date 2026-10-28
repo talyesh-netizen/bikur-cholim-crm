@@ -400,19 +400,25 @@ export function InteractionForm({
             )}
           </Field>
         ) : (
-          <Field label="Resident" htmlFor="resident_id" error={fieldErrors.resident_id} required={residentRequired}>
+          // Where it's optional, say what it's for (director, Oct 28, 2026).
+          <Field
+            label={residentRequired ? "Resident" : "About a resident? (optional)"}
+            htmlFor="resident_id"
+            error={fieldErrors.resident_id}
+            required={residentRequired}
+          >
             <SearchPicker
               id="resident_id"
               name="resident_id"
               value={residentIds[0] ?? ""}
               onChange={(id) => chooseResidents(id ? [id] : [])}
               options={residentOptions}
-              emptyLabel={residentRequired ? undefined : "No specific resident (general facility entry)"}
+              emptyLabel={residentRequired ? undefined : "No resident"}
               placeholder="Type a resident's name…"
             />
             {interactionType === "family_communication" ? (
               <p className="text-xs text-muted-foreground">
-                Optional. Whose family, if it&apos;s about a resident; the family member goes below.
+                Whose family, if it&apos;s about a resident; the family member goes below.
               </p>
             ) : null}
           </Field>
