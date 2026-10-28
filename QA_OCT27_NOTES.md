@@ -167,6 +167,12 @@ asked for, built on the TEST preview:
 Checks: type check, lint and build pass; counting checks pass; 38 browser
 checks on the log form pass.
 
+## Final check result (director, Oct 28, 2026)
+
+All seven QA adjustments checked on the TEST preview, plus the two Oct 28
+changes. Impact page: "reads well" (short words, full definitions behind
+the "i"). Open: the "How?" question (required or optional) with ChatGPT.
+
 ## Later, not in this round (director, Oct 28, 2026)
 
 - **Stories: a date option.** Today a story takes the day it was written
