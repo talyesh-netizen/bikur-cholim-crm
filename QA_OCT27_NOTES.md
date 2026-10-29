@@ -266,3 +266,22 @@ final report).
   Claude Console after Quick Log passes.
 - Noticed: the live Anthropic key appears to expire Nov 5, 2026; renew
   or replace before then or live Quick Log stops.
+
+## Go-live log (approved by the director, Oct 28, 2026)
+
+1. Backup: the director downloaded More → Backup from live; row counts
+   matched the live database exactly.
+2. Database updates applied to live: 20261027000001 (program student and
+   volunteer numbers) and 20261027000002 (Stories). Fingerprints of
+   interactions, residents, contacts and tasks identical before and
+   after; no existing record changed.
+3. Stories access check on live: 20 of 20 PASS, rolled back (no test
+   stories, staff accounts unchanged). No new security advisor warnings.
+4. Administrator key replaced: new secret key `crm_live_oct28` set for
+   Production only; live redeployed on the same code; a temporary staff
+   account was created and deleted through it (seen in Supabase logs).
+   The unused "default" secret key was deleted. The live site was moved
+   to the publishable key and checked (all requests 200), then the
+   legacy anon/service_role keys were switched off. Old copies of the
+   administrator key no longer work.
+5. Merge of PR #145: type check, lint, counting checks and build pass.
