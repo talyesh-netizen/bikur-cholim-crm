@@ -285,3 +285,6 @@ final report).
    legacy anon/service_role keys were switched off. Old copies of the
    administrator key no longer work.
 5. Merge of PR #145: type check, lint, counting checks and build pass.
+6. Live after merge (Oct 29, 2026): the director checked logging, Impact,
+   staff access and Stories on live; all good. Supabase logs since the
+   new version went live: every request succeeded (no errors).
