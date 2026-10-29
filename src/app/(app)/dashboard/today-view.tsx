@@ -73,7 +73,7 @@ export function TodayView({
                     <span className="min-w-0 text-sm">
                       <span className="font-medium">
                         {labelFor(INTERACTION_TYPES, x.interaction_type)}
-                        {x.quantity ? ` (${x.quantity})` : ""}
+                        {x.interaction_type === "food_delivery" && x.people_reached ? ` (${x.people_reached})` : ""}
                       </span>
                       {x.resident_name ?? x.contact_name ? ` · ${x.resident_name ?? x.contact_name}` : ""}
                       {x.facility_name ? <span className="text-muted-foreground"> · {x.facility_name}</span> : null}

@@ -168,7 +168,7 @@ export async function getUnreviewedCountsByType(): Promise<{ type: string; count
 
 export type UnreviewedEntry = Pick<
   Interaction,
-  "id" | "occurred_at" | "interaction_type" | "notes" | "occasion" | "program_partner" | "quantity" | "people_reached" | "participants"
+  "id" | "occurred_at" | "interaction_type" | "notes" | "occasion" | "program_partner" | "quantity" | "people_reached" | "participants" | "student_count" | "volunteer_count"
 > & {
   facility_name: string | null;
   resident_name: string | null;
@@ -183,7 +183,7 @@ export async function listUnreviewedEntries(interactionType?: string): Promise<U
   let query = supabase
     .from("interactions")
     .select(
-      "id, occurred_at, interaction_type, notes, occasion, program_partner, quantity, people_reached, participants, facilities(name), residents(first_name, last_name, preferred_name), profiles!interactions_staff_member_id_fkey(full_name)"
+      "id, occurred_at, interaction_type, notes, occasion, program_partner, quantity, people_reached, participants, student_count, volunteer_count, facilities(name), residents(first_name, last_name, preferred_name), profiles!interactions_staff_member_id_fkey(full_name)"
     )
     .is("service_reviewed_at", null)
     .is("voided_at", null)
@@ -210,6 +210,8 @@ export async function listUnreviewedEntries(interactionType?: string): Promise<U
       quantity: row.quantity,
       people_reached: row.people_reached,
       participants: row.participants,
+      student_count: row.student_count,
+      volunteer_count: row.volunteer_count,
       facility_name: facility?.name ?? null,
       resident_name: resident ? residentName(resident) : null,
       staff_member_name: staff?.full_name ?? null,

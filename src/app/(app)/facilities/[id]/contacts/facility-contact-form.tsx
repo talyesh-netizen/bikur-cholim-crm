@@ -1,5 +1,6 @@
 "use client";
 
+import { StaffRoleField } from "@/components/staff-role-field";
 import { offeredOptions } from "@/lib/domain/offered";
 import { OFFERED_CONTACT_TYPES } from "@/lib/domain/contact";
 import { useActionState, useState } from "react";
@@ -55,12 +56,7 @@ export function FacilityContactForm({ action }: { action: Action }) {
       </div>
 
       <Field label="Role at this facility" htmlFor="role_at_facility">
-        <Input
-          id="role_at_facility"
-          name="role_at_facility"
-          placeholder="e.g., Activities director, Chaplain"
-          defaultValue={values.role_at_facility}
-        />
+        <StaffRoleField id="role_at_facility" name="role_at_facility" defaultValue={values.role_at_facility} />
       </Field>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -86,9 +82,14 @@ export function FacilityContactForm({ action }: { action: Action }) {
         </Label>
       </div>
 
-      <div className="flex justify-end">
-        <Button type="submit" disabled={isPending}>
+      {/* Just met them? Save and go straight to logging the conversation,
+          with them and this facility filled in (Oct 27, 2026 QA). */}
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <Button type="submit" variant="outline" disabled={isPending}>
           {isPending ? "Saving…" : "Add facility contact"}
+        </Button>
+        <Button type="submit" name="then" value="log" disabled={isPending}>
+          {isPending ? "Saving…" : "Save and log a conversation"}
         </Button>
       </div>
     </form>

@@ -27,6 +27,14 @@ ready-to-paste question for ChatGPT:
 Routine engineering choices (naming, file layout, how a fix is coded)
 don't get one; just make the call and mention it.
 
+## Working rule: list first, build after (director, Oct 28, 2026)
+
+While testing, don't build. Collect every issue, question and idea into
+one running list (`QA_OCT27_NOTES.md`, "Open list for ChatGPT"); the
+director sends the whole list to ChatGPT, and only what comes back
+approved gets built. Small factual checks (reading data, explaining
+how something works) are fine; changes wait for the list.
+
 ## Other context
 
 - Live site deploys from lowercase `main` (see `LAUNCH_READINESS.md`).
@@ -124,3 +132,79 @@ Decisions so far:
   visit. Facility visits, resident interactions and staff meetings are
   counted separately; a Facility Visit is a staff meeting only when
   staff were actually met.
+
+## October 27 cleanup decisions (director, Oct 27, 2026)
+
+These replace any earlier rule above that says otherwise.
+
+- One record per person: each person spoken with gets their own
+  interaction record (staff, family, partners, volunteers met). Picking
+  several people in one form saves a separate record for each, with the
+  same day, place, notes and team members, all-or-nothing like resident
+  visits. "Others who were there (not counted)" is not asked on these.
+  Programs stay one group activity.
+- Staff interactions count each person spoken with once per record; there
+  is no separate "meetings" number any more, and Data Quality no longer
+  suggests combining a meeting saved once per person ("Same meeting").
+- Staff visits: each staff member (lead or team) once per facility per
+  Cleveland day, shown beside facility visit-days (each facility once a
+  day), which stay. Repeat trips on the same day aren't counted
+  separately yet.
+- Volunteer-only visits give no staff credit (not a staff visit and not
+  in the staff activity list). Meetings and conversations with
+  volunteers are still recorded and credited.
+- Partner conversations are counted on their own line, never as facility
+  staff support or a facility visit. A partner is decided by how the
+  person is already filed: Community partner, Rabbi or Shul contact
+  (schools, shuls, Jewish organizations, hospices, agencies and other
+  healthcare organizations). Facility staff stay facility staff, even
+  when their facility belongs to a healthcare group. Past reports use
+  this classification; saved records are not changed.
+- Programs: one entry, with students and volunteers asked separately
+  (plus residents reached). Older programs' single number is shown as
+  "Not split".
+- Food: one number, people who received food. Item counts already saved
+  stay on file but are no longer asked or reported.
+- Family: needs no resident or facility; no separate care navigation
+  kind (older care navigation entries count as family).
+- Facility visit is offered under "More types" on the log form.
+- Facility staff: addresses are not asked or shown. Role is a list:
+  Executive Director, Administrator (LNHA), Activities Director, Life
+  Enrichment Director, Social Worker, Chaplain, Assisted Living
+  Director, Director of Nursing, Business Office Manager, Sales &
+  Marketing, Receptionist, Other (type a title). Titles already typed
+  in are kept exactly as they are.
+- Logging from a person's page (QA, Oct 27, 2026, decision A): the side
+  panel's "+ Log" always opens a blank form, on every page. Each person's
+  page (resident, family member, staff, volunteer, partner) has its own
+  "Log with [name]" button at the top, which starts with that person
+  attached, whatever kind is picked.
+- QA adjustments (Oct 27, 2026): no Resident box on Programs (a meaningful
+  conversation there is its own entry); Food keeps an optional Resident,
+  for a delivery made for one person. A Family entry offers family members
+  only. Facility visit shows "Use this when you went to the facility but
+  didn't meet any residents or staff". Adding a facility staff member can
+  "Save and log a conversation" in one step. "Who you spoke with" lists the
+  chosen facility's staff first, each showing where they work. Impact
+  numbers carry a few words each, with the full definition behind an "i".
+- QA (director, Oct 28, 2026): a staff conversation or volunteer meeting
+  starts with nothing picked under "How?", and a new one must pick
+  (on site still starts on in person). Picking a facility staff member
+  who works at one facility fills in that facility when none is chosen
+  yet, including "Log with [name]" from their page.
+- Before going live (ChatGPT and director, Oct 28, 2026): where the
+  Resident box is optional it reads "About a resident? (optional)"
+  ("No resident" when empty). Students and volunteers are reported only
+  under Program participation, not again under School & shul. The
+  volunteer list counts volunteer visits only. Interactions date boxes
+  apply when the person is done (click away or Enter), not mid-typing.
+- Navigation stays as it is. Expanded On-site Mode, major redesigns and
+  GitHub refactoring wait.
+- Stories (Oct 27, 2026, option C): a simple free-form log, kept apart
+  from interactions so it never counts in any report. Only the text is
+  needed; a resident and/or facility can be linked then, later or never.
+  The date is set automatically. Under More (in the sidebar on a
+  computer) and on linked resident and facility pages. Seen by active
+  staff who can see the linked resident and facility; an unlinked story
+  is hidden from facility-limited accounts unless they wrote it. Edits
+  are kept in the change history; stories can't be deleted from the app.

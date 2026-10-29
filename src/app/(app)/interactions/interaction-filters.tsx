@@ -48,6 +48,12 @@ export function InteractionFilters({
     });
   }
   const updateParam = (key: string, value: string | null) => updateParams({ [key]: value });
+  // A date is only applied once the person is done with the box (click
+  // away or Enter): typing "2026" is a whole date at the first "2", and
+  // reloading then threw them out mid-typing (director, Oct 28, 2026).
+  const commitDate = (key: "from" | "to", value: string) => {
+    if (value !== (searchParams.get(key) ?? "")) updateParam(key, value || null);
+  };
 
   // "This month" shortcut: from the 1st of the current month (local
   // calendar day, matching the date inputs), no end date.
@@ -171,14 +177,16 @@ export function InteractionFilters({
               key={`from-${searchParams.get("from") ?? ""}`}
               type="date"
               defaultValue={searchParams.get("from") ?? ""}
-              onChange={(e) => updateParam("from", e.target.value || null)}
+              onBlur={(e) => commitDate("from", e.currentTarget.value)}
+              onKeyDown={(e) => e.key === "Enter" && commitDate("from", e.currentTarget.value)}
             />
             <span className="text-muted-foreground">–</span>
             <Input
               key={`to-${searchParams.get("to") ?? ""}`}
               type="date"
               defaultValue={searchParams.get("to") ?? ""}
-              onChange={(e) => updateParam("to", e.target.value || null)}
+              onBlur={(e) => commitDate("to", e.currentTarget.value)}
+              onKeyDown={(e) => e.key === "Enter" && commitDate("to", e.currentTarget.value)}
             />
           </div>
         </div>

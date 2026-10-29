@@ -65,6 +65,7 @@ const C = {
   lisaB: contact("Lisa Hart", "facility_staff"),
   lisaE: contact("Lisa Fenn", "facility_staff"),
   lisaFam: contact("Lisa Zeller", "family_member"),
+  ben: contact("Ben Zeller", "family_member"),
   dana: contact("Dana Reyes", "community_partner"),
 };
 const SELF = { id: id(), full_name: "Tzvi Alyesh" };
@@ -74,7 +75,10 @@ const TABLES: Record<string, unknown[]> = {
   facilities: Object.values(F),
   residents: Object.values(R),
   contacts: Object.values(C),
-  resident_contacts: [{ resident_id: R.judy.id, contact_id: C.lisaFam.id, relationship_to_resident: "daughter" }],
+  resident_contacts: [
+    { resident_id: R.judy.id, contact_id: C.lisaFam.id, relationship_to_resident: "daughter" },
+    { resident_id: R.judy.id, contact_id: C.ben.id, relationship_to_resident: "son" },
+  ],
   facility_contacts: [
     { facility_id: F.annaMaria.id, contact_id: C.lisaAM.id, role_at_facility: "Activities Director" },
     { facility_id: F.beachwood.id, contact_id: C.lisaB.id, role_at_facility: "Activity Director" },
@@ -117,6 +121,29 @@ const noFacilityVisit = (plan: Plan): Check => [
 ];
 
 const SCENARIOS: Scenario[] = [
+  {
+    // Director, Oct 27, 2026: each person spoken with gets their own
+    // entry -- two staff members are two staff conversations.
+    note: "Met with Lisa McKay and Lisa Fenn at Anna Maria today about the Chanukah program.",
+    expect: "Two staff conversations today, one for each Lisa; no program logged (it hasn't happened).",
+    checks: (plan) => [
+      ["two staff conversations", plan.interactions.filter((x) => x.interaction_type === "facility_staff_communication").length === 2],
+      ["one with each Lisa", [C.lisaAM.id, C.lisaE.id].every((c) => plan.interactions.some((x) => x.contact === c))],
+      ["no program", !plan.interactions.some((x) => x.interaction_type === "program")],
+      noFacilityVisit(plan),
+    ],
+  },
+  {
+    // Director, Oct 27, 2026: family support needs no resident or
+    // facility, and two family members are two entries.
+    note: "Spoke with Lisa Zeller and her brother Ben on the phone today; they're looking for a nursing home for their mother.",
+    expect: "Two family entries (Lisa, Ben), not care navigation; no facility required.",
+    checks: (plan) => [
+      ["two family entries", plan.interactions.filter((x) => x.interaction_type === "family_communication").length === 2],
+      ["one each for Lisa and Ben", [C.lisaFam.id, C.ben.id].every((c) => plan.interactions.some((x) => x.contact === c))],
+      ["never care navigation", !plan.interactions.some((x) => x.interaction_type === "care_navigation")],
+    ],
+  },
   {
     // Director, Oct 19, 2026: a conversation with someone at an outside
     // hospice, not staff at a facility we serve -- "Other", no facility,

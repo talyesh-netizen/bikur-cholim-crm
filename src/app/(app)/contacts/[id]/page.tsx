@@ -85,8 +85,11 @@ export default async function ContactDetailPage({
       .filter((o) => !organizationLinks.some((l) => l.organization_id === o.id))
       .map((o) => ({ id: `organization:${o.id}`, label: o.name, detail: "Strategic Partner" })),
   ];
+  // Facility staff addresses aren't shown (director, Oct 27, 2026).
   const fullAddress =
-    [contact.address, [contact.city, contact.state, contact.zip].filter(Boolean).join(" ")]
+    contact.contact_type === "facility_staff"
+      ? undefined
+      : [contact.address, [contact.city, contact.state, contact.zip].filter(Boolean).join(" ")]
       .filter(Boolean)
       .join(", ") || undefined;
 
@@ -115,6 +118,16 @@ export default async function ContactDetailPage({
           ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
+          {/* Logging with this person starts here, with them filled in
+              (Oct 27, 2026 QA); the side panel's + Log is always blank. */}
+          {contact.active && !contact.merged_into_id ? (
+            <Button asChild>
+              <Link href={`/interactions/new?contact=${contact.id}&back=${encodeURIComponent(`/contacts/${contact.id}`)}`}>
+                <Plus className="size-4" />
+                Log with {contact.name}
+              </Link>
+            </Button>
+          ) : null}
           <Button variant="outline" asChild>
             <Link href={`/contacts/${contact.id}/edit`}>
               <Pencil className="size-4" />
@@ -173,7 +186,9 @@ export default async function ContactDetailPage({
         <CardContent className="flex flex-col gap-2 text-sm">
           <InfoRow label="Phone" value={contact.phone} href={telHref(contact.phone)} />
           <InfoRow label="Email" value={contact.email} href={mailtoHref(contact.email)} />
-          <InfoRow label="Address" value={fullAddress} href={mapsHref(fullAddress)} />
+          {contact.contact_type === "facility_staff" ? null : (
+            <InfoRow label="Address" value={fullAddress} href={mapsHref(fullAddress)} />
+          )}
           <InfoRow
             label="Preferred communication method"
             value={

@@ -37,6 +37,11 @@ export async function saveQuarterAsFirstRecorded(occurredAt: string): Promise<bo
     facilities_visited: h.facilitiesVisited,
     facilities_engaged: h.facilitiesEngaged,
     group_volunteers: h.groupVolunteers,
+    // Oct 27, 2026.
+    staff_visits: h.staffVisits,
+    partner_conversations: h.partnerConversations,
+    group_students: h.groupStudents,
+    group_not_split: h.groupNotSplit,
   };
   const { error } = await supabase
     .from("report_snapshots")

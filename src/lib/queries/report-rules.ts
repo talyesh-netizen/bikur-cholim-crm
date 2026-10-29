@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { orgDayKey } from "@/lib/format-date";
 import { selectAllPages } from "@/lib/queries/impact";
+import { PARTNER_CONTACT_TYPES } from "@/lib/domain/contact";
 
 /**
  * How activities are counted (Build 2, approved by the director Oct 16,
@@ -9,13 +10,22 @@ import { selectAllPages } from "@/lib/queries/impact";
  * - Each activity counts once. An entry an admin reviewed as "Same visit"
  *   (counted_in_id set) or that someone voided is skipped; nothing is ever
  *   skipped without a person's answer.
- * - Staff interactions (director, Oct 21, 2026): each distinct staff
- *   meeting or conversation counts once, however many staff were in it --
- *   a meeting with four staff is one meeting with four people. A staff
- *   conversation always counts; a first visit to a new facility, a
- *   program or anything else counts only when someone was actually met
- *   (a person on it, or "Staff you worked with"). Staff people: each
- *   different person met, once per period.
+ * - Staff interactions (director, Oct 27, 2026): each facility staff
+ *   person spoken with counts once per entry -- one record per person
+ *   from now on, and an older entry with four staff on it counts four.
+ *   There is no separate "meetings" number. A staff conversation with
+ *   nobody named still counts one; a first visit to a new facility, a
+ *   program or anything else counts only the staff actually met. Staff
+ *   people: each different person met, once per period.
+ * - Partner conversations (Oct 27, 2026): the same, for people filed as
+ *   partners (PARTNER_CONTACT_TYPES) on a staff conversation or an
+ *   "Other" entry -- counted on their own line, never as facility staff
+ *   support. Decided by how the person is filed now, so past periods use
+ *   it too; saved entries are never changed.
+ * - Staff visits (Oct 27, 2026): each staff member (lead or team) once
+ *   per facility per Cleveland day they were there in person -- shown
+ *   beside the facility visit-days below. Volunteer-only visits give no
+ *   staff credit.
  * - Facility presence (decisions D2, Oct 19, and Oct 21, 2026), each
  *   facility once per Cleveland calendar day: staff visit-days (our staff
  *   there in person), volunteer-only days (volunteers there, no staff),
@@ -24,8 +34,10 @@ import { selectAllPages } from "@/lib/queries/impact";
  *   An entry whose method was never recorded counts as in person only
  *   when it can only happen in person (a visit, program, delivery or
  *   first visit) -- never assumed for a conversation.
- * - Group volunteers: a group project's head count, held on its first
- *   activity; activities "Part of" it never add it again.
+ * - Program head counts: students and volunteers (asked separately from
+ *   Oct 27, 2026), and an older entry's single number as "not split",
+ *   held on a group project's first activity; activities "Part of" it
+ *   never add them again.
  */
 
 type Client = Awaited<ReturnType<typeof createClient>>;
@@ -47,13 +59,21 @@ export const VISIT_DAY_TYPES = new Set([
 /** Activities that can hold a group's volunteer head count. */
 export const GROUP_PROJECT_TYPES = new Set(["program", "school_engagement"]);
 
+/** Staff conversations and "Other" entries: with a partner, a partner
+ * conversation. */
+export const PARTNER_CONVERSATION_TYPES = new Set(["facility_staff_communication", "other"]);
+
 export type CountableRow = {
   id: string;
   interaction_type: string;
   occurred_at: string;
   facility_id: string | null;
   contact_id: string | null;
+  /** Who did it (the lead); team members come from TeamLinks. */
+  staff_member_id?: string | null;
   participants?: number | null;
+  student_count?: number | null;
+  volunteer_count?: number | null;
   part_of_id?: string | null;
   counted_in_id?: string | null;
   in_person?: boolean | null;
@@ -91,29 +111,95 @@ export async function fetchEngagedLinks(supabase: Client, fromIso: string | null
   return links;
 }
 
-/** The staff people met on one activity: its own contact for a staff
- * conversation or first visit, plus anyone marked "worked with". */
-export function staffPeopleOn(r: CountableRow, engaged: EngagedLinks): Set<string> {
+/** The people filed as partners (PARTNER_CONTACT_TYPES), by id. */
+export type PartnerContacts = Set<string>;
+
+export async function fetchPartnerContacts(supabase: Client): Promise<PartnerContacts> {
+  const rows = await selectAllPages<{ id: string }>((from, to) =>
+    supabase.from("contacts").select("id").in("contact_type", [...PARTNER_CONTACT_TYPES]).order("id").range(from, to)
+  );
+  return new Set(rows.map((r) => r.id));
+}
+
+/** Everyone met on one activity: its own contact for a staff
+ * conversation, first visit or "Other" entry, plus anyone marked
+ * "worked with". */
+function peopleMetOn(r: CountableRow, engaged: EngagedLinks): Set<string> {
   const people = new Set(engaged.get(r.id) ?? []);
-  if (STAFF_SUPPORT_TYPES.has(r.interaction_type) && r.contact_id) people.add(r.contact_id);
+  if ((STAFF_SUPPORT_TYPES.has(r.interaction_type) || r.interaction_type === "other") && r.contact_id) people.add(r.contact_id);
   return people;
 }
 
-/** 1 when this activity was a staff interaction, else 0 (see above). */
-export function staffInteractionFor(r: CountableRow, engaged: EngagedLinks): number {
-  if (r.interaction_type === "facility_staff_communication") return 1;
-  return staffPeopleOn(r, engaged).size > 0 ? 1 : 0;
+/** The facility staff met on one activity (never partners, and nobody on
+ * an "Other" entry). */
+export function staffPeopleOn(r: CountableRow, engaged: EngagedLinks, partners: PartnerContacts): Set<string> {
+  if (r.interaction_type === "other") return new Set();
+  return new Set([...peopleMetOn(r, engaged)].filter((p) => !partners.has(p)));
+}
+
+/** The partners spoken with on a staff conversation or "Other" entry. */
+export function partnerPeopleOn(r: CountableRow, engaged: EngagedLinks, partners: PartnerContacts): Set<string> {
+  if (!PARTNER_CONVERSATION_TYPES.has(r.interaction_type)) return new Set();
+  return new Set([...peopleMetOn(r, engaged)].filter((p) => partners.has(p)));
+}
+
+/** Staff interactions on this activity: one per facility staff person
+ * met, and one for a staff conversation with nobody named (see above). */
+export function staffInteractionFor(r: CountableRow, engaged: EngagedLinks, partners: PartnerContacts): number {
+  const staff = staffPeopleOn(r, engaged, partners).size;
+  if (r.interaction_type === "facility_staff_communication" && staff === 0 && partnerPeopleOn(r, engaged, partners).size === 0) return 1;
+  return staff;
+}
+
+/** Partner conversations on this activity: one per partner spoken with. */
+export function partnerConversationsFor(r: CountableRow, engaged: EngagedLinks, partners: PartnerContacts): number {
+  return partnerPeopleOn(r, engaged, partners).size;
 }
 
 /** Staff interactions in a set of activities, and the different people met. */
-export function staffInteractions(rows: CountableRow[], engaged: EngagedLinks): { interactions: number; people: number } {
+export function staffInteractions(
+  rows: CountableRow[],
+  engaged: EngagedLinks,
+  partners: PartnerContacts
+): { interactions: number; people: number } {
   let interactions = 0;
   const people = new Set<string>();
   for (const r of rows) {
-    interactions += staffInteractionFor(r, engaged);
-    staffPeopleOn(r, engaged).forEach((p) => people.add(p));
+    interactions += staffInteractionFor(r, engaged, partners);
+    staffPeopleOn(r, engaged, partners).forEach((p) => people.add(p));
   }
   return { interactions, people: people.size };
+}
+
+/** interaction id -> the Bikur Cholim staff on its team (besides its lead). */
+export type TeamLinks = Map<string, string[]>;
+
+export async function fetchTeamLinks(supabase: Client): Promise<TeamLinks> {
+  const rows = await selectAllPages<{ interaction_id: string; profile_id: string }>((from, to) =>
+    supabase
+      .from("interaction_team_members")
+      .select("interaction_id, profile_id")
+      .order("interaction_id")
+      .order("profile_id")
+      .range(from, to)
+  );
+  const links: TeamLinks = new Map();
+  for (const r of rows) links.set(r.interaction_id, [...(links.get(r.interaction_id) ?? []), r.profile_id]);
+  return links;
+}
+
+/** Staff visits: each staff member (lead or team) once per facility per
+ * Cleveland day they were there in person. Volunteer visits never. */
+export function staffVisits(rows: CountableRow[], team: TeamLinks): number {
+  const visits = new Set<string>();
+  for (const r of rows) {
+    const day = visitDayKey(r);
+    if (!day) continue;
+    for (const person of new Set([r.staff_member_id, ...(team.get(r.id) ?? [])])) {
+      if (person) visits.add(`${person}|${day}`);
+    }
+  }
+  return visits.size;
 }
 
 /** Whether our staff were at the facility in person: the method when one was
@@ -174,9 +260,12 @@ export function facilityPresence(rows: CountableRow[]): FacilityPresence {
   };
 }
 
-/** The group volunteer head count this activity holds (0 when it's part
- * of another activity's project, or isn't a group project). */
-export function groupVolunteersFor(r: CountableRow): number {
-  if (r.part_of_id || !GROUP_PROJECT_TYPES.has(r.interaction_type)) return 0;
-  return r.participants ?? 0;
+export type GroupCounts = { students: number; volunteers: number; notSplit: number };
+
+/** The program head counts this activity holds (all 0 when it's part of
+ * another activity's project, or isn't a group project): students and
+ * volunteers, and an older entry's single number, not split. */
+export function groupCountsFor(r: CountableRow): GroupCounts {
+  if (r.part_of_id || !GROUP_PROJECT_TYPES.has(r.interaction_type)) return { students: 0, volunteers: 0, notSplit: 0 };
+  return { students: r.student_count ?? 0, volunteers: r.volunteer_count ?? 0, notSplit: r.participants ?? 0 };
 }

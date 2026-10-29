@@ -16,6 +16,9 @@ export type PickerOption = {
   label: string;
   detail?: string | null;
   searchText?: string | null;
+  /** Listed ahead of the rest when lower (e.g. 0 for staff at the
+   * facility chosen on the form); the matching order holds within each. */
+  rank?: number;
 };
 
 /** Options matching what was typed, best first -- the same forgiving
@@ -23,10 +26,12 @@ export type PickerOption = {
  * order), so every picker finds things the same way. */
 function matchOptions<O extends PickerOption>(options: O[], query: string): O[] {
   const byId = new Map(options.map((o) => [o.id, o]));
-  return matchFacilities(
+  const matched = matchFacilities(
     options.map((o) => ({ id: o.id, name: o.label, address: [o.detail, o.searchText].filter(Boolean).join(" ") })),
     query
   ).map((m) => byId.get(m.id)!);
+  // A stable sort, so the best matches stay first within each rank.
+  return matched.sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0));
 }
 
 /**

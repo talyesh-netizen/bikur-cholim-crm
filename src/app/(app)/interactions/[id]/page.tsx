@@ -55,21 +55,29 @@ export default async function InteractionDetailPage({
       ? [staffContact, ...extras.engaged]
       : extras.engaged;
 
+  const projectNote = extras.projectMembers.length > 0 ? " (counted once for the whole project)" : "";
   const serviceDetails = [
     interaction.program_partner ? { label: "School or shul", value: labelFor(PROGRAM_PARTNERS, interaction.program_partner) } : null,
     interaction.holiday ? { label: "Holiday", value: labelFor(HOLIDAYS, interaction.holiday) } : null,
     interaction.family_need ? { label: "What the family needed", value: labelFor(FAMILY_NEEDS, interaction.family_need) } : null,
     interaction.occasion ? { label: "Occasion", value: labelFor(OCCASIONS, interaction.occasion) } : null,
-    interaction.quantity != null ? { label: "Items", value: String(interaction.quantity) } : null,
+    // Food asks one number now (Oct 27, 2026); an older item count is
+    // kept on file but not shown.
+    interaction.student_count != null
+      ? { label: extras.partner ? `Students from ${extras.partner.name}` : "Students", value: `about ${interaction.student_count}${projectNote}` }
+      : null,
+    interaction.volunteer_count != null
+      ? { label: extras.partner ? `Volunteers from ${extras.partner.name}` : "Volunteers", value: `about ${interaction.volunteer_count}${projectNote}` }
+      : null,
     interaction.participants != null
+      ? { label: "Took part (not split)", value: `about ${interaction.participants}${projectNote}` }
+      : null,
+    interaction.people_reached != null
       ? {
-          label: extras.partner ? `Volunteers from ${extras.partner.name}` : "Participants",
-          value: extras.projectMembers.length > 0
-            ? `about ${interaction.participants} (counted once for the whole project)`
-            : `about ${interaction.participants}`,
+          label: interaction.interaction_type === "food_delivery" ? "People who received food" : "Residents reached",
+          value: `about ${interaction.people_reached}`,
         }
       : null,
-    interaction.people_reached != null ? { label: "Residents reached", value: `about ${interaction.people_reached}` } : null,
     interaction.minutes_spent != null ? { label: "Time spent", value: formatMinutes(interaction.minutes_spent) } : null,
   ].filter((d): d is { label: string; value: string } => d !== null);
 

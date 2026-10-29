@@ -8,7 +8,6 @@ import {
   School,
   Stethoscope,
   Car,
-  Compass,
   HandHelping,
   Users,
   type LucideIcon,
@@ -71,7 +70,8 @@ export function ServicesDeliveredTiles({
    * where most services won't apply to any one facility). */
   hideEmpty?: boolean;
 }) {
-  const { food, volunteers, schoolShul, careNavigation, unmetNeed, peopleReached } = services;
+  const { food, volunteers, schoolShul, unmetNeed, peopleReached } = services;
+  const group = services.groupVolunteers;
   const show = (value: number) => !hideEmpty || value > 0;
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -111,8 +111,7 @@ export function ServicesDeliveredTiles({
         value={food.deliveries}
         unit={food.deliveries === 1 ? "delivery" : "deliveries"}
         details={[
-          food.items > 0 ? `${n(food.items)} items delivered` : null,
-          food.peopleReached > 0 ? `~${n(food.peopleReached)} residents reached` : null,
+          food.peopleReached > 0 ? `~${n(food.peopleReached)} people received food` : null,
           food.byOccasion.shabbos + food.byOccasion.yomTov > 0
             ? `Shabbos: ${n(food.byOccasion.shabbos)} · Yom Tov: ${n(food.byOccasion.yomTov)}`
             : null,
@@ -140,20 +139,21 @@ export function ServicesDeliveredTiles({
         unit={schoolShul.programs === 1 ? "program" : "programs"}
         details={[
           schoolShul.programs > 0 ? `School: ${n(schoolShul.school)} · Shul: ${n(schoolShul.shul)}` : null,
-          schoolShul.participants > 0 ? `${n(schoolShul.participants)} students / members took part` : null,
           schoolShul.peopleReached > 0 ? `~${n(schoolShul.peopleReached)} residents reached` : null,
         ]}
       />
       ) : null}
-      {show(services.groupVolunteers.volunteers) ? (
+      {show(group.projects) ? (
       <Tile
         icon={School}
-        title="Group volunteers"
-        value={services.groupVolunteers.volunteers}
-        unit="volunteers"
+        title="Program participation"
+        value={group.students + group.volunteers + group.notSplit}
+        unit="took part"
         details={[
-          `${n(services.groupVolunteers.projects)} school, shul & community ${services.groupVolunteers.projects === 1 ? "project" : "projects"}`,
-          "Each group counted once, however many facilities it reached",
+          group.students > 0 ? `${n(group.students)} students` : null,
+          group.volunteers > 0 ? `${n(group.volunteers)} volunteers` : null,
+          group.notSplit > 0 ? `${n(group.notSplit)} not split (older entries)` : null,
+          `${n(group.projects)} ${group.projects === 1 ? "program" : "programs"}, each counted once however many facilities it reached`,
         ]}
       />
       ) : null}
@@ -173,15 +173,6 @@ export function ServicesDeliveredTiles({
         value={services.rides}
         unit={services.rides === 1 ? "ride" : "rides"}
         details={["Through Bikur Cholim rides"]}
-      />
-      ) : null}
-      {show(careNavigation.families) ? (
-      <Tile
-        icon={Compass}
-        title="Care navigation"
-        value={careNavigation.families}
-        unit={careNavigation.families === 1 ? "family helped" : "families helped"}
-        details={[careNavigation.hours > 0 ? `${n(careNavigation.hours)} hours spent` : null]}
       />
       ) : null}
       {show(unmetNeed.total) ? (

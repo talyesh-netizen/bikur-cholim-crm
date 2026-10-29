@@ -113,6 +113,13 @@ export async function addFacilityContact(
   revalidatePath(`/facilities/${facilityId}`);
   revalidatePath(`/facilities/${facilityId}/onsite`);
   revalidatePath("/contacts");
+  // "Save and log a conversation": straight to the log form, with this
+  // person and facility filled in, back to the facility after saving.
+  if (formData.get("then") === "log") {
+    redirect(
+      `/interactions/new?facility=${facilityId}&contact=${contact.id}&type=facility_staff_communication&back=${encodeURIComponent(`/facilities/${facilityId}`)}`
+    );
+  }
   redirect(returnTo ? withSaved(returnTo, "facility-contact-added", contact.id) : withSaved(`/facilities/${facilityId}`, "facility-contact-added", contact.id));
 }
 

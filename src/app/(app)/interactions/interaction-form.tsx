@@ -20,9 +20,13 @@ import {
   GROUP_VISIT_TYPES,
   VOLUNTEER_TYPES,
   ENGAGEMENT_TYPES,
+  ONE_PER_PERSON_TYPES,
+  NO_RESIDENT_TYPES,
+  PARTNER_FACILITY_OPTIONAL_TYPES,
   PARTNER_TYPES,
   METHODS,
   METHOD_ASKED,
+  METHOD_REQUIRED_NEW,
   GROUP_COUNT_TYPES,
   PROGRAM_PARTNERS,
   SERVICE_FIELDS_BY_TYPE,
@@ -65,6 +69,7 @@ export function InteractionForm({
   initialPeople,
   initialPartOf,
   selfId,
+  familyContactIds,
   submitLabel = "Log interaction",
   savingLabel = "Saving…",
 }: {
@@ -117,6 +122,9 @@ export function InteractionForm({
   initialPartOf?: GroupProjectOption | null;
   /** Editing: this entry's own id (never suggested as its own project). */
   selfId?: string;
+  /** People filed as family members: the only ones a Family entry offers
+   * (Oct 27, 2026 QA). */
+  familyContactIds?: string[];
   submitLabel?: string;
   savingLabel?: string;
 }) {
@@ -147,7 +155,6 @@ export function InteractionForm({
   // site: in person); an older entry shows what it has, blank included.
   const [chosenMethod, setMethod] = useState<string | null>(values.method ?? null);
   const isVolunteerVisit = interactionType === "volunteer_visit";
-  const facilityRequired = !FACILITY_OPTIONAL_TYPES.includes(interactionType);
   const serviceFields = SERVICE_FIELDS_BY_TYPE[interactionType as InteractionType] ?? [];
   const service: ServiceFormValues = { ...EMPTY_SERVICE_VALUES, ...values };
   const isFood = interactionType === "food_delivery";
@@ -155,7 +162,14 @@ export function InteractionForm({
 
   // Where and who: picking a resident fills in their facility; once a
   // facility is chosen, only its residents are offered.
-  const [facilityId, setFacilityId] = useState(values.facility_id);
+  // Picking a facility staff member who works at one facility fills it
+  // in, when none is chosen yet (director, Oct 28, 2026).
+  const staffFacilities = new Map((activity?.facilityStaff ?? []).map((c) => [c.id, c.facilityIds ?? []]));
+  const facilityOfStaff = (ids: string[]) =>
+    ids.map((id) => staffFacilities.get(id)).find((f) => f?.length === 1)?.[0];
+  const [facilityId, setFacilityId] = useState(
+    () => values.facility_id || (!initialValues && !state.values && defaultContactId ? facilityOfStaff([defaultContactId]) ?? "" : "")
+  );
   // "In person" starts as at the facility when one is chosen, else
   // elsewhere (a volunteer meeting at the office).
   const usualMethod = isNewEntry ? (values.in_person === "on" ? "in_person" : METHOD_ASKED[interactionType as InteractionType] ?? "") : "";
@@ -203,7 +217,11 @@ export function InteractionForm({
   // lost along with the rest of the form -- only fall back to the
   // originally-saved list (or none, for a new interaction) on first mount.
   const [checkedVolunteerIds, setCheckedVolunteerIds] = useState<string[]>(
-    state.checkedVolunteerIds ?? initialVolunteerIds ?? []
+    state.checkedVolunteerIds ??
+      initialVolunteerIds ??
+      (values.interaction_type === "volunteer_visit" && defaultContactId && volunteers?.some((v) => v.id === defaultContactId)
+        ? [defaultContactId]
+        : [])
   );
   // Volunteers are asked about only where they usually take part; any
   // other entry offers a small "+ Add volunteers" instead. Chosen ones
@@ -217,16 +235,50 @@ export function InteractionForm({
   const [doneBy, setDoneBy] = useState<string[]>(
     state.people?.doneBy ?? initialPeople?.doneBy ?? (activity?.currentUserId ? [activity.currentUserId] : [])
   );
-  // Staff actually worked with or spoken to (each counts once), and --
-  // only when asked for -- others who were just there (not counted).
+  // Who it was with. Staff worked with or spoken to (each counts once)
+  // on a staff entry; on a new family, volunteer-met or "other" entry,
+  // the people picked (a record each). One list, so the person a log
+  // was started from stays chosen whatever kind is then picked (Oct 27,
+  // 2026) -- and -- only when asked for -- others who were just there
+  // (not counted).
   const isEngagementType = ENGAGEMENT_TYPES.includes(interactionType);
-  const [engaged, setEngaged] = useState<string[]>(
-    state.people?.engaged ??
-      initialPeople?.engaged ??
-      (defaultContactId && ENGAGEMENT_TYPES.includes(values.interaction_type) ? [defaultContactId] : [])
+  const onePerPerson = ONE_PER_PERSON_TYPES.includes(interactionType) && !isEditing;
+  const [engaged, setEngaged] = useState<string[]>(() =>
+    state.people
+      ? [...new Set([...state.people.engaged, ...state.people.contacts])]
+      : initialPeople?.engaged ?? (defaultContactId ? [defaultContactId] : [])
   );
   const [present, setPresent] = useState<string[]>(state.people?.present ?? initialPeople?.present ?? []);
   const [presentOpened, setPresentOpened] = useState(false);
+  // A staff conversation needs a facility unless everyone picked is a
+  // partner (school, shul, hospice or agency contact).
+  const partnerIds = new Set((activity?.partnerContacts ?? []).map((c) => c.id));
+  const partnersOnly =
+    PARTNER_FACILITY_OPTIONAL_TYPES.includes(interactionType) && engaged.length > 0 && engaged.every((id) => partnerIds.has(id));
+  const facilityRequired = !FACILITY_OPTIONAL_TYPES.includes(interactionType) && !partnersOnly;
+
+  // Started from a volunteer's page: a volunteer visit has them on it.
+  const familyIds = new Set(familyContactIds ?? []);
+  // A Family entry is only ever with family members (Oct 27, 2026 QA):
+  // anyone else picked so far is set aside, never saved as family, and
+  // comes back if another kind is picked.
+  const familyOnly = interactionType === "family_communication" && !!familyContactIds;
+  const peopleShown = familyOnly ? engaged.filter((id) => familyIds.has(id)) : engaged;
+  function choosePeople(ids: string[]) {
+    setEngaged(familyOnly ? [...engaged.filter((id) => !familyIds.has(id)), ...ids] : ids);
+  }
+  function chooseType(type: string) {
+    setInteractionType(type);
+    if (
+      type === "volunteer_visit" &&
+      !isEditing &&
+      defaultContactId &&
+      volunteers?.some((v) => v.id === defaultContactId) &&
+      !checkedVolunteerIds.includes(defaultContactId)
+    ) {
+      setCheckedVolunteerIds([...checkedVolunteerIds, defaultContactId]);
+    }
+  }
 
   // Partner and group project ("Part of").
   const isPartnerType = PARTNER_TYPES.includes(interactionType);
@@ -324,7 +376,10 @@ export function InteractionForm({
         </p>
       ) : null}
 
-      {residents && residents.length > 0 ? (
+      {NO_RESIDENT_TYPES.includes(interactionType) ? (
+        // Not asked on a program; an older entry keeps its resident.
+        isEditing && values.resident_id ? <input type="hidden" name="resident_id" value={values.resident_id} readOnly /> : null
+      ) : residents && residents.length > 0 ? (
         multiResident ? (
           <Field label="Residents visited" htmlFor="resident_ids" error={fieldErrors.resident_id} required={!service.people_reached && !groupOpened}>
             <MultiSearchPicker
@@ -345,19 +400,25 @@ export function InteractionForm({
             )}
           </Field>
         ) : (
-          <Field label="Resident" htmlFor="resident_id" error={fieldErrors.resident_id} required={residentRequired}>
+          // Where it's optional, say what it's for (director, Oct 28, 2026).
+          <Field
+            label={residentRequired ? "Resident" : "About a resident? (optional)"}
+            htmlFor="resident_id"
+            error={fieldErrors.resident_id}
+            required={residentRequired}
+          >
             <SearchPicker
               id="resident_id"
               name="resident_id"
               value={residentIds[0] ?? ""}
               onChange={(id) => chooseResidents(id ? [id] : [])}
               options={residentOptions}
-              emptyLabel={residentRequired ? undefined : "No specific resident (general facility entry)"}
+              emptyLabel={residentRequired ? undefined : "No resident"}
               placeholder="Type a resident's name…"
             />
             {interactionType === "family_communication" ? (
               <p className="text-xs text-muted-foreground">
-                Whose family? Pick the resident (or the family member under Contact) so it counts toward families supported.
+                Whose family, if it&apos;s about a resident; the family member goes below.
               </p>
             ) : null}
           </Field>
@@ -400,14 +461,20 @@ export function InteractionForm({
         error={fieldErrors.interaction_type}
         required
       >
-        <TypePicker value={interactionType} onChange={setInteractionType} />
+        <TypePicker value={interactionType} onChange={chooseType} />
+        {interactionType === "facility_visit" ? (
+          <p className="text-xs text-muted-foreground">
+            Use this when you went to the facility but didn&apos;t meet any residents or staff. If you did, log those visits
+            or conversations instead.
+          </p>
+        ) : null}
       </Field>
 
       {/* How it happened (director, Oct 21, 2026): only in person can count
           as a facility visit. An older entry with none shows nothing
           picked ("not recorded") and keeps it unless changed. */}
       {interactionType in METHOD_ASKED ? (
-        <Field label="How?" htmlFor="method" error={fieldErrors.method}>
+        <Field label="How?" htmlFor="method" error={fieldErrors.method} required={isNewEntry && METHOD_REQUIRED_NEW.includes(interactionType)}>
           <input type="hidden" name="method" value={method} readOnly />
           <div id="method" role="group" aria-label="How it happened" className="flex flex-wrap gap-2">
             {METHODS.map((m) => (
@@ -430,7 +497,7 @@ export function InteractionForm({
             ))}
           </div>
           <p className="text-xs text-muted-foreground">
-            {!method ? "Not recorded. " : ""}Only “In person at facility” counts as a facility visit.
+            {!method && !isNewEntry ? "Not recorded. " : ""}Only “In person at facility” counts as a facility visit.
           </p>
         </Field>
       ) : null}
@@ -593,36 +660,45 @@ export function InteractionForm({
               save; an occasion already on an older entry rides along. */}
           {serviceFields.includes("occasion") ? <input type="hidden" name="occasion" value={service.occasion} readOnly /> : null}
           {isFood ? (
-            // Two numbers (decision C2, Oct 16, 2026): items can differ
-            // from people -- e.g. 12 challahs for 8 residents.
+            // One number (director, Oct 27, 2026): people who got food. An
+            // item count already saved on an older entry is kept, unseen.
             <>
-              <NumberField name="quantity" label="How many items?" defaultValue={service.quantity} error={fieldErrors.quantity} />
+              <input type="hidden" name="quantity" value={service.quantity} readOnly />
               <NumberField
                 name="people_reached"
-                label="How many people got one?"
+                label="How many people received food?"
                 hint="A rough count is fine"
                 defaultValue={service.people_reached}
                 error={fieldErrors.people_reached}
               />
             </>
           ) : null}
-          {serviceFields.includes("participants") &&
-          !partOfId &&
-          (interactionType !== "program" || partnerId || service.participants) ? (
-            <NumberField
-              name="participants"
-              label={
-                partnerName
-                  ? `Volunteers from ${partnerName}: about`
-                  : GROUP_COUNT_TYPES.includes(interactionType) && interactionType === "program"
-                    ? "Group volunteers: about"
-                    : "Students / shul members who took part"
-              }
-              hint={partnerName ? "Counted once for the whole project, however many facilities it reached." : undefined}
-              defaultValue={service.participants}
-              error={fieldErrors.participants}
-            />
+          {/* Students and volunteers asked separately (Oct 27, 2026); an
+              older program's single number is kept and shown "not split".
+              Part of a group project: counted on its first activity. */}
+          {GROUP_COUNT_TYPES.includes(interactionType) && !partOfId ? (
+            <>
+              <NumberField
+                name="student_count"
+                label={partnerName ? `Students from ${partnerName}: about` : "Students who took part: about"}
+                defaultValue={service.student_count}
+                error={fieldErrors.student_count}
+              />
+              <NumberField
+                name="volunteer_count"
+                label={partnerName ? `Volunteers from ${partnerName}: about` : "Volunteers who took part: about"}
+                hint={partnerName ? "Counted once for the whole project, however many facilities it reached." : undefined}
+                defaultValue={service.volunteer_count}
+                error={fieldErrors.volunteer_count}
+              />
+              {service.participants ? (
+                <p className="text-xs text-muted-foreground sm:col-span-2">
+                  Saved earlier as one number, not split: about {service.participants} took part.
+                </p>
+              ) : null}
+            </>
           ) : null}
+          {serviceFields.includes("participants") ? <input type="hidden" name="participants" value={service.participants} readOnly /> : null}
           {boxFields.includes("people_reached") && !isFood ? (
             <NumberField
               name="people_reached"
@@ -641,17 +717,40 @@ export function InteractionForm({
 
       {activity && isEngagementType ? (
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="engaged_contact_ids">Staff you worked with or spoke to</Label>
+          <Label htmlFor="engaged_contact_ids">
+            {interactionType === "facility_staff_communication" ? "Who you spoke with" : "Staff you worked with or spoke to"}
+          </Label>
           <MultiSearchPicker
             id="engaged_contact_ids"
             name="engaged_contact_ids"
-            options={withChosen(activity.facilityStaff, activity.anyone, engaged).map((c) => ({ id: c.id, label: c.name, detail: c.detail }))}
+            options={withChosen<{ id: string; name: string; detail?: string | null; facilityIds?: string[] }>(
+              interactionType === "facility_staff_communication" ? [...activity.facilityStaff, ...activity.partnerContacts] : activity.facilityStaff,
+              activity.anyone,
+              engaged
+            ).map((c) => ({
+              id: c.id,
+              label: c.name,
+              detail: c.detail,
+              // The chosen facility's staff first; everyone else after,
+              // each showing where they work (Oct 27, 2026 QA).
+              rank: facilityId && c.facilityIds?.includes(facilityId) ? 0 : 1,
+            }))}
             value={engaged}
-            onChange={setEngaged}
-            placeholder="Type a staff member's name…"
+            onChange={(ids) => {
+              setEngaged(ids);
+              if (!facilityId) {
+                const facility = facilityOfStaff(ids.filter((id) => !engaged.includes(id)));
+                if (facility) setFacilityId(facility);
+              }
+            }}
+            placeholder={interactionType === "facility_staff_communication" ? "Type a staff member's or partner's name…" : "Type a staff member's name…"}
           />
-          <p className="text-xs text-muted-foreground">Each counts once toward staff engagements.</p>
-          {present.length > 0 || presentOpened ? (
+          {onePerPerson ? (
+            <OnePerPersonNote count={engaged.length} />
+          ) : (
+            <p className="text-xs text-muted-foreground">Each counts once toward staff engagements.</p>
+          )}
+          {onePerPerson && present.length === 0 ? null : present.length > 0 || presentOpened ? (
             <div className="mt-2 flex flex-col gap-1.5">
               <Label htmlFor="present_contact_ids">Others who were there (not counted)</Label>
               <MultiSearchPicker
@@ -675,17 +774,49 @@ export function InteractionForm({
             </button>
           )}
         </div>
+      ) : isVolunteerVisit ? (
+        // Who visited is "Volunteers involved" below; an older entry's
+        // contact is kept as it was.
+        isEditing ? <input type="hidden" name="contact_id" value={values.contact_id} readOnly /> : null
       ) : contacts && contacts.length > 0 ? (
-        <Field label={interactionType === "volunteer_meeting" ? "Volunteer you met" : "Contact"} htmlFor="contact_id" error={fieldErrors.contact_id}>
-          <SearchPicker
-            id="contact_id"
-            name="contact_id"
-            defaultValue={values.contact_id}
-            options={contacts.map((c) => ({ id: c.id, label: c.name, detail: c.detail }))}
-            emptyLabel="No specific contact"
-            placeholder="Type a name…"
-          />
-        </Field>
+        onePerPerson ? (
+          <Field
+            label={
+              interactionType === "volunteer_meeting"
+                ? "Volunteers you met"
+                : interactionType === "family_communication"
+                  ? "Family members you spoke with"
+                  : "Who you spoke with"
+            }
+            htmlFor="contact_ids"
+            error={fieldErrors.contact_id}
+          >
+            <MultiSearchPicker
+              id="contact_ids"
+              name="contact_ids"
+              options={contacts
+                .filter((c) => !familyOnly || familyIds.has(c.id))
+                .map((c) => ({ id: c.id, label: c.name, detail: c.detail }))}
+              value={peopleShown}
+              onChange={choosePeople}
+              placeholder="Type a name…"
+            />
+            <OnePerPersonNote count={peopleShown.length} />
+          </Field>
+        ) : (
+          <Field label={interactionType === "volunteer_meeting" ? "Volunteer you met" : "Contact"} htmlFor="contact_id" error={fieldErrors.contact_id}>
+            <SearchPicker
+              id="contact_id"
+              name="contact_id"
+              defaultValue={isEditing ? values.contact_id : peopleShown[0] ?? values.contact_id}
+              options={contacts
+                .filter((c) => !familyOnly || familyIds.has(c.id) || c.id === values.contact_id)
+                .map((c) => ({ id: c.id, label: c.name, detail: c.detail }))}
+              emptyLabel="No specific contact"
+              placeholder="Type a name…"
+            />
+          </Field>
+        )
       ) : null}
 
       {volunteers && volunteers.length > 0 ? (
@@ -736,7 +867,11 @@ export function InteractionForm({
             onChange={setDoneBy}
             placeholder="Add a colleague who was there…"
           />
-          <p className="text-xs text-muted-foreground">Everyone here gets credit; the activity still counts once.</p>
+          <p className="text-xs text-muted-foreground">
+            {isVolunteerVisit
+              ? "Who arranged it. A volunteer visit doesn't count as a staff visit."
+              : "Everyone here gets credit; the activity still counts once."}
+          </p>
         </div>
       ) : null}
 
@@ -776,6 +911,8 @@ export type ServiceFormValues = {
   quantity: string;
   people_reached: string;
   participants: string;
+  student_count: string;
+  volunteer_count: string;
   minutes_spent: string;
   unmet_need: string;
   unmet_need_reason: string;
@@ -790,11 +927,24 @@ const EMPTY_SERVICE_VALUES: ServiceFormValues = {
   quantity: "",
   people_reached: "",
   participants: "",
+  student_count: "",
+  volunteer_count: "",
   minutes_spent: "",
   unmet_need: "",
   unmet_need_reason: "",
   funder_story: "",
 };
+
+/** Picked several people: a record is saved for each (Oct 27, 2026). */
+function OnePerPersonNote({ count }: { count: number }) {
+  return count > 1 ? (
+    <p className="rounded-md bg-[var(--tone-attention-bg)] px-3 py-2 text-xs font-medium text-[var(--tone-attention-fg)]">
+      A separate entry is saved for each of these {count} people, with the same day, place, notes and team.
+    </p>
+  ) : (
+    <p className="text-xs text-muted-foreground">Spoke with several people? Add each one; an entry is saved for each.</p>
+  );
+}
 
 function NumberField({
   name,

@@ -1,5 +1,6 @@
 "use client";
 
+import { StaffRoleField } from "@/components/staff-role-field";
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { Loader2, UserCheck, UserPlus } from "lucide-react";
@@ -111,7 +112,7 @@ export function AddPerson({
         <div className="grid gap-2 sm:grid-cols-2">
           <Field label="Name"><Input value={first} onChange={(e) => { capitalizeAsYouType(e); setFirst(e.target.value); }} autoFocus className="h-11" /></Field>
           {kind === "staff" ? (
-            <Field label="Role (optional)"><Input value={role} onChange={(e) => setRole(e.target.value)} placeholder="e.g. Activities Director" className="h-11" /></Field>
+            <Field label="Role (optional)"><StaffRoleField defaultValue={role} onChange={setRole} className="h-11" /></Field>
           ) : (
             <Field label="Relationship">
               <select value={relationship} onChange={(e) => setRelationship(e.target.value as typeof relationship)} className="h-11 w-full rounded-md border border-input bg-background px-3 text-base sm:text-sm">

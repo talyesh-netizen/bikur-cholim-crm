@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { ONE_PER_PERSON_TYPES } from "@/lib/domain/interaction";
 import { orgDayKey } from "@/lib/format-date";
 import { residentName } from "@/lib/domain/resident-name";
 import { selectAllPages } from "@/lib/queries/impact";
@@ -22,9 +23,9 @@ export type DoubleEntrySide = {
 
 export type DoubleEntryPair = {
   key: string;
-  /** "visit": the same visit saved by two people (or twice). "meeting":
-   * one staff meeting saved once per person met (Oct 21, 2026) -- "Same
-   * meeting" keeps one entry and adds the other person to it. */
+  /** "visit": the same visit saved by two people (or twice). "meeting"
+   * (Oct 21, 2026) is no longer suggested since one record per person
+   * (Oct 27, 2026); kept so an older answer still reads right. */
   kind: "visit" | "meeting";
   type: string;
   day: string;
@@ -72,9 +73,6 @@ const side = (r: Row): DoubleEntrySide => ({
 
 const pairKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
 
-/** Meetings that can involve several people at once. */
-const MEETING_TYPES = new Set(["facility_staff_communication", "volunteer_meeting"]);
-
 export async function listDoubleEntries(): Promise<{ open: DoubleEntryPair[]; reviewed: ReviewedPair[] }> {
   const supabase = await createClient();
   const [rows, reviews, people] = await Promise.all([
@@ -112,7 +110,10 @@ export async function listDoubleEntries(): Promise<{ open: DoubleEntryPair[]; re
   const groups = new Map<string, Row[]>();
   for (const r of rows) {
     if (r.counted_in_id) continue;
-    const person = r.resident_id ?? r.contact_id;
+    // One record per person (Oct 27, 2026): a family, staff or volunteer
+    // conversation is "the same" only with the same person spoken with,
+    // so a resident's son and daughter are never suggested as copies.
+    const person = ONE_PER_PERSON_TYPES.includes(r.interaction_type) ? r.contact_id ?? r.resident_id : r.resident_id ?? r.contact_id;
     const key = `${r.interaction_type}|${person}|${orgDayKey(r.occurred_at)}`;
     groups.set(key, [...(groups.get(key) ?? []), r]);
   }
@@ -135,32 +136,8 @@ export async function listDoubleEntries(): Promise<{ open: DoubleEntryPair[]; re
       });
     }
   }
-  // One meeting saved once per person met: same kind of meeting, same
-  // facility, same moment and same note, by the same staff member, each
-  // with a different person.
-  const meetings = new Map<string, Row[]>();
-  for (const r of rows) {
-    if (r.counted_in_id || !MEETING_TYPES.has(r.interaction_type) || !r.contact_id) continue;
-    const key = `${r.interaction_type}|${r.facility_id}|${r.occurred_at}|${r.staff_member_id}|${(r.notes ?? "").trim()}`;
-    meetings.set(key, [...(meetings.get(key) ?? []), r]);
-  }
-  for (const [key, group] of meetings) {
-    if (new Set(group.map((r) => r.contact_id)).size < 2) continue;
-    group.sort((a, b) => a.created_at.localeCompare(b.created_at));
-    const [first, ...rest] = group;
-    for (const other of rest) {
-      if (other.contact_id === first.contact_id || answered.has(pairKey(first.id, other.id))) continue;
-      open.push({
-        kind: "meeting",
-        key: `meeting|${key}|${other.id}`,
-        type: first.interaction_type,
-        day: orgDayKey(first.occurred_at),
-        person: `${first.contacts?.name ?? "Someone"} and ${other.contacts?.name ?? "someone"}`,
-        kept: side(first),
-        other: side(other),
-      });
-    }
-  }
+  // A meeting saved once per person met is no longer suggested as one
+  // meeting (director, Oct 27, 2026): each person has their own record.
   open.sort((a, b) => b.day.localeCompare(a.day));
 
   const reviewed: ReviewedPair[] = reviewRows.slice(0, 25).map((r) => {

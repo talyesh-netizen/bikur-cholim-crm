@@ -1,0 +1,287 @@
+# October 27 cleanup: QA notes (PR #145)
+
+Preview (TEST database, fake data only):
+https://bikur-cholim-crm-git-claude-oct-2-d26ccb-bikur-cholim-cleveland.vercel.app
+
+## Results so far
+
+| Step | What was checked | Result |
+|---|---|---|
+| 1 | Logging from a staff member's page (Carlos Ruiz) | **Change requested:** director chose A (see below) |
+| 2 | Two staff in one conversation | **Pass:** two separate entries (Dana Activities, Carlos Ruiz), same day, place and note |
+| 3 | Food form | **Pass:** one number, "How many people received food?", no item count. **Change requested:** hide the Resident box (answer 2) |
+| 4 | Program form | **Pass:** saved with 5 students, 4 volunteers, 11 residents reached, no facility (checked in the TEST database) |
+| 5 | Family form | **Pass:** saved with no resident or facility (checked in the TEST database). **Change requested:** the family box offered a staff member (answer 3) |
+| 6 | Facility visit under "More types" | **Pass:** saved at Hillcrest Independent Living, in person, counts as a facility visit (checked in the TEST database). **Change requested:** a short reminder of when to use it (answer 4) |
+| 7 | Facility staff: address and role | **Pass:** no address fields (Oct 28: an empty "Address" line still showed on the staff page, now removed); role is a dropdown. Extra check added by the director: a newly added staff member must show up when logging (7b) |
+| 7b | New staff member appears when logging | **Pass:** "Test" saved as facility staff (Life Enrichment Director, Cedarbrook) and a staff conversation with them saved (checked in the TEST database). Two open questions for ChatGPT below (Q5, Q6) |
+| 8 | Impact page | **Pass:** shows staff interactions (one per person), Staff visits beside Facility visit-days, partner conversations and the Programs box (5 students, 4 volunteers) matching what was logged. Open question Q7 on wording |
+| 9 | Funder export | **Pass (with a note):** the report downloads. The director's Mac opens CSV files with the ChatGPT app, which couldn't open it, so Claude checked the contents in the code: no item count, "People who received food", Staff visits, Partner conversations, Program participation (students / volunteers / not split). Worth opening once in Numbers or Excel |
+| 10 | Stories | **Pass:** story saved, written by Director (practice), linked to resident Esther Practice and Deer Creek Lodge; no activity entry created (checked in the TEST database). Linking an existing story later was covered by the automated access checks |
+
+## Step 1 finding (director, Oct 27, 2026)
+
+On Carlos Ruiz's page, the director used the red **+ Log** button in the side
+panel, and the form opened with Carlos already filled in. The director found
+this confusing: the side panel's button is a general "log anything" button,
+so it shouldn't quietly attach whoever's page happens to be open.
+
+How it works now:
+- **Side panel "+ Log":** on a resident's, staff member's, family member's,
+  volunteer's or partner's page, it opens the form with that person filled in.
+  On other pages it opens a blank form.
+- **Resident pages:** also have their own large **Log** button at the top
+  (since Oct 19, 2026).
+- **Staff, family, volunteer and partner pages:** only have a small "Log an
+  interaction" button further down, in the Interactions section.
+
+## Question for ChatGPT
+
+Background: The CRM has a red "+ Log" button in the side panel on every
+page. In this build it fills in the person whose page is open. The director
+tried it on a staff member's page and found that confusing: the side panel
+button should be general, not tied to the page.
+
+- **A. The side panel "+ Log" always opens a blank form, on every page.**
+  Each person's page (staff, family, volunteer, partner and resident) gets
+  its own clear button at the top: "Log with Carlos Ruiz".
+  - Upside: one clear rule. The side panel button is general, and the
+    button on someone's page is for that person.
+  - Downside: logging from a profile means using the page's button, not the
+    side panel.
+- **B. Same as A, but resident pages keep today's behaviour,** where the
+  side panel fills in the resident (as decided Oct 19).
+  - Upside: residents work as staff are used to.
+  - Downside: the side panel behaves differently on resident pages than on
+    other people's pages.
+- **C. Keep this build as it is,** but change the side panel button's label
+  on a person's page to "+ Log with Carlos" so it's clear.
+  - Upside: smallest change.
+  - Downside: the side panel button's meaning still changes from page to page.
+
+Claude recommends **A**: it is the simplest rule to remember, and it gives
+every profile the same visible button residents already have.
+
+Please reply A, B or C and why.
+
+## Director's answers
+
+1. **Side panel "+ Log": A.** The side panel button always opens a blank form.
+   Every person's page (staff, family, volunteer, partner and resident) gets
+   its own clear "Log with [name]" button at the top.
+2. **Resident box on Food and Programs: B (hide on both).** Food and programs
+   aren't about one person. If someone has a meaningful conversation with a
+   resident at a program, it's logged separately as its own entry. The 10
+   older food entries that already have a resident keep it, unchanged.
+3. **Who appears in the Family box: A (family members only).** In QA the
+   family box offered everyone, and a staff member (Carlos Ruiz) was saved as
+   "family". Only people filed as family members should be offered.
+4. **Reminder on Facility visit: yes.** When Facility visit is picked, the form
+   shows: "Use this when you went to the facility but didn't meet any
+   residents or staff. If you did, log those visits or conversations
+   instead." (Matches the Oct 21 rule for Facility visit.)
+
+## Open questions for ChatGPT (director wants ChatGPT's view first)
+
+**Q5. Logging right after adding a new staff member.** Today, adding a new
+facility staff member and logging a conversation with them are two separate
+steps: save the person, then click "+ Log" and find them again. The director
+felt it should be one smooth step.
+- **A.** The new-staff form gets a second button, "Save and log a
+  conversation". It saves the person, then opens the log form with that person
+  and their facility already filled in. Upside: one step when you've just met
+  someone new. Downside: one extra button on the form.
+- **B.** Keep it as it is. Upside: no change. Downside: two steps, and you have
+  to find the person again.
+- Claude recommends **A**.
+
+**Q6. Which staff appear in "Who you spoke with".** In QA, a staff member who
+works at Cedarbrook was picked for a conversation logged at Deer Creek Lodge.
+The box offers facility staff from every facility, whatever facility is chosen
+on the form.
+- **A.** Once a facility is chosen, list that facility's staff first, then
+  everyone else below. Upside: the right people are on top, and someone who
+  works at two places can still be picked. Downside: a mismatch is still
+  possible, just less likely.
+- **B.** Once a facility is chosen, show only that facility's staff. Upside: no
+  mismatches. Downside: someone not yet linked to that facility can't be picked
+  until they're linked.
+- **C.** Keep it as it is.
+- Claude recommends **A**.
+
+**Q7. How much explanation on the Impact page.** Under each number on the
+Impact page there is a line explaining what it counts, for example "each staff
+member once per facility per day they were there". The director finds this
+too much to read.
+- **A.** Shorten each line to a few words ("per person, per day", "per
+  facility, per day", "calls included"), with the full explanation shown only
+  when you hover or tap a small "i" next to the number. Upside: much calmer
+  page, and the difference between similar numbers is still visible.
+  Downside: the full meaning is one tap away.
+- **B.** Remove the lines entirely. Upside: cleanest. Downside: "Staff visits"
+  and "Facility visit-days" look alike with nothing to tell them apart.
+- **C.** Keep them as they are.
+- Claude recommends **A**.
+
+Please reply Q5 A/B, Q6 A/B/C and Q7 A/B/C, with a line of reasoning each.
+
+## Final answers (ChatGPT and director, Oct 27, 2026)
+
+- Q5: **A**, "Save and log a conversation" on the new-staff form.
+- Q6: **A**, the chosen facility's staff first, each person showing where they work.
+- Q7: **A**, short explanations with the full definitions behind an "i".
+- Change to answer 2: **Food keeps an optional Resident** (a delivery made for one
+  person stays on their history); the Resident box is hidden on Programs only.
+
+## Built on the TEST preview for the final check
+
+1. Side panel "+ Log" opens a blank form on every page; resident, staff, family,
+   volunteer and partner pages have "Log with [name]" at the top.
+2. No Resident box on Programs; Food keeps an optional Resident.
+3. Family offers family members only. Anyone picked before is set aside, not
+   saved as family, and comes back if another kind is picked.
+4. Facility visit shows: "Use this when you went to the facility but didn't
+   meet any residents or staff. If you did, log those visits or conversations
+   instead."
+5. New-staff form: "Save and log a conversation".
+6. "Who you spoke with": the chosen facility's staff first, each showing role
+   and facility.
+7. Impact: a few words under each number; full definitions behind an "i".
+
+Checks: type check, lint and build pass; 44 counting and "+ Log" checks pass;
+32 browser checks on the log form pass.
+
+## Final check: director's notes (Oct 28, 2026)
+
+"Save and log a conversation" worked (the new staff member and the
+conversation saved at Hillcrest, in person at the facility). Two changes
+asked for, built on the TEST preview:
+
+1. Picking a facility staff member fills in the facility they work at,
+   when no facility is chosen yet (also "Log with [name]" from their page).
+   Someone linked to two or more facilities fills in nothing; pick one.
+2. "How?" has nothing picked in advance on a staff conversation or a
+   volunteer meeting, and a new one must pick. On-site mode still starts
+   on in person, since you are at the facility.
+
+Checks: type check, lint and build pass; counting checks pass; 38 browser
+checks on the log form pass.
+
+## Final check result (director, Oct 28, 2026)
+
+All seven QA adjustments checked on the TEST preview, plus the two Oct 28
+changes. Impact page: "reads well" (short words, full definitions behind
+the "i"). Open: the "How?" question (required or optional) with ChatGPT.
+
+## Later, not in this round (director, Oct 28, 2026)
+
+- **Stories: a date option.** Today a story takes the day it was written
+  automatically. The director would like to be able to set the date (for
+  a story written down days later). Not built now: the priority is
+  finishing this round so the CRM can be used.
+- The "How?" choice (required or optional) goes to ChatGPT; it is built
+  as required on the TEST preview until answered.
+
+## Final decisions (ChatGPT and director, Oct 28, 2026)
+
+1. "How?": **A**, required on new staff conversations and volunteer
+   meetings (as built), for accurate visit counting.
+2. Manual QA before going live: items 14 (side panel "+ Log" blank),
+   15 ("Log with [name]"), 28 (funder export opened in a spreadsheet)
+   and 31 (Quick Log) are to be clicked through on TEST.
+3. Production: **not yet approved.** The merge and the two production
+   database updates wait for those checks and the director's approval.
+
+Later, separate from PR #145: assess a daily morning email of each
+employee's tasks (due today, tomorrow, next 7 days).
+
+## Manual checks (Oct 28, 2026)
+
+- 14 Side panel "+ Log" opens blank: **Pass.** (Found: an empty "Address"
+  line still showed on facility staff pages; removed.)
+- 15 "Log with [name]": **Pass.** Carlos Ruiz and Cedarbrook filled in;
+  Family left him out (not family).
+- 28 Funder export: **Pass.** Read by Claude from the downloaded file: no
+  item count; Staff visits, Partner conversations and Program
+  participation (students 5, volunteers 4, not split 0) present.
+- 31 Quick Log: to do.
+
+## Open list for ChatGPT (collect now, build after approval)
+
+1. **Resident box on the log form** (question sent): A clearer wording
+   "About a resident? (optional)"; B hide on staff conversations and
+   Other; C leave. Claude recommends A.
+2. **Stories date option** (director): set the date of a story written
+   down later.
+3. **Funder export, students shown twice:** "School & shul programs"
+   has its own Students/Volunteers lines (0) and "Program participation"
+   has the totals (5 and 4), because the test program was at a facility.
+   Two places for the same thing may confuse a funder; suggest one.
+4. **Funder export, volunteer list:** the bottom "Volunteer impact"
+   list shows Ben Horowitz with 1 visit, while the summary above says 0
+   volunteer visits. He was tagged as a volunteer on a staff
+   conversation, and the bottom list counts every entry a volunteer is
+   on. Suggest counting only volunteer visits there, or renaming the
+   column "Entries".
+6. **Interactions date range kicks you out while typing** (also on the
+   live site): the list reloads as soon as the box holds any complete
+   date, and typing "2026" counts as complete at the first "2". Fix:
+   reload only when done (click away / Enter) or an Apply button.
+7. **Quick Log can't be tried on TEST:** the AI key is set for the live
+   site only, so the test site hides Quick Log. A: add the key to the
+   test site; B: rely on the automatic checks.
+8. **Daily task email** (assessment, separate from PR #145): a daily
+   email already exists in the code but has never sent (Resend account,
+   sending domain and three settings never set up; LAUNCH_READINESS.md).
+   It sends counts only (overdue, due today), Sun-Fri around 8 am.
+   Adding tomorrow and next 7 days is small. Cost: free at our size.
+9. **Pre-existing (not this PR):** the live service-role key is set for
+   every preview deployment; preview-only builds don't need it.
+5. **CSV opens in the ChatGPT app** on the director's Mac. Not a CRM
+   problem (the Mac's default app for .csv); open with Numbers or Google
+   Sheets, or a later option to download as Excel.
+
+## Decisions on the open list (ChatGPT and director, Oct 28, 2026)
+
+1 A before · 2 A after · 3 A before · 4 A before · 5 B after (no Excel
+export) · 6 A before · 7 A before (TEST only; AI key server-side only)
+· 8 A/A after (counts only; only when something is due within 7 days;
+assessment only) · 9 remove the live administrator key from test and
+preview environments before going live, production unaffected.
+
+Built on the development branch: 1, 3, 4, 6. Settings: 7, 9 (see the
+final report).
+
+## Settings for the final check (Oct 28, 2026)
+
+- Item 9: `SUPABASE_SERVICE_ROLE_KEY` is now Production only (was
+  Production and Preview). Only staff sign-in creation/removal and the
+  daily reminder (live only) use it. Older preview deployments built
+  before today still hold it; all are behind Vercel login and it is
+  server-only. Full fix at go-live, with approval: create a new key in
+  Supabase, set it for Production, merge, check staff sign-ins, then
+  switch off the old key.
+- Item 7: a separate test Anthropic key was added for Preview on this
+  branch only (server-side name, no NEXT_PUBLIC). Delete it in the
+  Claude Console after Quick Log passes.
+- Noticed: the live Anthropic key appears to expire Nov 5, 2026; renew
+  or replace before then or live Quick Log stops.
+
+## Go-live log (approved by the director, Oct 28, 2026)
+
+1. Backup: the director downloaded More → Backup from live; row counts
+   matched the live database exactly.
+2. Database updates applied to live: 20261027000001 (program student and
+   volunteer numbers) and 20261027000002 (Stories). Fingerprints of
+   interactions, residents, contacts and tasks identical before and
+   after; no existing record changed.
+3. Stories access check on live: 20 of 20 PASS, rolled back (no test
+   stories, staff accounts unchanged). No new security advisor warnings.
+4. Administrator key replaced: new secret key `crm_live_oct28` set for
+   Production only; live redeployed on the same code; a temporary staff
+   account was created and deleted through it (seen in Supabase logs).
+   The unused "default" secret key was deleted. The live site was moved
+   to the publishable key and checked (all requests 200), then the
+   legacy anon/service_role keys were switched off. Old copies of the
+   administrator key no longer work.
+5. Merge of PR #145: type check, lint, counting checks and build pass.

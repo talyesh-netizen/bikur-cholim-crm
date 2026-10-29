@@ -28,6 +28,9 @@ import { InteractionList } from "@/app/(app)/interactions/interaction-list";
 import { TaskList } from "@/app/(app)/tasks/task-list";
 import { InfoRow } from "@/components/info-row";
 import { ProfileNotesCard } from "@/components/profile-notes-card";
+import { Fold } from "@/components/fold";
+import { StoryList } from "@/components/story-list";
+import { listStories } from "@/lib/queries/stories";
 import { listFacilityProfileNotes } from "@/lib/queries/profile-notes";
 import { ClipboardCheck, Pencil, Plus, UserX, Undo2, Star, User, Mail, Phone, Download } from "lucide-react";
 import { getImpactBreakdown, getServicesDelivered } from "@/lib/queries/impact";
@@ -52,7 +55,7 @@ export default async function FacilityDetailPage({
   const impactPeriod = parsePeriod({ period: impactParam });
   const IMPACT_PERIODS = periodChoices().quick.filter((q) => ["This month", "This quarter", "Last quarter", "All time"].includes(q.label));
   const periodLabel = impactPeriod.label;
-  const [facility, residents, interactions, facilityContacts, profileNotes, impact, services, media, alsoOffers] = await Promise.all([
+  const [facility, residents, interactions, facilityContacts, profileNotes, impact, services, media, alsoOffers, stories] = await Promise.all([
     getFacility(id),
     listResidents({ facilityId: id, showAllStatuses: true }),
     listInteractionsForFacility(id),
@@ -62,6 +65,7 @@ export default async function FacilityDetailPage({
     getServicesDelivered(impactPeriod, id),
     listFacilityMedia(id),
     getFacilityAlsoOffers(id),
+    listStories({ facilityId: id }),
   ]);
 
   if (!facility) notFound();
@@ -211,6 +215,21 @@ export default async function FacilityDetailPage({
       </div>
 
       <ProfileNotesCard targetType="facility" targetId={facility.id} notes={profileNotes} />
+
+      <Fold
+        title="Stories"
+        count={stories.length}
+        action={
+          <Button size="sm" variant="outline" asChild>
+            <Link href={`/stories/new?facility=${facility.id}&back=${encodeURIComponent(`/facilities/${facility.id}`)}`}>
+              <Plus className="size-4" />
+              Add a story
+            </Link>
+          </Button>
+        }
+      >
+        <StoryList stories={stories} back={`/facilities/${facility.id}`} hideLinks="facility" />
+      </Fold>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">

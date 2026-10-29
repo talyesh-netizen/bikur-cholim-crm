@@ -4,7 +4,7 @@ import { getResident } from "@/lib/queries/residents";
 import { getFacility, listFacilities } from "@/lib/queries/facilities";
 import { residentOptions } from "@/lib/resident-options";
 import { safeReturnTo } from "@/lib/return-to";
-import { listContactOptions, listResidentContacts } from "@/lib/queries/contacts";
+import { listContactOptions, listContactsByIds, listResidentContacts } from "@/lib/queries/contacts";
 import { labelFor as labelForContact, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
 import { createInteraction } from "@/lib/actions/interactions";
 import { InteractionForm } from "../interaction-form";
@@ -49,10 +49,16 @@ export default async function NewInteractionPage({
       })`,
     }));
   const familyIds = new Set(family.map((f) => f.id));
-  const contacts = [...family, ...allContacts.filter((c) => !familyIds.has(c.id))];
-  // Tapped a staff member or family member on site: they're already
-  // chosen (only ever someone already in the list).
+  // Started from someone's page (or tapped on site): they're already
+  // chosen, even if they've since been marked inactive (Oct 27, 2026).
+  const inactiveChosen =
+    contactId && !allContacts.some((c) => c.id === contactId) && !familyIds.has(contactId)
+      ? (await listContactsByIds([contactId])).map((c) => ({ id: c.id, name: c.name, detail: "Inactive" }))
+      : [];
+  const contacts = [...family, ...allContacts.filter((c) => !familyIds.has(c.id)), ...inactiveChosen];
   const chosenContact = contactId ? contacts.find((c) => c.id === contactId) : undefined;
+  // The only people a Family entry offers (Oct 27, 2026 QA).
+  const familyContactIds = [...familyIds, ...allContacts.filter((c) => c.contact_type === "family_member").map((c) => c.id)];
 
   if (residentId && !resident) notFound();
   if (facilityId) {
@@ -127,6 +133,7 @@ export default async function NewInteractionPage({
             defaultFacilityId={facilityId ?? resident?.current_facility_id ?? undefined}
             defaultInteractionType={defaultType}
             defaultContactId={chosenContact?.id}
+            familyContactIds={familyContactIds}
             defaultInPerson={from === "onsite"}
             defaultPartnerId={activity.partners.some((p) => p.id === partner) ? partner : undefined}
             fixedResident={fixedResident}

@@ -5,7 +5,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/get-current-profile";
-import { HOLIDAY_TYPES, FAMILY_NEED_TYPES, IN_PERSON_ONLY_TYPES, INTERACTION_TYPES, METHOD_FIXED, methodWhere, labelFor, SERVICE_FIELDS_BY_TYPE, occasionForHoliday, type InteractionType } from "@/lib/domain/interaction";
+import { HOLIDAY_TYPES, FAMILY_NEED_TYPES, IN_PERSON_ONLY_TYPES, INTERACTION_TYPES, ONE_PER_PERSON_TYPES, METHOD_FIXED, methodWhere, labelFor, SERVICE_FIELDS_BY_TYPE, occasionForHoliday, type InteractionType } from "@/lib/domain/interaction";
 import { loadDirectory, type Directory } from "@/lib/assistant/directory";
 import { resolvePlan } from "@/lib/assistant/resolve";
 import { aboutThemNotes } from "@/lib/assistant/about-them";
@@ -203,7 +203,7 @@ async function findAlreadyLogged(plan: Plan): Promise<AlreadyLogged> {
     const supabase = await createClient();
     const { data, error } = await supabase
       .from("interactions")
-      .select("occurred_at, interaction_type, resident_id, profiles!interactions_staff_member_id_fkey(full_name)")
+      .select("occurred_at, interaction_type, resident_id, contact_id, profiles!interactions_staff_member_id_fkey(full_name)")
       .in("resident_id", [...new Set(wanted.map((w) => w.x.resident!))])
       .is("voided_at", null)
       .gte("occurred_at", from)
@@ -216,6 +216,9 @@ async function findAlreadyLogged(plan: Plan): Promise<AlreadyLogged> {
         (r) =>
           r.resident_id === w.x.resident &&
           r.interaction_type === w.x.interaction_type &&
+          // One record per person (Oct 27, 2026): the same resident's son
+          // and daughter are two family entries, not a repeat.
+          (!ONE_PER_PERSON_TYPES.includes(w.x.interaction_type) || !w.x.contact || r.contact_id === w.x.contact) &&
           toOrgDatetimeLocalValue(r.occurred_at).slice(0, 10) === w.day
       );
       if (row) {
@@ -633,12 +636,8 @@ export async function applyPlan(
           i.people_reached && i.people_reached > 0 && SERVICE_FIELDS_BY_TYPE[i.interaction_type as InteractionType]?.includes("people_reached")
             ? i.people_reached
             : null,
-        // Food: one number -- how many packages, also how many people got
-        // one (the funder report counts this one, Impact the one above).
-        quantity:
-          i.interaction_type === "food_delivery" && i.people_reached && i.people_reached > 0
-            ? i.people_reached
-            : null,
+        // Food: one number, people who got food (Oct 27, 2026) -- the one
+        // above. No item count is recorded.
         holiday: i.holiday && HOLIDAY_TYPES.includes(i.interaction_type) ? i.holiday : null,
         family_need: i.family_need && FAMILY_NEED_TYPES.includes(i.interaction_type) ? i.family_need : null,
         occasion:

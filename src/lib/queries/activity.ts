@@ -3,6 +3,8 @@ import { listActiveStaff } from "@/lib/queries/profiles";
 import { listContactOptions } from "@/lib/queries/contacts";
 import { listOrganizations } from "@/lib/queries/organizations";
 import { labelFor, ORGANIZATION_TYPES } from "@/lib/domain/organization";
+import { PARTNER_CONTACT_TYPES } from "@/lib/domain/contact";
+import { headCount } from "@/lib/domain/interaction";
 
 /** A group project another activity can be "part of": the first activity
  * of e.g. Chavivah High School's Oct 9 visits, which holds the group's
@@ -20,8 +22,13 @@ export type GroupProjectOption = {
 export type ActivityFormOptions = {
   currentUserId: string | null;
   staff: { id: string; name: string }[];
-  /** Facility staff, for "Staff you worked with or spoke to". */
-  facilityStaff: { id: string; name: string; detail?: string | null }[];
+  /** Facility staff, for "Staff you worked with or spoke to", each with
+   * where they work ("Activities Director · Cedarbrook"), so the chosen
+   * facility's staff can be listed first (Oct 27, 2026 QA). */
+  facilityStaff: { id: string; name: string; detail?: string | null; facilityIds?: string[] }[];
+  /** Partner contacts (Oct 27, 2026): offered beside facility staff, and a
+   * staff conversation with only partners needs no facility. */
+  partnerContacts: { id: string; name: string; detail?: string | null }[];
   /** Anyone, for "Others who were there". */
   anyone: { id: string; name: string; detail?: string | null }[];
   partners: { id: string; name: string; detail?: string | null }[];
@@ -41,6 +48,7 @@ export async function getActivityFormOptions(): Promise<ActivityFormOptions> {
     facilityStaff,
     anyone,
     partners,
+    staffLinks,
     projects,
   ] = await Promise.all([
     supabase.auth.getUser(),
@@ -49,10 +57,14 @@ export async function getActivityFormOptions(): Promise<ActivityFormOptions> {
     listContactOptions(),
     listOrganizations({ world: "partners" }),
     supabase
+      .from("facility_contacts")
+      .select("contact_id, facility_id, role_at_facility, facilities(name)")
+      .eq("active", true),
+    supabase
       .from("interactions")
-      .select("id, occurred_at, partner_organization_id, participants, organizations(name), facilities(name)")
+      .select("id, occurred_at, partner_organization_id, participants, student_count, volunteer_count, organizations(name), facilities(name)")
       .not("partner_organization_id", "is", null)
-      .gt("participants", 0)
+      .or("participants.gt.0,student_count.gt.0,volunteer_count.gt.0")
       .is("part_of_id", null)
       .is("counted_in_id", null)
       .is("voided_at", null)
@@ -63,7 +75,17 @@ export async function getActivityFormOptions(): Promise<ActivityFormOptions> {
   return {
     currentUserId: user?.id ?? null,
     staff: staff.map((s) => ({ id: s.id, name: s.full_name })),
-    facilityStaff,
+    facilityStaff: facilityStaff.map((c) => {
+      const links = ((staffLinks.data ?? []) as unknown as {
+        contact_id: string;
+        facility_id: string;
+        role_at_facility: string | null;
+        facilities: { name: string } | null;
+      }[]).filter((l) => l.contact_id === c.id);
+      const where = links.map((l) => [l.role_at_facility, l.facilities?.name].filter(Boolean).join(" · ")).filter(Boolean);
+      return { ...c, detail: where.length > 0 ? where.join("; ") : c.detail, facilityIds: links.map((l) => l.facility_id) };
+    }),
+    partnerContacts: anyone.filter((c) => PARTNER_CONTACT_TYPES.includes(c.contact_type)),
     anyone,
     partners: partners.map((o) => ({ id: o.id, name: o.name, detail: labelFor(ORGANIZATION_TYPES, o.organization_type) })),
     groupProjects: (
@@ -71,7 +93,9 @@ export async function getActivityFormOptions(): Promise<ActivityFormOptions> {
         id: string;
         occurred_at: string;
         partner_organization_id: string;
-        participants: number;
+        participants: number | null;
+        student_count: number | null;
+        volunteer_count: number | null;
         organizations: { name: string } | null;
         facilities: { name: string } | null;
       }[]
@@ -80,7 +104,7 @@ export async function getActivityFormOptions(): Promise<ActivityFormOptions> {
       occurred_at: p.occurred_at,
       partner_organization_id: p.partner_organization_id,
       partner_name: p.organizations?.name ?? "the group",
-      participants: p.participants,
+      participants: headCount(p),
       facility_name: p.facilities?.name ?? null,
     })),
   };
@@ -133,10 +157,18 @@ export async function getActivityExtras(id: string): Promise<ActivityExtras> {
     if (!otherId) return null;
     const { data } = await supabase
       .from("interactions")
-      .select("id, occurred_at, participants, facilities(name)")
+      .select("id, occurred_at, participants, student_count, volunteer_count, facilities(name)")
       .eq("id", otherId)
       .maybeSingle();
-    return data as unknown as { id: string; occurred_at: string; participants: number | null; facilities: { name: string } | null } | null;
+    const d = data as unknown as {
+      id: string;
+      occurred_at: string;
+      participants: number | null;
+      student_count: number | null;
+      volunteer_count: number | null;
+      facilities: { name: string } | null;
+    } | null;
+    return d ? { ...d, participants: headCount(d) || null } : null;
   };
   const [partOf, countedIn] = await Promise.all([lookup(r?.part_of_id), lookup(r?.counted_in_id)]);
 
