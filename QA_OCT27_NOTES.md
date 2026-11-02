@@ -523,3 +523,52 @@ A: the box above on the profile and in on-site mode (recommended).
 B: profile only. C: leave as is and rely on "Recent interactions".
 Also: which kinds count as "visit notes": staff and volunteer visits
 and phone calls only (recommended), or every kind (family, food...)?
+
+## Separate item (not part of the Impact audit): a second staff member during an on-site visit (Nov 2, 2026)
+
+Director: when visiting residents on site, a second staff member is
+sometimes along, and there's no way to credit them while keeping
+one-tap resident logging. Investigation only; nothing approved or built.
+
+### Current behavior
+
+- **On-site one-tap entries** (Visit, staff conversation, family) save
+  only the person signed in. There is no "who else" option, so a second
+  staff member gets no staff visit for that day.
+- **Quick Log (talk or type)**, including the on-site notes box,
+  already handles it when the note says so ("visited with Sara", "Sara
+  and I saw her"): the colleague is added as a team member on each of
+  those entries (never on food), and the check screen shows "With
+  Sara". It depends on the words; there's no way to add or remove the
+  colleague on the check screen.
+- **The regular log form** has "Done by" (several staff; the first
+  leads, the rest are the team).
+- **Reusable:** all three use the same team-member list on an entry
+  and the same database step that saves it. Reports already credit
+  each staff member (lead or team) once per facility per day, and
+  count the entry itself once.
+
+### Recommendation (for approval)
+
+An optional "Visiting with" choice at the top of on-site mode (pick a
+staff member, or nobody), remembered for that visit only on this phone
+(like the facility; cleared at "Finish visit" or the next day). Every
+entry saved after it is picked, one-tap or Quick Log on site, adds that
+person as a team member. Resident logging stays one tap.
+
+Result: one entry per resident (no duplicates); both staff get one
+staff visit for that facility and day; facility visit-days unchanged;
+the staff list credits both (as "Done by" does today).
+
+Points to settle: (1) apply it to staff and family conversations too,
+or resident visits only? (2) the second person should not also log the
+same residents on their own phone (that would double count; Data
+Quality would flag it for review); (3) if adding the team member fails
+after the entry saves, show a clear message and keep the entry.
+
+### Decision needed (Q-N2)
+
+A: "Visiting with" for the whole on-site visit, all entries (staff can
+remove it from one entry afterward). B: resident visits only.
+C: no new choice; rely on saying "with Sara" in Quick Log.
+Claude recommends A.
