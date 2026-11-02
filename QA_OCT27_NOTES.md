@@ -375,3 +375,102 @@ Q5 Food with no people number: A "not recorded" and fill in /
    B use the item count.
 Q6 Program old number: A stop counting it once split / B fix by hand.
 Claude recommends A on all six. Reply A or B for each, and why.
+
+## Open list for ChatGPT: Impact page inventory and overlaps (Nov 2, 2026)
+
+Second pass, separate from the October audit above (its findings 1-11
+and Q1-Q6 stay as written and stay open). Documentation only: nothing
+approved or built, no saved record changed, October 2026 only. Full
+inventory of every number, with October values, sent to the director.
+
+### A. New findings (12-20)
+
+12. **Export "School & shul" misses current school programs.** It
+    counts only the old "School & shul program" kind, which the form no
+    longer offers. October shows 0, though a 90-student school program
+    (a Program with a school as partner) happened. There is no "schools
+    involved" number anywhere.
+13. **Export lines the form no longer asks for:** staff hours (3.3 from
+    3 entries), volunteer hours (0), unmet need (0), funder stories (0)
+    read as if real.
+14. **Two resident numbers count differently.** "Visits & calls per
+    month" includes visits with no resident named; the headline doesn't
+    (September 39 vs 37; October happens to match at 141 + 2).
+15. **"Reached by holiday"** leaves out students (the 90 at the Shabbos
+    school program) and deliveries with the people number blank.
+16. **"Most-supported facility teams"** says "staff conversations" but
+    counts staff people met, including at programs; bars open the
+    facility page, not its entries.
+17. **"Today" charts** (time since last visit, family on file, facility
+    stages, growth) sit among period numbers, barely marked.
+18. **Comparison arrows** compare with September, a less completely
+    logged month (97 vs 36 residents).
+19. **Worked out, never shown:** what families needed; care navigation.
+20. **Needs attention uses two meanings of "contact":** residents need
+    an in-person visit; facilities count any entry, calls included.
+
+### B. Overlapping activities (how the page counts them today)
+
+- **School brings 25 students to visit 10 residents** (logged as a
+  Program at the facility, school as partner, students 25, residents
+  reached 10): +1 program, +25 students, ~10 reached, +1 facility
+  visit-day and a staff visit for whoever is under Done by, even if no
+  staff went. Residents not named, so no one-on-one count and no "last
+  visit" change. Export "School & shul": 0 (finding 12). If logged
+  instead as a Visit with 10 residents: 10 visits, but the students
+  aren't recorded anywhere.
+- **Volunteer visits three residents:** 3 separate entries (form takes
+  one resident): 3 visits, 3 residents, volunteer tally 3, one
+  volunteer-only day. Or one entry with "3 reached": 1 visit, 0
+  residents named, residents still look unvisited. (Q2.)
+- **Staff member accompanies a volunteer:** volunteer visit alone gives
+  staff nothing. Adding a staff Visit for the same resident doubles
+  "visits & calls" (+2 for one visit); never flagged, because double-
+  entry checks only compare entries of the same kind. (Q4.)
+- **Staff delivers food while visiting a resident** (real case: Oct 7,
+  Legacy Place, two residents): the Visit counts the resident; the Food
+  entry adds a delivery but 0 people (blank). One staff visit and one
+  visit-day (no double count). A Food entry alone naming the resident
+  doesn't count them as served or reset their "last visit". (Q5.)
+- **Program with residents, students and community volunteers:** one
+  program; residents reached into the ~ "reached" total; students and
+  volunteers as typed numbers; volunteers picked by name aren't counted
+  anywhere; residents spoken with one-on-one are separate Visit entries
+  and also sit inside "reached" (different numbers, by design). An
+  older program's single number mixes students and volunteers (Q6).
+
+### C. Confirmed bugs vs. reporting design questions
+
+Confirmed bugs (a number that contradicts its own label or an approved
+rule): program "not split" double count (5); export School & shul (12);
+staff leaderboard list includes volunteer visits (9); "Facility staff
+supported" and "Reached" lists don't match their numbers (9); "Most-
+supported facility teams" label (16); Growth "New residents" label
+(9); stale export lines (13); the two resident definitions (14).
+
+Design questions (the code does what was decided; the rule itself
+needs a decision): Q1-Q7; holiday chart contents (15); "today" vs
+period numbers (17); comparison month (18); the meaning of "contact"
+(20); programs and deliveries giving Done-by staff a visit even when
+they weren't there (same issue as Q4).
+
+### D. Decisions (Q1-Q5 unchanged and open; Q6 caution; new Q7)
+
+**Q6 caution (director and ChatGPT, Nov 2):** the older single number
+may mix students and community volunteers (e.g. the Oct 25 program,
+6). Simply ignoring it once students are typed would undercount any
+volunteers it held. Options now: A ignore the old number once students
+or volunteers are entered (risk: undercount); B count both (as now;
+double count); C on edit, ask the person to split the old number
+(students + volunteers must add up to it, or confirm it's replaced),
+and until then show it once as "not split". Claude recommends C. Open.
+
+**Q7 Separate Impact categories.** Today "reached at programs &
+deliveries" adds program attendance and people fed into one number,
+and a program's "volunteers" sit next to students with no rule on who
+is a student and who is a community volunteer. A: separate sections,
+never added together (resident support, facility coverage, programs,
+school engagement, community volunteers, food, family, professional
+relationships); students count only under school engagement,
+community volunteers only under volunteers. B: keep the combined
+number with a breakdown under it. Claude recommends A. Open.
