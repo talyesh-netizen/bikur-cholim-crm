@@ -285,3 +285,93 @@ final report).
    legacy anon/service_role keys were switched off. Old copies of the
    administrator key no longer work.
 5. Merge of PR #145: type check, lint, counting checks and build pass.
+
+## Open list for ChatGPT: Impact audit, October 2026 (Nov 2, 2026)
+
+Documentation only: nothing below is approved or built. Scope is
+October 2026 (the test period); earlier reporting periods are not
+reopened and no saved record is changed. Read-only check of live data;
+full write-up with tables in the audit file sent to the director.
+
+### A. Findings (what the CRM does today)
+
+1. **Volunteer visit, one resident only.** The form takes one resident
+   (or a "Residents reached" number); only a staff Visit takes several.
+   With "Residents reached" nobody is named, so those residents don't
+   count as served one-on-one and still look "not visited". Volunteer
+   visits count toward residents served, volunteer visits, volunteer-only
+   days and the volunteer list; never as a staff visit, even if staff
+   went along (Oct 20 and 21, Heritage of Lyndhurst: lead Rabbi Alyesh,
+   no staff credit either day).
+2. **Resident phone calls** count toward residents served one-on-one,
+   but not toward "last visit", "Time since last visit", Needs attention
+   or the dashboard's not-visited list. Only 1 call logged in October.
+3. **Residents at home (one active resident, "Resident A").** A phone call (also Visit, Food,
+   Referral, Volunteer visit) must have a facility; the database allows
+   none, only the form blocks it. Resident A's Oct 22 call was saved under Deer
+   Creek Lodge (to be confirmed). Resident A shows on Needs attention as both
+   "location unknown" and "never visited".
+4. **"Never visited" list:** 20 active residents with no in-person
+   visit; 18 have no contact at all, 2 have other contact (Resident A is one).
+   The list can't tell "called weekly" from "no contact".
+5. **Program double count.** Oct 15 Fuchs Mizrachi program: edited
+   Oct 29 to add 90 students; its older "not split" 90 was kept, so
+   Programs shows 90 students + 90 not split (180, not 90). The edit
+   form keeps the old number.
+6. **Food undercount.** "People who received food" blank on Oct 23
+   Vitalia Highland Heights (9 items) and Kemper House (10 items), and
+   on two Oct 7 Legacy Place deliveries for one resident each: all count
+   as 0 people. October shows 52; possibly about 73 (to be confirmed).
+   Oct 7 has two Vitalia delivery entries (8 and 3): two deliveries or
+   one split? No volunteers tagged on any October delivery.
+7. **Staff visits (October):** 52 staff visits, 41 facility visit-days,
+   2 volunteer-only, 26 facilities visited, 27 engaged. 103 in-person
+   entries counted by kind (no "how" recorded). Of 23 staff
+   conversations with no "how", only 1 might be a missing visit-day.
+8. **Partners:** 11 partner conversations (11 people), 39 facility staff
+   interactions (29 people). 2 "Other" entries with people filed as
+   volunteers count nowhere on Impact.
+9. **Drill-down gaps.** No list behind the facility numbers, volunteer
+   visits, partner conversations or program head counts. "Facility staff
+   supported" and the staff leaderboard open lists that don't match the
+   number (staff list includes volunteer visits: Rabbi Alyesh +2 in
+   October). Lists include "Same visit" copies (none in October).
+   "Reached" adds group-visit numbers the list doesn't show (0 in
+   October). Growth "New residents" counts any first entry, not only a
+   visit or call.
+10. **Oct 22 "program"** at Cleveland Clinic Rehab Science Park with 1
+    resident reached: a one-on-one visit logged as a program? Check.
+11. **Volunteer visit needs a staff "Done by"** (director, Nov 2, 2026).
+    A volunteer visit (one volunteer tagged) wouldn't save: "Please add who
+    did it (at least one person)." Done by starts with the person logging;
+    once emptied, the form won't save. The hint says "Who arranged it",
+    but the CRM treats this person as the lead, gives them no staff visit,
+    and still lists the entry under their name on the staff list (see 9).
+    Workaround today: add yourself back under Done by. Ties to Q4.
+
+### B. Recommended changes (for approval; none built)
+
+- R1 Allow no facility on a resident call (and visit elsewhere, food for
+  one person, referral) when the resident has no facility on file.
+- R2 Volunteer visit takes several residents, one record each.
+- R3 Once students/volunteers are entered on a program, stop counting
+  its old "not split" number.
+- R4 Food with no people number shows "not recorded" (not 0) and is
+  listed on Data Quality to fill in.
+- R5 Show "last contact" (calls included) beside "last in-person visit";
+  word the lists "no in-person visit".
+- R6 Volunteer visit: "Staff went too" tick box gives staff a visit.
+- R7 Every Impact number opens a list counted the same way.
+- R8 Note how many in-person entries were counted by kind.
+
+### C. Decisions needed (director with ChatGPT)
+
+Q1 Residents at home: A allow no facility / B keep requiring one.
+Q2 Volunteer visit, several residents: A one record each / B as now.
+Q3 "Not visited" lists: A in-person only plus "last contact" shown /
+   B count calls as visits.
+Q4 Staff with a volunteer: A "Staff went too" tick box / B as now.
+Q5 Food with no people number: A "not recorded" and fill in /
+   B use the item count.
+Q6 Program old number: A stop counting it once split / B fix by hand.
+Claude recommends A on all six. Reply A or B for each, and why.
