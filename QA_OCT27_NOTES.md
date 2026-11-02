@@ -474,3 +474,52 @@ school engagement, community volunteers, food, family, professional
 relationships); students count only under school engagement,
 community volunteers only under volunteers. B: keep the combined
 number with a breakdown under it. Claude recommends A. Open.
+
+## Separate item (not part of the Impact audit): visit notes on resident profiles (Nov 2, 2026)
+
+Request from Sara, via the director: notes written when logging a
+visit should be easy to see on the resident's profile before the next
+visit, written once and shown in both places (no copying, no second
+note to keep up). Investigation only; nothing approved or built.
+
+### Current behavior
+
+- **Resident profile:** "About them" (lasting notes) comes first, open.
+  Under it, "Recent interactions" (open) lists the newest 10 entries
+  about the resident, of every kind, each with its kind, day, facility,
+  "Visited by" (the lead) and the full note in small grey text. "See
+  all" opens the full list. So the notes are there, but mixed with
+  entries that have none and with family, food and other kinds.
+- **On-site mode** (where staff are before going in): opening a
+  resident shows "About them" notes and family, plus "Last visit
+  [when]". **The last visit's notes are not shown there.**
+- **"Who wrote it":** the list shows the lead ("Visited by"), not team
+  members. Who typed it is saved separately (entered_by); in October it
+  was always the same person as the lead.
+- **October data:** 96 of 164 resident entries had a note (about 90
+  characters on average, longest about 290). 33 notes were saved on
+  several residents at once (one Visit with several residents copies
+  the same note to each), so a shared note can mention other people.
+- **A separate overview already exists:** "About them" notes (82 notes
+  on 60 residents), plus "Private" for anything sensitive.
+
+### Recommendation (for approval)
+
+Show the newest visit notes, read straight from the saved entries
+(nothing copied, nothing new saved):
+1. Resident profile: a short "Notes from recent visits" box under
+   "About them": the newest 3 entries that have a note, each with the
+   day and who did it, and a link to the entry.
+2. On-site mode: the same newest 1-3 notes when a resident is opened,
+   under "About them".
+"About them" stays the overview for lasting facts and preferences.
+Display only, so Impact numbers, counting and saved records are
+unaffected. Voided entries stay hidden; it follows the same access
+rules as the profile.
+
+### Decision needed (Q-N1)
+
+A: the box above on the profile and in on-site mode (recommended).
+B: profile only. C: leave as is and rely on "Recent interactions".
+Also: which kinds count as "visit notes": staff and volunteer visits
+and phone calls only (recommended), or every kind (family, food...)?
