@@ -810,3 +810,55 @@ Checklist on the preview (TEST data, sign in as a practice account):
 - Go-live order (with separate approval): backup and fingerprints, apply
   the database change to live FIRST, then merge (the new code reads the
   new columns), then recheck October on live against the numbers above.
+
+## A1-A9 build and test log (Nov 3, 2026)
+
+Built on branch `claude/funny-hypatia-jxltn0`, on top of the final cleanup
+batch above, as authorized by the director (Nov 3, 2026). Not merged, not
+deployed to production; the live database was not changed.
+
+**Safety**
+- Read-only October audit on live (counts and entry ids only): the
+  90-student program is the Oct 15 program (one total of 90 plus 90
+  students on the same entry; not changed); 4 of 10 October deliveries
+  have no people count; 3 October resident entries are at a facility
+  other than the resident's current one (left as they are).
+- Baselines saved (offline, counts only) for Q2, Q3, October and Q4 from
+  the Oct 28 code. Q3 has no "as first recorded" snapshot in the
+  database; save one before go-live.
+- Preview for this branch points at the TEST database (branch-only
+  settings added before any code was pushed).
+- Database change (add-only), TEST only:
+  `20261103000002_outings_appreciation_school_roles.sql` (undo in
+  `supabase/rollback/`). Row counts and fingerprints identical before and
+  after. Saving appreciation, an outing, chaperones and a volunteer kind,
+  and refusing bad values, checked in a rolled-back transaction.
+
+**Checks**
+- Type check, lint and production build: pass.
+- Counting checks: 77 pass (15 new: outings, staff who went along,
+  students and chaperones, at-home visits and calls, food not recorded,
+  food during a visit, appreciation by two staff, referrals and rides).
+- The previous-format export, run on the real Q2, Q3, October and Q4
+  entries, is identical to the Oct 28 export, line for line.
+- New numbers on real entries, October: residents 97, engagements 143;
+  activity-days 43 = 34 staff confirmed + 7 not recorded + 2 no staff;
+  staff visits 42 confirmed + 10 not recorded; not split 96 -> 6; students
+  90; food 52 people + 4 not recorded; outings 2.
+- Q3 (already reported): unchanged except staff visits 127 -> 121
+  confirmed + 6 not recorded, and volunteer visits 82 entries = 24
+  outings (same volunteers, facility and day). Saved records unchanged;
+  the previous-format export still shows 82.
+
+**Not done from here:** click-through on the preview (this session's
+network blocks vercel.app and supabase.co). Checklist for TEST:
+1. Visit for a resident: facility filled in; clear it and save (no facility).
+2. Volunteer visit: two residents, one volunteer, "Staff who went" -> two
+   entries, Impact shows 1 outing.
+3. Same resident visited again the same day -> "Is this a separate visit?"
+4. Food: can't save without a number or "Unknown".
+5. Edit an older program with a total: keep / replace choice.
+6. More types -> Staff appreciation saves with "Staff who were there".
+7. Volunteer profile: "Kind of volunteer" = Student.
+8. Resident page: five notes with attended / written by, "Full history".
+9. Impact: eight sections; Export and "Previous format" both download.
