@@ -572,3 +572,125 @@ A: "Visiting with" for the whole on-site visit, all entries (staff can
 remove it from one entry afterward). B: resident visits only.
 C: no new choice; rely on saying "with Sara" in Quick Log.
 Claude recommends A.
+
+## Final cleanup batch: decisions and implementation plan (Nov 3, 2026)
+
+Documentation only. Build NOT yet authorized; nothing built, changed or
+deployed. October 2026 is the test month; saved records are never
+changed by the build; earlier reporting periods are not reopened.
+
+### Approved directions (director and ChatGPT)
+
+- Q1 A: residents at home can have entries with no facility.
+- Q2 A: several residents on one volunteer visit; volunteer activity
+  counted separately from resident visits.
+- Q3 A: in-person visits and phone contact kept apart; last contact
+  shown beside last in-person visit.
+- Q4 modified A: recorded by / coordinated by / physically attended
+  kept separate; volunteer-only activity never gives staff credit.
+- Q5 A: missing food counts show as "not recorded", never 0 or guessed.
+- Q6 C: legacy program totals kept until accurately split; no double
+  counting.
+- Q7 A: separate categories (resident support, facility coverage,
+  programs, school engagement, community volunteers, food, family,
+  professional relationships); activities and people reached both shown.
+- Q-N1: existing visit notes shown on resident profiles (and on site)
+  with day and author; "About them" stays separate; nothing copied.
+- Q-N2: optional second staff member in On-site Mode, picked once per
+  facility visit; one-tap logging kept; presence credit for both;
+  individual entries credit only staff who took part.
+
+### Detail decisions D1-D8
+
+- D1 Yes, adjusted: "Lives at home" only when confirmed; otherwise
+  "No facility recorded". Calls without a facility give no facility
+  credit.
+- D2 Modified yes: "volunteer facility-days" (each volunteer once per
+  facility per day; same-day trips can't be told apart); residents
+  visited shown separately.
+- D3 Yes: last contact = resident visits, volunteer visits, phone calls
+  (not food-only or family calls).
+- D4 No: never assume staff attended a program or food delivery; only
+  recorded attendance counts; the person entering is not assumed
+  present; unknown attendance kept apart from confirmed absence;
+  historical records preserved.
+- D5 Yes: coordinated-only activity shown apart from staff visits.
+- D6 Yes to both: students are not community volunteers; food counts
+  as food assistance, a separately logged visit as resident support.
+- D7 Conditional yes: unused export lines removed only once the
+  director confirms no current reporting obligation needs them; data
+  kept.
+- D8 Modified yes: "Visiting with" credits the second person's facility
+  presence without adding them to every resident entry; no duplicate
+  facility visits; resident logging stays one tap.
+
+### Updated plan (changes from the Nov 3 draft)
+
+1. **Q1/D1:** phone calls never need a facility; visits, volunteer
+   visits and food need none when the resident has no facility on file
+   (saved "in person elsewhere"). Needs attention: "No facility
+   recorded". The confirmed "Lives at home" label needs a new resident
+   field: **proposed to defer** (see complexity).
+2. **Q2/D2:** multi-resident volunteer visit (reuses the staff Visit
+   save). Report "volunteer facility-days" and "residents visited by
+   volunteers". No database change.
+3. **Q3/D3:** "last contact" column added to the resident summary view
+   (add-only); shown on the resident page and Needs attention.
+4. **Q4/D4/D5:** one add-only column, `lead_attended` (empty = not
+   recorded, yes, no).
+   - Program and Food: "Done by" becomes "Staff who were there", with
+     "No staff were there". Nothing pre-picked; one answer is required
+     on new entries. Credit only when recorded.
+   - Volunteer visit: lead = "Arranged by" (no credit) plus "I went
+     too" and "Other staff who went" (credited).
+   - Older programs and food (empty): **no staff credit, shown as
+     "attendance not recorded"**, never as absent.
+   - Staff list: staff visits (physical) apart from activities;
+     coordinated-only apart.
+   - "Recorded by" (already saved) shown on each entry.
+5. **Q5:** "not recorded" count in reports and export; Data Quality
+   list. No database change.
+6. **Q6:** report rule: students + volunteers + whatever is left of the
+   old number (never more, never less); edit form asks to split it. No
+   record changed automatically.
+7. **Q7:** eight sections plus a marked "Today" band; school engagement
+   from the partner's type; every number clickable to a list counted the
+   same way; facility numbers to a simple "Facility presence" table
+   (first to cut if needed); listed bugs fixed; export to the same
+   sections. D7 lines stay until the director confirms.
+8. **Q-N1:** newest 3 visit/call notes with day and author on the
+   profile and in on-site mode. Display only.
+9. **Q-N2/D8:** "Visiting with [name]" on site saves ONE existing-kind
+   "Facility visit" for that person (facility and day), recorded by the
+   person picking. Its submission number is made from facility + day +
+   person, so the existing duplicate guard blocks a second one (retry,
+   second phone). Resident cards are NOT auto-ticked; a small "+ [name]"
+   on a card adds them to that one entry (an extra tap only when they
+   took part). Quick Log on site unchanged ("with Sara" in the words
+   still works). A mistaken pick: void that Facility visit as usual.
+
+### Complexity check
+
+- **Adds complexity:** D4 (form wording, required answer, one column,
+  new reporting rule, an "attendance not recorded" line) and D1's
+  confirmed "Lives at home" (needs a new resident field). D4 uses
+  "Done by" and the team list as they are, so it isn't a redesign.
+- **D4 changes October's facility numbers** (read-only check): staff
+  visits 52 -> 42 confirmed + 10 not recorded; facility visit-days
+  41 -> 34; facilities visited 26 -> 24. Days that relied only on a
+  program or food entry: Oct 1, 9, 15, 17, 25. Older months shift the
+  same way on screen (saved records and sent reports untouched). A Data
+  Quality list lets a person confirm attendance on those entries, one
+  at a time.
+- **Low:** D2 (wording), D3, D5, D6 (none), D7 (none until confirmed),
+  D8 (one saved Facility visit per pick, reusing the duplicate guard).
+
+### Still to confirm before the build
+
+- C1 Defer the confirmed "Lives at home" label (use "No facility
+  recorded" for everyone now)? Claude recommends defer.
+- C2 Accept October's facility numbers moving to "42 confirmed + 10 not
+  recorded" (and 34 visit-days), with a Data Quality list to confirm
+  attendance by hand? Claude recommends yes.
+- C3 D7: which export lines (staff hours, volunteer hours, unmet need,
+  funder stories) any current funder or grant requires.
