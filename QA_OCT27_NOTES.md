@@ -694,3 +694,47 @@ changed by the build; earlier reporting periods are not reopened.
   attendance by hand? Claude recommends yes.
 - C3 D7: which export lines (staff hours, volunteer hours, unmet need,
   funder stories) any current funder or grant requires.
+
+### Confirmations C1-C3 (director and ChatGPT, Nov 3, 2026)
+
+- C1 Yes: "No facility recorded" for now; the lives-at-home field is
+  deferred.
+- C2 Yes, with a distinction: new programs and food must record staff
+  attendance; older unverified attendance is "not recorded". Confirmed
+  staff presence and facility activity are kept apart, so a program or
+  delivery that happened at a facility still counts as facility
+  activity even when staff attendance is unknown.
+- C3: staff hours, volunteer hours and unmet need are removed from the
+  standard export (no current reporting need); data kept on file.
+  Funder stories leave the export too and stay available through
+  Stories.
+
+### C2 in practice (October, read-only check)
+
+Facility numbers become three layers, each facility once per day:
+
+| Number | Oct 2026 |
+|---|---|
+| Facility activity-days (anything we did in person there) | 43 |
+| ... staff presence confirmed | 34 |
+| ... staff attendance not recorded (program/food only) | 7 |
+| ... volunteers only | 2 |
+| Facilities with in-person activity | 26 |
+| Facilities with confirmed staff presence | 23 |
+| Staff visits confirmed (per person, per facility-day) | 42 |
+| Staff visits not recorded (until reconciled) | 10 |
+
+The old "41 facility visit-days" = 34 confirmed + 7 not recorded; the
+old "43 total presence" = facility activity-days (unchanged). The old
+"26 facilities visited" = facilities with in-person activity
+(unchanged). No activity disappears. Of 19 older program/food entries
+with unrecorded attendance in October, 7 decide those 7 days; the Data
+Quality list shows those first so a person can confirm them one at a
+time. Older months display the same way; saved records and sent
+reports are untouched.
+
+Extra work: small. Same counting code with one more layer, no extra
+database change beyond the planned `lead_attended` column.
+
+Status: plan complete. Build waits for the director's explicit
+authorization.
