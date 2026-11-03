@@ -25,14 +25,14 @@ const SECTION_COLORS: Record<SectionKey, string> = {
 
 /** Which numbers each section shows, in order (Q7, Nov 3, 2026). */
 const SECTION_METRICS: Record<SectionKey, string[]> = {
-  residents: ["residents_served", "staff_resident_visits", "phone_calls", "volunteer_resident_visits", "group_visits", "group_visit_reached"],
+  residents: ["residents_served", "resident_engagements", "staff_resident_visits", "phone_calls", "volunteer_resident_visits", "group_visits", "group_visit_reached", "referrals", "rides"],
   coverage: ["activity_days", "staff_confirmed_days", "not_recorded_days", "no_staff_days", "staff_visits_confirmed", "staff_visits_not_recorded", "facilities_with_activity", "facilities_with_staff", "facilities_engaged"],
   programs: ["programs", "program_residents", "not_split"],
-  school: ["school_programs", "schools_involved", "students"],
-  volunteers: ["volunteers_active", "volunteer_facility_days", "volunteer_visits", "volunteer_residents", "program_volunteers"],
+  school: ["school_programs", "schools_involved", "students", "chaperones", "student_volunteers"],
+  volunteers: ["volunteer_outings", "volunteers_active", "volunteer_residents", "volunteer_visits", "program_volunteers"],
   food: ["deliveries", "food_people", "food_not_recorded"],
   family: ["families", "family_conversations"],
-  professional: ["staff_interactions", "staff_people", "staff_facilities", "partner_conversations", "partner_people"],
+  professional: ["staff_interactions", "staff_people", "staff_facilities", "partner_conversations", "partner_people", "appreciation", "appreciation_facilities"],
 };
 
 /** One number: its few words, the full definition behind the "i", and a
@@ -170,6 +170,14 @@ export function ImpactView({
               Export for funders
             </a>
           </Button>
+          {/* The earlier export, unchanged, until the new one is verified
+              (director, Nov 3, 2026). */}
+          <a
+            href={`/api/impact-report/previous?period=${encodeURIComponent(period.key)}${period.key.includes("..") ? `&from=${period.from}&to=${period.to}` : ""}`}
+            className="self-center text-xs text-muted-foreground underline-offset-4 hover:underline"
+          >
+            Previous format
+          </a>
         </div>
       </header>
 
@@ -279,14 +287,14 @@ export function ImpactView({
                 }))}
               />
             </ChartCard>
-            <ChartCard title="Volunteers" subtitle="Facility-days: each volunteer once per facility per day">
+            <ChartCard title="Volunteers" subtitle="Outings: each actual outing once, however many residents it saw">
               <TeamTable
-                head={["Facility-days", "Residents visited", "Visits"]}
+                head={["Outings", "Residents visited", "Visit entries"]}
                 rows={data.metrics.volunteers.map((r) => ({
                   id: r.id,
                   name: r.name,
                   href: recordsHref(`volunteer:${r.id}`, period),
-                  cells: [r.facilityDays, r.residents, r.visits],
+                  cells: [r.outings, r.residents, r.visits],
                 }))}
                 empty="No volunteer visits in this period."
               />

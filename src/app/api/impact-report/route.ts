@@ -7,6 +7,8 @@ import { getLocalToday } from "@/lib/format-date";
 import { csvRow } from "@/lib/csv";
 import { getFacility } from "@/lib/queries/facilities";
 
+const VOLUNTEER_ROLE_LABEL: Record<string, string> = { community: "Community volunteer", student: "Student", school_staff: "School staff" };
+
 /**
  * A funder/board-ready export of the same numbers the Impact page shows
  * -- nothing beyond that: no resident names, no interaction notes, no
@@ -67,12 +69,13 @@ export async function GET(request: NextRequest) {
     csv += csvRow([]);
   }
 
-  csv += csvRow(["Interactions by type"]);
-  csv += csvRow(["Category", "Count"]);
+  // Entries by kind, with no grand total: the kinds are different things
+  // and adding them up would be misleading (Nov 3, 2026).
+  csv += csvRow(["Entries by kind (not added together)"]);
+  csv += csvRow(["Kind", "Entries"]);
   for (const bucket of impact.buckets) {
     csv += csvRow([bucket.label, bucket.count]);
   }
-  csv += csvRow(["Total", impact.total]);
   csv += csvRow([]);
 
   csv += csvRow(["Staff"]);
@@ -82,9 +85,9 @@ export async function GET(request: NextRequest) {
   csv += csvRow([]);
 
   csv += csvRow(["Volunteers"]);
-  csv += csvRow(["Volunteer", "Facility-days", "Residents visited", "Volunteer visits"]);
+  csv += csvRow(["Volunteer", "Role", "Outings", "Residents visited", "Volunteer visit entries"]);
   if (metrics.volunteers.length === 0) csv += csvRow(["No volunteer visits logged in this period yet."]);
-  for (const r of metrics.volunteers) csv += csvRow([r.name, r.facilityDays, r.residents, r.visits]);
+  for (const r of metrics.volunteers) csv += csvRow([r.name, VOLUNTEER_ROLE_LABEL[r.role ?? "community"] ?? "Community volunteer", r.outings, r.residents, r.visits]);
 
   const facilitySlug = facility ? `${facility.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-` : "";
   const filename = `impact-report-${facilitySlug}${period.key.replace(/\.\./g, "_to_")}-${getLocalToday()}.csv`;

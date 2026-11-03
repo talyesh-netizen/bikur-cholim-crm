@@ -1,7 +1,7 @@
 "use client";
 
 import { offeredOptions } from "@/lib/domain/offered";
-import { OFFERED_CONTACT_TYPES } from "@/lib/domain/contact";
+import { OFFERED_CONTACT_TYPES, VOLUNTEER_ROLES } from "@/lib/domain/contact";
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +42,7 @@ function contactToFormValues(contact?: Contact): Record<string, string> {
     background_check_status: contact.background_check_status,
     background_check_date: contact.background_check_date ?? "",
     availability_notes: contact.availability_notes ?? "",
+    volunteer_role: contact.volunteer_role ?? "",
   };
 }
 
@@ -79,6 +80,7 @@ export function ContactForm({
   );
   const [backgroundCheckDate, setBackgroundCheckDate] = useState(values.background_check_date ?? "");
   const [availabilityNotes, setAvailabilityNotes] = useState(values.availability_notes ?? "");
+  const [volunteerRole, setVolunteerRole] = useState(values.volunteer_role || "community");
 
   // A saved "facility"/"organization" kind whose link has since been
   // deactivated has nothing to show here (it's filtered out above) --
@@ -119,6 +121,12 @@ export function ContactForm({
       {isVolunteer ? (
         <div className="flex flex-col gap-4 rounded-md border border-border p-3">
           <p className="text-sm font-medium">Volunteer info</p>
+          <Field label="Kind of volunteer" htmlFor="volunteer_role">
+            <SelectField name="volunteer_role" value={volunteerRole} onValueChange={setVolunteerRole} options={VOLUNTEER_ROLES} />
+            <p className="text-xs text-muted-foreground">
+              Students and school staff are counted under School engagement, not as community volunteers.
+            </p>
+          </Field>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Background check" htmlFor="background_check_status">
               <SelectField
@@ -156,6 +164,7 @@ export function ContactForm({
           <input type="hidden" name="background_check_status" value={backgroundCheckStatus} readOnly />
           <input type="hidden" name="background_check_date" value={backgroundCheckDate} readOnly />
           <input type="hidden" name="availability_notes" value={availabilityNotes} readOnly />
+          {values.volunteer_role ? <input type="hidden" name="volunteer_role" value={volunteerRole} readOnly /> : null}
         </>
       )}
 

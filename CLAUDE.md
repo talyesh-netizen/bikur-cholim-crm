@@ -249,3 +249,41 @@ the reasons are in `QA_OCT27_NOTES.md`; the counting code is
 - On site, "Visiting with [colleague]" records one Facility visit for
   them per facility and day; "With [name]" on a card adds them to that
   entry only when ticked.
+
+## Final decisions A1-A9 (director and ChatGPT, Nov 3, 2026)
+
+These replace any earlier rule above that says otherwise (including the
+"Final cleanup batch" where they differ).
+
+- A1: on a visit, volunteer visit, food or referral with a resident, the
+  resident's facility is filled in and can be cleared (at home, in a
+  hospital); without one it's saved in person elsewhere and never counts
+  as a facility visit. Saved links are never changed automatically.
+- A2: volunteer outings, each actual outing once. Entries saved together
+  share an outing_id (one per resident); a second trip the same day is a
+  second outing. Older entries with the same volunteers, facility and day
+  count as one outing. Each named resident is one engagement.
+- A3: students, school staff / chaperones and community volunteers are
+  kept apart. Programs ask all three; a named volunteer's kind is picked
+  on their profile (empty = community), never assumed from a school link.
+- A4: an in-person visit with a resident outside a facility is a physical
+  visit for the resident, never a facility visit.
+- A5: new food deliveries need a number or "Unknown"; unknown and blank
+  are both "not recorded", never 0 or guessed.
+- A6: an older program total is kept or replaced by a checked breakdown
+  (the old total stays in the change history), never both counted.
+- A7: Staff appreciation (food, refreshments or gifts for facility staff)
+  is its own kind under More types: one activity per delivery, facilities
+  counted, staff who physically brought it get a staff visit (the
+  facility-day once). No recipient count; never a staff conversation,
+  food assistance or resident engagement.
+- A8: referrals and rides are shown under Resident engagement as service
+  activities, not counted as engagements.
+- A9: the resident page shows the five newest entries with notes (visits,
+  calls, volunteer visits, family conversations), with day, kind, who
+  attended and who wrote it, and a link to the full history.
+- A staff visit or volunteer visit for a resident already visited that
+  day asks "Is this a separate visit?" before saving.
+- The previous funder export stays available, unchanged
+  (`/api/impact-report/previous`, `src/lib/queries/legacy/`), until the
+  new one is verified. No grand total of different kinds.

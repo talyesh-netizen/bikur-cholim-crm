@@ -54,6 +54,8 @@ const contactSchema = z.object({
     .default("not_started"),
   background_check_date: z.preprocess(emptyToUndefined, z.string().optional()),
   availability_notes: optionalText(),
+  // Only sent for volunteers (or one already saved); absent = left as is.
+  volunteer_role: z.preprocess(emptyToUndefined, z.enum(["community", "student", "school_staff"]).optional()),
 });
 
 function parseContactForm(formData: FormData) {

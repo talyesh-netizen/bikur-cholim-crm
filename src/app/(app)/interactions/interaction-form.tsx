@@ -162,6 +162,10 @@ export function InteractionForm({
   const serviceFields = SERVICE_FIELDS_BY_TYPE[interactionType as InteractionType] ?? [];
   const service: ServiceFormValues = { ...EMPTY_SERVICE_VALUES, ...values };
   const isFood = interactionType === "food_delivery";
+  // Food: "Unknown" instead of a number (A5); an older program's total kept
+  // or replaced (A6). Both are answered by the person, never assumed.
+  const [recipientsUnknown, setRecipientsUnknown] = useState(state.values?.recipients_unknown === "on");
+  const [legacyTotal, setLegacyTotal] = useState(state.values?.legacy_total ?? "");
   const isEditing = !!initialValues;
 
   // Where and who: picking a resident fills in their facility; once a
@@ -291,15 +295,13 @@ export function InteractionForm({
   const partnerIds = new Set((activity?.partnerContacts ?? []).map((c) => c.id));
   const partnersOnly =
     PARTNER_FACILITY_OPTIONAL_TYPES.includes(interactionType) && engaged.length > 0 && engaged.every((id) => partnerIds.has(id));
-  // In person with residents who have no facility recorded (Q1, D1):
-  // no facility needed; saved as "in person elsewhere".
-  const noFacilityResidents =
-    NO_FACILITY_RESIDENT_TYPES.includes(interactionType) &&
-    residentIds.length > 0 &&
-    residentIds.every((id) => {
-      const r = (residents ?? []).find((x) => x.id === id);
-      return !!r && !r.facility_id;
-    });
+  // With a resident, the facility is filled in from where they live but
+  // can be cleared (A1, Nov 3, 2026): a visit at home or in a hospital is
+  // saved "in person elsewhere" and never counts as a facility visit.
+  const residentsOnForm = residentIds.length > 0 || (!!fixedResident && !residents?.length);
+  const noFacilityResidents = NO_FACILITY_RESIDENT_TYPES.includes(interactionType) && residentsOnForm;
+  const residentFacilityCleared =
+    noFacilityResidents && !facilityId && residentIds.some((id) => !!(residents ?? []).find((x) => x.id === id)?.facility_id);
   const facilityRequired = !FACILITY_OPTIONAL_TYPES.includes(interactionType) && !partnersOnly && !noFacilityResidents;
 
   // Started from a volunteer's page: a volunteer visit has them on it.
@@ -449,11 +451,18 @@ export function InteractionForm({
             />
             {residentIds.length > 1 ? (
               <p className="rounded-md bg-[var(--tone-attention-bg)] px-3 py-2 text-xs font-medium text-[var(--tone-attention-fg)]">
-                A separate visit is saved for each of these {residentIds.length} residents. The notes below will appear on
-                every one of their profiles; anything about one person can be added to their own visit afterward.
+                {isVolunteerVisit
+                  ? `One outing: an entry is saved for each of these ${residentIds.length} residents, and it counts as one volunteer outing.`
+                  : `A separate visit is saved for each of these ${residentIds.length} residents.`}{" "}
+                The notes below will appear on every one of their profiles; anything about one person can be added to their own
+                entry afterward.
               </p>
             ) : (
-              <p className="text-xs text-muted-foreground">Visited several people? Add each one; a visit is saved for each.</p>
+              <p className="text-xs text-muted-foreground">
+                {isVolunteerVisit
+                  ? "Saw several residents on this outing? Add each one; it still counts as one outing."
+                  : "Visited several people? Add each one; a visit is saved for each."}
+              </p>
             )}
           </Field>
         ) : (
@@ -495,12 +504,14 @@ export function InteractionForm({
           facilities={facilities}
           value={facilityId}
           onChange={setFacilityId}
-          emptyLabel={facilityRequired ? undefined : noFacilityResidents ? "No facility recorded" : "No facility yet"}
+          emptyLabel={facilityRequired ? undefined : noFacilityResidents ? "No facility (at home, hospital…)" : "No facility yet"}
         />
         {noFacilityResidents && !facilityId ? (
           <p className="text-xs text-muted-foreground">
-            No facility is recorded for {residentIds.length === 1 ? "this resident" : "these residents"}, so none is needed. It&apos;s saved
-            as in person elsewhere and never counts as a facility visit.
+            {residentFacilityCleared
+              ? "Leave this blank only if it didn't happen at their facility (at home, in a hospital). "
+              : ""}
+            With no facility it&apos;s saved as in person elsewhere and never counts as a facility visit.
           </p>
         ) : null}
       </Field>
@@ -529,6 +540,11 @@ export function InteractionForm({
           <p className="text-xs text-muted-foreground">
             Use this when you went to the facility but didn&apos;t meet any residents or staff. If you did, log those visits
             or conversations instead.
+          </p>
+        ) : interactionType === "staff_appreciation" ? (
+          <p className="text-xs text-muted-foreground">
+            Food, refreshments or gifts brought for the facility&apos;s staff. One entry per delivery, however many staff enjoyed it.
+            It isn&apos;t a staff conversation; log a conversation separately if you had one.
           </p>
         ) : null}
       </Field>
@@ -727,13 +743,27 @@ export function InteractionForm({
             // item count already saved on an older entry is kept, unseen.
             <>
               <input type="hidden" name="quantity" value={service.quantity} readOnly />
-              <NumberField
-                name="people_reached"
-                label="How many people received food?"
-                hint="A rough count is fine"
-                defaultValue={service.people_reached}
-                error={fieldErrors.people_reached}
-              />
+              {recipientsUnknown ? (
+                <input type="hidden" name="recipients_unknown" value="on" readOnly />
+              ) : (
+                <NumberField
+                  name="people_reached"
+                  label="How many people received food?"
+                  hint="A rough count is fine"
+                  defaultValue={service.people_reached}
+                  error={fieldErrors.people_reached}
+                  required={isNewEntry}
+                />
+              )}
+              <label className="flex items-center gap-2 self-end text-sm">
+                <input
+                  type="checkbox"
+                  checked={recipientsUnknown}
+                  onChange={(e) => setRecipientsUnknown(e.target.checked)}
+                  className="size-4"
+                />
+                Unknown (never guessed; shown as &ldquo;not recorded&rdquo;)
+              </label>
             </>
           ) : null}
           {/* Students and volunteers asked separately (Oct 27, 2026); an
@@ -741,26 +771,80 @@ export function InteractionForm({
               Part of a group project: counted on its first activity. */}
           {GROUP_COUNT_TYPES.includes(interactionType) && !partOfId ? (
             <>
-              <NumberField
-                name="student_count"
-                label={partnerName ? `Students from ${partnerName}: about` : "Students who took part: about"}
-                defaultValue={service.student_count}
-                error={fieldErrors.student_count}
-              />
-              <NumberField
-                name="volunteer_count"
-                label={partnerName ? `Volunteers from ${partnerName}: about` : "Volunteers who took part: about"}
-                hint={partnerName ? "Counted once for the whole project, however many facilities it reached." : undefined}
-                defaultValue={service.volunteer_count}
-                error={fieldErrors.volunteer_count}
-              />
+              {/* An older program's single total (A6, Nov 3, 2026): kept as
+                  it is, or replaced by a checked breakdown -- never both. */}
               {service.participants ? (
-                <p className="text-xs text-muted-foreground sm:col-span-2">
-                  Saved earlier as one number: about {service.participants} took part (students and volunteers together). Enter how many
-                  were students and how many were volunteers; any part of {service.participants} not split stays counted as &ldquo;not
-                  split&rdquo;. Nothing is counted twice.
-                </p>
+                <div
+                  id="legacy_total"
+                  className={
+                    fieldErrors.legacy_total
+                      ? "flex flex-col gap-2 rounded-md border-2 border-destructive p-3 sm:col-span-2"
+                      : "flex flex-col gap-2 rounded-md border border-border bg-card p-3 sm:col-span-2"
+                  }
+                >
+                  <p className="text-sm font-medium">
+                    Saved earlier as one total: about {service.participants} took part (not split).
+                  </p>
+                  <input type="hidden" name="legacy_total" value={legacyTotal} readOnly />
+                  <div role="group" aria-label="Older total" className="flex flex-wrap gap-2">
+                    {(
+                      [
+                        ["keep", "Keep the older total (not checked yet)"],
+                        ["replace", "Replace it with a checked breakdown"],
+                      ] as const
+                    ).map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        aria-pressed={legacyTotal === value}
+                        onClick={() => {
+                          setLegacyTotal(legacyTotal === value ? "" : value);
+                          setIsDirty(true);
+                        }}
+                        className={
+                          legacyTotal === value
+                            ? "rounded-full bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground"
+                            : "rounded-full bg-card px-3 py-1.5 text-sm font-medium ring-1 ring-border hover:ring-primary/50"
+                        }
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {legacyTotal === "replace"
+                      ? `Only the numbers below will count. The older total (${service.participants}) stays in the change history.`
+                      : legacyTotal === "keep"
+                        ? "The older total stays as it is and counts as “not split”."
+                        : "Until it's replaced, only the part of the older total not split below counts as “not split”, so nothing is counted twice."}
+                  </p>
+                  {fieldErrors.legacy_total ? <p className="text-xs text-destructive">{fieldErrors.legacy_total}</p> : null}
+                </div>
               ) : null}
+              {legacyTotal === "keep" ? null : (
+                <>
+                  <NumberField
+                    name="student_count"
+                    label={partnerName ? `Students from ${partnerName}: about` : "Students who took part: about"}
+                    defaultValue={service.student_count}
+                    error={fieldErrors.student_count}
+                  />
+                  <NumberField
+                    name="chaperone_count"
+                    label={partnerName ? `School staff / chaperones from ${partnerName}: about` : "School staff / chaperones: about"}
+                    hint="Teachers and adults who came with a group. Not students or community volunteers."
+                    defaultValue={service.chaperone_count}
+                    error={fieldErrors.chaperone_count}
+                  />
+                  <NumberField
+                    name="volunteer_count"
+                    label={partnerName ? `Community volunteers from ${partnerName}: about` : "Community volunteers who took part: about"}
+                    hint={partnerName ? "Counted once for the whole project, however many facilities it reached." : undefined}
+                    defaultValue={service.volunteer_count}
+                    error={fieldErrors.volunteer_count}
+                  />
+                </>
+              )}
             </>
           ) : null}
           {serviceFields.includes("participants") ? <input type="hidden" name="participants" value={service.participants} readOnly /> : null}
@@ -843,7 +927,7 @@ export function InteractionForm({
         // Who visited is "Volunteers involved" below; an older entry's
         // contact is kept as it was.
         isEditing ? <input type="hidden" name="contact_id" value={values.contact_id} readOnly /> : null
-      ) : contacts && contacts.length > 0 ? (
+      ) : contacts && contacts.length > 0 && interactionType !== "staff_appreciation" ? (
         onePerPerson ? (
           <Field
             label={
@@ -996,6 +1080,17 @@ export function InteractionForm({
       <input type="hidden" name="unmet_need_reason" value={service.unmet_need_reason} readOnly />
       {service.funder_story === "on" ? <input type="hidden" name="funder_story" value="on" readOnly /> : null}
 
+      {/* Already a visit for this resident that day (Q4, Nov 3, 2026). */}
+      {fieldErrors.confirm_repeat ? (
+        <div className="flex flex-col gap-2 rounded-md border-2 border-destructive bg-destructive/5 p-3">
+          <p className="text-sm font-medium">{fieldErrors.confirm_repeat}</p>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="confirm_repeat" className="size-4" />
+            Yes, a separate visit: save it
+          </label>
+        </div>
+      ) : null}
+
       {state.error ? (
         <p className="text-sm font-medium text-destructive">Not saved yet — see the message at the top of the form.</p>
       ) : null}
@@ -1021,6 +1116,7 @@ export type ServiceFormValues = {
   participants: string;
   student_count: string;
   volunteer_count: string;
+  chaperone_count: string;
   minutes_spent: string;
   unmet_need: string;
   unmet_need_reason: string;
@@ -1037,6 +1133,7 @@ const EMPTY_SERVICE_VALUES: ServiceFormValues = {
   participants: "",
   student_count: "",
   volunteer_count: "",
+  chaperone_count: "",
   minutes_spent: "",
   unmet_need: "",
   unmet_need_reason: "",
@@ -1060,15 +1157,18 @@ function NumberField({
   hint,
   defaultValue,
   error,
+  required,
 }: {
   name: string;
   label: string;
   hint?: string;
   defaultValue: string;
   error?: string;
+  /** Shows the asterisk; the save checks it (with any "Unknown" choice). */
+  required?: boolean;
 }) {
   return (
-    <Field label={label} htmlFor={name} error={error}>
+    <Field label={label} htmlFor={name} error={error} required={required}>
       <Input id={name} name={name} type="number" inputMode="numeric" min={0} step={1} defaultValue={defaultValue} />
       {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
     </Field>

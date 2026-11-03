@@ -11,6 +11,7 @@ import {
   isSchoolProgram,
   staffAttendance,
   volunteerFacilityDayKeys,
+  volunteerOutingKeys,
   groupCountsFor,
   partnerConversationsFor,
   staffInteractionFor,
@@ -29,6 +30,7 @@ import {
   NO_FACILITY_RESIDENT_TYPES,
   ATTENDANCE_ASKED_TYPES,
 } from "../src/lib/domain/interaction";
+import { computeImpactMetrics, type Context, type MetricRow } from "../src/lib/queries/impact-metrics";
 import { logHref } from "../src/components/log-button";
 
 const STAFF_A = "staff-a";
@@ -125,9 +127,9 @@ check("partner conversation never makes a facility visit", staffVisits([partnerN
 
 // --- Programs: students, volunteers, not split -------------------------------
 const newProgram = row({ interaction_type: "program", student_count: 12, volunteer_count: 3 });
-check("new program: 12 students, 3 volunteers", JSON.stringify(groupCountsFor(newProgram)) === JSON.stringify({ students: 12, volunteers: 3, notSplit: 0 }));
+check("new program: 12 students, 3 volunteers", JSON.stringify(groupCountsFor(newProgram)) === JSON.stringify({ students: 12, volunteers: 3, chaperones: 0, notSplit: 0 }));
 const oldProgram = row({ interaction_type: "school_engagement", participants: 20 });
-check("older program's single number is 'not split'", JSON.stringify(groupCountsFor(oldProgram)) === JSON.stringify({ students: 0, volunteers: 0, notSplit: 20 }));
+check("older program's single number is 'not split'", JSON.stringify(groupCountsFor(oldProgram)) === JSON.stringify({ students: 0, volunteers: 0, chaperones: 0, notSplit: 20 }));
 const partOf = row({ interaction_type: "program", student_count: 5, part_of_id: newProgram.id });
 check("an activity 'Part of' a project adds no head count", groupCountsFor(partOf).students === 0);
 check("head count: students + volunteers + only the unsplit part of an older number", headCount({ participants: 10, student_count: 3, volunteer_count: 4 }) === 10 && headCount({ participants: 2, student_count: 3, volunteer_count: 4 }) === 7);
@@ -142,12 +144,12 @@ check(
 check(
   "older program edited to 90 students (old number 90): 90 students, 0 not split -- never 180",
   JSON.stringify(groupCountsFor(row({ interaction_type: "program", participants: 90, student_count: 90 }))) ===
-    JSON.stringify({ students: 90, volunteers: 0, notSplit: 0 })
+    JSON.stringify({ students: 90, volunteers: 0, chaperones: 0, notSplit: 0 })
 );
 check(
   "older 30, then 20 students entered: 20 students + 10 not split (nothing lost)",
   JSON.stringify(groupCountsFor(row({ interaction_type: "program", participants: 30, student_count: 20 }))) ===
-    JSON.stringify({ students: 20, volunteers: 0, notSplit: 10 })
+    JSON.stringify({ students: 20, volunteers: 0, chaperones: 0, notSplit: 10 })
 );
 
 // D4 / C2: staff attendance on programs and food.
@@ -198,6 +200,76 @@ const v3 = row({ interaction_type: "volunteer_visit", method: "in_person" });
 const vLinks = new Map([[v1.id, ["vol-1"]], [v2.id, ["vol-1"]], [v3.id, ["vol-1"]]]);
 check("one volunteer visiting three residents = 1 volunteer facility-day", volunteerFacilityDayKeys([v1, v2, v3], vLinks).size === 1);
 
+// A2 (Nov 3, 2026): volunteer outings. Saved together = one outing.
+const outing = "55555555-5555-4555-8555-555555555555";
+const o1 = row({ interaction_type: "volunteer_visit", method: "in_person", outing_id: outing });
+const o2 = row({ interaction_type: "volunteer_visit", method: "in_person", outing_id: outing });
+const o3 = row({ interaction_type: "volunteer_visit", method: "in_person", outing_id: outing });
+const oLinks = new Map([[o1.id, ["vol-1"]], [o2.id, ["vol-1"]], [o3.id, ["vol-1"]]]);
+check("one outing that saw three residents = 1 outing", volunteerOutingKeys([o1, o2, o3], oLinks).size === 1);
+const secondTrip = row({ interaction_type: "volunteer_visit", method: "in_person", outing_id: "66666666-6666-4666-8666-666666666666" });
+check("a second trip to the same facility the same day = a second outing", volunteerOutingKeys([o1, o2, o3, secondTrip], new Map([...oLinks, [secondTrip.id, ["vol-1"]]])).size === 2);
+check("older entries: same volunteer, facility and day = 1 outing (never 3)", volunteerOutingKeys([v1, v2, v3], vLinks).size === 1);
+check("older entries: a different volunteer the same day = another outing", volunteerOutingKeys([v1, v2], new Map([[v1.id, ["vol-1"]], [v2.id, ["vol-2"]]])).size === 2);
+
+// Whole-page numbers (A2, A3, A5, A7, A8) through the same calculation the
+// Impact page and export use.
+const ctx = (over: Partial<Context> = {}): Context => ({
+  engaged: new Map(),
+  partners: new Set(),
+  partnerTypes: new Map(),
+  team: new Map(),
+  volunteers: new Map(),
+  volunteerNames: new Map(),
+  volunteerRoles: new Map(),
+  staffNames: new Map(),
+  ...over,
+});
+const mrow = (r: Partial<MetricRow> & { interaction_type: string }): MetricRow =>
+  ({ resident_id: null, people_reached: null, holiday: null, family_need: null, entered_by: null, ...row(r), ...r }) as MetricRow;
+{
+  const a = mrow({ interaction_type: "volunteer_visit", method: "in_person", outing_id: outing, resident_id: "res-1" });
+  const b = mrow({ interaction_type: "volunteer_visit", method: "in_person", outing_id: outing, resident_id: "res-2" });
+  const c = mrow({ interaction_type: "volunteer_visit", method: "in_person", outing_id: outing, resident_id: "res-3" });
+  const v = computeImpactMetrics([a, b, c], ctx({ volunteers: new Map([[a.id, ["vol-1"]], [b.id, ["vol-1"]], [c.id, ["vol-1"]]]) })).values;
+  check("outing with three residents: 1 outing, 3 engagements, 3 residents", v.volunteer_outings === 1 && v.resident_engagements === 3 && v.residents_served === 3, v);
+  // Q4: a staff member who went along gets a staff visit; the residents still 3 engagements.
+  const withStaff = computeImpactMetrics([a, b, c], ctx({ volunteers: new Map([[a.id, ["vol-1"]], [b.id, ["vol-1"]], [c.id, ["vol-1"]]]), team: new Map([[a.id, [STAFF_B]], [b.id, [STAFF_B]], [c.id, [STAFF_B]]]) })).values;
+  check("... with a staff member who went: +1 staff visit, still 3 engagements, a staff day", withStaff.staff_visits_confirmed === 1 && withStaff.resident_engagements === 3 && withStaff.staff_confirmed_days === 1, withStaff);
+  // A3: students are never community volunteers.
+  const roles = ctx({ volunteers: new Map([[a.id, ["vol-1", "stu-1"]]]), volunteerRoles: new Map([["stu-1", "student"]]) });
+  const r3 = computeImpactMetrics([a], roles).values;
+  check("a student on a volunteer visit counts under School, not community volunteers", r3.volunteers_active === 1 && r3.student_volunteers === 1, r3);
+  const prog = computeImpactMetrics([mrow({ interaction_type: "program", student_count: 20, chaperone_count: 2, volunteer_count: 3, lead_attended: true })], ctx()).values;
+  check("program: students, chaperones and community volunteers kept apart", prog.students === 20 && prog.chaperones === 2 && prog.program_volunteers === 3 && prog.not_split === 0, prog);
+  // A1: a resident at home, phone call, no facility: an engagement, no facility numbers.
+  const home = computeImpactMetrics([mrow({ interaction_type: "resident_phone_call", facility_id: null, method: "phone", resident_id: "res-9" })], ctx()).values;
+  check("call with a resident at home: 1 engagement, 0 facility numbers", home.resident_engagements === 1 && home.activity_days === 0 && home.facilities_engaged === 0, home);
+  const visitHome = computeImpactMetrics([mrow({ interaction_type: "resident_visit", facility_id: null, method: "in_person_elsewhere", resident_id: "res-9" })], ctx()).values;
+  check("visit at home (no facility): an engagement, never a facility visit", visitHome.staff_resident_visits === 1 && visitHome.activity_days === 0 && visitHome.staff_visits_confirmed === 0, visitHome);
+  // A5: food with no count is "not recorded", never 0 people.
+  const food = computeImpactMetrics(
+    [mrow({ interaction_type: "food_delivery", people_reached: 12, lead_attended: true }), mrow({ interaction_type: "food_delivery", people_reached: null, lead_attended: true })],
+    ctx()
+  ).values;
+  check("food: 2 deliveries, 12 people, 1 not recorded", food.deliveries === 2 && food.food_people === 12 && food.food_not_recorded === 1, food);
+  // Food during a visit: one engagement, one delivery, one facility day.
+  const both = computeImpactMetrics(
+    [mrow({ interaction_type: "resident_visit", method: "in_person", resident_id: "res-1" }), mrow({ interaction_type: "food_delivery", people_reached: 1, resident_id: "res-1", lead_attended: true })],
+    ctx()
+  ).values;
+  check("food during a visit: 1 engagement, 1 delivery, 1 facility visit-day, 1 staff visit", both.resident_engagements === 1 && both.deliveries === 1 && both.activity_days === 1 && both.staff_visits_confirmed === 1, both);
+  // A7: staff appreciation. Two staff bring it: 1 activity, 2 staff visits, 1 facility day, 0 staff conversations.
+  const app = mrow({ interaction_type: "staff_appreciation", method: "in_person", lead_attended: true });
+  const appV = computeImpactMetrics([app], ctx({ team: new Map([[app.id, [STAFF_B]]]) })).values;
+  check("appreciation by two staff: 1 activity, 1 facility, 2 staff visits, 1 facility-day, 0 staff interactions", appV.appreciation === 1 && appV.appreciation_facilities === 1 && appV.staff_visits_confirmed === 2 && appV.activity_days === 1 && appV.staff_interactions === 0 && appV.deliveries === 0, appV);
+  // A8: referrals and rides shown apart, not engagements.
+  const ref = computeImpactMetrics([mrow({ interaction_type: "medical_referral", resident_id: "res-1" }), mrow({ interaction_type: "ride_arranged", resident_id: "res-1" })], ctx()).values;
+  check("referral and ride: shown apart, not resident engagements", ref.referrals === 1 && ref.rides === 1 && ref.resident_engagements === 0 && ref.residents_served === 0, ref);
+}
+check("Staff appreciation is under More types", MORE_TYPES.includes("staff_appreciation"));
+check("A1: visits, volunteer visits, food and referrals can be saved without a facility when about a resident", ["resident_visit", "volunteer_visit", "food_delivery", "medical_referral"].every((t) => NO_FACILITY_RESIDENT_TYPES.includes(t)));
+
 // Q7: school programs come from the partner's type.
 check("program with a school partner is a school program", isSchoolProgram(row({ interaction_type: "program", partner_org_type: "school" })));
 check("program with a Jewish organization is not", !isSchoolProgram(row({ interaction_type: "program", partner_org_type: "jewish_organization" })));
@@ -205,7 +277,6 @@ check("older 'School & shul' entry marked shul is not", !isSchoolProgram(row({ i
 
 // Q1 / D1 and D4 form options.
 check("a phone call never needs a facility", FACILITY_OPTIONAL_TYPES.includes("resident_phone_call"));
-check("visits, volunteer visits and food can skip it for a resident with no facility", ["resident_visit", "volunteer_visit", "food_delivery"].every((t) => NO_FACILITY_RESIDENT_TYPES.includes(t)));
 check("programs and food ask who was there", ["program", "school_engagement", "food_delivery"].every((t) => ATTENDANCE_ASKED_TYPES.includes(t)));
 
 // --- Entry card wording ----------------------------------------------------
@@ -216,7 +287,7 @@ check(
 check(
   "program card shows students and volunteers",
   serviceNumbersLine({ interaction_type: "program", people_reached: 30, participants: null, student_count: 12, volunteer_count: 3 }) ===
-    "12 students · 3 volunteers · 30 residents reached"
+    "12 students · 3 community volunteers · 30 residents reached"
 );
 check(
   "older program card says not split",

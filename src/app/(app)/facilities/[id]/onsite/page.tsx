@@ -70,7 +70,7 @@ export default async function FacilityOnsitePage({
     listFamilyForResidents(currentIds),
     listRecentNotesForResidents(currentIds),
     // Notes from their recent visits and calls (Q-N1, Nov 3, 2026).
-    listRecentVisitNotes(currentIds),
+    listRecentVisitNotes(currentIds, 3),
     listActiveStaff(),
   ]);
 

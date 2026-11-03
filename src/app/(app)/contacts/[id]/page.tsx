@@ -22,6 +22,7 @@ import { Fold } from "@/components/fold";
 import { MergeContactForm } from "./merge-contact-form";
 import {
   labelFor,
+  VOLUNTEER_ROLES,
   PREFERRED_COMMUNICATION_METHODS,
   RESIDENT_CONTACT_RELATIONSHIPS,
   BACKGROUND_CHECK_STATUSES,
@@ -219,6 +220,7 @@ export default async function ContactDetailPage({
                 ) : null}
               </span>
             </div>
+            <InfoRow label="Kind of volunteer" value={labelFor(VOLUNTEER_ROLES, contact.volunteer_role ?? "community")} />
             <InfoRow label="Availability" value={contact.availability_notes} />
           </CardContent>
         </Card>

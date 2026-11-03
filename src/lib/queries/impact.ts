@@ -30,6 +30,8 @@ const BUCKET_DEFS: { key: string; label: string; color: string; types: Interacti
   { key: "family", label: "Families", color: "#e87ba4", types: ["family_communication", "care_navigation"] },
   { key: "referrals", label: "Referrals & rides", color: "#008300", types: ["medical_referral", "ride_arranged", "referral", "hospital_related_communication"] },
   { key: "other", label: "Other", color: "#4a3aa7", types: ["email", "other"] },
+  // Food, refreshments or gifts for facility staff (A7, Nov 3, 2026).
+  { key: "appreciation", label: "Staff appreciation", color: "#7a6a3a", types: ["staff_appreciation"] },
 ];
 
 // PostgREST caps every response at 1,000 rows by default, so a plain

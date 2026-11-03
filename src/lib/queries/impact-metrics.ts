@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { orgDayKey, orgDayStartIso, orgMonthKey } from "@/lib/format-date";
+import { orgDayStartIso, orgMonthKey } from "@/lib/format-date";
 import { ACTIVE_RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { CONTACT_TYPES, PARTNER_CONTACT_TYPES, labelFor } from "@/lib/domain/contact";
 import { FAMILY_NEEDS, HOLIDAYS } from "@/lib/domain/interaction";
@@ -18,7 +18,8 @@ import {
   staffAttendance,
   staffInteractionFor,
   staffPeopleOn,
-  volunteerFacilityDayKeys,
+  volunteerOutingKey,
+  volunteerOutingKeys,
   ATTENDANCE_TYPES,
   GROUP_PROJECT_TYPES,
   type CountableRow,
@@ -52,7 +53,7 @@ export type MetricRow = CountableRow & {
 };
 
 /** What a number counts, said once (shown in lists and the export). */
-export type Unit = "people" | "entries" | "facility-days" | "staff-days" | "volunteer-days" | "head count" | "facilities" | "organizations";
+export type Unit = "people" | "entries" | "facility-days" | "staff-days" | "outings" | "head count" | "facilities" | "organizations";
 
 export type MetricDef = {
   key: string;
@@ -70,24 +71,27 @@ export type MetricDef = {
 export type SectionKey = "residents" | "coverage" | "programs" | "school" | "volunteers" | "food" | "family" | "professional";
 
 export const SECTIONS: { key: SectionKey; title: string; intro: string }[] = [
-  { key: "residents", title: "Resident support", intro: "One-on-one visits and calls with residents, and who we reached." },
+  { key: "residents", title: "Resident engagement", intro: "One-on-one visits and calls with residents, plus referrals and rides (shown apart, not counted as engagements)." },
   { key: "coverage", title: "Facility coverage", intro: "Each facility once per day. Staff presence is counted only when it's confirmed." },
   { key: "programs", title: "Programs", intro: "Programs held and residents attending." },
-  { key: "school", title: "School engagement", intro: "Programs with schools, and the students who took part." },
-  { key: "volunteers", title: "Community volunteers", intro: "Volunteers, the days they were at facilities, and the residents they visited." },
+  { key: "school", title: "School engagement", intro: "Programs with schools, the students and school staff who took part, and students on volunteer visits." },
+  { key: "volunteers", title: "Community volunteers", intro: "Volunteer outings, the community volunteers on them, and the residents they visited." },
   { key: "food", title: "Food assistance", intro: "Deliveries and the people who received food." },
   { key: "family", title: "Family support", intro: "Conversations with family members, and the families supported." },
-  { key: "professional", title: "Professional relationships", intro: "Facility staff and community partners we worked with." },
+  { key: "professional", title: "Professional relationships", intro: "Facility staff and community partners we worked with, and staff appreciation." },
 ];
 
 export const METRICS: MetricDef[] = [
   // Resident support
-  { key: "residents_served", section: "residents", label: "Residents served one-on-one", short: "different residents", unit: "people", full: "Different residents named on a visit, a volunteer visit or a phone call. Each person once." },
+  { key: "residents_served", section: "residents", label: "Residents engaged", short: "different residents", unit: "people", full: "Different residents named on a visit, a volunteer visit or a phone call. Each person once." },
+  { key: "resident_engagements", section: "residents", label: "Resident engagements", short: "visits & calls, one per resident", unit: "entries", full: "Visits by staff, visits by volunteers and phone calls with a named resident, one per resident (a volunteer outing that saw three residents is three engagements). Referrals, rides, food and programs aren't engagements." },
   { key: "staff_resident_visits", section: "residents", label: "Visits by staff", short: "in-person visits", unit: "entries", full: "Staff visits with a named resident. Each visit once, however many staff went." },
   { key: "phone_calls", section: "residents", label: "Phone calls", short: "with residents", unit: "entries", full: "Phone calls with residents. Calls never count as visits." },
   { key: "volunteer_resident_visits", section: "residents", label: "Visits by volunteers", short: "in-person visits", unit: "entries", full: "Volunteer visits with a named resident, one per resident." },
   { key: "group_visits", section: "residents", label: "Group visits", short: "no resident named", unit: "entries", full: "Visits logged with a \"Residents reached\" number instead of a named resident. Their residents aren't in \"Residents served\"." },
   { key: "group_visit_reached", section: "residents", label: "Residents reached at group visits", short: "approx.", unit: "head count", approx: true, full: "The \"Residents reached\" numbers on group visits added up. The same person can be counted more than once." },
+  { key: "referrals", section: "residents", label: "Referrals", short: "service activity", unit: "entries", full: "Medical and other referrals. A service activity, shown apart: not a resident engagement." },
+  { key: "rides", section: "residents", label: "Rides arranged", short: "service activity", unit: "entries", full: "Rides arranged through Bikur Cholim (older entries; no longer asked). Not a resident engagement." },
   // Facility coverage
   { key: "activity_days", section: "coverage", label: "Facility activity-days", short: "per facility, per day", unit: "facility-days", full: "Days anything was done at a facility in person (by staff, volunteers or a group), each facility once a day. The three lines below add up to this." },
   { key: "staff_confirmed_days", section: "coverage", label: "Staff presence confirmed", short: "facility-days", unit: "facility-days", full: "Facility-days our staff were confirmed there in person." },
@@ -105,17 +109,19 @@ export const METRICS: MetricDef[] = [
   // School engagement
   { key: "school_programs", section: "school", label: "School programs", short: "with a school", unit: "entries", full: "Programs whose partner is filed as a school (and older \"School & shul\" entries marked school)." },
   { key: "schools_involved", section: "school", label: "Schools involved", short: "different schools", unit: "organizations", full: "Different schools named as the partner on a program." },
-  { key: "students", section: "school", label: "Students", short: "approx.", unit: "head count", approx: true, full: "Students who took part in programs, each group project once. Students are never counted as community volunteers." },
+  { key: "students", section: "school", label: "Students at programs", short: "approx.", unit: "head count", approx: true, full: "Students who took part in programs, each group project once. Students are never counted as community volunteers." },
+  { key: "chaperones", section: "school", label: "School staff / chaperones", short: "approx., at programs", unit: "head count", approx: true, full: "School staff and chaperones who came with a group, as typed in on programs (each group project once). Never counted as students or community volunteers." },
+  { key: "student_volunteers", section: "school", label: "Students on volunteer visits", short: "different students", unit: "people", full: "Different volunteers filed as students named on a volunteer visit. Only someone filed as a student counts: being linked to a school isn't enough." },
   // Community volunteers
-  { key: "volunteers_active", section: "volunteers", label: "Volunteers", short: "different volunteers", unit: "people", full: "Different volunteers named on a volunteer visit." },
-  { key: "volunteer_facility_days", section: "volunteers", label: "Volunteer facility-days", short: "per volunteer, per facility-day", unit: "volunteer-days", full: "Each volunteer once per facility per day they visited. Separate trips on the same day can't be told apart yet." },
-  { key: "volunteer_visits", section: "volunteers", label: "Volunteer visits", short: "one per resident", unit: "entries", full: "Volunteer visit entries: one per resident visited (or one group visit)." },
+  { key: "volunteer_outings", section: "volunteers", label: "Volunteer outings", short: "each outing once", unit: "outings", full: "Each actual volunteer outing once, however many residents it saw. Two trips to the same facility on the same day are two outings. Older entries (before Nov 4, 2026) with the same volunteers, facility and day count as one outing, since they can't be told apart." },
+  { key: "volunteers_active", section: "volunteers", label: "Community volunteers", short: "different people", unit: "people", full: "Different community volunteers named on a volunteer visit. Students and school staff are counted under School engagement." },
+  { key: "volunteer_visits", section: "volunteers", label: "Volunteer visit entries", short: "one per resident", unit: "entries", full: "Volunteer visit entries: one per resident visited (or one group visit). Several entries can belong to one outing." },
   { key: "volunteer_residents", section: "volunteers", label: "Residents visited by volunteers", short: "different residents", unit: "people", full: "Different residents named on a volunteer visit." },
-  { key: "program_volunteers", section: "volunteers", label: "Volunteers at programs", short: "approx.", unit: "head count", approx: true, full: "Volunteers who took part in programs, as typed in (each group project once)." },
+  { key: "program_volunteers", section: "volunteers", label: "Community volunteers at programs", short: "approx.", unit: "head count", approx: true, full: "Community volunteers who took part in programs, as typed in (each group project once). Students and school staff are counted apart." },
   // Food
   { key: "deliveries", section: "food", label: "Deliveries", short: "food deliveries", unit: "entries", full: "Food deliveries, each counted once." },
   { key: "food_people", section: "food", label: "People who received food", short: "approx.", unit: "head count", approx: true, full: "\"How many people received food?\" added up, from the deliveries where it was recorded." },
-  { key: "food_not_recorded", section: "food", label: "Deliveries with people not recorded", short: "not counted above", unit: "entries", full: "Deliveries where the number of people wasn't recorded. They are never guessed or counted as 0." },
+  { key: "food_not_recorded", section: "food", label: "People not recorded", short: "deliveries, unknown or blank", unit: "entries", full: "Deliveries where the number of people is unknown or wasn't recorded. They are never guessed or counted as 0." },
   // Family
   { key: "families", section: "family", label: "Families supported", short: "different families", unit: "people", full: "Different family members spoken with (or, if none is named, the resident whose family it was)." },
   { key: "family_conversations", section: "family", label: "Family conversations", short: "entries", unit: "entries", full: "Family support entries (older \"care navigation\" entries included)." },
@@ -125,6 +131,8 @@ export const METRICS: MetricDef[] = [
   { key: "staff_facilities", section: "professional", label: "Facilities", short: "where staff were met", unit: "facilities", full: "Different facilities where facility staff were met." },
   { key: "partner_conversations", section: "professional", label: "Partner conversations", short: "per person, per conversation", unit: "entries", full: "Conversations with schools, shuls, hospices, agencies and other partners, each person once per entry. Never counted as facility staff." },
   { key: "partner_people", section: "professional", label: "Partners spoken with", short: "different people", unit: "people", full: "Different partner people spoken with." },
+  { key: "appreciation", section: "professional", label: "Staff appreciation", short: "activities", unit: "entries", full: "Food, refreshments or gifts brought to a facility's staff. Each delivery once, however many staff enjoyed it. Never a staff conversation or food assistance; the staff who brought it get a staff visit (Facility coverage)." },
+  { key: "appreciation_facilities", section: "professional", label: "Facilities appreciated", short: "different facilities", unit: "facilities", full: "Different facilities that received staff appreciation." },
 ];
 
 export const METRIC_BY_KEY = new Map(METRICS.map((m) => [m.key, m]));
@@ -141,7 +149,7 @@ export type StaffTeamRow = PersonRow & {
   coordinatedOnly: number;
 };
 
-export type VolunteerTeamRow = PersonRow & { facilityDays: number; residents: number; visits: number };
+export type VolunteerTeamRow = PersonRow & { outings: number; residents: number; visits: number; role: string | null };
 
 export type ImpactNumbers = Record<string, number>;
 
@@ -165,10 +173,15 @@ export type Context = {
   team: TeamLinks;
   volunteers: VolunteerLinks;
   volunteerNames: Map<string, string>;
+  /** "student" or "school_staff"; anyone else is a community volunteer. */
+  volunteerRoles: Map<string, string>;
   staffNames: Map<string, string>;
 };
 
+const isCommunity = (ctx: Context, v: string) => !ctx.volunteerRoles.get(v) || ctx.volunteerRoles.get(v) === "community";
+
 const ONE_ON_ONE = new Set(["resident_visit", "resident_phone_call", "volunteer_visit"]);
+const REFERRALS = new Set(["medical_referral", "referral"]);
 const FAMILY = new Set(["family_communication", "care_navigation"]);
 const GROUP_VISIT = new Set(["resident_visit", "volunteer_visit"]);
 
@@ -180,6 +193,12 @@ function recordLines(key: string, rows: MetricRow[], ctx: Context): RecordLine[]
   switch (key) {
     case "residents_served":
       return each((r) => ONE_ON_ONE.has(r.interaction_type) && !!r.resident_id, () => 1, (r) => r.resident_id);
+    case "resident_engagements":
+      return each((r) => ONE_ON_ONE.has(r.interaction_type) && !!r.resident_id);
+    case "referrals":
+      return each((r) => REFERRALS.has(r.interaction_type));
+    case "rides":
+      return each((r) => r.interaction_type === "ride_arranged");
     case "staff_resident_visits":
       return each((r) => r.interaction_type === "resident_visit" && !!r.resident_id);
     case "phone_calls":
@@ -202,23 +221,31 @@ function recordLines(key: string, rows: MetricRow[], ctx: Context): RecordLine[]
       return each((r) => isSchoolProgram(r), () => 1, (r) => r.partner_organization_id ?? null);
     case "students":
       return each((r) => groupCountsFor(r).students > 0, (r) => groupCountsFor(r).students);
-    case "volunteers_active":
-      return rows
-        .filter((r) => r.interaction_type === "volunteer_visit")
-        .flatMap((r) => (ctx.volunteers.get(r.id) ?? []).map((v) => ({ id: r.id, adds: 1, person: v, note: ctx.volunteerNames.get(v) })));
-    case "volunteer_facility_days": {
-      const keys = volunteerFacilityDayKeys(rows, ctx.volunteers);
-      const seen = new Set<string>();
+    case "chaperones":
+      return each((r) => groupCountsFor(r).chaperones > 0, (r) => groupCountsFor(r).chaperones);
+    case "student_volunteers":
       return rows
         .filter((r) => r.interaction_type === "volunteer_visit")
         .flatMap((r) =>
-          (ctx.volunteers.get(r.id) ?? []).map((v) => {
-            const k = `${v}|${r.facility_id}|${orgDayKey(r.occurred_at)}`;
-            const first = keys.has(k) && !seen.has(k);
-            if (first) seen.add(k);
-            return { id: r.id, adds: first ? 1 : 0, person: v, note: `${ctx.volunteerNames.get(v) ?? "Volunteer"}${first ? "" : " (same day, already counted)"}` };
-          })
+          (ctx.volunteers.get(r.id) ?? []).filter((v) => ctx.volunteerRoles.get(v) === "student").map((v) => ({ id: r.id, adds: 1, person: v, note: ctx.volunteerNames.get(v) }))
         );
+    case "volunteers_active":
+      return rows
+        .filter((r) => r.interaction_type === "volunteer_visit")
+        .flatMap((r) =>
+          (ctx.volunteers.get(r.id) ?? []).filter((v) => isCommunity(ctx, v)).map((v) => ({ id: r.id, adds: 1, person: v, note: ctx.volunteerNames.get(v) }))
+        );
+    case "volunteer_outings": {
+      // Each outing once: the first of its entries adds 1, the rest 0.
+      const seen = new Set<string>();
+      return rows
+        .filter((r) => r.interaction_type === "volunteer_visit")
+        .map((r) => {
+          const k = volunteerOutingKey(r, ctx.volunteers)!;
+          const first = !seen.has(k);
+          seen.add(k);
+          return { id: r.id, adds: first ? 1 : 0, person: k, note: first ? undefined : "Same outing, already counted" };
+        });
     }
     case "volunteer_visits":
       return each((r) => r.interaction_type === "volunteer_visit");
@@ -247,6 +274,10 @@ function recordLines(key: string, rows: MetricRow[], ctx: Context): RecordLine[]
       return each((r) => partnerConversationsFor(r, ctx.engaged, ctx.partners) > 0, (r) => partnerConversationsFor(r, ctx.engaged, ctx.partners));
     case "partner_people":
       return rows.flatMap((r) => [...partnerPeopleOn(r, ctx.engaged, ctx.partners)].map((p) => ({ id: r.id, adds: 1, person: p })));
+    case "appreciation":
+      return each((r) => r.interaction_type === "staff_appreciation");
+    case "appreciation_facilities":
+      return each((r) => r.interaction_type === "staff_appreciation" && !!r.facility_id, () => 1, (r) => r.facility_id);
     case "attendance_not_recorded":
       // Older programs and deliveries at a facility whose staff attendance
       // isn't recorded; the ones that decide a facility-day first.
@@ -323,8 +354,8 @@ function compute(rows: MetricRow[], ctx: Context): ImpactMetrics {
       case "facilities_engaged":
         values[m.key] = coverage.facilitiesEngaged;
         break;
-      case "volunteer_facility_days":
-        values[m.key] = volunteerFacilityDayKeys(rows, ctx.volunteers).size;
+      case "volunteer_outings":
+        values[m.key] = volunteerOutingKeys(rows, ctx.volunteers).size;
         break;
       default:
         values[m.key] = m.unit === "people" || m.unit === "facilities" || m.unit === "organizations" ? distinct(lines(m.key)) : total(lines(m.key));
@@ -363,7 +394,6 @@ function compute(rows: MetricRow[], ctx: Context): ImpactMetrics {
   });
   staff.sort((a, b) => b.staffVisits - a.staffVisits || b.activities - a.activities);
 
-  const volunteerDays = volunteerFacilityDayKeys(rows, ctx.volunteers);
   const volunteerIds = new Set<string>();
   rows.filter((r) => r.interaction_type === "volunteer_visit").forEach((r) => (ctx.volunteers.get(r.id) ?? []).forEach((v) => volunteerIds.add(v)));
   const volunteers: VolunteerTeamRow[] = [...volunteerIds].map((id) => {
@@ -371,12 +401,13 @@ function compute(rows: MetricRow[], ctx: Context): ImpactMetrics {
     return {
       id,
       name: ctx.volunteerNames.get(id) ?? "Unknown volunteer",
-      facilityDays: [...volunteerDays].filter((k) => k.startsWith(`${id}|`)).length,
+      outings: volunteerOutingKeys(theirs, ctx.volunteers).size,
       residents: new Set(theirs.map((r) => r.resident_id).filter(Boolean)).size,
       visits: theirs.length,
+      role: ctx.volunteerRoles.get(id) ?? null,
     };
   });
-  volunteers.sort((a, b) => b.facilityDays - a.facilityDays || b.visits - a.visits);
+  volunteers.sort((a, b) => b.outings - a.outings || b.visits - a.visits);
 
   const partnerCounts = new Map<string, Set<string>>();
   for (const l of lines("partner_people")) {
@@ -404,7 +435,7 @@ function compute(rows: MetricRow[], ctx: Context): ImpactMetrics {
 }
 
 const ROW_COLUMNS =
-  "id, interaction_type, occurred_at, staff_member_id, entered_by, resident_id, contact_id, facility_id, people_reached, holiday, family_need, participants, student_count, volunteer_count, part_of_id, counted_in_id, in_person, method, voided_at, lead_attended, program_partner, partner_organization_id, organizations(organization_type)";
+  "id, interaction_type, occurred_at, staff_member_id, entered_by, resident_id, contact_id, facility_id, people_reached, holiday, family_need, participants, student_count, volunteer_count, chaperone_count, outing_id, part_of_id, counted_in_id, in_person, method, voided_at, lead_attended, program_partner, partner_organization_id, organizations(organization_type)";
 
 type FetchedRow = Omit<MetricRow, "partner_org_type"> & { organizations: { organization_type: string | null } | null };
 
@@ -425,14 +456,14 @@ async function fetchContext(supabase: Awaited<ReturnType<typeof createClient>>, 
       supabase.from("contacts").select("id, contact_type").in("contact_type", [...PARTNER_CONTACT_TYPES]).order("id").range(from, to)
     ),
     fetchTeamLinks(supabase),
-    selectAllPages<{ interaction_id: string; contact_id: string; contacts: { name: string } | null }>((from, to) =>
+    selectAllPages<{ interaction_id: string; contact_id: string; contacts: { name: string; volunteer_role: string | null } | null }>((from, to) =>
       supabase
         .from("interaction_volunteers")
-        .select("interaction_id, contact_id, contacts(name)")
+        .select("interaction_id, contact_id, contacts(name, volunteer_role)")
         .order("interaction_id")
         .order("contact_id")
         .range(from, to) as unknown as PromiseLike<{
-        data: { interaction_id: string; contact_id: string; contacts: { name: string } | null }[] | null;
+        data: { interaction_id: string; contact_id: string; contacts: { name: string; volunteer_role: string | null } | null }[] | null;
         error: { message: string } | null;
       }>
     ),
@@ -440,9 +471,11 @@ async function fetchContext(supabase: Awaited<ReturnType<typeof createClient>>, 
   ]);
   const volunteers: VolunteerLinks = new Map();
   const volunteerNames = new Map<string, string>();
+  const volunteerRoles = new Map<string, string>();
   for (const v of volunteerRows) {
     volunteers.set(v.interaction_id, [...(volunteers.get(v.interaction_id) ?? []), v.contact_id]);
     if (v.contacts?.name) volunteerNames.set(v.contact_id, v.contacts.name);
+    if (v.contacts?.volunteer_role) volunteerRoles.set(v.contact_id, v.contacts.volunteer_role);
   }
   return {
     engaged,
@@ -451,6 +484,7 @@ async function fetchContext(supabase: Awaited<ReturnType<typeof createClient>>, 
     team,
     volunteers,
     volunteerNames,
+    volunteerRoles,
     staffNames: new Map(((profiles.data ?? []) as { id: string; full_name: string }[]).map((p) => [p.id, p.full_name])),
   };
 }

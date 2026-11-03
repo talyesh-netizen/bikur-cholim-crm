@@ -174,18 +174,33 @@ export default async function ResidentDetailPage({
         <ProfileNotesCard targetType="resident" targetId={resident.id} notes={profileNotes} compact />
       </Fold>
 
-      <Fold title="Notes from recent visits" count={recentNotes.length} open={recentNotes.length > 0}>
+      {/* The five newest entries with notes (A9, Nov 3, 2026): read from the
+          entries themselves, so a note is written once and shown here and
+          in the history. */}
+      <Fold
+        title="Notes from recent visits"
+        count={recentNotes.length}
+        open={recentNotes.length > 0}
+        action={
+          interactions.length > 0 ? (
+            <Link href={`/interactions?resident=${resident.id}`} className="text-sm font-medium text-primary hover:underline">
+              Full history
+            </Link>
+          ) : undefined
+        }
+      >
         {recentNotes.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No notes from visits or calls yet.</p>
+          <p className="text-sm text-muted-foreground">No notes from visits, calls or family conversations yet.</p>
         ) : (
           <ol className="flex flex-col gap-3">
             {recentNotes.map((note) => (
               <li key={note.id} className="text-sm">
                 <Link href={`/interactions/${note.id}`} className="-mx-1.5 block rounded-md px-1.5 py-0.5 hover:bg-accent/50">
                   <p className="text-xs text-muted-foreground">
-                    {formatDateTime(note.occurred_at)} · {labelFor(INTERACTION_TYPES, note.interaction_type)}
-                    {note.by ? ` · ${note.by}` : ""}
-                    {note.entered_by && note.entered_by !== note.by ? ` (entered by ${note.entered_by})` : ""}
+                    <span className="font-medium text-foreground">{formatDateTime(note.occurred_at)}</span> ·{" "}
+                    {labelFor(INTERACTION_TYPES, note.interaction_type)}
+                    {note.attended.length > 0 ? ` · Attended: ${note.attended.join(", ")}` : ""}
+                    {note.entered_by ? ` · Written by ${note.entered_by}` : note.by ? ` · Written by ${note.by}` : ""}
                   </p>
                   <p className="whitespace-pre-wrap">{note.notes}</p>
                 </Link>

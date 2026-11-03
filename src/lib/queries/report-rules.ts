@@ -74,6 +74,8 @@ export const VISIT_DAY_TYPES = new Set([
   "program",
   "school_engagement",
   "food_delivery",
+  // Bringing food, refreshments or gifts to staff (A7, Nov 3, 2026).
+  "staff_appreciation",
 ]);
 
 /** Activities that can hold a group's volunteer head count. */
@@ -94,6 +96,10 @@ export type CountableRow = {
   participants?: number | null;
   student_count?: number | null;
   volunteer_count?: number | null;
+  /** School staff / chaperones at a program (A3, Nov 3, 2026). */
+  chaperone_count?: number | null;
+  /** Volunteer visits saved together as one outing (A2, Nov 3, 2026). */
+  outing_id?: string | null;
   part_of_id?: string | null;
   counted_in_id?: string | null;
   in_person?: boolean | null;
@@ -286,25 +292,26 @@ export function facilityPresence(rows: CountableRow[]): FacilityPresence {
   };
 }
 
-export type GroupCounts = { students: number; volunteers: number; notSplit: number };
+export type GroupCounts = { students: number; volunteers: number; chaperones: number; notSplit: number };
 
 /** The program head counts this activity holds (all 0 when it's part of
  * another activity's project, or isn't a group project): students and
  * volunteers, and an older entry's single number, not split. */
 export function groupCountsFor(r: CountableRow): GroupCounts {
-  if (r.part_of_id || !GROUP_PROJECT_TYPES.has(r.interaction_type)) return { students: 0, volunteers: 0, notSplit: 0 };
+  if (r.part_of_id || !GROUP_PROJECT_TYPES.has(r.interaction_type)) return { students: 0, volunteers: 0, chaperones: 0, notSplit: 0 };
   const students = r.student_count ?? 0;
   const volunteers = r.volunteer_count ?? 0;
+  const chaperones = r.chaperone_count ?? 0;
   // Only the part of the older single number not yet split (Q6, Nov 3,
   // 2026): 30 saved earlier, then 20 students entered = 20 + 10 not split.
-  return { students, volunteers, notSplit: Math.max((r.participants ?? 0) - students - volunteers, 0) };
+  return { students, volunteers, chaperones, notSplit: Math.max((r.participants ?? 0) - students - volunteers - chaperones, 0) };
 }
 
 // --- Final cleanup batch (Nov 3, 2026) ---------------------------------------
 
 /** Programs and food deliveries: staff credit only when attendance was
  * recorded (D4). */
-export const ATTENDANCE_TYPES = new Set(["program", "school_engagement", "food_delivery"]);
+export const ATTENDANCE_TYPES = new Set(["program", "school_engagement", "food_delivery", "staff_appreciation"]);
 
 /** Something was done at the facility in person, by staff or volunteers. */
 export function inPersonAtFacility(r: CountableRow): boolean {
@@ -439,6 +446,30 @@ export function volunteerFacilityDayKeys(rows: CountableRow[], volunteers: Volun
   for (const r of rows) {
     if (r.interaction_type !== "volunteer_visit" || !inPersonAtFacility(r)) continue;
     for (const v of volunteers.get(r.id) ?? []) keys.add(`${v}|${r.facility_id}|${orgDayKey(r.occurred_at)}`);
+  }
+  return keys;
+}
+
+/** Volunteer outings (A2, Nov 3, 2026): each actual outing once, however
+ * many residents it saw. Entries saved together share an outing_id, so two
+ * trips to the same facility on the same day stay two outings. An older
+ * entry (no outing_id) can't be told apart from a same-day trip: those
+ * with the same volunteers, facility and day count as one outing, so three
+ * residents logged separately never become three outings. A volunteer
+ * visit with no volunteer named is its own outing. */
+export function volunteerOutingKey(r: CountableRow, volunteers: VolunteerLinks): string | null {
+  if (r.interaction_type !== "volunteer_visit") return null;
+  if (r.outing_id) return `outing|${r.outing_id}`;
+  const who = [...(volunteers.get(r.id) ?? [])].sort();
+  if (who.length === 0) return `entry|${r.id}`;
+  return `older|${who.join(",")}|${r.facility_id ?? "none"}|${orgDayKey(r.occurred_at)}`;
+}
+
+export function volunteerOutingKeys(rows: CountableRow[], volunteers: VolunteerLinks): Set<string> {
+  const keys = new Set<string>();
+  for (const r of rows) {
+    const k = volunteerOutingKey(r, volunteers);
+    if (k) keys.add(k);
   }
   return keys;
 }

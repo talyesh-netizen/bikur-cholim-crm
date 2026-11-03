@@ -134,6 +134,9 @@ export type Contact = {
   background_check_status: BackgroundCheckStatus;
   background_check_date: string | null;
   availability_notes: string | null;
+  /** Community volunteer, student or school staff (Nov 3, 2026); empty =
+   * community volunteer. */
+  volunteer_role?: VolunteerRole | null;
   /** Set when an admin confirmed this is a duplicate of another contact
    * (absent until that database field exists). */
   merged_into_id?: string | null;
@@ -175,3 +178,15 @@ export function withContactLabel(name: string | null, relationship: string | nul
   const rel = RESIDENT_CONTACT_RELATIONSHIPS.find((r) => r.value === relationship)?.label;
   return `With ${name}${rel ? ` (${rel.toLowerCase()})` : ""}`;
 }
+
+/** What kind of volunteer someone is (A3, Nov 3, 2026). Students and
+ * school staff are counted under School engagement, never as community
+ * volunteers. Never assumed from a school link: a person picks it. Empty
+ * = community volunteer, as everyone was counted before. */
+export const VOLUNTEER_ROLES = [
+  { value: "community", label: "Community volunteer" },
+  { value: "student", label: "Student" },
+  { value: "school_staff", label: "School staff / chaperone" },
+] as const;
+
+export type VolunteerRole = (typeof VOLUNTEER_ROLES)[number]["value"];
