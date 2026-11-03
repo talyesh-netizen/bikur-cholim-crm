@@ -760,8 +760,8 @@ not deployed to production; the live database was not changed.
 
 **Checks**
 - Type check, lint and production build: pass.
-- Counting checks (`scripts/check-report-rules.ts`): all pass, including
-  28 new ones for attendance, coverage layers, volunteer facility-days,
+- Counting checks (`scripts/check-report-rules.ts`): all 62 pass, including
+  new ones for attendance, coverage layers, volunteer facility-days,
   the not-split rule, school programs and the no-facility rules.
 - October 2026 reconciliation: the real October entries (read-only, no
   names or notes) run through the new code. Every number matches the
