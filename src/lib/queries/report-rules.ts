@@ -329,6 +329,9 @@ export function staffAttendance(r: CountableRow, team: TeamLinks): { confirmed: 
   const uniq = (ids: string[]) => [...new Set(ids)];
   if (r.interaction_type === "volunteer_visit") {
     // The team is the staff who went; the lead only when they went too.
+    // An older volunteer visit (saved before Nov 4, 2026) never said
+    // whether its staff member went: "not recorded", never "not there".
+    if (r.lead_attended === null || r.lead_attended === undefined) return { confirmed: uniq(teamIds), unverified: lead.filter((p) => !teamIds.includes(p)) };
     return { confirmed: uniq([...(r.lead_attended === true ? lead : []), ...teamIds]), unverified: [] };
   }
   if (ATTENDANCE_TYPES.has(r.interaction_type)) {
@@ -343,7 +346,9 @@ export function staffAttendance(r: CountableRow, team: TeamLinks): { confirmed: 
  * lead who didn't go, or a program/delivery recorded with no staff there. */
 export function coordinatedOnly(r: CountableRow, team: TeamLinks): boolean {
   if (!r.staff_member_id) return false;
-  if (r.interaction_type === "volunteer_visit") return r.lead_attended !== true && !(team.get(r.id) ?? []).includes(r.staff_member_id);
+  // Only when it was recorded that they didn't go; an older entry that
+  // never said is "not recorded", not "coordinated only".
+  if (r.interaction_type === "volunteer_visit") return r.lead_attended === false && !(team.get(r.id) ?? []).includes(r.staff_member_id);
   return ATTENDANCE_TYPES.has(r.interaction_type) && r.lead_attended === false;
 }
 

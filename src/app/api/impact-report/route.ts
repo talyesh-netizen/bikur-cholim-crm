@@ -53,6 +53,13 @@ export async function GET(request: NextRequest) {
     for (const m of METRICS.filter((x) => x.section === section.key)) {
       csv += csvRow([m.approx ? `${m.label} (approx.)` : m.label, m.full, v[m.key] ?? 0]);
     }
+    if (section.key === "volunteers" && v.volunteer_outings_estimated > 0) {
+      csv += csvRow([
+        "Volunteer outings: estimated part",
+        "Of the outings above, grouped from entries saved before Nov 4, 2026 (same volunteers, facility and day). An estimate, not verified trips.",
+        v.volunteer_outings_estimated,
+      ]);
+    }
     if (section.key === "programs") {
       csv += csvRow(["Programs at facilities", "Programs held at a facility", v.programs_at_facility]);
       csv += csvRow(["Programs elsewhere", "Programs held somewhere else (a school, a shul)", v.programs_elsewhere]);

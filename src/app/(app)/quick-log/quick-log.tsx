@@ -47,7 +47,7 @@ import { PlacePicker, type Place, type PlaceFacility } from "./place-picker";
 import { carryOver } from "./carry-over";
 import { residentName } from "@/lib/domain/resident-name";
 import { analyzeNote, applyPlan } from "@/lib/actions/assistant";
-import { repeatVisitKey, type AlreadyLogged, type ApplyResult, type Plan, type PlanNames, type PossibleMatches } from "@/lib/assistant/schema";
+import { repeatVisitKey, type AlreadyLogged, type ApplyResult, type Plan, type PlanNames, type PossibleMatches, type QuickLogDetail } from "@/lib/assistant/schema";
 import { labelFor, INTERACTION_TYPES, HOLIDAYS, FAMILY_NEEDS } from "@/lib/domain/interaction";
 import { RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { CONTACT_TYPES, RESIDENT_CONTACT_RELATIONSHIPS } from "@/lib/domain/contact";
@@ -415,6 +415,10 @@ export function QuickLog({
   const [edited, setEdited] = useState<Set<string>>(new Set());
   // "Already logged today" answers, by interaction index.
   const [repeatAnswers, setRepeatAnswers] = useState<Record<number, "second" | "same">>({});
+  // Food and programs need the same answers as the log form (A5, D4, Nov 3,
+  // 2026): how many people got food (or "Unknown"), and whether our staff
+  // were there. Asked here, by interaction index; never assumed.
+  const [missingAnswers, setMissingAnswers] = useState<Record<number, MissingAnswer>>({});
   const [decisions, setDecisions] = useState<Decisions>({});
   const [dateFixes, setDateFixes] = useState<DateFixes>({});
   const [editing, setEditing] = useState<string | null>(null);
@@ -535,6 +539,7 @@ export function QuickLog({
       }
       setProposal({ plan: response.plan, original: response.plan, names: response.names, matches: response.matches, alreadyLogged: response.alreadyLogged });
       setRepeatAnswers({});
+      setMissingAnswers({});
       setSkipped(new Set());
       setDecisions({});
       setDateFixes({});
@@ -548,11 +553,14 @@ export function QuickLog({
     startSaving(async () => {
       let response: ApplyResult;
       try {
-        const dated = withDateFixes(proposal.plan, dateFixes);
+        const answered = withMissingAnswers(withDateFixes(proposal.plan, dateFixes), missingAnswers);
+        const dated = answered.plan;
         const secondVisits = Object.entries(repeatAnswers)
           .filter(([, answer]) => answer === "second")
           .map(([index]) => repeatVisitKey(dated.interactions[Number(index)]));
-        response = await applyPlan(withDecisions(withoutSkipped(dated, skipped), decisions), secondVisits, onSite?.facilityId);
+        // The answers travel beside the plan, lined up with the entries kept.
+        const keptDetails = answered.details.filter((_, i) => !skipped.has(`interactions:${i}`));
+        response = await applyPlan(withDecisions(withoutSkipped(dated, skipped), decisions), secondVisits, onSite?.facilityId, keptDetails);
       } catch {
         // Saving twice is safe (each entry has a fixed id), so the list
         // stays up for another try.
@@ -660,6 +668,14 @@ export function QuickLog({
   // ...and so does a ticked entry whose date the assistant wasn't sure of.
   const uncheckedDates = items.filter(
     (item) => item.dateIssue && !skipped.has(`${item.section}:${item.index}`)
+  ).length;
+  // ...and so does food or a program still missing a required answer.
+  const unansweredDetails = items.filter(
+    (item) =>
+      item.section === "interactions" &&
+      !skipped.has(`${item.section}:${item.index}`) &&
+      proposal !== null &&
+      missingFor(proposal.plan.interactions[item.index], missingAnswers[item.index]).length > 0
   ).length;
   // ...and so does one that looks like a visit already logged that day.
   const unansweredRepeats = items.filter(
@@ -895,6 +911,14 @@ export function QuickLog({
                           }}
                         />
                       ) : null}
+                      {item.section === "interactions" && on && needsDetails(proposal.plan.interactions[item.index]) ? (
+                        <MissingDetails
+                          interactionType={proposal.plan.interactions[item.index].interaction_type}
+                          hasCount={!!proposal.plan.interactions[item.index].people_reached}
+                          answer={missingAnswers[item.index] ?? {}}
+                          onChange={(answer) => setMissingAnswers((prev) => ({ ...prev, [item.index]: answer }))}
+                        />
+                      ) : null}
                       {item.section === "interactions" && on && repeatAnswers[item.index] === "second" ? (
                         <p className="mt-1 text-sm text-muted-foreground">Saved as a second visit.</p>
                       ) : null}
@@ -916,7 +940,7 @@ export function QuickLog({
 
             {saveError ? <p className="text-sm text-destructive">{saveError}</p> : null}
             <div className="flex flex-wrap gap-2">
-              <Button onClick={save} disabled={saving || stale || chosen === 0 || undecided > 0 || uncheckedDates > 0 || unansweredRepeats > 0 || editing !== null}>
+              <Button onClick={save} disabled={saving || stale || chosen === 0 || undecided > 0 || uncheckedDates > 0 || unansweredRepeats > 0 || unansweredDetails > 0 || editing !== null}>
                 {saving ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
                 {saving ? "Saving…" : chosen === items.length ? `Save all ${chosen}` : `Save ${chosen} of ${items.length}`}
               </Button>
@@ -937,6 +961,10 @@ export function QuickLog({
               </p>
             ) : editing !== null ? (
               <p className="text-sm font-medium text-[var(--tone-attention-fg)]">Tap Done on the card you&apos;re editing, then Save.</p>
+            ) : unansweredDetails > 0 && undecided + uncheckedDates + unansweredRepeats === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Before saving, answer the highlighted food or program question{unansweredDetails > 1 ? "s" : ""} above, or untick that item.
+              </p>
             ) : undecided > 0 || uncheckedDates > 0 || unansweredRepeats > 0 ? (
               <p className="text-sm font-medium text-[var(--tone-attention-fg)]">
                 Before saving, answer the highlighted {(undecided > 0 ? 1 : 0) + (uncheckedDates > 0 ? 1 : 0) + (unansweredRepeats > 0 ? 1 : 0) > 1 ? "questions" : undecided > 0 ? "\u201csame person or someone new?\u201d" : uncheckedDates > 0 ? "\u201ccheck the date\u201d" : "\u201calready logged\u201d question"} above, or untick that item.
@@ -1059,6 +1087,103 @@ function CheckDate({
 /** Under an entry that looks like one already saved that day (same
  * person, same kind): the person says which it is. Never decided for
  * them -- two real visits in a day both count. */
+/** Answers the check screen collects for food and programs. */
+type MissingAnswer = { people?: number; unknown?: boolean; staffThere?: boolean };
+type PlanInteraction = Plan["interactions"][number];
+
+const ASKS_ATTENDANCE = ["program", "school_engagement", "food_delivery", "staff_appreciation"];
+
+function needsDetails(i: PlanInteraction): boolean {
+  return ASKS_ATTENDANCE.includes(i.interaction_type);
+}
+
+/** What's still unanswered: the food count (unless the note said one, or
+ * "Unknown" is ticked) and whether staff were there. */
+function missingFor(i: PlanInteraction, a: MissingAnswer | undefined): ("people" | "staff")[] {
+  if (!needsDetails(i)) return [];
+  const missing: ("people" | "staff")[] = [];
+  if (i.interaction_type === "food_delivery" && !i.people_reached && !(a?.people && a.people > 0) && !a?.unknown) missing.push("people");
+  if (a?.staffThere === undefined) missing.push("staff");
+  return missing;
+}
+
+/** The plan with the food counts typed here, plus the answers that go
+ * beside it (staff there; count unknown), one per interaction. */
+function withMissingAnswers(plan: Plan, answers: Record<number, MissingAnswer>): { plan: Plan; details: QuickLogDetail[] } {
+  return {
+    plan: {
+      ...plan,
+      interactions: plan.interactions.map((x, i) =>
+        x.interaction_type === "food_delivery" && !x.people_reached && answers[i]?.people ? { ...x, people_reached: answers[i].people! } : x
+      ),
+    },
+    details: plan.interactions.map((x, i) =>
+      needsDetails(x) ? { staffThere: answers[i]?.staffThere ?? null, countUnknown: !!answers[i]?.unknown } : null
+    ),
+  };
+}
+
+/** Under a food or program card: how many people got food (if the note
+ * didn't say) and whether our staff were there. Required, like the form. */
+function MissingDetails({
+  interactionType,
+  hasCount,
+  answer,
+  onChange,
+}: {
+  interactionType: string;
+  hasCount: boolean;
+  answer: MissingAnswer;
+  onChange: (answer: MissingAnswer) => void;
+}) {
+  const pill = (selected: boolean) =>
+    selected
+      ? "h-11 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground"
+      : "h-11 rounded-md bg-background px-3 text-sm font-medium ring-1 ring-border";
+  const askCount = interactionType === "food_delivery" && !hasCount;
+  const done = (!askCount || (answer.people ?? 0) > 0 || answer.unknown) && answer.staffThere !== undefined;
+  return (
+    <div
+      className={
+        done
+          ? "mt-1 flex flex-col gap-2 rounded-lg border border-border p-3 text-sm"
+          : "mt-1 flex flex-col gap-2 rounded-lg border border-[var(--tone-attention-fg)]/30 bg-[var(--tone-attention-bg)] p-3 text-sm text-[var(--tone-attention-fg)]"
+      }
+    >
+      {askCount ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="font-semibold" htmlFor={`people-${interactionType}`}>
+            How many people received food?
+          </label>
+          <input
+            id={`people-${interactionType}`}
+            type="number"
+            inputMode="numeric"
+            min={1}
+            disabled={answer.unknown}
+            value={answer.people ?? ""}
+            onChange={(e) => onChange({ ...answer, people: e.target.value ? Math.max(0, Math.floor(Number(e.target.value))) : undefined })}
+            className="h-11 w-24 rounded-md border border-border bg-background px-2 text-foreground"
+          />
+          <label className="flex items-center gap-1.5">
+            <input type="checkbox" className="size-4" checked={!!answer.unknown} onChange={(e) => onChange({ ...answer, unknown: e.target.checked, people: undefined })} />
+            Unknown
+          </label>
+        </div>
+      ) : null}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-semibold">Were our staff there?</span>
+        <button type="button" className={pill(answer.staffThere === true)} onClick={() => onChange({ ...answer, staffThere: true })}>
+          Yes, I was there
+        </button>
+        <button type="button" className={pill(answer.staffThere === false)} onClick={() => onChange({ ...answer, staffThere: false })}>
+          No staff were there
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function AlreadyLoggedCheck({
   who,
   time,

@@ -96,6 +96,10 @@ export function ImpactView({
     programs: `${n(v.programs_at_facility)} at facilities · ${n(v.programs_elsewhere)} elsewhere`,
     schools_involved: v.schools_not_named > 0 ? `+ ${n(v.schools_not_named)} program${v.schools_not_named === 1 ? "" : "s"} with no school named` : null,
     not_recorded_days: v.attendance_not_recorded_entries > 0 ? `${n(v.attendance_not_recorded_entries)} entries to confirm` : null,
+    volunteer_outings:
+      v.volunteer_outings_estimated > 0
+        ? `incl. ${n(v.volunteer_outings_estimated)} estimated from older entries (grouped, not verified)`
+        : null,
   };
 
   const sectionCharts: Partial<Record<SectionKey, React.ReactNode>> = {

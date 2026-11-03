@@ -152,9 +152,9 @@ export default async function DataQualityPage() {
 
       <ConfirmCard
         href="/impact/records?metric=attendance_not_recorded&period=all"
-        title="Programs and deliveries: staff attendance not recorded"
+        title="Staff attendance not recorded"
         count={attendanceNotRecorded}
-        text="Older programs and food deliveries that don't say whether staff were there. Open one and answer “Staff who were there”. The ones that decide a facility-day are listed first."
+        text="Older programs, food deliveries and volunteer visits that don't say whether staff were there (unknown, not absent). Open one and answer who was there. The ones that decide a facility-day are listed first."
       />
       <ConfirmCard
         href="/impact/records?metric=food_not_recorded&period=all"

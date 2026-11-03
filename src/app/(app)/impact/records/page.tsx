@@ -14,8 +14,8 @@ const n = (v: number) => v.toLocaleString("en-US");
 /** Titles for lists that aren't a number on the Impact page. */
 const EXTRA_TITLES: Record<string, { label: string; full: string }> = {
   attendance_not_recorded: {
-    label: "Programs and deliveries with staff attendance not recorded",
-    full: "Older programs and food deliveries at a facility, saved before staff attendance was asked. Open one and answer \"Staff who were there\" to confirm it. The ones that decide a facility-day are listed first.",
+    label: "Staff attendance not recorded",
+    full: "Older programs, food deliveries and volunteer visits at a facility, saved before staff attendance was asked. \"Not recorded\" means unknown: never counted as there, never counted as absent. Open one and answer who was there to confirm it. The ones that decide a facility-day are listed first.",
   },
 };
 

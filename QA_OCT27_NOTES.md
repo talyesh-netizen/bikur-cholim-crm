@@ -862,3 +862,39 @@ network blocks vercel.app and supabase.co). Checklist for TEST:
 7. Volunteer profile: "Kind of volunteer" = Student.
 8. Resident page: five notes with attended / written by, "Full history".
 9. Impact: eight sections; Export and "Previous format" both download.
+
+## Go-live readiness follow-up (Nov 3, 2026)
+
+Fixed (TEST/preview only):
+- Quick Log: food, programs and staff appreciation now ask "Were our
+  staff there?" (and, for food with no number in the note, "How many
+  people received food?" or Unknown) on the check screen; Save waits for
+  the answers and the server refuses an item without them.
+- Older volunteer visits that never said whether staff went: now
+  "attendance not recorded" (was "no staff there" / "coordinated only").
+  October: 2 facility-days move from "no staff there" to "not recorded";
+  Q3: 4. Confirmed staff visits unchanged (Q3 121, Oct 42).
+- Volunteer outings before Nov 4, 2026 are labelled as an estimate on the
+  Impact page and the export (Q3: all 24 are estimated, from 82 entries).
+- Baseline of earlier reporting saved: `reports/BASELINE_2026-11-03.md`
+  (totals only). Previous-format export still identical for Q2, Q3,
+  October and Q4.
+
+Checks: type check, lint, build pass; 79 counting checks pass.
+
+Shortest hands-on check (TEST preview, practice accounts):
+1. Visit a resident who lives at a facility: facility fills in; clear it,
+   save. Then log a second visit for them the same day: it asks "Is this a
+   separate visit?"
+2. Volunteer visit: one volunteer, two residents, add yourself under "Staff
+   who went". Two entries; Impact > Community volunteers shows 1 outing.
+3. Food: Save refuses until a number or "Unknown" is given.
+4. More types > Staff appreciation: save with "Staff who were there".
+   Impact > Professional relationships shows 1 activity.
+5. Sara: open a resident with notes: five newest, each with day, kind,
+   attended and written by; "Full history" opens the rest.
+6. Impact: tap three numbers (Residents engaged, Volunteer outings, Food
+   not recorded): each list adds up to its number. Download Export and
+   Previous format.
+7. Quick Log (on TEST, typed note "Brought lunch for the staff at
+   Cedarbrook"): it asks "Were our staff there?" before Save.

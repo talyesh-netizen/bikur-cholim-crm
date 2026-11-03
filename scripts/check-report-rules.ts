@@ -173,10 +173,16 @@ const cov = facilityCoverage(
   noTeam
 );
 check("coverage: 4 activity-days (a call is never one)", cov.activityDays === 4, cov.activityDays);
-check("coverage: 1 staff confirmed, 1 not recorded, 2 no staff", cov.staffConfirmedDays === 1 && cov.notRecordedDays === 1 && cov.noStaffDays === 2, cov);
+// An older volunteer visit never said whether staff went: not recorded,
+// never "no staff there" (director, Nov 3, 2026).
+check("coverage: 1 staff confirmed, 2 not recorded (older program, older volunteer visit), 1 no staff", cov.staffConfirmedDays === 1 && cov.notRecordedDays === 2 && cov.noStaffDays === 1, cov);
 check("coverage: the layers add up to activity-days", cov.staffConfirmedDays + cov.notRecordedDays + cov.noStaffDays === cov.activityDays);
 check("coverage: facilities engaged includes the call", cov.facilitiesEngaged === 5, cov.facilitiesEngaged);
-check("coverage: 1 staff visit confirmed, 1 not recorded", cov.staffVisitsConfirmed === 1 && cov.staffVisitsNotRecorded === 1);
+check("coverage: 1 staff visit confirmed, 2 not recorded", cov.staffVisitsConfirmed === 1 && cov.staffVisitsNotRecorded === 2);
+const volNobodyWent = row({ interaction_type: "volunteer_visit", facility_id: "f-vol2", method: "in_person", lead_attended: false });
+check("a volunteer visit recorded with nobody going = no staff there", facilityCoverage([volNobodyWent], noTeam).noStaffDays === 1);
+const volOlder = row({ interaction_type: "volunteer_visit", facility_id: "f-vol3", method: "in_person" });
+check("an older volunteer visit: staff not credited, not 'coordinated only', attendance not recorded", staffAttendance(volOlder, noTeam).confirmed.length === 0 && staffAttendance(volOlder, noTeam).unverified.length === 1 && !coordinatedOnly(volOlder, noTeam));
 
 const sameDay = facilityCoverage(
   [row({ interaction_type: "resident_visit", method: "in_person" }), row({ interaction_type: "food_delivery", method: null })],

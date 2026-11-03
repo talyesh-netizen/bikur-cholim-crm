@@ -94,6 +94,11 @@ Decisions so far:
   isn't staff at a facility we serve (a hospice or agency contact, e.g.
   Tina at Affinity Care) is "Other", no facility needed, never a staff
   conversation, so it isn't counted as facility staff support.
+- Food and programs (Nov 3, 2026): the check screen asks "Were our staff
+  there?" on programs, food and staff appreciation, and "How many people
+  received food?" (or Unknown) when the note didn't say. Save waits for
+  the answers, and the server refuses an item without them; nothing is
+  assumed.
 - Already logged that day (Oct 9, 2026): an entry with the same resident,
   kind and day as one already saved is flagged on the check screen,
   "Is this a second visit?" Yes saves it as its own visit; No unticks
@@ -284,6 +289,11 @@ These replace any earlier rule above that says otherwise (including the
   attended and who wrote it, and a link to the full history.
 - A staff visit or volunteer visit for a resident already visited that
   day asks "Is this a separate visit?" before saving.
+- "Staff attendance not recorded" means unknown, never absent: older
+  programs, food and volunteer visits that never said are not counted as
+  staff there and not counted as "no staff there". Volunteer outings
+  before Nov 4, 2026 are an estimate (grouped by volunteers, facility and
+  day) and are labelled so on the Impact page and export.
 - The previous funder export stays available, unchanged
   (`/api/impact-report/previous`, `src/lib/queries/legacy/`), until the
   new one is verified. No grand total of different kinds.

@@ -95,10 +95,10 @@ export const METRICS: MetricDef[] = [
   // Facility coverage
   { key: "activity_days", section: "coverage", label: "Facility activity-days", short: "per facility, per day", unit: "facility-days", full: "Days anything was done at a facility in person (by staff, volunteers or a group), each facility once a day. The three lines below add up to this." },
   { key: "staff_confirmed_days", section: "coverage", label: "Staff presence confirmed", short: "facility-days", unit: "facility-days", full: "Facility-days our staff were confirmed there in person." },
-  { key: "not_recorded_days", section: "coverage", label: "Staff attendance not recorded", short: "facility-days", unit: "facility-days", full: "Facility-days with only a program or food delivery whose staff attendance wasn't recorded (older entries). The activity happened; whether staff were there isn't known yet." },
-  { key: "no_staff_days", section: "coverage", label: "No staff there", short: "volunteers or groups", unit: "facility-days", full: "Facility-days with only volunteers, or a group on its own (a program or delivery recorded with no staff there)." },
+  { key: "not_recorded_days", section: "coverage", label: "Staff attendance not recorded", short: "facility-days", unit: "facility-days", full: "Facility-days with only entries whose staff attendance wasn't recorded (older programs, food deliveries and volunteer visits). The activity happened; whether staff were there isn't known. Never counted as \"no staff there\" until someone confirms it." },
+  { key: "no_staff_days", section: "coverage", label: "No staff there", short: "volunteers or groups", unit: "facility-days", full: "Facility-days where it was recorded that no staff were there: volunteers on their own, or a program or delivery saved with \"No staff were there\"." },
   { key: "staff_visits_confirmed", section: "coverage", label: "Staff visits (confirmed)", short: "per person, per facility-day", unit: "staff-days", full: "Each staff member once per facility per day they were confirmed there in person." },
-  { key: "staff_visits_not_recorded", section: "coverage", label: "Staff visits not recorded", short: "until confirmed", unit: "staff-days", full: "Staff on an older program or food delivery whose attendance wasn't recorded, each once per facility per day. Not in the confirmed number above until someone confirms it." },
+  { key: "staff_visits_not_recorded", section: "coverage", label: "Staff visits not recorded", short: "until confirmed", unit: "staff-days", full: "Staff on an older program, food delivery or volunteer visit whose attendance wasn't recorded, each once per facility per day. Not counted as there, and not counted as absent, until someone confirms it." },
   { key: "facilities_with_activity", section: "coverage", label: "Facilities with in-person activity", short: "different facilities", unit: "facilities", full: "Different facilities with at least one activity-day." },
   { key: "facilities_with_staff", section: "coverage", label: "Facilities with confirmed staff presence", short: "different facilities", unit: "facilities", full: "Different facilities with at least one day of confirmed staff presence." },
   { key: "facilities_engaged", section: "coverage", label: "Facilities engaged", short: "any contact", unit: "facilities", full: "Different facilities on any entry at all, calls and emails included. An entry with no facility never counts here." },
@@ -113,7 +113,7 @@ export const METRICS: MetricDef[] = [
   { key: "chaperones", section: "school", label: "School staff / chaperones", short: "approx., at programs", unit: "head count", approx: true, full: "School staff and chaperones who came with a group, as typed in on programs (each group project once). Never counted as students or community volunteers." },
   { key: "student_volunteers", section: "school", label: "Students on volunteer visits", short: "different students", unit: "people", full: "Different volunteers filed as students named on a volunteer visit. Only someone filed as a student counts: being linked to a school isn't enough." },
   // Community volunteers
-  { key: "volunteer_outings", section: "volunteers", label: "Volunteer outings", short: "each outing once", unit: "outings", full: "Each actual volunteer outing once, however many residents it saw. Two trips to the same facility on the same day are two outings. Older entries (before Nov 4, 2026) with the same volunteers, facility and day count as one outing, since they can't be told apart." },
+  { key: "volunteer_outings", section: "volunteers", label: "Volunteer outings", short: "each outing once", unit: "outings", full: "Each actual volunteer outing once, however many residents it saw. Two trips to the same facility on the same day are two outings. Entries saved before Nov 4, 2026 never said which outing they belonged to, so those are an ESTIMATE: entries with the same volunteers, facility and day are grouped as one outing (not verified trips)." },
   { key: "volunteers_active", section: "volunteers", label: "Community volunteers", short: "different people", unit: "people", full: "Different community volunteers named on a volunteer visit. Students and school staff are counted under School engagement." },
   { key: "volunteer_visits", section: "volunteers", label: "Volunteer visit entries", short: "one per resident", unit: "entries", full: "Volunteer visit entries: one per resident visited (or one group visit). Several entries can belong to one outing." },
   { key: "volunteer_residents", section: "volunteers", label: "Residents visited by volunteers", short: "different residents", unit: "people", full: "Different residents named on a volunteer visit." },
@@ -282,7 +282,7 @@ function recordLines(key: string, rows: MetricRow[], ctx: Context): RecordLine[]
       // Older programs and deliveries at a facility whose staff attendance
       // isn't recorded; the ones that decide a facility-day first.
       return rows
-        .filter((r) => ATTENDANCE_TYPES.has(r.interaction_type) && staffAttendance(r, ctx.team).unverified.length > 0)
+        .filter((r) => (ATTENDANCE_TYPES.has(r.interaction_type) || r.interaction_type === "volunteer_visit") && staffAttendance(r, ctx.team).unverified.length > 0)
         .map((r) => ({ id: r.id, adds: 1 }));
   }
   if (key.startsWith("staff:")) {
@@ -354,9 +354,13 @@ function compute(rows: MetricRow[], ctx: Context): ImpactMetrics {
       case "facilities_engaged":
         values[m.key] = coverage.facilitiesEngaged;
         break;
-      case "volunteer_outings":
-        values[m.key] = volunteerOutingKeys(rows, ctx.volunteers).size;
+      case "volunteer_outings": {
+        const keys = volunteerOutingKeys(rows, ctx.volunteers);
+        values[m.key] = keys.size;
+        // How many of them are grouped from older entries (an estimate).
+        values.volunteer_outings_estimated = [...keys].filter((k) => k.startsWith("older|")).length;
         break;
+      }
       default:
         values[m.key] = m.unit === "people" || m.unit === "facilities" || m.unit === "organizations" ? distinct(lines(m.key)) : total(lines(m.key));
     }
@@ -745,7 +749,8 @@ export async function snapshotAsFirstRecorded(fromIso: string, toIso: string): P
 
 /** Staff attendance in words, for an entry's page. */
 export function attendanceLabel(r: { interaction_type: string; lead_attended?: boolean | null }): string | null {
-  if (r.interaction_type === "volunteer_visit") return r.lead_attended === true ? "Went too" : null;
+  if (r.interaction_type === "volunteer_visit")
+    return r.lead_attended === true ? "Went too" : r.lead_attended === false ? "Arranged it (didn't go)" : "Staff attendance not recorded";
   if (!ATTENDANCE_TYPES.has(r.interaction_type)) return null;
   return r.lead_attended === true ? "Staff were there" : r.lead_attended === false ? "No staff were there" : "Staff attendance not recorded";
 }

@@ -5,7 +5,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/get-current-profile";
-import { HOLIDAY_TYPES, FAMILY_NEED_TYPES, IN_PERSON_ONLY_TYPES, INTERACTION_TYPES, ONE_PER_PERSON_TYPES, METHOD_FIXED, methodWhere, labelFor, SERVICE_FIELDS_BY_TYPE, occasionForHoliday, type InteractionType } from "@/lib/domain/interaction";
+import { HOLIDAY_TYPES,
+  ATTENDANCE_ASKED_TYPES, FAMILY_NEED_TYPES, IN_PERSON_ONLY_TYPES, INTERACTION_TYPES, ONE_PER_PERSON_TYPES, METHOD_FIXED, methodWhere, labelFor, SERVICE_FIELDS_BY_TYPE, occasionForHoliday, type InteractionType } from "@/lib/domain/interaction";
 import { loadDirectory, type Directory } from "@/lib/assistant/directory";
 import { resolvePlan } from "@/lib/assistant/resolve";
 import { aboutThemNotes } from "@/lib/assistant/about-them";
@@ -19,6 +20,8 @@ import {
   type ModelPlan,
   type Plan,
   type AlreadyLogged,
+  type QuickLogDetail,
+  quickLogDetailsSchema,
   repeatVisitKey,
 } from "@/lib/assistant/schema";
 import { formatTimeOfDay, getLocalToday, nextDay, orgDayStartIso, orgLocalToIso, toOrgDatetimeLocalValue } from "@/lib/format-date";
@@ -294,10 +297,15 @@ export async function applyPlan(
   input: unknown,
   secondVisits: string[] = [],
   /** The on-site notes box: the facility we're standing in. */
-  onSiteFacilityId?: string
+  onSiteFacilityId?: string,
+  /** The check screen's answers for food and programs, one per
+   * interaction (see QuickLogDetail). */
+  detailsInput: unknown = []
 ): Promise<ApplyResult> {
   const parsed = planSchema.safeParse(input);
   if (!parsed.success) return { ok: false, steps: [{ label: "Nothing was saved: the plan looked wrong.", ok: false }] };
+  const detailsParsed = quickLogDetailsSchema.safeParse(detailsInput);
+  const details: QuickLogDetail[] = detailsParsed.success ? detailsParsed.data : [];
   const plan = aboutThemNotes(parsed.data);
   // The review screen clears this once the person confirms or fixes the date.
   if (plan.interactions.some((x) => x.date_unclear)) {
@@ -598,8 +606,21 @@ export async function applyPlan(
   // day, no time said); numbering repeats keeps both, while saving the
   // same note again still matches its first save.
   const repeats = new Map<string, number>();
-  for (const i of plan.interactions) {
+  for (const [index, i] of plan.interactions.entries()) {
     const label = labelFor(INTERACTION_TYPES, i.interaction_type);
+    // Food and programs need the same answers as the log form (A5, D4,
+    // Nov 3, 2026): never saved with them silently missing.
+    const detail = details[index] ?? null;
+    const asksAttendance = ATTENDANCE_ASKED_TYPES.includes(i.interaction_type);
+    if (asksAttendance && (detail?.staffThere === null || detail?.staffThere === undefined)) {
+      fail(label, "Not saved: please say whether our staff were there (on the check screen).");
+      continue;
+    }
+    if (i.interaction_type === "food_delivery" && !(i.people_reached && i.people_reached > 0) && !detail?.countUnknown) {
+      fail(label, "Not saved: please say how many people received food, or tick Unknown.");
+      continue;
+    }
+    const staffThere = asksAttendance ? detail!.staffThere : null;
     const residentId = idOf(i.resident);
     const contactId = idOf(i.contact);
     const facilityId = idOf(i.facility);
@@ -645,6 +666,8 @@ export async function applyPlan(
             ? occasionForHoliday(i.holiday)
             : null,
         staff_member_id: staffId,
+        // Staff attendance, as answered on the check screen.
+        ...(asksAttendance ? { lead_attended: staffThere } : {}),
         // Written on site: a staff conversation there was in person
         // (decision B, Oct 19, 2026).
         in_person: onSiteFacilityId && facilityId === onSiteFacilityId && IN_PERSON_ONLY_TYPES.includes(i.interaction_type) ? true : null,
@@ -684,7 +707,8 @@ export async function applyPlan(
     }
     if (residentId) touchedResidents.add(residentId);
     if (facilityId) touchedFacilities.add(facilityId);
-    const colleagues = [...new Set(i.also_by.filter((id) => id !== user.id))];
+    // "No staff were there": nobody is credited as having been there.
+    const colleagues = staffThere === false ? [] : [...new Set(i.also_by.filter((id) => id !== user.id))];
     if (colleagues.length > 0) {
       const { error: teamError } = await supabase.rpc("set_interaction_people", {
         p_interaction_id: data.id,
