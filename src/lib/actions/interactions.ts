@@ -23,6 +23,8 @@ import {
   METHOD_REQUIRED_NEW,
   METHOD_FIXED,
   METHODS,
+  NO_FACILITY_RESIDENT_TYPES,
+  ATTENDANCE_ASKED_TYPES,
   methodWhere,
   occasionForHoliday,
   type InteractionType,
@@ -111,14 +113,21 @@ const interactionSchema = z
     method: z.preprocess(emptyToUndefined, z.enum(enumValues(METHODS)).optional()),
     partner_organization_id: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
     part_of_id: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
+    // Whether "Done by"'s first person was physically there (D4, Nov 3,
+    // 2026): asked on programs, food and volunteer visits. Blank = not
+    // recorded (kept as it was when editing).
+    lead_attended: z.preprocess(emptyToUndefined, z.enum(["yes", "no"]).optional()),
   })
   .superRefine((data, ctx) => {
     // A staff conversation with only partners needs no facility: checked
     // against the people chosen once they're known (needsFacility).
+    // ... and an in-person entry with a resident who has no facility
+    // recorded (Q1): checked against the residents once known (facilityForResidents).
     if (
       !data.facility_id &&
       !FACILITY_OPTIONAL_TYPES.includes(data.interaction_type) &&
-      !PARTNER_FACILITY_OPTIONAL_TYPES.includes(data.interaction_type)
+      !PARTNER_FACILITY_OPTIONAL_TYPES.includes(data.interaction_type) &&
+      !NO_FACILITY_RESIDENT_TYPES.includes(data.interaction_type)
     ) {
       ctx.addIssue({ code: "custom", path: ["facility_id"], message: "Please choose a facility." });
     }
@@ -184,6 +193,11 @@ function toInteractionRow(data: z.infer<typeof interactionSchema>, people: Peopl
       : isNew && METHOD_FIXED[data.interaction_type as InteractionType]
         ? { method: methodWhere(METHOD_FIXED[data.interaction_type as InteractionType], data.facility_id) }
         : {}),
+    // Staff attendance (D4): only where asked, and only when answered --
+    // a blank answer on an older entry keeps "not recorded".
+    ...((ATTENDANCE_ASKED_TYPES.includes(data.interaction_type) || data.interaction_type === "volunteer_visit") && data.lead_attended
+      ? { lead_attended: data.lead_attended === "yes" }
+      : {}),
   };
 }
 
@@ -240,6 +254,22 @@ async function projectRoot(
 const submissionIdSchema = z.string().uuid();
 
 const RESIDENT_REQUIRED_MESSAGE = "Please choose the resident.";
+const NO_FACILITY_MESSAGE = "Please choose a facility (only a resident with no facility recorded can be logged without one).";
+const ATTENDANCE_MESSAGE = "Please pick the staff who were there, or “No staff were there”.";
+
+/** An in-person entry with no facility is fine only when every resident
+ * on it has no facility recorded (Q1, D1, Nov 3, 2026). */
+async function needsFacilityForResidents(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  data: { interaction_type: string; facility_id?: string },
+  residentIds: string[]
+): Promise<boolean> {
+  if (data.facility_id || !NO_FACILITY_RESIDENT_TYPES.includes(data.interaction_type)) return false;
+  if (residentIds.length === 0) return true;
+  const { data: rows } = await supabase.from("residents").select("id, current_facility_id").in("id", residentIds);
+  const found = (rows ?? []) as { id: string; current_facility_id: string | null }[];
+  return found.length < residentIds.length || found.some((r) => r.current_facility_id !== null);
+}
 const FACILITY_REQUIRED_MESSAGE = "Please choose a facility (only a conversation with partners can be without one).";
 
 /** A staff conversation saved without a facility is fine only when
@@ -335,7 +365,30 @@ export async function createInteraction(
     };
   }
 
+  // Staff attendance on a new program or delivery is never assumed (D4).
+  if (ATTENDANCE_ASKED_TYPES.includes(parsed.data.interaction_type) && (!parsed.data.lead_attended || (parsed.data.lead_attended === "yes" && people.doneBy.length === 0))) {
+    return {
+      error: "Please fix the highlighted fields.",
+      fieldErrors: { lead_attended: ATTENDANCE_MESSAGE },
+      values: raw,
+      checkedVolunteerIds: volunteerIds,
+      people,
+      residentIds: chosenResidents,
+    };
+  }
+
   const supabase = await createClient();
+  const residentsOnEntry = chosenResidents.length > 0 ? chosenResidents : parsed.data.resident_id ? [parsed.data.resident_id] : [];
+  if (await needsFacilityForResidents(supabase, parsed.data, residentsOnEntry)) {
+    return {
+      error: "Please fix the highlighted fields.",
+      fieldErrors: { facility_id: NO_FACILITY_MESSAGE },
+      values: raw,
+      checkedVolunteerIds: volunteerIds,
+      people,
+      residentIds: chosenResidents,
+    };
+  }
   const persons = peopleForRecords(parsed.data.interaction_type, people, parsed.data.contact_id);
   if (parsed.data.interaction_type === "family_communication" && (await notAllFamily(supabase, persons))) {
     return {
@@ -369,6 +422,10 @@ export async function createInteraction(
   const clientSubmissionId = submission.success ? submission.data : null;
   // Who did it (first chosen) can differ from who is typing it in --
   // that is recorded automatically as entered_by.
+  // "No staff were there": whoever typed it in is its lead, never credited.
+  if (ATTENDANCE_ASKED_TYPES.includes(parsed.data.interaction_type) && parsed.data.lead_attended === "no") people.doneBy = [user.id];
+  // A volunteer visit says whether whoever arranged it went too; no answer = didn't.
+  if (parsed.data.interaction_type === "volunteer_visit" && !parsed.data.lead_attended) parsed.data.lead_attended = "no";
   const lead = people.doneBy[0] ?? user.id;
   parsed.data.part_of_id = await projectRoot(supabase, parsed.data.part_of_id);
 
@@ -377,7 +434,8 @@ export async function createInteraction(
   // all are saved or none; the submission ID on the first is enough to
   // recognize a repeat. A group head count isn't copied to each.
   const row = toInteractionRow(parsed.data, people, true);
-  const residentIds = parsed.data.interaction_type === "resident_visit" ? chosenResidents : [];
+  // Several residents on one volunteer visit too (Q2, Nov 3, 2026).
+  const residentIds = parsed.data.interaction_type === "resident_visit" || parsed.data.interaction_type === "volunteer_visit" ? chosenResidents : [];
   // One record per person (Oct 27, 2026), the same way: a staff
   // conversation, family conversation, volunteer meeting or "other" with
   // several people is a record for each, same day, place, notes and team.
@@ -519,6 +577,19 @@ export async function updateInteraction(
         people,
       };
     }
+  }
+
+  if (await needsFacilityForResidents(supabase, parsed.data, parsed.data.resident_id ? [parsed.data.resident_id] : [])) {
+    return {
+      error: "Please fix the highlighted fields.",
+      fieldErrors: { facility_id: NO_FACILITY_MESSAGE },
+      values: raw,
+      checkedVolunteerIds: volunteerIds,
+      people,
+    };
+  }
+  if (ATTENDANCE_ASKED_TYPES.includes(parsed.data.interaction_type) && parsed.data.lead_attended === "yes" && people.doneBy.length === 0) {
+    return { error: "Please fix the highlighted fields.", fieldErrors: { lead_attended: ATTENDANCE_MESSAGE }, values: raw, checkedVolunteerIds: volunteerIds, people };
   }
 
   const editPeople = ENGAGEMENT_TYPES.includes(parsed.data.interaction_type)

@@ -72,6 +72,8 @@ export type ResidentWithSummary = Resident & {
   current_facility_cluster_id: string | null;
   current_facility_type: string | null;
   last_visit_at: string | null;
+  /** Newest visit, volunteer visit or phone call (Nov 3, 2026). */
+  last_contact_at?: string | null;
   next_follow_up_date: string | null;
   primary_contact_resident_contact_id: string | null;
 };

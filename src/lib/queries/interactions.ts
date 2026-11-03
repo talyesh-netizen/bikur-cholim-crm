@@ -30,6 +30,9 @@ function toInteractionWithNames(row: ServiceDetails & {
   profiles: { full_name: string } | null;
   interaction_volunteers: { contacts: { id: string; name: string } | null }[] | null;
   counted_in_id?: string | null;
+  lead_attended?: boolean | null;
+  entered_by?: string | null;
+  entered?: { full_name: string } | null;
 }): InteractionWithNames {
   const resident = row.residents;
   return {
@@ -61,6 +64,9 @@ function toInteractionWithNames(row: ServiceDetails & {
     void_reason: row.void_reason ?? null,
     voided_by: row.voided_by ?? null,
     counted_in_id: row.counted_in_id ?? null,
+    lead_attended: row.lead_attended ?? null,
+    entered_by: row.entered_by ?? null,
+    entered_by_name: row.entered?.full_name ?? null,
     resident_name: resident
       ? residentName(resident)
       : null,
@@ -85,7 +91,73 @@ function toInteractionWithNames(row: ServiceDetails & {
 // having been on a volunteer_visit -- see the type comment on
 // InteractionWithNames for why this must stay distinct from contact_id.
 const SELECT_WITH_NAMES =
-  "id, occurred_at, interaction_type, method, in_person, voided_at, void_reason, voided_by, facility_id, resident_id, contact_id, staff_member_id, notes, created_at, occasion, holiday, family_need, program_partner, quantity, people_reached, participants, student_count, volunteer_count, minutes_spent, unmet_need, unmet_need_reason, funder_story, counted_in_id, residents(first_name, last_name, preferred_name), facilities(name, geographic_cluster_id), contacts!interactions_contact_id_fkey(name, resident_contacts(resident_id, relationship_to_resident)), profiles!interactions_staff_member_id_fkey(full_name), interaction_volunteers(contacts(id, name))";
+  "id, occurred_at, interaction_type, method, in_person, voided_at, void_reason, voided_by, facility_id, resident_id, contact_id, staff_member_id, notes, created_at, occasion, holiday, family_need, program_partner, quantity, people_reached, participants, student_count, volunteer_count, minutes_spent, unmet_need, unmet_need_reason, funder_story, counted_in_id, lead_attended, entered_by, entered:profiles!interactions_entered_by_fkey(full_name), residents(first_name, last_name, preferred_name), facilities(name, geographic_cluster_id), contacts!interactions_contact_id_fkey(name, resident_contacts(resident_id, relationship_to_resident)), profiles!interactions_staff_member_id_fkey(full_name), interaction_volunteers(contacts(id, name))";
+
+/** Entries by id, with names, newest first (the records behind an Impact
+ * number). Asked for in batches so a long list stays within URL limits. */
+export async function listInteractionsByIds(ids: string[]) {
+  const supabase = await createClient();
+  const unique = [...new Set(ids)];
+  const out: InteractionWithNames[] = [];
+  for (let i = 0; i < unique.length; i += 150) {
+    const { data, error } = await supabase.from("interactions").select(SELECT_WITH_NAMES).in("id", unique.slice(i, i + 150));
+    if (error) throw new Error(error.message);
+    out.push(...(data ?? []).map((row) => toInteractionWithNames(row as unknown as Parameters<typeof toInteractionWithNames>[0])));
+  }
+  return out.sort((a, b) => b.occurred_at.localeCompare(a.occurred_at));
+}
+
+/** Kinds whose notes are "notes from recent visits" on a resident's page
+ * and in on-site mode (Q-N1, D3: visits, volunteer visits, phone calls). */
+export const VISIT_NOTE_TYPES = ["resident_visit", "volunteer_visit", "resident_phone_call"];
+
+export type VisitNote = { id: string; resident_id: string; occurred_at: string; interaction_type: string; notes: string; by: string | null; entered_by: string | null };
+
+/** The newest visit and call notes for some residents (Q-N1, Nov 3,
+ * 2026): read straight from the saved entries, never copied. Voided
+ * entries are left out. */
+export async function listRecentVisitNotes(residentIds: string[], perResident = 3): Promise<Map<string, VisitNote[]>> {
+  const byResident = new Map<string, VisitNote[]>();
+  if (residentIds.length === 0) return byResident;
+  const supabase = await createClient();
+  for (let i = 0; i < residentIds.length; i += 150) {
+    const { data, error } = await supabase
+      .from("interactions")
+      .select("id, resident_id, occurred_at, interaction_type, notes, profiles!interactions_staff_member_id_fkey(full_name), entered:profiles!interactions_entered_by_fkey(full_name)")
+      .in("resident_id", residentIds.slice(i, i + 150))
+      .in("interaction_type", VISIT_NOTE_TYPES)
+      .is("voided_at", null)
+      .not("notes", "is", null)
+      .order("occurred_at", { ascending: false })
+      .limit(1000);
+    if (error) throw new Error(error.message);
+    for (const row of (data ?? []) as unknown as {
+      id: string;
+      resident_id: string;
+      occurred_at: string;
+      interaction_type: string;
+      notes: string | null;
+      profiles: { full_name: string } | null;
+      entered: { full_name: string } | null;
+    }[]) {
+      const text = row.notes?.trim();
+      if (!text) continue;
+      const list = byResident.get(row.resident_id) ?? [];
+      if (list.length >= perResident) continue;
+      list.push({
+        id: row.id,
+        resident_id: row.resident_id,
+        occurred_at: row.occurred_at,
+        interaction_type: row.interaction_type,
+        notes: text,
+        by: row.profiles?.full_name ?? null,
+        entered_by: row.entered?.full_name ?? null,
+      });
+      byResident.set(row.resident_id, list);
+    }
+  }
+  return byResident;
+}
 
 export async function listInteractionsForResident(residentId: string) {
   const supabase = await createClient();

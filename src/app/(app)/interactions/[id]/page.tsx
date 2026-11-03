@@ -22,6 +22,7 @@ import { ClusterBadge } from "@/components/cluster-badge";
 import { Pencil, ListPlus } from "lucide-react";
 import { getActivityExtras } from "@/lib/queries/activity";
 import { STAFF_SUPPORT_TYPES } from "@/lib/queries/report-rules";
+import { attendanceLabel } from "@/lib/queries/impact-metrics";
 import { getProfileName } from "@/lib/queries/profiles";
 import { VoidPanel } from "./void-panel";
 
@@ -279,15 +280,29 @@ export default async function InteractionDetailPage({
               <Badge variant="secondary">Good story for funders</Badge>
             </p>
           ) : null}
-          {doneBy.length > 0 ? (
+          {interaction.interaction_type === "volunteer_visit" && doneBy.length > 0 ? (
+            // Who arranged it vs. who went (Q4, Nov 3, 2026).
+            <p>
+              <span className="text-muted-foreground">Arranged by: </span>
+              <span className="font-medium">{doneBy[0].name}</span>
+              <span className="text-muted-foreground"> · Staff who went: </span>
+              <span className="font-medium">
+                {[...(interaction.lead_attended === true ? [doneBy[0]] : []), ...doneBy.slice(1)].map((d) => d.name).join(", ") || "none recorded"}
+              </span>
+            </p>
+          ) : doneBy.length > 0 ? (
             <p>
               <span className="text-muted-foreground">
                 {doneBy.length > 1 ? "Done by" : staffLabel(interaction.interaction_type)}:{" "}
               </span>
               <span className="font-medium">{doneBy.map((d) => d.name).join(", ")}</span>
-              {extras.enteredBy && extras.enteredBy.id !== interaction.staff_member_id ? (
-                <span className="text-muted-foreground"> · entered by {extras.enteredBy.name}</span>
-              ) : null}
+              {attendanceLabel(interaction) ? <span className="text-muted-foreground"> · {attendanceLabel(interaction)}</span> : null}
+            </p>
+          ) : null}
+          {extras.enteredBy ? (
+            <p className="text-muted-foreground">
+              Recorded by {extras.enteredBy.name}
+              {extras.enteredBy.id === interaction.staff_member_id ? "" : " (not necessarily there)"}
             </p>
           ) : null}
           {/* The visit's own day is shown above; when it was typed in

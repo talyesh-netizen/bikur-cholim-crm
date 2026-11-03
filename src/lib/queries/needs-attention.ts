@@ -12,6 +12,8 @@ export type AttentionResident = {
   current_facility_id: string | null;
   current_facility_name: string | null;
   last_visit_at: string | null;
+  /** Newest visit, volunteer visit or phone call (Q3, Nov 3, 2026). */
+  last_contact_at: string | null;
 };
 
 /** Residents someone should look into, in three groups. Reads through
@@ -22,14 +24,18 @@ export async function getNeedsAttention() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("resident_summary")
-    .select("id, first_name, last_name, preferred_name, status, current_facility_id, current_facility_name, last_visit_at")
+    .select("id, first_name, last_name, preferred_name, status, current_facility_id, current_facility_name, last_visit_at, last_contact_at")
     .order("last_name", { ascending: true });
   if (error) throw new Error(error.message);
 
   const residents = ((data ?? []) as AttentionResident[]).filter((r) => isActiveResidentStatus(r.status));
   const cutoff = Date.now() - NO_VISIT_DAYS * 24 * 60 * 60 * 1000;
 
-  const locationUnknown = residents.filter((r) => r.status === "location_unknown" || !r.current_facility_id);
+  // "Location unknown" is the status only; someone with no facility on
+  // file (perhaps living at home) is listed apart, never assumed unknown
+  // or at home (Q1, D1, Nov 3, 2026).
+  const locationUnknown = residents.filter((r) => r.status === "location_unknown");
+  const noFacility = residents.filter((r) => r.status !== "location_unknown" && !r.current_facility_id);
   const missingName = residents.filter((r) => !r.first_name?.trim() || !r.last_name?.trim());
   const noRecentVisit = residents
     .filter(
@@ -40,5 +46,5 @@ export async function getNeedsAttention() {
     // Never-visited first, then longest since the last visit.
     .sort((a, b) => (a.last_visit_at ?? "").localeCompare(b.last_visit_at ?? ""));
 
-  return { locationUnknown, missingName, noRecentVisit };
+  return { locationUnknown, noFacility, missingName, noRecentVisit };
 }

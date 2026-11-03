@@ -7,7 +7,8 @@ import { searchWords, everyWordInAny } from "@/lib/supabase-filters";
 import { residentName } from "@/lib/domain/resident-name";
 import { capitalizeWords } from "@/lib/format-text";
 import { CONTACT_TYPES, OFFERED_RELATIONSHIPS, labelFor } from "@/lib/domain/contact";
-import { formatTimeOfDay } from "@/lib/format-date";
+import { formatTimeOfDay, getLocalToday } from "@/lib/format-date";
+import { createHash } from "crypto";
 
 /**
  * On-site mode's one visit workflow (director, Oct 9, 2026): find
@@ -37,6 +38,9 @@ const entrySchema = z.object({
   /** When it happened, if not now: a note started on an earlier day keeps
    * that day (ISO). Must be in the past and within the last two months. */
   occurredAt: z.string().datetime({ offset: true }).optional(),
+  /** A colleague who took part ("With Sara" ticked on this card; Q-N2,
+   * Nov 3, 2026): on this entry's team. Never added unless ticked. */
+  teamIds: z.array(id).max(5).optional(),
 });
 
 export type OnsiteEntryResult =
@@ -105,6 +109,25 @@ export async function saveOnsiteEntry(input: z.input<typeof entrySchema>): Promi
           ? "NOT saved: you don't have access to this facility or person."
           : "NOT saved -- something went wrong. Your note is kept here; tap Save to try again.",
     };
+  }
+
+  const team = (parsed.data.teamIds ?? []).filter((t) => t !== user.id);
+  if (team.length > 0) {
+    const { error: teamError } = await supabase.rpc("set_interaction_people", {
+      p_interaction_id: created.id,
+      p_engaged_contact_ids: [],
+      p_present_contact_ids: [],
+      p_team_profile_ids: team,
+    });
+    if (teamError) {
+      // Saved already; say so plainly rather than risk a second copy.
+      revalidateOnsite(facilityId, residentId);
+      return {
+        ok: true,
+        interactionId: created.id,
+        time: `${formatTimeOfDay(created.occurred_at) ?? ""} (your colleague couldn't be added -- tap Fix to add them)`,
+      };
+    }
   }
 
   revalidateOnsite(facilityId, residentId);
@@ -332,4 +355,58 @@ export async function addOnsiteFamily(input: z.input<typeof familyInput>): Promi
   revalidatePath("/contacts");
   revalidateOnsite(facilityId, residentId);
   return { ok: true, id: contactId as string, name: contactName };
+}
+
+/** A UUID made from a few words, always the same for the same words, so
+ * the database's existing duplicate guard (one save per submission id)
+ * refuses a second copy -- a retry, a second tap, a second phone. */
+function stableId(words: string): string {
+  const h = createHash("sha1").update(words).digest("hex");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-5${h.slice(13, 16)}-${((parseInt(h.slice(16, 18), 16) & 0x3f) | 0x80).toString(16)}${h.slice(18, 20)}-${h.slice(20, 32)}`;
+}
+
+export type CompanionResult = { ok: true; already: boolean } | { ok: false; error: string };
+
+/**
+ * "Visiting with [colleague]" on site (Q-N2, D8, Nov 3, 2026): records
+ * that colleague's own presence at this facility today as one Facility
+ * visit (recorded by whoever picked them), and nothing else -- they are
+ * added to a resident or conversation entry only when ticked on it. Only
+ * ever one per person, facility and day.
+ */
+export async function recordCompanionPresence(input: { facilityId: string; profileId: string }): Promise<CompanionResult> {
+  const parsed = z.object({ facilityId: id, profileId: id }).safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Something is missing. Please pick them again." };
+  const { facilityId, profileId } = parsed.data;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Your sign-in expired. Please sign in again." };
+  if (profileId === user.id) return { ok: false, error: "That's you -- pick the colleague who's with you." };
+  const { data: colleague } = await supabase.from("profiles").select("id, full_name, active").eq("id", profileId).maybeSingle();
+  if (!colleague || colleague.active === false) return { ok: false, error: "That staff member couldn't be found." };
+
+  const day = getLocalToday();
+  const submissionId = stableId(`onsite-companion|${facilityId}|${day}|${profileId}`);
+  const { error } = await supabase.from("interactions").insert({
+    interaction_type: "facility_visit",
+    facility_id: facilityId,
+    staff_member_id: profileId,
+    occurred_at: new Date().toISOString(),
+    notes: null,
+    client_submission_id: submissionId,
+    in_person: true,
+    method: "in_person",
+    lead_attended: true,
+  });
+  if (error?.code === "23505") return { ok: true, already: true };
+  if (error) {
+    return {
+      ok: false,
+      error: error.code === "42501" ? "Not recorded: you don't have access to this facility." : "Not recorded -- something went wrong. Please try again.",
+    };
+  }
+  revalidateOnsite(facilityId);
+  return { ok: true, already: false };
 }

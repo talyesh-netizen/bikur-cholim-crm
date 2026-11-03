@@ -132,6 +132,7 @@ export default async function EditInteractionPage({
               partner_organization_id: extras.partner?.id ?? "",
               in_person: interaction.in_person ? "on" : "",
               method: interaction.method ?? "",
+              lead_attended: interaction.lead_attended === true ? "yes" : interaction.lead_attended === false ? "no" : "",
               occasion: interaction.occasion ?? "",
               holiday: interaction.holiday ?? "",
               family_need: interaction.family_need ?? "",

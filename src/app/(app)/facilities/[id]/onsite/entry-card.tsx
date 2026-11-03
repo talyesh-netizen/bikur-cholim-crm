@@ -9,6 +9,7 @@ import { VoiceButton } from "@/components/voice-button";
 import { saveOnsiteEntry, type OnsiteEntryKind } from "@/lib/actions/onsite-entries";
 import { getLocalToday, orgLocalToIso, toOrgDatetimeLocalValue, formatDateOnly } from "@/lib/format-date";
 import { draftKey, newSubmissionId, readDraft, removeDraft, writeDraft } from "./onsite-drafts";
+import { useCompanion, WithCompanionToggle } from "./companion";
 
 const SAVE_LABEL: Record<OnsiteEntryKind, string> = { visit: "Save visit", staff: "Save conversation", family: "Save conversation" };
 const SAVED_LABEL: Record<OnsiteEntryKind, string> = { visit: "Visit saved", staff: "Staff conversation saved", family: "Family support saved" };
@@ -55,6 +56,9 @@ export function EntryCard({
   // day (director, Oct 11, 2026): shown, changeable, and saved with it.
   const startedRef = useRef<number | null>(null);
   const [earlierAt, setEarlierAt] = useState<string | null>(null);
+  // "With Sara" (Q-N2): only when ticked on this card.
+  const companion = useCompanion();
+  const [withCompanion, setWithCompanion] = useState(false);
 
   // Pick up a note left unsaved earlier (closed tab, lost signal...).
   useEffect(() => {
@@ -111,6 +115,7 @@ export function EntryCard({
           notes: notes.trim() || undefined,
           submissionId: submissionId.current,
           occurredAt: earlierAt ? orgLocalToIso(earlierAt) ?? undefined : undefined,
+          teamIds: companion && withCompanion ? [companion.id] : undefined,
         });
         if (!result.ok) {
           setError(result.error);
@@ -174,6 +179,7 @@ export function EntryCard({
         className="w-full rounded-md border border-input bg-background px-3 py-2 text-base sm:text-sm"
       />
       <VoiceButton compact label="Talk instead of typing" onText={(text) => update(notes.trim() ? `${notes.trim()} ${text}` : text)} />
+      <WithCompanionToggle on={withCompanion} onChange={setWithCompanion} />
 
       {confirmSecond ? (
         <div className="rounded-md border border-[var(--tone-attention-fg)]/30 bg-[var(--tone-attention-bg)] p-3 text-sm">

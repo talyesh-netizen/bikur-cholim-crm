@@ -12,6 +12,7 @@ import { TodayList, type LoggedToday } from "./today-list";
 import type { OnsiteTab } from "@/lib/onsite-links";
 import { cn } from "@/lib/utils";
 import { endVisitSession } from "@/lib/visit-session";
+import { CompanionProvider, VisitingWith, clearCompanion, type Companion } from "./companion";
 
 /**
  * The on-site page's working area (decided Oct 9, 2026): three tabs --
@@ -30,6 +31,7 @@ export function OnsiteWorkspace({
   staff,
   initialTab = "residents",
   openResidentId,
+  colleagues = [],
 }: {
   facilityId: string;
   facilityName: string;
@@ -41,6 +43,8 @@ export function OnsiteWorkspace({
   initialTab?: OnsiteTab;
   /** A resident to show opened on the Residents tab. */
   openResidentId?: string;
+  /** Other active staff, for "Visiting with" (Q-N2). */
+  colleagues?: Companion[];
 }) {
   const [tab, setTab] = useState<OnsiteTab>(initialTab);
   // "I saw them" on the Finish check: open that resident's visit.
@@ -86,7 +90,10 @@ export function OnsiteWorkspace({
   const toCheck = (unsavedNote ? 1 : 0) + (followUpsDue > 0 ? 1 : 0);
 
   return (
+    <CompanionProvider facilityId={facilityId}>
+      {(companionApi) => (
     <>
+      <VisitingWith facilityId={facilityId} colleagues={colleagues} api={companionApi} />
       <Button variant="outline" className="h-12 w-full justify-start gap-2 text-base" asChild>
         <Link href={`/interactions/new?facility=${facilityId}&type=food_delivery&from=onsite`}>
           <Cookie className="size-5" /> Food today
@@ -218,11 +225,13 @@ export function OnsiteWorkspace({
 
             {/* Done ends this visit: Today stops offering to resume it. */}
             <Button size="lg" variant="outline" className="h-12 w-full text-base" asChild>
-              <Link href="/dashboard" onClick={() => endVisitSession()}>Done — end this visit</Link>
+              <Link href="/dashboard" onClick={() => { endVisitSession(); clearCompanion(facilityId); }}>Done — end this visit</Link>
             </Button>
           </CardContent>
         </Card>
       ) : null}
     </>
+      )}
+    </CompanionProvider>
   );
 }

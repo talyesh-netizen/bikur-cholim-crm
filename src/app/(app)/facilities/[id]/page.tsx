@@ -33,10 +33,11 @@ import { StoryList } from "@/components/story-list";
 import { listStories } from "@/lib/queries/stories";
 import { listFacilityProfileNotes } from "@/lib/queries/profile-notes";
 import { ClipboardCheck, Pencil, Plus, UserX, Undo2, Star, User, Mail, Phone, Download } from "lucide-react";
-import { getImpactBreakdown, getServicesDelivered } from "@/lib/queries/impact";
+import { getImpactBreakdown } from "@/lib/queries/impact";
+import { getImpactMetrics } from "@/lib/queries/impact-metrics";
 import { parsePeriod, periodChoices } from "@/lib/report-period";
 import { DonutChart } from "@/components/donut-chart";
-import { ServicesDeliveredTiles } from "@/components/services-delivered";
+import { FacilityNumbers } from "@/components/impact/facility-numbers";
 import { residentName } from "@/lib/domain/resident-name";
 import { listFacilityMedia } from "@/lib/queries/facility-media";
 import { FacilityMediaCard } from "./facility-media-card";
@@ -62,7 +63,7 @@ export default async function FacilityDetailPage({
     listFacilityContacts(id),
     listFacilityProfileNotes(id),
     getImpactBreakdown(impactPeriod, id),
-    getServicesDelivered(impactPeriod, id),
+    getImpactMetrics(impactPeriod, id),
     listFacilityMedia(id),
     getFacilityAlsoOffers(id),
     listStories({ facilityId: id }),
@@ -403,7 +404,7 @@ export default async function FacilityDetailPage({
           ) : (
             <div className="flex flex-col gap-6">
               <DonutChart segments={impact.buckets} title={`Interactions by type — ${periodLabel}`} />
-              <ServicesDeliveredTiles services={services} periodLabel={periodLabel} hideEmpty />
+              <FacilityNumbers values={services.values} period={impactPeriod} facilityId={facility.id} />
             </div>
           )}
         </CardContent>

@@ -166,6 +166,11 @@ export type InteractionWithNames = Interaction & {
   volunteers: { id: string; name: string }[];
   /** Set when an admin reviewed this as a copy of another entry. */
   counted_in_id?: string | null;
+  /** Whether the lead was physically there (Nov 3, 2026); null = not recorded. */
+  lead_attended?: boolean | null;
+  /** Who typed it in (recorded automatically), and their name. */
+  entered_by?: string | null;
+  entered_by_name?: string | null;
 };
 
 /** Types where the facility can be left blank -- e.g. a family calling
@@ -181,7 +186,19 @@ export const FACILITY_OPTIONAL_TYPES: readonly string[] = [
   "school_engagement",
   // Someone outside the facilities we serve (Oct 19, 2026).
   "other",
+  // A phone call isn't at a facility (Q1, Nov 3, 2026).
+  "resident_phone_call",
 ];
+
+/** In person with a resident who has no facility recorded (Q1, D1, Nov 3,
+ * 2026): no facility needed when every resident picked has none on file.
+ * Saved as "in person elsewhere", so it never counts as a facility visit. */
+export const NO_FACILITY_RESIDENT_TYPES: readonly string[] = ["resident_visit", "volunteer_visit", "food_delivery"];
+
+/** Programs and food deliveries ask which staff were physically there
+ * (D4, Nov 3, 2026). Nothing is assumed: the person typing it in isn't
+ * taken to have been there, and an older entry stays "not recorded". */
+export const ATTENDANCE_ASKED_TYPES: readonly string[] = ["program", "school_engagement", "food_delivery"];
 
 /** Entries that ask "Staff you worked with or spoke to" (each counts
  * once toward staff engagements) instead of a single Contact. */
@@ -388,7 +405,7 @@ export function serviceNumbersLine(
       : [
           i.student_count ? plural(i.student_count, "student", "students") : null,
           i.volunteer_count ? plural(i.volunteer_count, "volunteer", "volunteers") : null,
-          i.participants ? `${plural(i.participants, "person", "people")} took part (not split)` : null,
+          notSplitPart(i) ? `${plural(notSplitPart(i), "person", "people")} took part (not split)` : null,
           i.people_reached ? `${plural(i.people_reached, "resident", "residents")} reached` : null,
         ];
   return parts.filter(Boolean).join(" · ") || null;
@@ -397,5 +414,11 @@ export function serviceNumbersLine(
 /** A group's head count on its first activity: students and volunteers,
  * plus an older entry's single number (not split). */
 export function headCount(i: Pick<ServiceDetails, "participants" | "student_count" | "volunteer_count">): number {
-  return (i.participants ?? 0) + (i.student_count ?? 0) + (i.volunteer_count ?? 0);
+  return (i.student_count ?? 0) + (i.volunteer_count ?? 0) + notSplitPart(i);
+}
+
+/** The part of an older program's single number not yet split into
+ * students and volunteers (Q6, Nov 3, 2026) -- never counted twice. */
+export function notSplitPart(i: Pick<ServiceDetails, "participants" | "student_count" | "volunteer_count">): number {
+  return Math.max((i.participants ?? 0) - (i.student_count ?? 0) - (i.volunteer_count ?? 0), 0);
 }

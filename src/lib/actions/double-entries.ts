@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/get-current-profile";
-import { headlineAsFirstRecorded, quarterOf } from "@/lib/queries/impact-overview";
+import { quarterOf, snapshotAsFirstRecorded } from "@/lib/queries/impact-metrics";
 
 export type ReviewResult = { ok: boolean; error?: string };
 
@@ -20,29 +20,8 @@ export async function saveQuarterAsFirstRecorded(occurredAt: string): Promise<bo
     .select("metric", { count: "exact", head: true })
     .eq("period_key", quarter.key);
   if (count) return true;
-  const h = await headlineAsFirstRecorded(quarter.from, quarter.to);
-  const values: Record<string, number> = {
-    one_on_one_visits_and_calls: h.residentContacts,
-    residents_served: h.residents,
-    family_conversations: h.familyConversations,
-    families: h.families,
-    staff_engagements: h.staffTouchpoints,
-    staff_people: h.staffPeople,
-    programs: h.programs,
-    deliveries: h.deliveries,
-    reached: h.reached,
-    facility_visit_days: h.visitDays,
-    volunteer_only_days: h.volunteerOnlyDays,
-    facility_presence_days: h.presenceDays,
-    facilities_visited: h.facilitiesVisited,
-    facilities_engaged: h.facilitiesEngaged,
-    group_volunteers: h.groupVolunteers,
-    // Oct 27, 2026.
-    staff_visits: h.staffVisits,
-    partner_conversations: h.partnerConversations,
-    group_students: h.groupStudents,
-    group_not_split: h.groupNotSplit,
-  };
+  // The same metric names as earlier quarters (see snapshotAsFirstRecorded).
+  const values = await snapshotAsFirstRecorded(quarter.from, quarter.to);
   const { error } = await supabase
     .from("report_snapshots")
     .upsert(

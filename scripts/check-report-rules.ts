@@ -5,7 +5,12 @@
  * Run with: npx tsx scripts/check-report-rules.ts
  */
 import {
+  coordinatedOnly,
+  facilityCoverage,
   facilityPresence,
+  isSchoolProgram,
+  staffAttendance,
+  volunteerFacilityDayKeys,
   groupCountsFor,
   partnerConversationsFor,
   staffInteractionFor,
@@ -15,7 +20,15 @@ import {
   type EngagedLinks,
   type TeamLinks,
 } from "../src/lib/queries/report-rules";
-import { headCount, serviceNumbersLine, MORE_TYPES, FACILITY_OPTIONAL_TYPES, ONE_PER_PERSON_TYPES } from "../src/lib/domain/interaction";
+import {
+  headCount,
+  serviceNumbersLine,
+  MORE_TYPES,
+  FACILITY_OPTIONAL_TYPES,
+  ONE_PER_PERSON_TYPES,
+  NO_FACILITY_RESIDENT_TYPES,
+  ATTENDANCE_ASKED_TYPES,
+} from "../src/lib/domain/interaction";
 import { logHref } from "../src/components/log-button";
 
 const STAFF_A = "staff-a";
@@ -117,7 +130,83 @@ const oldProgram = row({ interaction_type: "school_engagement", participants: 20
 check("older program's single number is 'not split'", JSON.stringify(groupCountsFor(oldProgram)) === JSON.stringify({ students: 0, volunteers: 0, notSplit: 20 }));
 const partOf = row({ interaction_type: "program", student_count: 5, part_of_id: newProgram.id });
 check("an activity 'Part of' a project adds no head count", groupCountsFor(partOf).students === 0);
-check("head count adds the three together", headCount({ participants: 2, student_count: 3, volunteer_count: 4 }) === 9);
+check("head count: students + volunteers + only the unsplit part of an older number", headCount({ participants: 10, student_count: 3, volunteer_count: 4 }) === 10 && headCount({ participants: 2, student_count: 3, volunteer_count: 4 }) === 7);
+check(
+  "card for a split older program never shows the old number again",
+  serviceNumbersLine({ interaction_type: "program", people_reached: null, participants: 90, student_count: 90 }) === "90 students"
+);
+
+
+// --- Final cleanup batch (Nov 3, 2026) ----------------------------------------
+// Q6: an older single number counts only for the part not yet split.
+check(
+  "older program edited to 90 students (old number 90): 90 students, 0 not split -- never 180",
+  JSON.stringify(groupCountsFor(row({ interaction_type: "program", participants: 90, student_count: 90 }))) ===
+    JSON.stringify({ students: 90, volunteers: 0, notSplit: 0 })
+);
+check(
+  "older 30, then 20 students entered: 20 students + 10 not split (nothing lost)",
+  JSON.stringify(groupCountsFor(row({ interaction_type: "program", participants: 30, student_count: 20 }))) ===
+    JSON.stringify({ students: 20, volunteers: 0, notSplit: 10 })
+);
+
+// D4 / C2: staff attendance on programs and food.
+const noTeam: TeamLinks = new Map();
+const oldProgramAtFacility = row({ interaction_type: "program", staff_member_id: STAFF_A, method: null });
+check("older program, attendance not recorded: no confirmed staff, 1 not recorded", JSON.stringify(staffAttendance(oldProgramAtFacility, noTeam)) === JSON.stringify({ confirmed: [], unverified: [STAFF_A] }));
+const confirmedFood = row({ interaction_type: "food_delivery", staff_member_id: STAFF_A, method: "in_person", lead_attended: true });
+check("delivery with staff recorded there: confirmed", staffAttendance(confirmedFood, noTeam).confirmed.length === 1);
+const noStaffProgram = row({ interaction_type: "program", staff_member_id: STAFF_A, method: "in_person", lead_attended: false, facility_id: "facility-9" });
+check("program with no staff there: nobody credited", JSON.stringify(staffAttendance(noStaffProgram, noTeam)) === JSON.stringify({ confirmed: [], unverified: [] }));
+check("... and whoever entered it is 'coordinated only'", coordinatedOnly(noStaffProgram, noTeam));
+
+const cov = facilityCoverage(
+  [
+    row({ interaction_type: "program", facility_id: "f-old", method: null }),
+    row({ interaction_type: "resident_visit", facility_id: "f-visit", method: "in_person" }),
+    row({ interaction_type: "volunteer_visit", facility_id: "f-vol", method: "in_person" }),
+    noStaffProgram,
+    row({ interaction_type: "resident_phone_call", facility_id: "f-call", method: "phone" }),
+  ],
+  noTeam
+);
+check("coverage: 4 activity-days (a call is never one)", cov.activityDays === 4, cov.activityDays);
+check("coverage: 1 staff confirmed, 1 not recorded, 2 no staff", cov.staffConfirmedDays === 1 && cov.notRecordedDays === 1 && cov.noStaffDays === 2, cov);
+check("coverage: the layers add up to activity-days", cov.staffConfirmedDays + cov.notRecordedDays + cov.noStaffDays === cov.activityDays);
+check("coverage: facilities engaged includes the call", cov.facilitiesEngaged === 5, cov.facilitiesEngaged);
+check("coverage: 1 staff visit confirmed, 1 not recorded", cov.staffVisitsConfirmed === 1 && cov.staffVisitsNotRecorded === 1);
+
+const sameDay = facilityCoverage(
+  [row({ interaction_type: "resident_visit", method: "in_person" }), row({ interaction_type: "food_delivery", method: null })],
+  noTeam
+);
+check("visit + older delivery by the same person, same day: 1 confirmed staff visit, 0 not recorded", sameDay.staffVisitsConfirmed === 1 && sameDay.staffVisitsNotRecorded === 0 && sameDay.staffConfirmedDays === 1);
+
+// Q4: volunteer visit -- the arranger isn't credited; staff who went are.
+const volWithStaff = row({ interaction_type: "volunteer_visit", staff_member_id: STAFF_A, method: "in_person", lead_attended: false });
+const volTeam: TeamLinks = new Map([[volWithStaff.id, [STAFF_B]]]);
+check("volunteer visit: staff who went credited, arranger not", JSON.stringify(staffAttendance(volWithStaff, volTeam).confirmed) === JSON.stringify([STAFF_B]));
+check("... arranger is 'coordinated only'", coordinatedOnly(volWithStaff, volTeam));
+check("... and the day is a staff-confirmed day", facilityCoverage([volWithStaff], volTeam).staffConfirmedDays === 1);
+const volArrangerWent = row({ interaction_type: "volunteer_visit", staff_member_id: STAFF_A, method: "in_person", lead_attended: true });
+check("volunteer visit where the arranger went too: arranger credited", staffAttendance(volArrangerWent, noTeam).confirmed.includes(STAFF_A) && !coordinatedOnly(volArrangerWent, noTeam));
+
+// Q2 / D2: one volunteer, three residents, one facility, one day = 1 volunteer facility-day.
+const v1 = row({ interaction_type: "volunteer_visit", method: "in_person" });
+const v2 = row({ interaction_type: "volunteer_visit", method: "in_person" });
+const v3 = row({ interaction_type: "volunteer_visit", method: "in_person" });
+const vLinks = new Map([[v1.id, ["vol-1"]], [v2.id, ["vol-1"]], [v3.id, ["vol-1"]]]);
+check("one volunteer visiting three residents = 1 volunteer facility-day", volunteerFacilityDayKeys([v1, v2, v3], vLinks).size === 1);
+
+// Q7: school programs come from the partner's type.
+check("program with a school partner is a school program", isSchoolProgram(row({ interaction_type: "program", partner_org_type: "school" })));
+check("program with a Jewish organization is not", !isSchoolProgram(row({ interaction_type: "program", partner_org_type: "jewish_organization" })));
+check("older 'School & shul' entry marked shul is not", !isSchoolProgram(row({ interaction_type: "school_engagement", program_partner: "shul" })));
+
+// Q1 / D1 and D4 form options.
+check("a phone call never needs a facility", FACILITY_OPTIONAL_TYPES.includes("resident_phone_call"));
+check("visits, volunteer visits and food can skip it for a resident with no facility", ["resident_visit", "volunteer_visit", "food_delivery"].every((t) => NO_FACILITY_RESIDENT_TYPES.includes(t)));
+check("programs and food ask who was there", ["program", "school_engagement", "food_delivery"].every((t) => ATTENDANCE_ASKED_TYPES.includes(t)));
 
 // --- Entry card wording ----------------------------------------------------
 check(
