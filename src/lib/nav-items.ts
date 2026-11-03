@@ -50,10 +50,10 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/interactions", label: "Interactions", icon: History, section: "log" },
   { href: "/tasks", label: "Tasks", icon: ListChecks, section: "tasks" },
   { href: "/impact", label: "Impact", icon: ChartColumn, section: "dashboard" },
-  { href: "/people", label: "People", icon: Contact, section: "contacts", alsoActive: ["/contacts"] },
-  // Shuls, schools and other community organizations -- their own menu
-  // item so they're one tap away, not tucked under People.
-  { href: "/organizations", label: "Strategic Partners", icon: Landmark, section: "contacts" },
+  // People opens Contacts and Strategic Partners (shuls, schools and other
+  // community organizations). Strategic Partners has no menu item of its
+  // own any more: it was the same page twice (director, Nov 3, 2026).
+  { href: "/people", label: "People", icon: Contact, section: "contacts", alsoActive: ["/contacts", "/organizations"] },
   // A simple free-form log (Oct 27, 2026); on a phone it sits under More.
   { href: "/stories", label: "Stories", icon: BookOpen, section: "log" },
   { href: "/settings", label: "Settings", icon: Settings, section: "neutral", alsoActive: ["/data-quality", "/settings/password"] },

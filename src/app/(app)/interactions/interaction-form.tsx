@@ -188,9 +188,12 @@ export function InteractionForm({
   // Several residents on a new Visit (decision A1) or volunteer visit
   // (Q2, Nov 3, 2026): a record each.
   const multiResident = (interactionType === "resident_visit" || interactionType === "volunteer_visit") && !isEditing;
-  const residentOptions = (residents ?? [])
-    .filter((r) => !facilityId || !r.facility_id || r.facility_id === facilityId || residentIds.includes(r.id))
-    .map((r) => ({ id: r.id, label: r.name, detail: r.detail }));
+  const atThisFacility = (r: ResidentOption) => !facilityId || !r.facility_id || r.facility_id === facilityId || residentIds.includes(r.id);
+  const residentOptions = (residents ?? []).filter(atThisFacility).map((r) => ({ id: r.id, label: r.name, detail: r.detail }));
+  // Residents of another facility can't join this visit (it saves one
+  // facility for everyone on it), but they're named when typed, never
+  // silently missing (Nov 3, 2026 QA).
+  const residentsElsewhere = (residents ?? []).filter((r) => !atThisFacility(r)).map((r) => ({ id: r.id, label: r.name, detail: r.detail }));
   function chooseResidents(ids: string[]) {
     setResidentIds(ids);
     setIsDirty(true);
@@ -431,6 +434,10 @@ export function InteractionForm({
                 value={residentIds}
                 onChange={chooseResidents}
                 placeholder="Type a resident's name…"
+                elsewhere={{
+                  options: residentsElsewhere,
+                  note: "At another facility: log their visit separately (each visit is saved at one facility).",
+                }}
               />
               {residentIds.length > 1 ? (
                 <p className="rounded-md bg-[var(--tone-attention-bg)] px-3 py-2 text-xs font-medium text-[var(--tone-attention-fg)]">
