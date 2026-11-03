@@ -158,7 +158,7 @@ export type ImpactMetrics = {
   rows: MetricRow[];
 };
 
-type Context = {
+export type Context = {
   engaged: EngagedLinks;
   partners: PartnerContacts;
   partnerTypes: Map<string, string>;
@@ -284,6 +284,11 @@ function recordLines(key: string, rows: MetricRow[], ctx: Context): RecordLine[]
 
 const distinct = (lines: RecordLine[]) => new Set(lines.map((l) => l.person).filter(Boolean)).size;
 const total = (lines: RecordLine[]) => lines.reduce((s, l) => s + l.adds, 0);
+
+/** The calculation itself (exported for the offline October check). */
+export function computeImpactMetrics(rows: MetricRow[], ctx: Context): ImpactMetrics {
+  return compute(rows, ctx);
+}
 
 function compute(rows: MetricRow[], ctx: Context): ImpactMetrics {
   const coverage = facilityCoverage(rows, ctx.team);

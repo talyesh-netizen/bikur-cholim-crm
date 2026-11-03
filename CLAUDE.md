@@ -208,3 +208,44 @@ These replace any earlier rule above that says otherwise.
   staff who can see the linked resident and facility; an unlinked story
   is hidden from facility-limited accounts unless they wrote it. Edits
   are kept in the change history; stories can't be deleted from the app.
+
+## Final cleanup batch (director and ChatGPT, Nov 3, 2026)
+
+These replace any earlier rule above that says otherwise. Full detail and
+the reasons are in `QA_OCT27_NOTES.md`; the counting code is
+`src/lib/queries/report-rules.ts` and `impact-metrics.ts`.
+
+- Impact has eight sections, never added together: resident support,
+  facility coverage, programs, school engagement, community volunteers,
+  food, family, professional relationships; plus a "Today" band that
+  doesn't follow the period. Every number opens the records behind it
+  (`/impact/records`), counted the same way. The export and facility
+  pages use the same numbers.
+- Staff attendance is never assumed on programs and food: new ones
+  record "Staff who were there" or "No staff were there"; older ones are
+  "not recorded" (never treated as absent). Volunteer visits record who
+  arranged it (no staff credit) and staff who went (credited). Who typed
+  an entry in is never taken to have been there.
+- Facility coverage, each facility once a day: activity-days = staff
+  confirmed + attendance not recorded + no staff there. Staff visits
+  (per person) confirmed, with "not recorded" shown apart until a person
+  confirms them on Data Quality.
+- Residents: phone calls never need a facility; a visit, volunteer visit
+  or food for a resident with no facility recorded needs none (saved in
+  person elsewhere). "No facility recorded", never assumed at home.
+  Last contact (visits, volunteer visits, calls) shown beside last
+  in-person visit; the "not visited" lists stay in person only.
+- Volunteer visits can name several residents (a record each). Volunteer
+  facility-days: each volunteer once per facility per day.
+- Programs: an older single number counts only for the part not yet
+  split into students and volunteers. Students are never volunteers.
+  School programs come from the partner organization's type.
+- Food: people who received food is never guessed; blanks are "not
+  recorded".
+- Export: staff hours, volunteer hours and unmet need are no longer
+  reported (data kept); funder stories live in Stories.
+- Resident pages and on-site mode show the newest notes from visits and
+  calls (read from the entries, never copied).
+- On site, "Visiting with [colleague]" records one Facility visit for
+  them per facility and day; "With [name]" on a card adds them to that
+  entry only when ticked.

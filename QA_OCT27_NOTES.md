@@ -738,3 +738,75 @@ database change beyond the planned `lead_attended` column.
 
 Status: plan complete. Build waits for the director's explicit
 authorization.
+
+## Final cleanup batch: build and test log (Nov 3, 2026)
+
+Built on branch `claude/keen-galileo-9g9ljw` as approved. Not merged,
+not deployed to production; the live database was not changed.
+
+**Safety**
+- This branch's Vercel preview was found to use the LIVE database by
+  default; before any code was pushed, branch-only preview settings were
+  added pointing it at the TEST database (as for PR #145). Earlier
+  docs-only previews of this branch used the live settings but carried
+  no code change.
+- TEST backed up (full copy of the main tables + fingerprints) before
+  the database change; fingerprints identical after.
+- Database change (add-only), applied to TEST only:
+  `20261103000001_staff_attendance_and_last_contact.sql` (undo file in
+  `supabase/rollback/`). Live: not applied (checked: no new column).
+- One fake resident added to TEST for testing: "Amy Practice-Home",
+  no facility.
+
+**Checks**
+- Type check, lint and production build: pass.
+- Counting checks (`scripts/check-report-rules.ts`): all pass, including
+  28 new ones for attendance, coverage layers, volunteer facility-days,
+  the not-split rule, school programs and the no-facility rules.
+- October 2026 reconciliation: the real October entries (read-only, no
+  names or notes) run through the new code. Every number matches the
+  agreed table: activity-days 43 = 34 confirmed + 7 not recorded + 2 no
+  staff; staff visits 42 confirmed + 10 not recorded; facilities 26 with
+  activity, 23 with confirmed staff, 27 engaged; not split 96 -> 6;
+  school programs 1, schools 1, students 90; food 52 people + 4 not
+  recorded; residents 97 (140 staff visits, 1 call, 2 volunteer visits);
+  families 13 / 21; staff interactions 39 (29 people, 20 facilities);
+  partners 11 / 11. Staff list: 119 activities + 2 coordinated only =
+  the 121 entries listed (the earlier gap explained).
+- Database behaviour on TEST (in a rolled-back transaction, nothing
+  kept): program saved with "no staff there"; at-home visit with no
+  facility saved as in person elsewhere; last contact set by a call; a
+  second companion Facility visit for the same person, facility and day
+  refused.
+
+**Not yet done: click-through browser tests.** This session's network
+blocks supabase.co and vercel.app, so the screens couldn't be clicked
+through from here. To finish: test on the preview (TEST data) with the
+checklist below, or allow those two hosts in the session's network
+settings and Claude runs the prepared browser script.
+
+Checklist on the preview (TEST data, sign in as a practice account):
+1. New Program: can't save without "Staff who were there"; "No staff
+   were there" saves.
+2. New Food: "Staff were there" + a name saves.
+3. Volunteer visit: two residents, "Arranged by", "Staff who went" -> two
+   records.
+4. Phone call and Visit with Amy Practice-Home, no facility -> both save.
+5. Resident page: "Notes from recent visits" shows a note just written.
+6. On site: "Visiting with a colleague?" -> pick one; picking again says
+   already recorded; "+ With [name]" is off until ticked.
+7. Impact: eight sections + Today; tap numbers -> records; Export opens
+   with the new sections and no staff hours / unmet need.
+8. Needs attention: "No facility recorded"; Data Quality: the two new
+   lists.
+
+**Remaining issues / notes**
+- Programs and food logged through Quick Log save attendance as "not
+  recorded" (never assumed) and appear on the Data Quality list.
+- If a colleague's on-site Facility visit is voided, picking them again
+  the same day won't record a new one (the duplicate guard).
+- A resident with no facility and no in-person visit appears in both
+  "No facility recorded" and "No in-person visit in 30+ days".
+- Go-live order (with separate approval): backup and fingerprints, apply
+  the database change to live FIRST, then merge (the new code reads the
+  new columns), then recheck October on live against the numbers above.
