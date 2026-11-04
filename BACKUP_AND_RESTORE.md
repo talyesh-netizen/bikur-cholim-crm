@@ -4,6 +4,12 @@ Approved by the director on Nov 4, 2026 (Option B: Supabase Pro plus a
 monthly off-site copy). Written for a non-technical admin. Every step is
 something you click in a web page.
 
+Account set-up (Nov 4, 2026): the live CRM is in the Supabase account
+**Bikur Cholim Cleveland** on the **Pro plan ($25 a month)**, paid with the
+organization's card. The TEST project (fake data only) was moved to a
+separate free account, **Bikur Cholim CRM – Testing**, so it costs nothing.
+The tax-exemption certificate goes to tax-documents@supabase.io.
+
 ## What protects the CRM
 
 | Layer | What it is | How far back | Who looks after it |
