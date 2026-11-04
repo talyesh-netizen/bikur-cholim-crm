@@ -32,7 +32,7 @@ export default async function BackupSettingsPage() {
         <CardContent className="flex flex-col gap-4 text-sm">
           <p>
             You&apos;ll get one <strong>.zip</strong> file with a spreadsheet for each part of the CRM — facilities,
-            residents, contacts, visits, tasks, staff and more — plus a READ-ME. Nothing in the CRM is changed.
+            residents, contacts, visits, tasks, staff, the change history and more — plus a READ-ME. Nothing in the CRM is changed.
           </p>
           <p className="text-muted-foreground">Suggested: once a week, and before any big change.</p>
           <DownloadBackupButton />
