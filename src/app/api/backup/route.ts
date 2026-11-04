@@ -37,6 +37,12 @@ const TABLES: { name: string; orderBy: string[] }[] = [
   { name: "profiles", orderBy: ["id"] },
   { name: "profile_facility_access", orderBy: ["profile_id", "facility_id"] },
   { name: "geographic_clusters", orderBy: ["id"] },
+  // Private facility photo details (the photo files themselves live in
+  // Storage and are not in this download).
+  { name: "facility_media", orderBy: ["id"] },
+  // Change history: who changed what and when (Nov 4, 2026). Only admins
+  // can read it, which matches who can download a backup.
+  { name: "change_log", orderBy: ["id"] },
 ];
 
 const PAGE_SIZE = 1000;
@@ -104,6 +110,8 @@ export async function GET() {
     "",
     "Records link to each other by their id columns (e.g. residents.current_facility_id",
     "is a facilities.id). Times are stored in UTC; dates are plain calendar days.",
+    "change_log.csv is the change history: one row per add, edit or void, with who",
+    "made it (changed_by is a profiles.id), when, and what changed.",
   ].join("\r\n");
   files.unshift({ name: "READ-ME.txt", content: readme });
 

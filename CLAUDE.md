@@ -41,6 +41,18 @@ how something works) are fine; changes wait for the list.
 - Real resident data is in production; see `PRIVACY_AND_SECURITY.md`
   before sending any data anywhere new.
 
+## Backups (director and ChatGPT, Nov 4, 2026)
+
+- Option B: Supabase Pro (daily backups, 7 days) plus a monthly off-site
+  copy from More → Backup; procedure and restore guide in
+  `BACKUP_AND_RESTORE.md`. TEST lives in a separate free Supabase account.
+- Monthly copies are kept 12 months on the organization's restricted
+  drive, then deleted.
+- The admin Backup download covers every CRM table, change history
+  included; a new table must be added to `src/app/api/backup/route.ts`.
+- Keep `crm_backup` and the weekly downloads until a full restore test
+  has passed.
+
 ## Quick Log rules (keep updating)
 
 The director asked (Oct 7, 2026) that Quick Log's rules keep being
