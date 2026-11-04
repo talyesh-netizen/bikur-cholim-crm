@@ -898,3 +898,28 @@ Shortest hands-on check (TEST preview, practice accounts):
    Previous format.
 7. Quick Log (on TEST, typed note "Brought lunch for the staff at
    Cedarbrook"): it asks "Were our staff there?" before Save.
+
+## Go-live log: A1-A9 release (approved by the director, Nov 4, 2026)
+
+1. Backup: Supabase is on the free plan (no managed backups to restore
+   from). All 23 tables were copied inside the live database to a locked
+   schema, `backup_20261104` (not reachable by the app or the API):
+   5,039 rows, every table identical to live (counts and fingerprints),
+   change history included. Facility photos: none exist (0 rows, 0
+   files). Off-site copy: More > Backup (21 tables) still recommended.
+2. Reporting baseline: Q3 2026 "as first recorded" saved in
+   report_snapshots (20 numbers, computed by the Oct 28 code; unchanged
+   since the Nov 3 baseline in `reports/BASELINE_2026-11-03.md`). The 15
+   Q4 rows already there are unchanged.
+3. Database updates applied to live: 20261103000001 and 20261103000002
+   (add-only; the Oct 28 code works with them). Afterwards 22 tables
+   identical to the copy; report_snapshots gained only the Q3 rows. No
+   new values set on any existing record. No new security advisor
+   warnings.
+4. Merged PR #146 (Vercel check green; type check, lint, build pass).
+   Previous live deployment kept for Instant Rollback:
+   dpl_33vYb4eT6Cupm594C4FzqsxvhTpp (Oct 28). A code rollback does not
+   undo the database updates; it doesn't need to (they're add-only).
+5. After release, on today's live entries: the previous-format export
+   is identical to the Nov 3 baseline for Q2, Q3 and October; the new
+   October and Q3 numbers are identical to those tested on Nov 3.
