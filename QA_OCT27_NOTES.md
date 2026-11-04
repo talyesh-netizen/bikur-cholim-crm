@@ -923,3 +923,30 @@ Shortest hands-on check (TEST preview, practice accounts):
 5. After release, on today's live entries: the previous-format export
    is identical to the Nov 3 baseline for Q2, Q3 and October; the new
    October and Q3 numbers are identical to those tested on Nov 3.
+
+## Open list for ChatGPT: disaster recovery (Nov 4, 2026, assessment only)
+
+Nothing built or changed. The in-database copy `backup_20261104` stays.
+
+Today:
+- Supabase free plan: no Supabase backups at all (their docs advise free
+  projects to export regularly and keep copies off-site).
+- `backup_20261104` (all 23 tables, change history included) protects
+  against a bad change, not against losing the database or project.
+- More > Backup (off-site when downloaded) has 21 of 23 tables: not the
+  change history or facility photos (none exist yet).
+- Neither copy has the staff sign-in accounts (Supabase's auth area, 5
+  accounts); losing them means re-inviting staff.
+
+Supabase Pro ($25 a month for the organization, $10 of it compute
+credit): daily backups of the whole database (all tables, change history
+and sign-in accounts), kept 7 days, restorable from the dashboard; and
+"Restore to a new project", so a restore can be tested on a separate
+copy without touching the live CRM. Kept by Supabase, not off-site, and
+deleted with the project; photos in Storage aren't included.
+
+Recommendation: (1) upgrade to Pro and run one restore test into a new
+project (compare every table with live, then delete the test project);
+(2) for off-site, add the change history to More > Backup and download
+it monthly to the private drive, with a written restore guide;
+(3) keep `backup_20261104` until (1) passes.
