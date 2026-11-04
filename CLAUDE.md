@@ -94,6 +94,11 @@ Decisions so far:
   isn't staff at a facility we serve (a hospice or agency contact, e.g.
   Tina at Affinity Care) is "Other", no facility needed, never a staff
   conversation, so it isn't counted as facility staff support.
+- Food and programs (Nov 3, 2026): the check screen asks "Were our staff
+  there?" on programs, food and staff appreciation, and "How many people
+  received food?" (or Unknown) when the note didn't say. Save waits for
+  the answers, and the server refuses an item without them; nothing is
+  assumed.
 - Already logged that day (Oct 9, 2026): an entry with the same resident,
   kind and day as one already saved is flagged on the check screen,
   "Is this a second visit?" Yes saves it as its own visit; No unticks
@@ -208,3 +213,97 @@ These replace any earlier rule above that says otherwise.
   staff who can see the linked resident and facility; an unlinked story
   is hidden from facility-limited accounts unless they wrote it. Edits
   are kept in the change history; stories can't be deleted from the app.
+
+## Final cleanup batch (director and ChatGPT, Nov 3, 2026)
+
+These replace any earlier rule above that says otherwise. Full detail and
+the reasons are in `QA_OCT27_NOTES.md`; the counting code is
+`src/lib/queries/report-rules.ts` and `impact-metrics.ts`.
+
+- Impact has eight sections, never added together: resident support,
+  facility coverage, programs, school engagement, community volunteers,
+  food, family, professional relationships; plus a "Today" band that
+  doesn't follow the period. Every number opens the records behind it
+  (`/impact/records`), counted the same way. The export and facility
+  pages use the same numbers.
+- Staff attendance is never assumed on programs and food: new ones
+  record "Staff who were there" or "No staff were there"; older ones are
+  "not recorded" (never treated as absent). Volunteer visits record who
+  arranged it (no staff credit) and staff who went (credited). Who typed
+  an entry in is never taken to have been there.
+- Facility coverage, each facility once a day: activity-days = staff
+  confirmed + attendance not recorded + no staff there. Staff visits
+  (per person) confirmed, with "not recorded" shown apart until a person
+  confirms them on Data Quality.
+- Residents: phone calls never need a facility; a visit, volunteer visit
+  or food for a resident with no facility recorded needs none (saved in
+  person elsewhere). "No facility recorded", never assumed at home.
+  Last contact (visits, volunteer visits, calls) shown beside last
+  in-person visit; the "not visited" lists stay in person only.
+- Volunteer visits can name several residents (a record each). Volunteer
+  facility-days: each volunteer once per facility per day.
+- Programs: an older single number counts only for the part not yet
+  split into students and volunteers. Students are never volunteers.
+  School programs come from the partner organization's type.
+- Food: people who received food is never guessed; blanks are "not
+  recorded".
+- Export: staff hours, volunteer hours and unmet need are no longer
+  reported (data kept); funder stories live in Stories.
+- Resident pages and on-site mode show the newest notes from visits and
+  calls (read from the entries, never copied).
+- On site, "Visiting with [colleague]" records one Facility visit for
+  them per facility and day; "With [name]" on a card adds them to that
+  entry only when ticked.
+
+## Final decisions A1-A9 (director and ChatGPT, Nov 3, 2026)
+
+These replace any earlier rule above that says otherwise (including the
+"Final cleanup batch" where they differ).
+
+- A1: on a visit, volunteer visit, food or referral with a resident, the
+  resident's facility is filled in and can be cleared (at home, in a
+  hospital); without one it's saved in person elsewhere and never counts
+  as a facility visit. Saved links are never changed automatically.
+- A2: volunteer outings, each actual outing once. Entries saved together
+  share an outing_id (one per resident); a second trip the same day is a
+  second outing. Older entries with the same volunteers, facility and day
+  count as one outing. Each named resident is one engagement.
+- A3: students, school staff / chaperones and community volunteers are
+  kept apart. Programs ask all three; a named volunteer's kind is picked
+  on their profile (empty = community), never assumed from a school link.
+- A4: an in-person visit with a resident outside a facility is a physical
+  visit for the resident, never a facility visit.
+- A5: new food deliveries need a number or "Unknown"; unknown and blank
+  are both "not recorded", never 0 or guessed.
+- A6: an older program total is kept or replaced by a checked breakdown
+  (the old total stays in the change history), never both counted.
+- A7: Staff appreciation (food, refreshments or gifts for facility staff)
+  is its own kind under More types: one activity per delivery, facilities
+  counted, staff who physically brought it get a staff visit (the
+  facility-day once). No recipient count; never a staff conversation,
+  food assistance or resident engagement.
+- A8: referrals and rides are shown under Resident engagement as service
+  activities, not counted as engagements.
+- A9: the resident page shows the five newest entries with notes (visits,
+  calls, volunteer visits, family conversations), with day, kind, who
+  attended and who wrote it, and a link to the full history.
+- A staff visit or volunteer visit for a resident already visited that
+  day asks "Is this a separate visit?" before saving.
+- "Staff attendance not recorded" means unknown, never absent: older
+  programs, food and volunteer visits that never said are not counted as
+  staff there and not counted as "no staff there". Volunteer outings
+  before Nov 4, 2026 are an estimate (grouped by volunteers, facility and
+  day) and are labelled so on the Impact page and export.
+- A new resident visit asks "Save note to: This visit (default) /
+  Resident profile" (director, Nov 4, 2026). Profile saves the note once
+  on each resident's "About them" notes (existing profile_notes, with
+  date and author, kept exactly as typed) and the visit is saved without
+  it: one or the other, never both. If the profile save fails, the note
+  stays on the visit. Calls, other kinds and edits are unchanged.
+  On-site Mode (Sara's main workflow) asks the same once a note is typed
+  on a visit; an empty visit stays one tap. Both use
+  `src/lib/visit-note-target.ts`. On site, "About them" notes show
+  their author beside the date.
+- The previous funder export stays available, unchanged
+  (`/api/impact-report/previous`, `src/lib/queries/legacy/`), until the
+  new one is verified. No grand total of different kinds.

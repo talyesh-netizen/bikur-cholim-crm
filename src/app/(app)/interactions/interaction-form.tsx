@@ -2,7 +2,7 @@
 
 import { FacilityPicker } from "@/components/facility-picker";
 import { MultiSearchPicker, SearchPicker } from "@/components/search-picker";
-import { useActionState, useEffect, useRef, useState } from "react";
+import { Fragment, useActionState, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,6 +36,8 @@ import {
   HOLIDAY_TYPES,
   FOOD_KINDS,
   OFFERED_HOLIDAYS,
+  NO_FACILITY_RESIDENT_TYPES,
+  ATTENDANCE_ASKED_TYPES,
   foodKindFor,
   type InteractionType,
 } from "@/lib/domain/interaction";
@@ -111,6 +113,8 @@ export function InteractionForm({
     /** "on" when saved as in person. */
     in_person?: string;
     method?: string;
+    /** "yes" / "no" / "" (not recorded): the lead was physically there. */
+    lead_attended?: string;
   } & Partial<ServiceFormValues>;
   initialVolunteerIds?: string[];
   /** Staff, partners, group projects -- for who did it, staff engaged,
@@ -158,6 +162,13 @@ export function InteractionForm({
   const serviceFields = SERVICE_FIELDS_BY_TYPE[interactionType as InteractionType] ?? [];
   const service: ServiceFormValues = { ...EMPTY_SERVICE_VALUES, ...values };
   const isFood = interactionType === "food_delivery";
+  // Food: "Unknown" instead of a number (A5); an older program's total kept
+  // or replaced (A6). Both are answered by the person, never assumed.
+  const [recipientsUnknown, setRecipientsUnknown] = useState(state.values?.recipients_unknown === "on");
+  const [legacyTotal, setLegacyTotal] = useState(state.values?.legacy_total ?? "");
+  // Where a new visit's note is saved (Nov 4, 2026): this visit (default)
+  // or the resident's profile -- one or the other, never both.
+  const [noteTarget, setNoteTarget] = useState<"visit" | "profile">(state.values?.note_target === "profile" ? "profile" : "visit");
   const isEditing = !!initialValues;
 
   // Where and who: picking a resident fills in their facility; once a
@@ -177,11 +188,15 @@ export function InteractionForm({
   const [residentIds, setResidentIds] = useState<string[]>(() =>
     state.residentIds?.length ? state.residentIds : values.resident_id ? [values.resident_id] : []
   );
-  // Several residents only for a new Visit (decision A1): a visit each.
-  const multiResident = interactionType === "resident_visit" && !isEditing;
-  const residentOptions = (residents ?? [])
-    .filter((r) => !facilityId || !r.facility_id || r.facility_id === facilityId || residentIds.includes(r.id))
-    .map((r) => ({ id: r.id, label: r.name, detail: r.detail }));
+  // Several residents on a new Visit (decision A1) or volunteer visit
+  // (Q2, Nov 3, 2026): a record each.
+  const multiResident = (interactionType === "resident_visit" || interactionType === "volunteer_visit") && !isEditing;
+  const atThisFacility = (r: ResidentOption) => !facilityId || !r.facility_id || r.facility_id === facilityId || residentIds.includes(r.id);
+  const residentOptions = (residents ?? []).filter(atThisFacility).map((r) => ({ id: r.id, label: r.name, detail: r.detail }));
+  // Residents of another facility can't join this visit (it saves one
+  // facility for everyone on it), but they're named when typed, never
+  // silently missing (Nov 3, 2026 QA).
+  const residentsElsewhere = (residents ?? []).filter((r) => !atThisFacility(r)).map((r) => ({ id: r.id, label: r.name, detail: r.detail }));
   function chooseResidents(ids: string[]) {
     setResidentIds(ids);
     setIsDirty(true);
@@ -235,6 +250,37 @@ export function InteractionForm({
   const [doneBy, setDoneBy] = useState<string[]>(
     state.people?.doneBy ?? initialPeople?.doneBy ?? (activity?.currentUserId ? [activity.currentUserId] : [])
   );
+  // Staff attendance (D4, Nov 3, 2026). Programs and food: "yes" (pick who
+  // was there), "no" (no staff were there) or, on an older entry, ""
+  // (not recorded). Nothing is picked on a new one: the person typing it
+  // in is never assumed to have been there.
+  const savedAttendance = values.lead_attended ?? "";
+  const [attendance, setAttendance] = useState<string>(savedAttendance);
+  const [attendees, setAttendees] = useState<string[]>(() =>
+    state.people && state.values?.lead_attended === "yes"
+      ? state.people.doneBy
+      : initialPeople && savedAttendance === "yes"
+        ? initialPeople.doneBy
+        : []
+  );
+  // Volunteer visit (Q4): who arranged it (the lead, never credited for
+  // that alone) and the staff who went (credited; the arranger too if
+  // picked).
+  const [arrangedBy, setArrangedBy] = useState<string>(
+    state.people?.doneBy[0] ?? initialPeople?.doneBy[0] ?? activity?.currentUserId ?? ""
+  );
+  const [wentWith, setWentWith] = useState<string[]>(() => {
+    if (state.people && state.values?.interaction_type === "volunteer_visit") {
+      const [lead, ...team] = state.people.doneBy;
+      return state.values.lead_attended === "yes" && lead ? [lead, ...team] : team;
+    }
+    if (initialPeople && values.interaction_type === "volunteer_visit") {
+      const [lead, ...team] = initialPeople.doneBy;
+      return savedAttendance === "yes" && lead ? [lead, ...team] : team;
+    }
+    return [];
+  });
+  const asksAttendance = ATTENDANCE_ASKED_TYPES.includes(interactionType);
   // Who it was with. Staff worked with or spoken to (each counts once)
   // on a staff entry; on a new family, volunteer-met or "other" entry,
   // the people picked (a record each). One list, so the person a log
@@ -255,7 +301,14 @@ export function InteractionForm({
   const partnerIds = new Set((activity?.partnerContacts ?? []).map((c) => c.id));
   const partnersOnly =
     PARTNER_FACILITY_OPTIONAL_TYPES.includes(interactionType) && engaged.length > 0 && engaged.every((id) => partnerIds.has(id));
-  const facilityRequired = !FACILITY_OPTIONAL_TYPES.includes(interactionType) && !partnersOnly;
+  // With a resident, the facility is filled in from where they live but
+  // can be cleared (A1, Nov 3, 2026): a visit at home or in a hospital is
+  // saved "in person elsewhere" and never counts as a facility visit.
+  const residentsOnForm = residentIds.length > 0 || (!!fixedResident && !residents?.length);
+  const noFacilityResidents = NO_FACILITY_RESIDENT_TYPES.includes(interactionType) && residentsOnForm;
+  const residentFacilityCleared =
+    noFacilityResidents && !facilityId && residentIds.some((id) => !!(residents ?? []).find((x) => x.id === id)?.facility_id);
+  const facilityRequired = !FACILITY_OPTIONAL_TYPES.includes(interactionType) && !partnersOnly && !noFacilityResidents;
 
   // Started from a volunteer's page: a volunteer visit has them on it.
   const familyIds = new Set(familyContactIds ?? []);
@@ -345,7 +398,19 @@ export function InteractionForm({
       document.getElementById("part_of_question")?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
-    if (activity && doneBy.length === 0) {
+    if (activity && asksAttendance) {
+      if ((isNewEntry && !attendance) || (attendance === "yes" && attendees.length === 0)) {
+        e.preventDefault();
+        window.alert("Please pick the staff who were there, or “No staff were there”.");
+        return;
+      }
+    } else if (activity && isVolunteerVisit) {
+      if (!arrangedBy) {
+        e.preventDefault();
+        window.alert("Please pick who arranged this visit.");
+        return;
+      }
+    } else if (activity && doneBy.length === 0) {
       e.preventDefault();
       window.alert("Please add who did it (at least one person).");
       return;
@@ -354,6 +419,731 @@ export function InteractionForm({
     const idField = e.currentTarget.elements.namedItem("client_submission_id");
     if (idField instanceof HTMLInputElement) idField.value = submissionIdRef.current;
   }
+
+  // A new visit's note can go to the resident's profile instead (Nov 4, 2026).
+  const noteChoice = interactionType === "resident_visit" && !isEditing;
+  // The form's pieces, each placed by fieldOrderFor (Nov 3, 2026).
+  const pieces: Record<FormPiece, React.ReactNode> = {
+    resident: (
+      <>
+        {NO_RESIDENT_TYPES.includes(interactionType) ? (
+          // Not asked on a program; an older entry keeps its resident.
+          isEditing && values.resident_id ? <input type="hidden" name="resident_id" value={values.resident_id} readOnly /> : null
+        ) : residents && residents.length > 0 ? (
+          multiResident ? (
+            <Field label="Residents visited" htmlFor="resident_ids" error={fieldErrors.resident_id} required={!service.people_reached && !groupOpened}>
+              <MultiSearchPicker
+                id="resident_ids"
+                name="resident_ids"
+                options={residentOptions}
+                value={residentIds}
+                onChange={chooseResidents}
+                placeholder="Type a resident's name…"
+                elsewhere={{
+                  options: residentsElsewhere,
+                  note: "At another facility: log their visit separately (each visit is saved at one facility).",
+                }}
+              />
+              {residentIds.length > 1 ? (
+                <p className="rounded-md bg-[var(--tone-attention-bg)] px-3 py-2 text-xs font-medium text-[var(--tone-attention-fg)]">
+                  {isVolunteerVisit
+                    ? `One outing: an entry is saved for each of these ${residentIds.length} residents, and it counts as one volunteer outing.`
+                    : `A separate visit is saved for each of these ${residentIds.length} residents.`}{" "}
+                  The notes below will appear on every one of their profiles; anything about one person can be added to their own
+                  entry afterward.
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  {isVolunteerVisit
+                    ? "Saw several residents on this outing? Add each one; it still counts as one outing."
+                    : "Visited several people? Add each one; a visit is saved for each."}
+                </p>
+              )}
+            </Field>
+          ) : (
+            // Where it's optional, say what it's for (director, Oct 28, 2026).
+            <Field
+              label={residentRequired ? "Resident" : "About a resident? (optional)"}
+              htmlFor="resident_id"
+              error={fieldErrors.resident_id}
+              required={residentRequired}
+            >
+              <SearchPicker
+                id="resident_id"
+                name="resident_id"
+                value={residentIds[0] ?? ""}
+                onChange={(id) => chooseResidents(id ? [id] : [])}
+                options={residentOptions}
+                emptyLabel={residentRequired ? undefined : "No resident"}
+                placeholder="Type a resident's name…"
+              />
+              {interactionType === "family_communication" ? (
+                <p className="text-xs text-muted-foreground">
+                  Whose family, if it&apos;s about a resident; the family member goes below.
+                </p>
+              ) : null}
+              {residentIds.length > 1 ? (
+                <p className="text-xs text-muted-foreground">
+                  This kind of entry is with one resident. The others you picked are kept if you switch back to Visit or Volunteer visit.
+                </p>
+              ) : null}
+            </Field>
+          )
+        ) : fixedResident ? (
+          <div className="flex flex-col gap-1.5">
+            <Label>Resident</Label>
+            <p className="text-sm">{fixedResident.name}</p>
+            <input type="hidden" name="resident_id" value={fixedResident.id} />
+          </div>
+        ) : null}
+      </>
+    ),
+    facility: (
+      <>
+        <Field label="Facility" htmlFor="facility_id" error={fieldErrors.facility_id} required={facilityRequired}>
+          <FacilityPicker
+            id="facility_id"
+            name="facility_id"
+            facilities={facilities}
+            value={facilityId}
+            onChange={setFacilityId}
+            emptyLabel={facilityRequired ? undefined : noFacilityResidents ? "No facility (at home, hospital…)" : "No facility yet"}
+          />
+          {noFacilityResidents && !facilityId ? (
+            <p className="text-xs text-muted-foreground">
+              {residentFacilityCleared
+                ? "Leave this blank only if it didn't happen at their facility (at home, in a hospital). "
+                : ""}
+              With no facility it&apos;s saved as in person elsewhere and never counts as a facility visit.
+            </p>
+          ) : null}
+        </Field>
+      </>
+    ),
+    date: (
+      <>
+        <Field label="Date" htmlFor="occurred_at" error={fieldErrors.occurred_at} required>
+          <Input
+            id="occurred_at"
+            name="occurred_at"
+            type="date"
+            defaultValue={values.occurred_at.slice(0, 10)}
+            max={defaultOccurredAt}
+            onChange={(e) => setOccurredAt(e.target.value)}
+            required
+          />
+          {values.occurred_at_saved ? <input type="hidden" name="occurred_at_saved" value={values.occurred_at_saved} readOnly /> : null}
+        </Field>
+      </>
+    ),
+    method: (
+      <>
+        {/* How it happened (director, Oct 21, 2026): only in person can count
+            as a facility visit. An older entry with none shows nothing
+            picked ("not recorded") and keeps it unless changed. */}
+        {interactionType in METHOD_ASKED ? (
+          <Field label="How?" htmlFor="method" error={fieldErrors.method} required={isNewEntry && METHOD_REQUIRED_NEW.includes(interactionType)}>
+            <input type="hidden" name="method" value={method} readOnly />
+            <div id="method" role="group" aria-label="How it happened" className="flex flex-wrap gap-2">
+              {METHODS.map((m) => (
+                <button
+                  key={m.value}
+                  type="button"
+                  aria-pressed={method === m.value}
+                  onClick={() => {
+                    setMethod(method === m.value ? "" : m.value);
+                    setIsDirty(true);
+                  }}
+                  className={
+                    method === m.value
+                      ? "rounded-full bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground"
+                      : "rounded-full bg-card px-3 py-1.5 text-sm font-medium ring-1 ring-border hover:ring-primary/50"
+                  }
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {!method && !isNewEntry ? "Not recorded. " : ""}Only “In person at facility” counts as a facility visit.
+            </p>
+          </Field>
+        ) : null}
+      </>
+    ),
+    familyNeed: (
+      <>
+        {/* Not asked any more (kept simple); an older entry keeps its value. */}
+        <input type="hidden" name="family_need" value={service.family_need} readOnly />
+      </>
+    ),
+    partner: (
+      <>
+        {activity && isPartnerType ? (
+          interactionType === "food_delivery" && !partnerId && !partnerOpened ? (
+            <button
+              type="button"
+              onClick={() => setPartnerOpened(true)}
+              className="w-fit text-sm font-medium text-primary underline-offset-4 hover:underline"
+            >
+              + Add a partner (school, shul, group)
+            </button>
+          ) : (
+            <Field label="Partner (optional)" htmlFor="partner_organization_id" error={fieldErrors.partner_organization_id}>
+              <SearchPicker
+                id="partner_organization_id"
+                name="partner_organization_id"
+                options={activity.partners.map((p) => ({ id: p.id, label: p.name, detail: p.detail }))}
+                value={partnerId}
+                onChange={(id) => {
+                  setPartnerId(id);
+                  setPartOfAnswer("");
+                  setPartOfPrompt(false);
+                }}
+                emptyLabel="No partner"
+                placeholder="Type a school, shul or organization…"
+              />
+            </Field>
+          )
+        ) : null}
+
+        {activity && isPartnerType && partOfId ? <input type="hidden" name="part_of_id" value={partOfId} readOnly /> : null}
+        {activity && isPartnerType && projectSuggestion && !partOfId ? (
+          <div
+            id="part_of_question"
+            className={
+              partOfPrompt && partOfAnswer === ""
+                ? "flex flex-col gap-2 rounded-md border-2 border-destructive bg-destructive/5 p-3"
+                : "flex flex-col gap-2 rounded-md border border-primary/40 bg-primary/5 p-3"
+            }
+          >
+            <p className="text-sm font-medium">
+              Part of {projectSuggestion.partner_name}&apos;s {formatDateTime(projectSuggestion.occurred_at)} project
+              {projectSuggestion.facility_name ? ` at ${projectSuggestion.facility_name}` : ""} (about {projectSuggestion.participants} volunteers)?
+            </p>
+            {partOfPrompt && partOfAnswer === "" ? (
+              <p className="text-xs font-medium text-destructive">Please answer before saving.</p>
+            ) : null}
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" size="sm" onClick={() => setPartOfAnswer(`yes:${projectSuggestion.id}`)}>
+                Yes, part of it
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={partOfAnswer === "no" ? "default" : "outline"}
+                onClick={() => setPartOfAnswer("no")}
+              >
+                No, a separate group
+              </Button>
+            </div>
+          </div>
+        ) : null}
+        {activity && isPartnerType && partOfId ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
+            <span>
+              Part of {partOfProject?.partner_name ?? "a group"}&apos;s project. Its volunteers are counted on the first activity
+              {partOfProject ? (
+                <>
+                  : {formatDateTime(partOfProject.occurred_at)}
+                  {partOfProject.facility_name ? ` · ${partOfProject.facility_name}` : ""} (about {partOfProject.participants})
+                </>
+              ) : null}
+              .
+            </span>
+            <button type="button" onClick={() => setPartOfAnswer("no")} className="text-xs text-muted-foreground underline">
+              Not part of it
+            </button>
+          </div>
+        ) : null}
+      </>
+    ),
+    food: (
+      <>
+        {isFood ? (
+          <Field label="What kind?" htmlFor="food_kind">
+            <input type="hidden" name="holiday" value={foodKind === "snack" ? "" : foodKind === "shabbos" ? "shabbos" : foodHoliday} readOnly />
+            <div id="food_kind" className="grid grid-cols-3 gap-2">
+              {FOOD_KINDS.map((k) => (
+                <button
+                  key={k.value}
+                  type="button"
+                  aria-pressed={foodKind === k.value}
+                  onClick={() => setFoodKind(k.value)}
+                  className={
+                    foodKind === k.value
+                      ? "rounded-md border-2 border-primary bg-primary/10 px-2 py-2.5 text-sm font-semibold"
+                      : "rounded-md border border-border bg-card px-2 py-2.5 text-sm font-medium hover:border-primary/50"
+                  }
+                >
+                  {k.label}
+                </button>
+              ))}
+            </div>
+            {foodKind === "holiday" ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {holidayOptions.filter((h) => h.value !== "shabbos").map((h) => (
+                  <button
+                    key={h.value}
+                    type="button"
+                    aria-pressed={foodHoliday === h.value}
+                    onClick={() => setFoodHoliday(h.value)}
+                    className={
+                      foodHoliday === h.value
+                        ? "rounded-full bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground"
+                        : "rounded-full bg-card px-3 py-1.5 text-sm font-medium ring-1 ring-border"
+                    }
+                  >
+                    {h.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </Field>
+        ) : HOLIDAY_TYPES.includes(interactionType) ? (
+          <Field label="For Shabbos or a holiday?" htmlFor="holiday" error={fieldErrors.holiday}>
+            <SelectField
+              name="holiday"
+              defaultValue={service.holiday}
+              options={holidayOptions}
+              placeholder="No"
+              allowEmpty
+            />
+          </Field>
+        ) : null}
+      </>
+    ),
+    group: (
+      <>
+        {groupHidden && !(multiResident && residentIds.length > 1) ? (
+          <button
+            type="button"
+            onClick={() => setGroupOpened(true)}
+            className="w-fit text-sm font-medium text-primary underline-offset-4 hover:underline"
+          >
+            + Group visit? Add how many residents were reached
+          </button>
+        ) : null}
+      </>
+    ),
+    service: (
+      <>
+        {boxFields.length > 0 ? (
+          <div className="grid grid-cols-1 gap-4 rounded-md border border-border bg-muted/40 p-3 sm:grid-cols-2">
+            {serviceFields.includes("program_partner") ? (
+              <Field label="School or shul?" htmlFor="program_partner" error={fieldErrors.program_partner}>
+                <SelectField
+                  name="program_partner"
+                  defaultValue={service.program_partner}
+                  options={PROGRAM_PARTNERS}
+                  placeholder="Choose…"
+                />
+              </Field>
+            ) : null}
+            {/* The holiday (below) now sets the Shabbos / Yom Tov occasion on
+                save; an occasion already on an older entry rides along. */}
+            {serviceFields.includes("occasion") ? <input type="hidden" name="occasion" value={service.occasion} readOnly /> : null}
+            {isFood ? (
+              // One number (director, Oct 27, 2026): people who got food. An
+              // item count already saved on an older entry is kept, unseen.
+              <>
+                <input type="hidden" name="quantity" value={service.quantity} readOnly />
+                {recipientsUnknown ? (
+                  <input type="hidden" name="recipients_unknown" value="on" readOnly />
+                ) : (
+                  <NumberField
+                    name="people_reached"
+                    label="How many people received food?"
+                    hint="A rough count is fine"
+                    defaultValue={service.people_reached}
+                    error={fieldErrors.people_reached}
+                    required={isNewEntry}
+                  />
+                )}
+                <label className="flex items-center gap-2 self-end text-sm">
+                  <input
+                    type="checkbox"
+                    checked={recipientsUnknown}
+                    onChange={(e) => setRecipientsUnknown(e.target.checked)}
+                    className="size-4"
+                  />
+                  Unknown (never guessed; shown as &ldquo;not recorded&rdquo;)
+                </label>
+              </>
+            ) : null}
+            {/* Students and volunteers asked separately (Oct 27, 2026); an
+                older program's single number is kept and shown "not split".
+                Part of a group project: counted on its first activity. */}
+            {GROUP_COUNT_TYPES.includes(interactionType) && !partOfId ? (
+              <>
+                {/* An older program's single total (A6, Nov 3, 2026): kept as
+                    it is, or replaced by a checked breakdown -- never both. */}
+                {service.participants ? (
+                  <div
+                    id="legacy_total"
+                    className={
+                      fieldErrors.legacy_total
+                        ? "flex flex-col gap-2 rounded-md border-2 border-destructive p-3 sm:col-span-2"
+                        : "flex flex-col gap-2 rounded-md border border-border bg-card p-3 sm:col-span-2"
+                    }
+                  >
+                    <p className="text-sm font-medium">
+                      Saved earlier as one total: about {service.participants} took part (not split).
+                    </p>
+                    <input type="hidden" name="legacy_total" value={legacyTotal} readOnly />
+                    <div role="group" aria-label="Older total" className="flex flex-wrap gap-2">
+                      {(
+                        [
+                          ["keep", "Keep the older total (not checked yet)"],
+                          ["replace", "Replace it with a checked breakdown"],
+                        ] as const
+                      ).map(([value, label]) => (
+                        <button
+                          key={value}
+                          type="button"
+                          aria-pressed={legacyTotal === value}
+                          onClick={() => {
+                            setLegacyTotal(legacyTotal === value ? "" : value);
+                            setIsDirty(true);
+                          }}
+                          className={
+                            legacyTotal === value
+                              ? "rounded-full bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground"
+                              : "rounded-full bg-card px-3 py-1.5 text-sm font-medium ring-1 ring-border hover:ring-primary/50"
+                          }
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {legacyTotal === "replace"
+                        ? `Only the numbers below will count. The older total (${service.participants}) stays in the change history.`
+                        : legacyTotal === "keep"
+                          ? "The older total stays as it is and counts as “not split”."
+                          : "Until it's replaced, only the part of the older total not split below counts as “not split”, so nothing is counted twice."}
+                    </p>
+                    {fieldErrors.legacy_total ? <p className="text-xs text-destructive">{fieldErrors.legacy_total}</p> : null}
+                  </div>
+                ) : null}
+                {legacyTotal === "keep" ? null : (
+                  <>
+                    <NumberField
+                      name="student_count"
+                      label={partnerName ? `Students from ${partnerName}: about` : "Students who took part: about"}
+                      defaultValue={service.student_count}
+                      error={fieldErrors.student_count}
+                    />
+                    <NumberField
+                      name="chaperone_count"
+                      label={partnerName ? `School staff / chaperones from ${partnerName}: about` : "School staff / chaperones: about"}
+                      hint="Teachers and adults who came with a group. Not students or community volunteers."
+                      defaultValue={service.chaperone_count}
+                      error={fieldErrors.chaperone_count}
+                    />
+                    <NumberField
+                      name="volunteer_count"
+                      label={partnerName ? `Community volunteers from ${partnerName}: about` : "Community volunteers who took part: about"}
+                      hint={partnerName ? "Counted once for the whole project, however many facilities it reached." : undefined}
+                      defaultValue={service.volunteer_count}
+                      error={fieldErrors.volunteer_count}
+                    />
+                  </>
+                )}
+              </>
+            ) : null}
+            {serviceFields.includes("participants") ? <input type="hidden" name="participants" value={service.participants} readOnly /> : null}
+            {boxFields.includes("people_reached") && !isFood ? (
+              <NumberField
+                name="people_reached"
+                label="Residents reached (about)"
+                hint={
+                  GROUP_VISIT_TYPES.includes(interactionType)
+                    ? "Only for a group visit — leave blank when it's one person"
+                    : "A rough count is fine"
+                }
+                defaultValue={service.people_reached}
+                error={fieldErrors.people_reached}
+              />
+            ) : null}
+          </div>
+        ) : null}
+      </>
+    ),
+    people: (
+      <>
+        {activity && isEngagementType ? (
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="engaged_contact_ids">
+              {interactionType === "facility_staff_communication" ? "Who you spoke with" : "Staff you worked with or spoke to"}
+            </Label>
+            <MultiSearchPicker
+              id="engaged_contact_ids"
+              name="engaged_contact_ids"
+              options={withChosen<{ id: string; name: string; detail?: string | null; facilityIds?: string[] }>(
+                interactionType === "facility_staff_communication" ? [...activity.facilityStaff, ...activity.partnerContacts] : activity.facilityStaff,
+                activity.anyone,
+                engaged
+              ).map((c) => ({
+                id: c.id,
+                label: c.name,
+                detail: c.detail,
+                // The chosen facility's staff first; everyone else after,
+                // each showing where they work (Oct 27, 2026 QA).
+                rank: facilityId && c.facilityIds?.includes(facilityId) ? 0 : 1,
+              }))}
+              value={engaged}
+              onChange={(ids) => {
+                setEngaged(ids);
+                if (!facilityId) {
+                  const facility = facilityOfStaff(ids.filter((id) => !engaged.includes(id)));
+                  if (facility) setFacilityId(facility);
+                }
+              }}
+              placeholder={interactionType === "facility_staff_communication" ? "Type a staff member's or partner's name…" : "Type a staff member's name…"}
+            />
+            {onePerPerson ? (
+              <OnePerPersonNote count={engaged.length} />
+            ) : (
+              <p className="text-xs text-muted-foreground">Each counts once toward staff engagements.</p>
+            )}
+            {onePerPerson && present.length === 0 ? null : present.length > 0 || presentOpened ? (
+              <div className="mt-2 flex flex-col gap-1.5">
+                <Label htmlFor="present_contact_ids">Others who were there (not counted)</Label>
+                <MultiSearchPicker
+                  id="present_contact_ids"
+                  name="present_contact_ids"
+                  options={activity.anyone
+                    .filter((c) => !engaged.includes(c.id))
+                    .map((c) => ({ id: c.id, label: c.name, detail: c.detail }))}
+                  value={present}
+                  onChange={setPresent}
+                  placeholder="Type a name…"
+                />
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setPresentOpened(true)}
+                className="w-fit text-xs font-medium text-muted-foreground underline-offset-4 hover:underline"
+              >
+                + Others who were there (not counted)
+              </button>
+            )}
+          </div>
+        ) : isVolunteerVisit ? (
+          // Who visited is "Volunteers involved" below; an older entry's
+          // contact is kept as it was.
+          isEditing ? <input type="hidden" name="contact_id" value={values.contact_id} readOnly /> : null
+        ) : NO_CONTACT_TYPES.includes(interactionType) ? (
+          // A visit or call is with the resident above; an older entry keeps
+          // any contact it was saved with (Nov 3, 2026).
+          isEditing && values.contact_id ? <input type="hidden" name="contact_id" value={values.contact_id} readOnly /> : null
+        ) : contacts && contacts.length > 0 ? (
+          onePerPerson ? (
+            <Field
+              label={
+                interactionType === "volunteer_meeting"
+                  ? "Volunteers you met"
+                  : interactionType === "family_communication"
+                    ? "Family members you spoke with"
+                    : "Who you spoke with"
+              }
+              htmlFor="contact_ids"
+              error={fieldErrors.contact_id}
+            >
+              <MultiSearchPicker
+                id="contact_ids"
+                name="contact_ids"
+                options={contacts
+                  .filter((c) => !familyOnly || familyIds.has(c.id))
+                  .map((c) => ({ id: c.id, label: c.name, detail: c.detail }))}
+                value={peopleShown}
+                onChange={choosePeople}
+                placeholder="Type a name…"
+              />
+              <OnePerPersonNote count={peopleShown.length} />
+            </Field>
+          ) : (
+            <Field label={interactionType === "volunteer_meeting" ? "Volunteer you met" : "Contact"} htmlFor="contact_id" error={fieldErrors.contact_id}>
+              <SearchPicker
+                id="contact_id"
+                name="contact_id"
+                defaultValue={isEditing ? values.contact_id : peopleShown[0] ?? values.contact_id}
+                options={contacts
+                  .filter((c) => !familyOnly || familyIds.has(c.id) || c.id === values.contact_id)
+                  .map((c) => ({ id: c.id, label: c.name, detail: c.detail }))}
+                emptyLabel="No specific contact"
+                placeholder="Type a name…"
+              />
+            </Field>
+          )
+        ) : null}
+      </>
+    ),
+    volunteers: (
+      <>
+        {volunteers && volunteers.length > 0 ? (
+          showVolunteers ? (
+            <div
+              className={
+                isVolunteerVisit
+                  ? "flex flex-col gap-1.5 rounded-md border-2 border-primary p-3"
+                  : "flex flex-col gap-1.5"
+              }
+            >
+              <Label htmlFor="volunteer_ids">
+                Volunteers involved
+                {isVolunteerVisit ? <span className="text-muted-foreground"> (recommended)</span> : null}
+              </Label>
+              {isVolunteerVisit ? (
+                <p className="text-xs text-muted-foreground">
+                  This is what makes a volunteer visit show up in the Volunteer Impact report — add who was there.
+                </p>
+              ) : null}
+              <MultiSearchPicker
+                id="volunteer_ids"
+                name="volunteer_ids"
+                options={volunteers.map((v) => ({ id: v.id, label: v.name }))}
+                value={checkedVolunteerIds}
+                onChange={setCheckedVolunteerIds}
+                placeholder="Type a volunteer's name to add…"
+              />
+            </div>
+          ) : (
+            <button type="button" onClick={() => setVolunteersOpened(true)} className="w-fit text-sm font-medium text-primary underline-offset-4 hover:underline">
+              + Add volunteers
+            </button>
+          )
+        ) : null}
+      </>
+    ),
+    staff: (
+      <>
+        {activity && asksAttendance ? (
+          <AttendanceField
+            staff={activity.staff}
+            currentUserId={activity.currentUserId}
+            attendance={attendance}
+            setAttendance={(a) => {
+              setAttendance(a);
+              setIsDirty(true);
+            }}
+            attendees={attendees}
+            setAttendees={setAttendees}
+            savedLead={isEditing ? initialPeople?.doneBy ?? [] : []}
+            allowNotRecorded={isEditing && savedAttendance === ""}
+            error={fieldErrors.lead_attended}
+          />
+        ) : activity && isVolunteerVisit ? (
+          <div className="flex flex-col gap-3">
+            <input type="hidden" name="lead_attended" value={wentWith.includes(arrangedBy) ? "yes" : isEditing && savedAttendance === "" ? "" : "no"} readOnly />
+            {[arrangedBy, ...wentWith.filter((id) => id !== arrangedBy)].filter(Boolean).map((id) => (
+              <input key={id} type="hidden" name="done_by_ids" value={id} readOnly />
+            ))}
+            <Field label="Arranged by" htmlFor="arranged_by">
+              <SearchPicker
+                id="arranged_by"
+                value={arrangedBy}
+                onChange={setArrangedBy}
+                options={activity.staff.map((s) => ({ id: s.id, label: s.id === activity.currentUserId ? `${s.name} (you)` : s.name }))}
+                placeholder="Type a staff member's name…"
+              />
+              <p className="text-xs text-muted-foreground">Arranging a volunteer visit isn&apos;t a staff visit.</p>
+            </Field>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="went_with">Staff who went (optional)</Label>
+              <MultiSearchPicker
+                id="went_with"
+                name="went_with_ids"
+                options={activity.staff.map((s) => ({ id: s.id, label: s.id === activity.currentUserId ? `${s.name} (you)` : s.name }))}
+                value={wentWith}
+                onChange={(ids) => {
+                  setWentWith(ids);
+                  setIsDirty(true);
+                }}
+                placeholder="Add a staff member who was there…"
+              />
+              <p className="text-xs text-muted-foreground">Only staff who were physically there get a staff visit.</p>
+            </div>
+          </div>
+        ) : activity ? (
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="done_by_ids">Done by</Label>
+            <MultiSearchPicker
+              id="done_by_ids"
+              name="done_by_ids"
+              options={activity.staff.map((s) => ({
+                id: s.id,
+                label: s.id === activity.currentUserId ? `${s.name} (you)` : s.name,
+              }))}
+              value={doneBy}
+              onChange={setDoneBy}
+              placeholder="Add a colleague who was there…"
+            />
+            <p className="text-xs text-muted-foreground">Everyone here gets credit; the activity still counts once.</p>
+          </div>
+        ) : null}
+      </>
+    ),
+    notes: (
+      <>
+        <Field
+          label={interactionType === "staff_appreciation" ? "What was brought (and any notes)" : "Notes"}
+          htmlFor="notes"
+          error={fieldErrors.notes}
+        >
+          <Textarea
+            id="notes"
+            name="notes"
+            rows={4}
+            defaultValue={values.notes}
+            placeholder={interactionType === "staff_appreciation" ? "e.g. Lunch for the nursing staff, Chanukah gifts" : undefined}
+          />
+          <p className="text-xs text-muted-foreground">
+            {interactionType === "staff_appreciation"
+              ? "Optional. One entry per delivery, however many staff enjoyed it."
+              : noteChoice && noteTarget === "profile"
+              ? "Saved on their page under “About them”, with today’s date and your name. This visit is still logged, without the note."
+              : "About this visit or call only. Lasting facts (like “hard of hearing”) go in Profile notes on their page."}
+          </p>
+          {noteChoice ? (
+            <div className="flex flex-col gap-1.5">
+              <input type="hidden" name="note_target" value={noteTarget} readOnly />
+              <span className="text-sm font-medium" id="note_target_label">
+                Save note to:
+              </span>
+              <div role="group" aria-labelledby="note_target_label" className="flex flex-wrap gap-2">
+                {(
+                  [
+                    ["visit", "This visit"],
+                    ["profile", residentIds.length > 1 ? "Residents’ profiles" : "Resident profile"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={noteTarget === value}
+                    onClick={() => {
+                      setNoteTarget(value);
+                      setIsDirty(true);
+                    }}
+                    className={
+                      noteTarget === value
+                        ? "rounded-full bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground"
+                        : "rounded-full bg-card px-3 py-1.5 text-sm font-medium ring-1 ring-border hover:ring-primary/50"
+                    }
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </Field>
+      </>
+    ),
+  };
 
   return (
     <form
@@ -376,85 +1166,6 @@ export function InteractionForm({
         </p>
       ) : null}
 
-      {NO_RESIDENT_TYPES.includes(interactionType) ? (
-        // Not asked on a program; an older entry keeps its resident.
-        isEditing && values.resident_id ? <input type="hidden" name="resident_id" value={values.resident_id} readOnly /> : null
-      ) : residents && residents.length > 0 ? (
-        multiResident ? (
-          <Field label="Residents visited" htmlFor="resident_ids" error={fieldErrors.resident_id} required={!service.people_reached && !groupOpened}>
-            <MultiSearchPicker
-              id="resident_ids"
-              name="resident_ids"
-              options={residentOptions}
-              value={residentIds}
-              onChange={chooseResidents}
-              placeholder="Type a resident's name…"
-            />
-            {residentIds.length > 1 ? (
-              <p className="rounded-md bg-[var(--tone-attention-bg)] px-3 py-2 text-xs font-medium text-[var(--tone-attention-fg)]">
-                A separate visit is saved for each of these {residentIds.length} residents. The notes below will appear on
-                every one of their profiles; anything about one person can be added to their own visit afterward.
-              </p>
-            ) : (
-              <p className="text-xs text-muted-foreground">Visited several people? Add each one; a visit is saved for each.</p>
-            )}
-          </Field>
-        ) : (
-          // Where it's optional, say what it's for (director, Oct 28, 2026).
-          <Field
-            label={residentRequired ? "Resident" : "About a resident? (optional)"}
-            htmlFor="resident_id"
-            error={fieldErrors.resident_id}
-            required={residentRequired}
-          >
-            <SearchPicker
-              id="resident_id"
-              name="resident_id"
-              value={residentIds[0] ?? ""}
-              onChange={(id) => chooseResidents(id ? [id] : [])}
-              options={residentOptions}
-              emptyLabel={residentRequired ? undefined : "No resident"}
-              placeholder="Type a resident's name…"
-            />
-            {interactionType === "family_communication" ? (
-              <p className="text-xs text-muted-foreground">
-                Whose family, if it&apos;s about a resident; the family member goes below.
-              </p>
-            ) : null}
-          </Field>
-        )
-      ) : fixedResident ? (
-        <div className="flex flex-col gap-1.5">
-          <Label>Resident</Label>
-          <p className="text-sm">{fixedResident.name}</p>
-          <input type="hidden" name="resident_id" value={fixedResident.id} />
-        </div>
-      ) : null}
-
-      <Field label="Facility" htmlFor="facility_id" error={fieldErrors.facility_id} required={facilityRequired}>
-        <FacilityPicker
-          id="facility_id"
-          name="facility_id"
-          facilities={facilities}
-          value={facilityId}
-          onChange={setFacilityId}
-          emptyLabel={facilityRequired ? undefined : "No facility yet"}
-        />
-      </Field>
-
-      <Field label="Date" htmlFor="occurred_at" error={fieldErrors.occurred_at} required>
-        <Input
-          id="occurred_at"
-          name="occurred_at"
-          type="date"
-          defaultValue={values.occurred_at.slice(0, 10)}
-          max={defaultOccurredAt}
-          onChange={(e) => setOccurredAt(e.target.value)}
-          required
-        />
-        {values.occurred_at_saved ? <input type="hidden" name="occurred_at_saved" value={values.occurred_at_saved} readOnly /> : null}
-      </Field>
-
       <Field
         label="What happened?"
         htmlFor="interaction_type"
@@ -467,426 +1178,41 @@ export function InteractionForm({
             Use this when you went to the facility but didn&apos;t meet any residents or staff. If you did, log those visits
             or conversations instead.
           </p>
+        ) : interactionType === "staff_appreciation" ? (
+          <p className="text-xs text-muted-foreground">
+            Food, refreshments or gifts brought for the facility&apos;s staff. One entry per delivery, however many staff enjoyed it.
+            It isn&apos;t a staff conversation; log a conversation separately if you had one.
+          </p>
         ) : null}
       </Field>
 
-      {/* How it happened (director, Oct 21, 2026): only in person can count
-          as a facility visit. An older entry with none shows nothing
-          picked ("not recorded") and keeps it unless changed. */}
-      {interactionType in METHOD_ASKED ? (
-        <Field label="How?" htmlFor="method" error={fieldErrors.method} required={isNewEntry && METHOD_REQUIRED_NEW.includes(interactionType)}>
-          <input type="hidden" name="method" value={method} readOnly />
-          <div id="method" role="group" aria-label="How it happened" className="flex flex-wrap gap-2">
-            {METHODS.map((m) => (
-              <button
-                key={m.value}
-                type="button"
-                aria-pressed={method === m.value}
-                onClick={() => {
-                  setMethod(method === m.value ? "" : m.value);
-                  setIsDirty(true);
-                }}
-                className={
-                  method === m.value
-                    ? "rounded-full bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground"
-                    : "rounded-full bg-card px-3 py-1.5 text-sm font-medium ring-1 ring-border hover:ring-primary/50"
-                }
-              >
-                {m.label}
-              </button>
-            ))}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {!method && !isNewEntry ? "Not recorded. " : ""}Only “In person at facility” counts as a facility visit.
-          </p>
-        </Field>
-      ) : null}
-
-      {/* Not asked any more (kept simple); an older entry keeps its value. */}
-      <input type="hidden" name="family_need" value={service.family_need} readOnly />
-
-      {activity && isPartnerType ? (
-        interactionType === "food_delivery" && !partnerId && !partnerOpened ? (
-          <button
-            type="button"
-            onClick={() => setPartnerOpened(true)}
-            className="w-fit text-sm font-medium text-primary underline-offset-4 hover:underline"
-          >
-            + Add a partner (school, shul, group)
-          </button>
-        ) : (
-          <Field label="Partner (optional)" htmlFor="partner_organization_id" error={fieldErrors.partner_organization_id}>
-            <SearchPicker
-              id="partner_organization_id"
-              name="partner_organization_id"
-              options={activity.partners.map((p) => ({ id: p.id, label: p.name, detail: p.detail }))}
-              value={partnerId}
-              onChange={(id) => {
-                setPartnerId(id);
-                setPartOfAnswer("");
-                setPartOfPrompt(false);
-              }}
-              emptyLabel="No partner"
-              placeholder="Type a school, shul or organization…"
-            />
-          </Field>
-        )
-      ) : null}
-
-      {activity && isPartnerType && partOfId ? <input type="hidden" name="part_of_id" value={partOfId} readOnly /> : null}
-      {activity && isPartnerType && projectSuggestion && !partOfId ? (
-        <div
-          id="part_of_question"
-          className={
-            partOfPrompt && partOfAnswer === ""
-              ? "flex flex-col gap-2 rounded-md border-2 border-destructive bg-destructive/5 p-3"
-              : "flex flex-col gap-2 rounded-md border border-primary/40 bg-primary/5 p-3"
-          }
-        >
-          <p className="text-sm font-medium">
-            Part of {projectSuggestion.partner_name}&apos;s {formatDateTime(projectSuggestion.occurred_at)} project
-            {projectSuggestion.facility_name ? ` at ${projectSuggestion.facility_name}` : ""} (about {projectSuggestion.participants} volunteers)?
-          </p>
-          {partOfPrompt && partOfAnswer === "" ? (
-            <p className="text-xs font-medium text-destructive">Please answer before saving.</p>
-          ) : null}
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" size="sm" onClick={() => setPartOfAnswer(`yes:${projectSuggestion.id}`)}>
-              Yes, part of it
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={partOfAnswer === "no" ? "default" : "outline"}
-              onClick={() => setPartOfAnswer("no")}
-            >
-              No, a separate group
-            </Button>
-          </div>
-        </div>
-      ) : null}
-      {activity && isPartnerType && partOfId ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
-          <span>
-            Part of {partOfProject?.partner_name ?? "a group"}&apos;s project. Its volunteers are counted on the first activity
-            {partOfProject ? (
-              <>
-                : {formatDateTime(partOfProject.occurred_at)}
-                {partOfProject.facility_name ? ` · ${partOfProject.facility_name}` : ""} (about {partOfProject.participants})
-              </>
-            ) : null}
-            .
-          </span>
-          <button type="button" onClick={() => setPartOfAnswer("no")} className="text-xs text-muted-foreground underline">
-            Not part of it
-          </button>
-        </div>
-      ) : null}
-
-      {isFood ? (
-        <Field label="What kind?" htmlFor="food_kind">
-          <input type="hidden" name="holiday" value={foodKind === "snack" ? "" : foodKind === "shabbos" ? "shabbos" : foodHoliday} readOnly />
-          <div id="food_kind" className="grid grid-cols-3 gap-2">
-            {FOOD_KINDS.map((k) => (
-              <button
-                key={k.value}
-                type="button"
-                aria-pressed={foodKind === k.value}
-                onClick={() => setFoodKind(k.value)}
-                className={
-                  foodKind === k.value
-                    ? "rounded-md border-2 border-primary bg-primary/10 px-2 py-2.5 text-sm font-semibold"
-                    : "rounded-md border border-border bg-card px-2 py-2.5 text-sm font-medium hover:border-primary/50"
-                }
-              >
-                {k.label}
-              </button>
-            ))}
-          </div>
-          {foodKind === "holiday" ? (
-            <div className="mt-2 flex flex-wrap gap-2">
-              {holidayOptions.filter((h) => h.value !== "shabbos").map((h) => (
-                <button
-                  key={h.value}
-                  type="button"
-                  aria-pressed={foodHoliday === h.value}
-                  onClick={() => setFoodHoliday(h.value)}
-                  className={
-                    foodHoliday === h.value
-                      ? "rounded-full bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground"
-                      : "rounded-full bg-card px-3 py-1.5 text-sm font-medium ring-1 ring-border"
-                  }
-                >
-                  {h.label}
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </Field>
-      ) : HOLIDAY_TYPES.includes(interactionType) ? (
-        <Field label="For Shabbos or a holiday?" htmlFor="holiday" error={fieldErrors.holiday}>
-          <SelectField
-            name="holiday"
-            defaultValue={service.holiday}
-            options={holidayOptions}
-            placeholder="No"
-            allowEmpty
-          />
-        </Field>
-      ) : null}
-
-      {groupHidden && !(multiResident && residentIds.length > 1) ? (
-        <button
-          type="button"
-          onClick={() => setGroupOpened(true)}
-          className="w-fit text-sm font-medium text-primary underline-offset-4 hover:underline"
-        >
-          + Group visit? Add how many residents were reached
-        </button>
-      ) : null}
-      {boxFields.length > 0 ? (
-        <div className="grid grid-cols-1 gap-4 rounded-md border border-border bg-muted/40 p-3 sm:grid-cols-2">
-          {serviceFields.includes("program_partner") ? (
-            <Field label="School or shul?" htmlFor="program_partner" error={fieldErrors.program_partner}>
-              <SelectField
-                name="program_partner"
-                defaultValue={service.program_partner}
-                options={PROGRAM_PARTNERS}
-                placeholder="Choose…"
-              />
-            </Field>
-          ) : null}
-          {/* The holiday (below) now sets the Shabbos / Yom Tov occasion on
-              save; an occasion already on an older entry rides along. */}
-          {serviceFields.includes("occasion") ? <input type="hidden" name="occasion" value={service.occasion} readOnly /> : null}
-          {isFood ? (
-            // One number (director, Oct 27, 2026): people who got food. An
-            // item count already saved on an older entry is kept, unseen.
-            <>
-              <input type="hidden" name="quantity" value={service.quantity} readOnly />
-              <NumberField
-                name="people_reached"
-                label="How many people received food?"
-                hint="A rough count is fine"
-                defaultValue={service.people_reached}
-                error={fieldErrors.people_reached}
-              />
-            </>
-          ) : null}
-          {/* Students and volunteers asked separately (Oct 27, 2026); an
-              older program's single number is kept and shown "not split".
-              Part of a group project: counted on its first activity. */}
-          {GROUP_COUNT_TYPES.includes(interactionType) && !partOfId ? (
-            <>
-              <NumberField
-                name="student_count"
-                label={partnerName ? `Students from ${partnerName}: about` : "Students who took part: about"}
-                defaultValue={service.student_count}
-                error={fieldErrors.student_count}
-              />
-              <NumberField
-                name="volunteer_count"
-                label={partnerName ? `Volunteers from ${partnerName}: about` : "Volunteers who took part: about"}
-                hint={partnerName ? "Counted once for the whole project, however many facilities it reached." : undefined}
-                defaultValue={service.volunteer_count}
-                error={fieldErrors.volunteer_count}
-              />
-              {service.participants ? (
-                <p className="text-xs text-muted-foreground sm:col-span-2">
-                  Saved earlier as one number, not split: about {service.participants} took part.
-                </p>
-              ) : null}
-            </>
-          ) : null}
-          {serviceFields.includes("participants") ? <input type="hidden" name="participants" value={service.participants} readOnly /> : null}
-          {boxFields.includes("people_reached") && !isFood ? (
-            <NumberField
-              name="people_reached"
-              label="Residents reached (about)"
-              hint={
-                GROUP_VISIT_TYPES.includes(interactionType)
-                  ? "Only for a group visit — leave blank when it's one person"
-                  : "A rough count is fine"
-              }
-              defaultValue={service.people_reached}
-              error={fieldErrors.people_reached}
-            />
-          ) : null}
-        </div>
-      ) : null}
-
-      {activity && isEngagementType ? (
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="engaged_contact_ids">
-            {interactionType === "facility_staff_communication" ? "Who you spoke with" : "Staff you worked with or spoke to"}
-          </Label>
-          <MultiSearchPicker
-            id="engaged_contact_ids"
-            name="engaged_contact_ids"
-            options={withChosen<{ id: string; name: string; detail?: string | null; facilityIds?: string[] }>(
-              interactionType === "facility_staff_communication" ? [...activity.facilityStaff, ...activity.partnerContacts] : activity.facilityStaff,
-              activity.anyone,
-              engaged
-            ).map((c) => ({
-              id: c.id,
-              label: c.name,
-              detail: c.detail,
-              // The chosen facility's staff first; everyone else after,
-              // each showing where they work (Oct 27, 2026 QA).
-              rank: facilityId && c.facilityIds?.includes(facilityId) ? 0 : 1,
-            }))}
-            value={engaged}
-            onChange={(ids) => {
-              setEngaged(ids);
-              if (!facilityId) {
-                const facility = facilityOfStaff(ids.filter((id) => !engaged.includes(id)));
-                if (facility) setFacilityId(facility);
-              }
-            }}
-            placeholder={interactionType === "facility_staff_communication" ? "Type a staff member's or partner's name…" : "Type a staff member's name…"}
-          />
-          {onePerPerson ? (
-            <OnePerPersonNote count={engaged.length} />
-          ) : (
-            <p className="text-xs text-muted-foreground">Each counts once toward staff engagements.</p>
-          )}
-          {onePerPerson && present.length === 0 ? null : present.length > 0 || presentOpened ? (
-            <div className="mt-2 flex flex-col gap-1.5">
-              <Label htmlFor="present_contact_ids">Others who were there (not counted)</Label>
-              <MultiSearchPicker
-                id="present_contact_ids"
-                name="present_contact_ids"
-                options={activity.anyone
-                  .filter((c) => !engaged.includes(c.id))
-                  .map((c) => ({ id: c.id, label: c.name, detail: c.detail }))}
-                value={present}
-                onChange={setPresent}
-                placeholder="Type a name…"
-              />
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setPresentOpened(true)}
-              className="w-fit text-xs font-medium text-muted-foreground underline-offset-4 hover:underline"
-            >
-              + Others who were there (not counted)
-            </button>
-          )}
-        </div>
-      ) : isVolunteerVisit ? (
-        // Who visited is "Volunteers involved" below; an older entry's
-        // contact is kept as it was.
-        isEditing ? <input type="hidden" name="contact_id" value={values.contact_id} readOnly /> : null
-      ) : contacts && contacts.length > 0 ? (
-        onePerPerson ? (
-          <Field
-            label={
-              interactionType === "volunteer_meeting"
-                ? "Volunteers you met"
-                : interactionType === "family_communication"
-                  ? "Family members you spoke with"
-                  : "Who you spoke with"
-            }
-            htmlFor="contact_ids"
-            error={fieldErrors.contact_id}
-          >
-            <MultiSearchPicker
-              id="contact_ids"
-              name="contact_ids"
-              options={contacts
-                .filter((c) => !familyOnly || familyIds.has(c.id))
-                .map((c) => ({ id: c.id, label: c.name, detail: c.detail }))}
-              value={peopleShown}
-              onChange={choosePeople}
-              placeholder="Type a name…"
-            />
-            <OnePerPersonNote count={peopleShown.length} />
-          </Field>
-        ) : (
-          <Field label={interactionType === "volunteer_meeting" ? "Volunteer you met" : "Contact"} htmlFor="contact_id" error={fieldErrors.contact_id}>
-            <SearchPicker
-              id="contact_id"
-              name="contact_id"
-              defaultValue={isEditing ? values.contact_id : peopleShown[0] ?? values.contact_id}
-              options={contacts
-                .filter((c) => !familyOnly || familyIds.has(c.id) || c.id === values.contact_id)
-                .map((c) => ({ id: c.id, label: c.name, detail: c.detail }))}
-              emptyLabel="No specific contact"
-              placeholder="Type a name…"
-            />
-          </Field>
-        )
-      ) : null}
-
-      {volunteers && volunteers.length > 0 ? (
-        showVolunteers ? (
-          <div
-            className={
-              isVolunteerVisit
-                ? "flex flex-col gap-1.5 rounded-md border-2 border-primary p-3"
-                : "flex flex-col gap-1.5"
-            }
-          >
-            <Label htmlFor="volunteer_ids">
-              Volunteers involved
-              {isVolunteerVisit ? <span className="text-muted-foreground"> (recommended)</span> : null}
-            </Label>
-            {isVolunteerVisit ? (
-              <p className="text-xs text-muted-foreground">
-                This is what makes a volunteer visit show up in the Volunteer Impact report — add who was there.
-              </p>
-            ) : null}
-            <MultiSearchPicker
-              id="volunteer_ids"
-              name="volunteer_ids"
-              options={volunteers.map((v) => ({ id: v.id, label: v.name }))}
-              value={checkedVolunteerIds}
-              onChange={setCheckedVolunteerIds}
-              placeholder="Type a volunteer's name to add…"
-            />
-          </div>
-        ) : (
-          <button type="button" onClick={() => setVolunteersOpened(true)} className="w-fit text-sm font-medium text-primary underline-offset-4 hover:underline">
-            + Add volunteers
-          </button>
-        )
-      ) : null}
-
-      {activity ? (
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="done_by_ids">Done by</Label>
-          <MultiSearchPicker
-            id="done_by_ids"
-            name="done_by_ids"
-            options={activity.staff.map((s) => ({
-              id: s.id,
-              label: s.id === activity.currentUserId ? `${s.name} (you)` : s.name,
-            }))}
-            value={doneBy}
-            onChange={setDoneBy}
-            placeholder="Add a colleague who was there…"
-          />
-          <p className="text-xs text-muted-foreground">
-            {isVolunteerVisit
-              ? "Who arranged it. A volunteer visit doesn't count as a staff visit."
-              : "Everyone here gets credit; the activity still counts once."}
-          </p>
-        </div>
-      ) : null}
-
-      <Field label="Notes" htmlFor="notes" error={fieldErrors.notes}>
-        <Textarea id="notes" name="notes" rows={4} defaultValue={values.notes} />
-        <p className="text-xs text-muted-foreground">
-          About this visit or call only. Lasting facts (like &ldquo;hard of hearing&rdquo;) go in Profile notes on their page.
+      {/* Pick what happened first (director and ChatGPT, Nov 3, 2026);
+          then only that kind's fields, in its own order. Each piece keeps
+          its key, so anything typed stays when the kind is changed. */}
+      {interactionType ? (
+        fieldOrderFor(interactionType).map((piece) => <Fragment key={piece}>{pieces[piece]}</Fragment>)
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          {fixedResident ? `For ${fixedResident.name}. ` : ""}Pick what happened to see what to fill in.
         </p>
-      </Field>
+      )}
 
       {/* No longer asked (kept simple); an older entry keeps what it had. */}
       <input type="hidden" name="minutes_spent" value={service.minutes_spent} readOnly />
       {service.unmet_need === "on" ? <input type="hidden" name="unmet_need" value="on" readOnly /> : null}
       <input type="hidden" name="unmet_need_reason" value={service.unmet_need_reason} readOnly />
       {service.funder_story === "on" ? <input type="hidden" name="funder_story" value="on" readOnly /> : null}
+
+      {/* Already a visit for this resident that day (Q4, Nov 3, 2026). */}
+      {fieldErrors.confirm_repeat ? (
+        <div className="flex flex-col gap-2 rounded-md border-2 border-destructive bg-destructive/5 p-3">
+          <p className="text-sm font-medium">{fieldErrors.confirm_repeat}</p>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="confirm_repeat" className="size-4" />
+            Yes, a separate visit: save it
+          </label>
+        </div>
+      ) : null}
 
       {state.error ? (
         <p className="text-sm font-medium text-destructive">Not saved yet — see the message at the top of the form.</p>
@@ -898,6 +1224,45 @@ export function InteractionForm({
       </div>
     </form>
   );
+}
+
+/** The pieces of the log form below "What happened?". */
+type FormPiece =
+  | "resident"
+  | "facility"
+  | "date"
+  | "method"
+  | "familyNeed"
+  | "partner"
+  | "food"
+  | "group"
+  | "service"
+  | "people"
+  | "volunteers"
+  | "staff"
+  | "notes";
+
+/** No separate "Contact" box: the resident (or the staff who brought it)
+ * is the whole story, so a person is never asked for twice. */
+const NO_CONTACT_TYPES: readonly string[] = ["resident_visit", "resident_phone_call", "staff_appreciation"];
+
+const DEFAULT_ORDER: FormPiece[] = ["resident", "facility", "date", "method", "familyNeed", "partner", "food", "group", "service", "people", "volunteers", "staff", "notes"];
+
+/** Each kind's own order (director and ChatGPT, Nov 3, 2026): what matters
+ * for it first. Pieces not named keep the usual order after these, so no
+ * field (or an older entry's saved value) is ever dropped; a piece with
+ * nothing to ask for that kind shows nothing. */
+const ORDER_BY_TYPE: Partial<Record<InteractionType, FormPiece[]>> = {
+  resident_visit: ["resident", "group", "facility", "date", "food", "staff", "notes"],
+  volunteer_visit: ["resident", "group", "volunteers", "staff", "facility", "date", "food", "notes"],
+  resident_phone_call: ["resident", "date", "notes", "facility", "staff"],
+  facility_staff_communication: ["people", "facility", "date", "method", "notes", "staff"],
+  staff_appreciation: ["facility", "date", "notes", "staff"],
+};
+
+function fieldOrderFor(type: string): FormPiece[] {
+  const first = ORDER_BY_TYPE[type as InteractionType] ?? [];
+  return [...first, ...DEFAULT_ORDER.filter((p) => !first.includes(p))];
 }
 
 /** The service-field values as the form handles them: strings, with
@@ -913,6 +1278,7 @@ export type ServiceFormValues = {
   participants: string;
   student_count: string;
   volunteer_count: string;
+  chaperone_count: string;
   minutes_spent: string;
   unmet_need: string;
   unmet_need_reason: string;
@@ -929,6 +1295,7 @@ const EMPTY_SERVICE_VALUES: ServiceFormValues = {
   participants: "",
   student_count: "",
   volunteer_count: "",
+  chaperone_count: "",
   minutes_spent: "",
   unmet_need: "",
   unmet_need_reason: "",
@@ -952,15 +1319,18 @@ function NumberField({
   hint,
   defaultValue,
   error,
+  required,
 }: {
   name: string;
   label: string;
   hint?: string;
   defaultValue: string;
   error?: string;
+  /** Shows the asterisk; the save checks it (with any "Unknown" choice). */
+  required?: boolean;
 }) {
   return (
-    <Field label={label} htmlFor={name} error={error}>
+    <Field label={label} htmlFor={name} error={error} required={required}>
       <Input id={name} name={name} type="number" inputMode="numeric" min={0} step={1} defaultValue={defaultValue} />
       {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
     </Field>
@@ -1132,4 +1502,84 @@ function suggestProject(
 function withChosen<T extends { id: string }>(options: T[], everyone: T[], chosen: string[]): T[] {
   const missing = chosen.filter((id) => !options.some((o) => o.id === id));
   return [...options, ...everyone.filter((o) => missing.includes(o.id))];
+}
+
+/** "Staff who were there" on a program or food delivery (D4, Nov 3,
+ * 2026): pick who was physically there, or "No staff were there". An
+ * older entry can stay "Not recorded". Nothing is pre-picked. */
+function AttendanceField({
+  staff,
+  currentUserId,
+  attendance,
+  setAttendance,
+  attendees,
+  setAttendees,
+  savedLead,
+  allowNotRecorded,
+  error,
+}: {
+  staff: { id: string; name: string }[];
+  currentUserId?: string | null;
+  attendance: string;
+  setAttendance: (a: string) => void;
+  attendees: string[];
+  setAttendees: (ids: string[]) => void;
+  /** Editing: who did it as saved (kept as the lead when no staff went). */
+  savedLead: string[];
+  allowNotRecorded: boolean;
+  error?: string;
+}) {
+  const choices = [
+    { value: "yes", label: "Staff were there" },
+    { value: "no", label: "No staff were there" },
+    ...(allowNotRecorded ? [{ value: "", label: "Not recorded" }] : []),
+  ];
+  // What's saved as "Done by": who was there; with no staff there, the
+  // lead already saved (editing) or whoever types it in (new, set on the
+  // server); not recorded keeps it exactly as it was.
+  const doneBy = attendance === "yes" ? attendees : attendance === "no" ? savedLead.slice(0, 1) : savedLead;
+  return (
+    <div id="lead_attended" className={error ? "flex flex-col gap-1.5 rounded-md border-2 border-destructive p-3" : "flex flex-col gap-1.5"}>
+      <Label>
+        Staff who were there<span className="text-destructive"> *</span>
+      </Label>
+      <input type="hidden" name="lead_attended" value={attendance} readOnly />
+      {doneBy.map((id) => (
+        <input key={id} type="hidden" name="done_by_ids" value={id} readOnly />
+      ))}
+      <div role="group" aria-label="Staff who were there" className="flex flex-wrap gap-2">
+        {choices.map((c) => (
+          <button
+            key={c.value || "unknown"}
+            type="button"
+            aria-pressed={attendance === c.value}
+            onClick={() => setAttendance(c.value)}
+            className={
+              attendance === c.value
+                ? "rounded-full bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground"
+                : "rounded-full bg-card px-3 py-1.5 text-sm font-medium ring-1 ring-border hover:ring-primary/50"
+            }
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
+      {attendance === "yes" ? (
+        <MultiSearchPicker
+          id="attendees"
+          name="attendee_ids"
+          options={staff.map((s) => ({ id: s.id, label: s.id === currentUserId ? `${s.name} (you)` : s.name }))}
+          value={attendees}
+          onChange={setAttendees}
+          placeholder="Add each staff member who was there…"
+        />
+      ) : null}
+      {error ? <p className="text-xs font-medium text-destructive">{error}</p> : null}
+      <p className="text-xs text-muted-foreground">
+        {attendance === ""
+          ? "Not recorded: this older entry doesn't say whether staff were there, so it gives no staff visit until confirmed."
+          : "Only staff who were physically there get a staff visit. Entering it isn't the same as being there."}
+      </p>
+    </div>
+  );
 }

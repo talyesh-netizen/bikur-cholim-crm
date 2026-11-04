@@ -20,8 +20,10 @@ import { listEngagedContacts } from "@/lib/queries/activity";
 import { RememberOnsite } from "@/components/remember-onsite";
 import { quickLogEnabled } from "@/lib/quick-log-enabled";
 import { getCurrentProfile } from "@/lib/get-current-profile";
+import { listActiveStaff } from "@/lib/queries/profiles";
 import { listFacilityContacts, listFamilyForResidents } from "@/lib/queries/contacts";
 import { listRecentNotesForResidents } from "@/lib/queries/profile-notes";
+import { listRecentVisitNotes } from "@/lib/queries/interactions";
 import type { OnsiteTab } from "@/lib/onsite-links";
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -59,7 +61,7 @@ export default async function FacilityOnsitePage({
   const currentIds = residents
     .filter((resident) => ACTIVE_RESIDENT_STATUSES.includes(resident.status))
     .map((resident) => resident.id);
-  const [tasks, loggedToday, family, notesByResident] = await Promise.all([
+  const [tasks, loggedToday, family, notesByResident, visitNotesByResident, activeStaff] = await Promise.all([
     listTasksForFacility(
       id,
       residents.map((resident) => resident.id)
@@ -67,6 +69,9 @@ export default async function FacilityOnsitePage({
     listInteractionsAtFacilityOnDay(id, getLocalToday()),
     listFamilyForResidents(currentIds),
     listRecentNotesForResidents(currentIds),
+    // Notes from their recent visits and calls (Q-N1, Nov 3, 2026).
+    listRecentVisitNotes(currentIds, 3),
+    listActiveStaff(),
   ]);
 
   const currentResidents = residents
@@ -173,6 +178,7 @@ export default async function FacilityOnsitePage({
       ) : null}
 
       <OnsiteWorkspace
+        colleagues={activeStaff.filter((p) => p.id !== profile?.id).map((p) => ({ id: p.id, name: p.full_name }))}
         facilityId={facility.id}
         facilityName={facility.name}
         notesOn={notesOn}
@@ -206,7 +212,13 @@ export default async function FacilityOnsitePage({
           needsVisit: needsVisit(resident.last_visit_at),
           // Visited today (Cleveland time) -- drops off the list once logged.
           seenToday: !!resident.last_visit_at && toOrgDatetimeLocalValue(resident.last_visit_at).slice(0, 10) === today,
-          notes: (notesByResident.get(resident.id) ?? []).map((n) => ({ text: n.text, date: formatRelative(n.created_at) ?? "" })),
+          notes: (notesByResident.get(resident.id) ?? []).map((n) => ({ text: n.text, date: formatRelative(n.created_at) ?? "", by: n.by })),
+          visitNotes: (visitNotesByResident.get(resident.id) ?? []).map((n) => ({
+            text: n.notes,
+            date: formatRelative(n.occurred_at) ?? "",
+            by: n.by,
+            kind: labelFor(INTERACTION_TYPES, n.interaction_type),
+          })),
           family: family
             .filter((f) => f.resident_id === resident.id)
             .map((f) => ({ contactId: f.contact_id, name: f.name, relationship: f.relationship, phone: f.phone })),

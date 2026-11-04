@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { orgMonthKey, orgMonthStart } from "@/lib/format-date";
 import { ACTIVE_RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { pad2, selectAllPages } from "@/lib/queries/impact";
-import type { MonthBar } from "@/lib/queries/impact-overview";
+import type { MonthBar } from "@/lib/queries/impact-metrics";
 
 /**
  * Growth over time for the Impact page. "New" means the first time the

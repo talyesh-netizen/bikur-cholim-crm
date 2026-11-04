@@ -9,6 +9,7 @@ import { VoiceButton } from "@/components/voice-button";
 import { saveOnsiteEntry, type OnsiteEntryKind } from "@/lib/actions/onsite-entries";
 import { getLocalToday, orgLocalToIso, toOrgDatetimeLocalValue, formatDateOnly } from "@/lib/format-date";
 import { draftKey, newSubmissionId, readDraft, removeDraft, writeDraft } from "./onsite-drafts";
+import { useCompanion, WithCompanionToggle } from "./companion";
 
 const SAVE_LABEL: Record<OnsiteEntryKind, string> = { visit: "Save visit", staff: "Save conversation", family: "Save conversation" };
 const SAVED_LABEL: Record<OnsiteEntryKind, string> = { visit: "Visit saved", staff: "Staff conversation saved", family: "Family support saved" };
@@ -49,12 +50,21 @@ export function EntryCard({
   const [error, setError] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
   const [confirmSecond, setConfirmSecond] = useState(false);
-  const [saved, setSaved] = useState<{ id: string; time: string } | null>(null);
+  const [saved, setSaved] = useState<{ id: string; time: string; noteWhere: "visit" | "profile" | "fallback" | null } | null>(null);
+  // Where a visit's note goes (Nov 4, 2026): this visit (default) or the
+  // resident's profile -- one or the other, never both. Only asked once a
+  // note is typed, so an empty visit stays one tap.
+  const [noteTarget, setNoteTarget] = useState<"visit" | "profile">("visit");
+  // Kept with the draft too, so a note left for later goes where chosen.
+  const noteTargetRef = useRef<"visit" | "profile">("visit");
   const [pending, startTransition] = useTransition();
   // When the note was begun. A visit typed on an earlier day keeps that
   // day (director, Oct 11, 2026): shown, changeable, and saved with it.
   const startedRef = useRef<number | null>(null);
   const [earlierAt, setEarlierAt] = useState<string | null>(null);
+  // "With Sara" (Q-N2): only when ticked on this card.
+  const companion = useCompanion();
+  const [withCompanion, setWithCompanion] = useState(false);
 
   // Pick up a note left unsaved earlier (closed tab, lost signal...).
   useEffect(() => {
@@ -67,6 +77,10 @@ export function EntryCard({
     const startLocal = toOrgDatetimeLocalValue(new Date(start));
     const t = window.setTimeout(() => {
       setNotes(draft.notes);
+      if (draft.noteTarget) {
+        noteTargetRef.current = draft.noteTarget;
+        setNoteTarget(draft.noteTarget);
+      }
       setRestored(true);
       if (startLocal.slice(0, 10) !== getLocalToday()) setEarlierAt(startLocal);
     }, 0);
@@ -78,8 +92,20 @@ export function EntryCard({
     setNotes(next);
     setError(null);
     if (startedRef.current === null) startedRef.current = Date.now();
-    writeDraft(key, { notes: next, submissionId: submissionId.current, updatedAt: Date.now(), startedAt: startedRef.current });
+    writeDraft(key, { notes: next, submissionId: submissionId.current, updatedAt: Date.now(), startedAt: startedRef.current, noteTarget: noteTargetRef.current });
   };
+  const askWhere = kind === "visit" && !!notes.trim();
+  const chooseTarget = (target: "visit" | "profile") => {
+    noteTargetRef.current = target;
+    setNoteTarget(target);
+  };
+  // The choice is kept with the unsaved note, like the note itself.
+  useEffect(() => {
+    if (!notes.trim() || saved) return;
+    writeDraft(key, { notes, submissionId: submissionId.current, updatedAt: Date.now(), startedAt: startedRef.current ?? undefined, noteTarget });
+    // Only when the choice changes; typing already saves the draft.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noteTarget]);
 
   // Warn before leaving the page with a note not yet saved.
   useEffect(() => {
@@ -111,13 +137,19 @@ export function EntryCard({
           notes: notes.trim() || undefined,
           submissionId: submissionId.current,
           occurredAt: earlierAt ? orgLocalToIso(earlierAt) ?? undefined : undefined,
+          teamIds: companion && withCompanion ? [companion.id] : undefined,
+          noteTarget: askWhere ? noteTarget : undefined,
         });
         if (!result.ok) {
           setError(result.error);
           return;
         }
         removeDraft(key);
-        setSaved({ id: result.interactionId, time: result.time });
+        setSaved({
+          id: result.interactionId,
+          time: result.time,
+          noteWhere: !askWhere ? null : noteTarget === "visit" ? "visit" : result.noteOnProfile ? "profile" : "fallback",
+        });
         // Reload the list from the CRM, so "Visited today" shows at once.
         router.refresh();
       } catch {
@@ -134,6 +166,11 @@ export function EntryCard({
           <CheckCircle2 className="size-5 shrink-0" /> {SAVED_LABEL[kind]} {earlierAt ? `for ${formatDateOnly(earlierAt.slice(0, 10))}` : `at ${saved.time}`}
         </p>
         <p className="text-muted-foreground">{title}. It&apos;s in the CRM.</p>
+        {saved.noteWhere === "profile" ? (
+          <p className="text-muted-foreground">The note is on their profile, under &ldquo;About them&rdquo; (not on this visit).</p>
+        ) : saved.noteWhere === "fallback" ? (
+          <p className="font-medium text-[var(--tone-attention-fg)]">The note couldn&apos;t go to their profile, so it was kept with this visit.</p>
+        ) : null}
         <div className="flex gap-2">
           <Button className="h-11 flex-1" onClick={onDone}>Done — next</Button>
           <Button variant="outline" className="h-11" asChild>
@@ -174,6 +211,41 @@ export function EntryCard({
         className="w-full rounded-md border border-input bg-background px-3 py-2 text-base sm:text-sm"
       />
       <VoiceButton compact label="Talk instead of typing" onText={(text) => update(notes.trim() ? `${notes.trim()} ${text}` : text)} />
+      {askWhere ? (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium" id={`${key}-where`}>
+            Save note to:
+          </span>
+          <div role="group" aria-labelledby={`${key}-where`} className="grid grid-cols-2 gap-2">
+            {(
+              [
+                ["visit", "This visit"],
+                ["profile", "Resident profile"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={noteTarget === value}
+                onClick={() => chooseTarget(value)}
+                className={
+                  noteTarget === value
+                    ? "h-11 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground"
+                    : "h-11 rounded-md bg-card px-3 text-sm font-medium ring-1 ring-border"
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {noteTarget === "profile" ? (
+            <p className="text-xs text-muted-foreground">
+              Saved on their page under &ldquo;About them&rdquo;, with today&apos;s date and your name. The visit is still saved, without the note.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      <WithCompanionToggle on={withCompanion} onChange={setWithCompanion} />
 
       {confirmSecond ? (
         <div className="rounded-md border border-[var(--tone-attention-fg)]/30 bg-[var(--tone-attention-bg)] p-3 text-sm">

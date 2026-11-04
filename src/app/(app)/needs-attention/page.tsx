@@ -8,11 +8,14 @@ import { AttentionGroup as Group } from "./attention-group";
 
 export default async function NeedsAttentionPage({ searchParams }: { searchParams: Promise<{ all?: string }> }) {
   const showAll = (await searchParams).all === "1";
-  const [{ locationUnknown, missingName, noRecentVisit }, facilities] = await Promise.all([
+  const [{ locationUnknown, noFacility, missingName, noRecentVisit }, facilities] = await Promise.all([
     getNeedsAttention(),
     getFacilitiesNeedingAttention(),
   ]);
-  const facility = (r: AttentionResident) => r.current_facility_name ?? "Current location unknown";
+  const facility = (r: AttentionResident) => r.current_facility_name ?? "No facility recorded";
+  // In-person visits and other contact kept apart (Q3, Nov 3, 2026).
+  const lastContact = (r: AttentionResident) =>
+    r.last_contact_at && r.last_contact_at !== r.last_visit_at ? ` · last contact ${formatRelative(r.last_contact_at)}` : "";
 
   return (
     <div className="flex flex-col gap-4">
@@ -28,14 +31,21 @@ export default async function NeedsAttentionPage({ searchParams }: { searchParam
         title="Location unknown"
         explanation="We don't know where they are living right now. Try to find out, then use “Move to another facility”."
         residents={locationUnknown}
-        detail={(r) => (r.last_visit_at ? `Last visit ${formatRelative(r.last_visit_at)}` : "No visits logged")}
+        detail={(r) => `${r.last_visit_at ? `Last in-person visit ${formatRelative(r.last_visit_at)}` : "No in-person visits logged"}${lastContact(r)}`}
       />
       <Group
         showAll={showAll}
-        title={`No visit in ${NO_VISIT_DAYS}+ days`}
-        explanation="Active residents nobody has visited recently. Longest wait first."
+        title="No facility recorded"
+        explanation="No facility is on file for them. If they live at home, that's fine: calls and visits can be logged without a facility. Otherwise, use “Move to another facility”."
+        residents={noFacility}
+        detail={(r) => `${r.last_visit_at ? `Last in-person visit ${formatRelative(r.last_visit_at)}` : "No in-person visits logged"}${lastContact(r)}`}
+      />
+      <Group
+        showAll={showAll}
+        title={`No in-person visit in ${NO_VISIT_DAYS}+ days`}
+        explanation="Active residents nobody has visited in person recently. Phone calls are shown beside it but don't count as a visit. Longest wait first."
         residents={noRecentVisit}
-        detail={(r) => `${facility(r)} · ${r.last_visit_at ? `last visit ${formatRelative(r.last_visit_at)}` : "never visited"}`}
+        detail={(r) => `${facility(r)} · ${r.last_visit_at ? `last in-person visit ${formatRelative(r.last_visit_at)}` : "no in-person visit yet"}${lastContact(r)}`}
       />
       <Card>
         <CardHeader>

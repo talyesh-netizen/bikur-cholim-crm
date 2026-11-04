@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { LabeledValue, MonthBar } from "@/lib/queries/impact-overview";
+import type { LabeledValue, MonthBar } from "@/lib/queries/impact-metrics";
 
 /** Section colors -- the same ones the Impact donut uses for these kinds
  * of work, so a color always means the same thing across the app. */
@@ -203,7 +203,7 @@ export function HeadlineTile({
           {change.text}
         </p>
       ) : null}
-      {href ? <p className="m-0 mt-auto text-xs font-medium text-muted-foreground">See the latest →</p> : null}
+      {href ? <p className="m-0 mt-auto text-xs font-medium text-muted-foreground">See the records →</p> : null}
     </Tile>
   );
 }

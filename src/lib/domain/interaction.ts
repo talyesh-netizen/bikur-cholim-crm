@@ -25,6 +25,8 @@ export const INTERACTION_TYPES = [
   { value: "facility_staff_communication", label: "Staff conversation" },
   { value: "facility_visit", label: "Facility visit" },
   { value: "facility_discovery_visit", label: "First visit to a new facility" },
+  // Food, refreshments or gifts for a facility's staff (A7, Nov 3, 2026).
+  { value: "staff_appreciation", label: "Staff appreciation" },
   { value: "hospital_related_communication", label: "Hospital-related communication" },
   { value: "email", label: "Email" },
   { value: "other", label: "Other" },
@@ -58,7 +60,7 @@ export const TYPE_BUTTONS: {
 /** Offered under "More types…" (director, Oct 27, 2026): a visit where
  * no resident interaction or staff meeting happened. An older entry with
  * another type still shows (and keeps) it when edited. */
-export const MORE_TYPES: InteractionType[] = ["facility_visit"];
+export const MORE_TYPES: InteractionType[] = ["facility_visit", "staff_appreciation"];
 
 /** What kind of food, the one question a Food entry asks. Stored in the
  * existing holiday field: Snack = none, Shabbos = "shabbos", Holiday =
@@ -166,6 +168,13 @@ export type InteractionWithNames = Interaction & {
   volunteers: { id: string; name: string }[];
   /** Set when an admin reviewed this as a copy of another entry. */
   counted_in_id?: string | null;
+  /** Whether the lead was physically there (Nov 3, 2026); null = not recorded. */
+  lead_attended?: boolean | null;
+  /** Volunteer visits saved together as one outing share this (Nov 3, 2026). */
+  outing_id?: string | null;
+  /** Who typed it in (recorded automatically), and their name. */
+  entered_by?: string | null;
+  entered_by_name?: string | null;
 };
 
 /** Types where the facility can be left blank -- e.g. a family calling
@@ -181,7 +190,20 @@ export const FACILITY_OPTIONAL_TYPES: readonly string[] = [
   "school_engagement",
   // Someone outside the facilities we serve (Oct 19, 2026).
   "other",
+  // A phone call isn't at a facility (Q1, Nov 3, 2026).
+  "resident_phone_call",
 ];
+
+/** With a resident, no facility needed (A1, Nov 3, 2026): the resident's
+ * facility is filled in and can be cleared (a visit at home or in a
+ * hospital). Saved "in person elsewhere", so it never counts as a
+ * facility visit. Without a resident these still need a facility. */
+export const NO_FACILITY_RESIDENT_TYPES: readonly string[] = ["resident_visit", "volunteer_visit", "food_delivery", "medical_referral", "referral"];
+
+/** Programs and food deliveries ask which staff were physically there
+ * (D4, Nov 3, 2026). Nothing is assumed: the person typing it in isn't
+ * taken to have been there, and an older entry stays "not recorded". */
+export const ATTENDANCE_ASKED_TYPES: readonly string[] = ["program", "school_engagement", "food_delivery", "staff_appreciation"];
 
 /** Entries that ask "Staff you worked with or spoke to" (each counts
  * once toward staff engagements) instead of a single Contact. */
@@ -253,6 +275,7 @@ export const METHOD_FIXED: Partial<Record<InteractionType, (typeof METHODS)[numb
   volunteer_visit: "in_person",
   facility_visit: "in_person",
   facility_discovery_visit: "in_person",
+  staff_appreciation: "in_person",
   program: "in_person",
   school_engagement: "in_person",
   food_delivery: "in_person",
@@ -277,7 +300,7 @@ export const PARTNER_TYPES: readonly string[] = ["program", "school_engagement",
  * group activity. A meaningful conversation with someone there is its own
  * entry. Food keeps an optional Resident, for a delivery made for one
  * person. An older entry's resident is kept as it was. */
-export const NO_RESIDENT_TYPES: readonly string[] = ["program", "school_engagement"];
+export const NO_RESIDENT_TYPES: readonly string[] = ["program", "school_engagement", "staff_appreciation"];
 
 /** Entries that can hold a group's volunteer count. */
 export const GROUP_COUNT_TYPES: readonly string[] = ["program", "school_engagement"];
@@ -326,7 +349,7 @@ export const TIME_SPENT_OPTIONS = [
 export const SERVICE_FIELDS_BY_TYPE: Partial<
   Record<
     InteractionType,
-    readonly ("occasion" | "program_partner" | "quantity" | "people_reached" | "participants" | "student_count" | "volunteer_count")[]
+    readonly ("occasion" | "program_partner" | "quantity" | "people_reached" | "participants" | "student_count" | "volunteer_count" | "chaperone_count")[]
   >
 > = {
   // Food asks one number, people who got food (Oct 27, 2026); an item
@@ -334,8 +357,10 @@ export const SERVICE_FIELDS_BY_TYPE: Partial<
   food_delivery: ["occasion", "quantity", "people_reached"],
   // Programs ask students and volunteers separately (Oct 27, 2026); the
   // older single number (participants) is kept and shown as "Not split".
-  program: ["occasion", "participants", "student_count", "volunteer_count", "people_reached"],
-  school_engagement: ["program_partner", "occasion", "participants", "student_count", "volunteer_count", "people_reached"],
+  // School staff / chaperones asked apart from students and community
+  // volunteers (A3, Nov 3, 2026).
+  program: ["occasion", "participants", "student_count", "volunteer_count", "chaperone_count", "people_reached"],
+  school_engagement: ["program_partner", "occasion", "participants", "student_count", "volunteer_count", "chaperone_count", "people_reached"],
   // Group visits: the old tracking sheet logged e.g. "1 to 1 Pesach visit,
   // 15 residents" or a volunteer group seeing 7 people as one entry.
   resident_visit: ["people_reached"],
@@ -363,6 +388,8 @@ export type ServiceDetails = {
   /** Students and volunteers who took part (Oct 27, 2026). */
   student_count?: number | null;
   volunteer_count?: number | null;
+  /** School staff / chaperones at a program (Nov 3, 2026). */
+  chaperone_count?: number | null;
   minutes_spent: number | null;
   unmet_need: boolean;
   unmet_need_reason: string | null;
@@ -379,7 +406,7 @@ export function formatMinutes(minutes: number): string {
  * "25 people got food" for food, a group visit's or program's reach, a
  * program's students and volunteers. Null when there are none. */
 export function serviceNumbersLine(
-  i: Pick<ServiceDetails, "people_reached" | "participants" | "student_count" | "volunteer_count"> & { interaction_type: string }
+  i: Pick<ServiceDetails, "people_reached" | "participants" | "student_count" | "volunteer_count" | "chaperone_count"> & { interaction_type: string }
 ): string | null {
   const plural = (n: number, one: string, many: string) => `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
   const parts =
@@ -387,8 +414,9 @@ export function serviceNumbersLine(
       ? [i.people_reached ? `${plural(i.people_reached, "person", "people")} got food` : null]
       : [
           i.student_count ? plural(i.student_count, "student", "students") : null,
-          i.volunteer_count ? plural(i.volunteer_count, "volunteer", "volunteers") : null,
-          i.participants ? `${plural(i.participants, "person", "people")} took part (not split)` : null,
+          i.volunteer_count ? plural(i.volunteer_count, "community volunteer", "community volunteers") : null,
+          i.chaperone_count ? plural(i.chaperone_count, "school staff / chaperone", "school staff / chaperones") : null,
+          notSplitPart(i) ? `${plural(notSplitPart(i), "person", "people")} took part (not split)` : null,
           i.people_reached ? `${plural(i.people_reached, "resident", "residents")} reached` : null,
         ];
   return parts.filter(Boolean).join(" · ") || null;
@@ -396,6 +424,12 @@ export function serviceNumbersLine(
 
 /** A group's head count on its first activity: students and volunteers,
  * plus an older entry's single number (not split). */
-export function headCount(i: Pick<ServiceDetails, "participants" | "student_count" | "volunteer_count">): number {
-  return (i.participants ?? 0) + (i.student_count ?? 0) + (i.volunteer_count ?? 0);
+export function headCount(i: Pick<ServiceDetails, "participants" | "student_count" | "volunteer_count" | "chaperone_count">): number {
+  return (i.student_count ?? 0) + (i.volunteer_count ?? 0) + (i.chaperone_count ?? 0) + notSplitPart(i);
+}
+
+/** The part of an older program's single number not yet split into
+ * students and volunteers (Q6, Nov 3, 2026) -- never counted twice. */
+export function notSplitPart(i: Pick<ServiceDetails, "participants" | "student_count" | "volunteer_count" | "chaperone_count">): number {
+  return Math.max((i.participants ?? 0) - (i.student_count ?? 0) - (i.volunteer_count ?? 0) - (i.chaperone_count ?? 0), 0);
 }

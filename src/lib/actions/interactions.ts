@@ -23,14 +23,18 @@ import {
   METHOD_REQUIRED_NEW,
   METHOD_FIXED,
   METHODS,
+  NO_FACILITY_RESIDENT_TYPES,
+  ATTENDANCE_ASKED_TYPES,
+  GROUP_COUNT_TYPES,
   methodWhere,
   occasionForHoliday,
   type InteractionType,
 } from "@/lib/domain/interaction";
-import { orgDateToIso } from "@/lib/format-date";
+import { nextDay, orgDateToIso, orgDayStartIso } from "@/lib/format-date";
 import { PARTNER_CONTACT_TYPES } from "@/lib/domain/contact";
 import { withSaved } from "@/lib/saved-flash";
 import { saveQuarterAsFirstRecorded } from "@/lib/actions/double-entries";
+import { PROFILE_NOTE_MAX, PROFILE_NOTE_TOO_LONG, saveNoteToProfiles } from "@/lib/visit-note-target";
 
 const typeValues = INTERACTION_TYPES.map((o) => o.value) as [string, ...string[]];
 const emptyToUndefined = (val: unknown) => (val === "" ? undefined : val);
@@ -103,6 +107,8 @@ const interactionSchema = z
     participants: optionalCount,
     student_count: optionalCount,
     volunteer_count: optionalCount,
+    // School staff / chaperones at a program (A3, Nov 3, 2026).
+    chaperone_count: optionalCount,
     minutes_spent: optionalCount,
     unmet_need: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
     unmet_need_reason: z.preprocess(emptyToUndefined, z.enum(enumValues(UNMET_NEED_REASONS)).optional()),
@@ -111,16 +117,45 @@ const interactionSchema = z
     method: z.preprocess(emptyToUndefined, z.enum(enumValues(METHODS)).optional()),
     partner_organization_id: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
     part_of_id: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
+    // Whether "Done by"'s first person was physically there (D4, Nov 3,
+    // 2026): asked on programs, food and volunteer visits. Blank = not
+    // recorded (kept as it was when editing).
+    lead_attended: z.preprocess(emptyToUndefined, z.enum(["yes", "no"]).optional()),
+    // Food: "Unknown" ticked instead of a number (A5, Nov 3, 2026). Not
+    // saved; the number stays empty and is reported as not recorded.
+    recipients_unknown: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
+    // An older program's single total: kept as it is, or replaced by a
+    // checked breakdown (A6, Nov 3, 2026). Never both counted.
+    legacy_total: z.preprocess(emptyToUndefined, z.enum(["keep", "replace"]).optional()),
+    // "Yes, a separate visit": saved even though one is already logged for
+    // that resident that day (Q4, Nov 3, 2026).
+    confirm_repeat: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
+    // Where a new visit's note goes (Nov 4, 2026): the visit (default) or
+    // the resident's profile ("About them") -- one or the other, never both.
+    note_target: z.preprocess(emptyToUndefined, z.enum(["visit", "profile"]).optional()),
   })
   .superRefine((data, ctx) => {
     // A staff conversation with only partners needs no facility: checked
     // against the people chosen once they're known (needsFacility).
+    // ... and an in-person entry with a resident who has no facility
+    // recorded (Q1): checked against the residents once known (facilityForResidents).
     if (
       !data.facility_id &&
       !FACILITY_OPTIONAL_TYPES.includes(data.interaction_type) &&
-      !PARTNER_FACILITY_OPTIONAL_TYPES.includes(data.interaction_type)
+      !PARTNER_FACILITY_OPTIONAL_TYPES.includes(data.interaction_type) &&
+      !NO_FACILITY_RESIDENT_TYPES.includes(data.interaction_type)
     ) {
       ctx.addIssue({ code: "custom", path: ["facility_id"], message: "Please choose a facility." });
+    }
+    // An older program with a single total and a breakdown: say which
+    // stands (A6). The old total stays in the change history either way.
+    const breakdown = (data.student_count ?? 0) + (data.volunteer_count ?? 0) + (data.chaperone_count ?? 0) > 0;
+    if (GROUP_COUNT_TYPES.includes(data.interaction_type) && data.participants && breakdown && !data.legacy_total) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["legacy_total"],
+        message: "This program has an older total and a breakdown. Choose “Keep the older total” or “Replace it with the breakdown” so it's counted once.",
+      });
     }
     if (data.method === "in_person" && !data.facility_id && data.interaction_type in METHOD_ASKED) {
       ctx.addIssue({
@@ -165,9 +200,12 @@ function toInteractionRow(data: z.infer<typeof interactionSchema>, people: Peopl
     people_reached: pick("people_reached"),
     // Part of a group project: its head count is held on the project's
     // first activity, never again here.
-    participants: partOf ? null : pick("participants"),
-    student_count: partOf ? null : pick("student_count"),
-    volunteer_count: partOf ? null : pick("volunteer_count"),
+    // An older single total replaced by a checked breakdown (A6): only the
+    // breakdown stays; the old total is in the change history.
+    participants: partOf || data.legacy_total === "replace" ? null : pick("participants"),
+    student_count: partOf || data.legacy_total === "keep" ? null : pick("student_count"),
+    volunteer_count: partOf || data.legacy_total === "keep" ? null : pick("volunteer_count"),
+    chaperone_count: partOf || data.legacy_total === "keep" ? null : pick("chaperone_count"),
     partner_organization_id: partnered ? data.partner_organization_id ?? null : null,
     part_of_id: partOf,
     minutes_spent: data.minutes_spent ?? null,
@@ -184,6 +222,11 @@ function toInteractionRow(data: z.infer<typeof interactionSchema>, people: Peopl
       : isNew && METHOD_FIXED[data.interaction_type as InteractionType]
         ? { method: methodWhere(METHOD_FIXED[data.interaction_type as InteractionType], data.facility_id) }
         : {}),
+    // Staff attendance (D4): only where asked, and only when answered --
+    // a blank answer on an older entry keeps "not recorded".
+    ...((ATTENDANCE_ASKED_TYPES.includes(data.interaction_type) || data.interaction_type === "volunteer_visit") && data.lead_attended
+      ? { lead_attended: data.lead_attended === "yes" }
+      : {}),
   };
 }
 
@@ -240,6 +283,46 @@ async function projectRoot(
 const submissionIdSchema = z.string().uuid();
 
 const RESIDENT_REQUIRED_MESSAGE = "Please choose the resident.";
+
+/** Kinds that are one in-person encounter with a resident. */
+const REPEAT_CHECK_TYPES: readonly string[] = ["resident_visit", "volunteer_visit"];
+
+/** How many of these residents already have a visit or volunteer visit
+ * (counted, not voided) on this Cleveland day. */
+async function visitsAlreadyLogged(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  residentIds: string[],
+  day: string
+): Promise<number> {
+  const start = orgDayStartIso(day.slice(0, 10));
+  const end = orgDayStartIso(nextDay(day.slice(0, 10)));
+  if (!start || !end) return 0;
+  const { data } = await supabase
+    .from("interactions")
+    .select("resident_id")
+    .in("resident_id", residentIds)
+    .in("interaction_type", [...REPEAT_CHECK_TYPES])
+    .is("voided_at", null)
+    .is("counted_in_id", null)
+    .gte("occurred_at", start)
+    .lt("occurred_at", end);
+  return new Set((data ?? []).map((r) => r.resident_id as string)).size;
+}
+const NO_FACILITY_MESSAGE = "Please choose a facility, or the resident this was with.";
+const ATTENDANCE_MESSAGE = "Please pick the staff who were there, or “No staff were there”.";
+
+/** A resident entry needs no facility (A1, Nov 3, 2026): the form fills in
+ * the resident's facility and it can be cleared for a visit at home or in
+ * a hospital (saved in person elsewhere). Without a resident, one of these
+ * kinds is at a facility and needs it. */
+async function needsFacilityForResidents(
+  _supabase: Awaited<ReturnType<typeof createClient>>,
+  data: { interaction_type: string; facility_id?: string },
+  residentIds: string[]
+): Promise<boolean> {
+  if (data.facility_id || !NO_FACILITY_RESIDENT_TYPES.includes(data.interaction_type)) return false;
+  return residentIds.length === 0;
+}
 const FACILITY_REQUIRED_MESSAGE = "Please choose a facility (only a conversation with partners can be without one).";
 
 /** A staff conversation saved without a facility is fine only when
@@ -335,7 +418,63 @@ export async function createInteraction(
     };
   }
 
+  // Food: how many people received it, or "Unknown" -- never guessed (A5).
+  if (parsed.data.interaction_type === "food_delivery" && parsed.data.people_reached === undefined && !parsed.data.recipients_unknown) {
+    return {
+      error: "Please fix the highlighted fields.",
+      fieldErrors: { people_reached: "Please enter how many people received food, or tick “Unknown”." },
+      values: raw,
+      checkedVolunteerIds: volunteerIds,
+      people,
+      residentIds: chosenResidents,
+    };
+  }
+
+  // Staff attendance on a new program or delivery is never assumed (D4).
+  if (ATTENDANCE_ASKED_TYPES.includes(parsed.data.interaction_type) && (!parsed.data.lead_attended || (parsed.data.lead_attended === "yes" && people.doneBy.length === 0))) {
+    return {
+      error: "Please fix the highlighted fields.",
+      fieldErrors: { lead_attended: ATTENDANCE_MESSAGE },
+      values: raw,
+      checkedVolunteerIds: volunteerIds,
+      people,
+      residentIds: chosenResidents,
+    };
+  }
+
   const supabase = await createClient();
+  const residentsOnEntry = chosenResidents.length > 0 ? chosenResidents : parsed.data.resident_id ? [parsed.data.resident_id] : [];
+  if (await needsFacilityForResidents(supabase, parsed.data, residentsOnEntry)) {
+    return {
+      error: "Please fix the highlighted fields.",
+      fieldErrors: { facility_id: NO_FACILITY_MESSAGE },
+      values: raw,
+      checkedVolunteerIds: volunteerIds,
+      people,
+      residentIds: chosenResidents,
+    };
+  }
+  // Already a visit (staff or volunteer) for one of these residents that
+  // day? Ask before saving a second one, so a staff member who went with a
+  // volunteer doesn't log the same encounter twice (Q4, Nov 3, 2026).
+  if (REPEAT_CHECK_TYPES.includes(parsed.data.interaction_type) && residentsOnEntry.length > 0 && !parsed.data.confirm_repeat) {
+    const repeats = await visitsAlreadyLogged(supabase, residentsOnEntry, parsed.data.occurred_at);
+    if (repeats > 0) {
+      return {
+        error: "Please answer the question below before saving.",
+        fieldErrors: {
+          confirm_repeat:
+            residentsOnEntry.length === 1
+              ? "A visit (by staff or a volunteer) is already logged for this resident on this day. If you went along on that visit, add yourself to it instead. Is this a separate visit?"
+              : `${repeats} of these residents already have a visit (by staff or a volunteer) logged on this day. If you went along on that visit, add yourself to it instead. Are these separate visits?`,
+        },
+        values: raw,
+        checkedVolunteerIds: volunteerIds,
+        people,
+        residentIds: chosenResidents,
+      };
+    }
+  }
   const persons = peopleForRecords(parsed.data.interaction_type, people, parsed.data.contact_id);
   if (parsed.data.interaction_type === "family_communication" && (await notAllFamily(supabase, persons))) {
     return {
@@ -369,6 +508,10 @@ export async function createInteraction(
   const clientSubmissionId = submission.success ? submission.data : null;
   // Who did it (first chosen) can differ from who is typing it in --
   // that is recorded automatically as entered_by.
+  // "No staff were there": whoever typed it in is its lead, never credited.
+  if (ATTENDANCE_ASKED_TYPES.includes(parsed.data.interaction_type) && parsed.data.lead_attended === "no") people.doneBy = [user.id];
+  // A volunteer visit says whether whoever arranged it went too; no answer = didn't.
+  if (parsed.data.interaction_type === "volunteer_visit" && !parsed.data.lead_attended) parsed.data.lead_attended = "no";
   const lead = people.doneBy[0] ?? user.id;
   parsed.data.part_of_id = await projectRoot(supabase, parsed.data.part_of_id);
 
@@ -376,8 +519,29 @@ export async function createInteraction(
   // for each, with the same day, place and notes. One insert, so either
   // all are saved or none; the submission ID on the first is enough to
   // recognize a repeat. A group head count isn't copied to each.
-  const row = toInteractionRow(parsed.data, people, true);
-  const residentIds = parsed.data.interaction_type === "resident_visit" ? chosenResidents : [];
+  // The note goes to the resident's profile instead of the visit (Nov 4,
+  // 2026): the visit is saved without it, so it's never in both places.
+  const noteToProfile = parsed.data.interaction_type === "resident_visit" && parsed.data.note_target === "profile" && !!parsed.data.notes;
+  const profileNote = noteToProfile ? parsed.data.notes! : null;
+  if (profileNote && profileNote.length > PROFILE_NOTE_MAX) {
+    return {
+      error: "Please fix the highlighted fields.",
+      fieldErrors: { notes: PROFILE_NOTE_TOO_LONG },
+      values: raw,
+      checkedVolunteerIds: volunteerIds,
+      people,
+      residentIds: chosenResidents,
+    };
+  }
+  const row = {
+    ...toInteractionRow(parsed.data, people, true),
+    ...(noteToProfile ? { notes: null } : {}),
+    // One volunteer outing, however many residents it saw (A2): every
+    // record saved here shares it, so reports count one outing.
+    ...(parsed.data.interaction_type === "volunteer_visit" ? { outing_id: crypto.randomUUID() } : {}),
+  };
+  // Several residents on one volunteer visit too (Q2, Nov 3, 2026).
+  const residentIds = parsed.data.interaction_type === "resident_visit" || parsed.data.interaction_type === "volunteer_visit" ? chosenResidents : [];
   // One record per person (Oct 27, 2026), the same way: a staff
   // conversation, family conversation, volunteer meeting or "other" with
   // several people is a record for each, same day, place, notes and team.
@@ -431,6 +595,18 @@ export async function createInteraction(
       people,
       residentIds: chosenResidents,
     };
+  }
+
+  // The note, saved once on each resident's profile, with who wrote it
+  // and when (the existing "About them" notes). If that fails, it goes on
+  // the visit instead, so it's never lost and never in both places.
+  if (profileNote) {
+    await saveNoteToProfiles(supabase, {
+      residentIds: rows.map((r) => r.resident_id).filter((r): r is string => !!r),
+      note: profileNote,
+      authorId: user.id,
+      interactionIds: createdIds,
+    });
   }
 
   for (const [i, createdId] of createdIds.entries()) {
@@ -519,6 +695,19 @@ export async function updateInteraction(
         people,
       };
     }
+  }
+
+  if (await needsFacilityForResidents(supabase, parsed.data, parsed.data.resident_id ? [parsed.data.resident_id] : [])) {
+    return {
+      error: "Please fix the highlighted fields.",
+      fieldErrors: { facility_id: NO_FACILITY_MESSAGE },
+      values: raw,
+      checkedVolunteerIds: volunteerIds,
+      people,
+    };
+  }
+  if (ATTENDANCE_ASKED_TYPES.includes(parsed.data.interaction_type) && parsed.data.lead_attended === "yes" && people.doneBy.length === 0) {
+    return { error: "Please fix the highlighted fields.", fieldErrors: { lead_attended: ATTENDANCE_MESSAGE }, values: raw, checkedVolunteerIds: volunteerIds, people };
   }
 
   const editPeople = ENGAGEMENT_TYPES.includes(parsed.data.interaction_type)

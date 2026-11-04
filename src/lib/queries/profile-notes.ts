@@ -57,22 +57,23 @@ export async function listFacilityProfileNotes(facilityId: string, limit = 25): 
 export async function listRecentNotesForResidents(
   residentIds: string[],
   perResident = 3
-): Promise<Map<string, { text: string; created_at: string }[]>> {
-  const byResident = new Map<string, { text: string; created_at: string }[]>();
+): Promise<Map<string, { text: string; created_at: string; by: string | null }[]>> {
+  const byResident = new Map<string, { text: string; created_at: string; by: string | null }[]>();
   if (residentIds.length === 0) return byResident;
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("profile_notes")
-    .select("resident_id, clean_note, created_at")
+    // Who wrote it, shown beside the date (Nov 4, 2026).
+    .select("resident_id, clean_note, created_at, profiles!profile_notes_created_by_fkey(full_name)")
     .in("resident_id", residentIds)
     .order("created_at", { ascending: false })
     .limit(1000);
 
   if (error) throw new Error(error.message);
-  for (const row of data ?? []) {
+  for (const row of (data ?? []) as unknown as { resident_id: string | null; clean_note: string; created_at: string; profiles: { full_name: string } | null }[]) {
     if (!row.resident_id) continue;
     const list = byResident.get(row.resident_id) ?? [];
-    if (list.length < perResident) list.push({ text: row.clean_note, created_at: row.created_at });
+    if (list.length < perResident) list.push({ text: row.clean_note, created_at: row.created_at, by: row.profiles?.full_name ?? null });
     byResident.set(row.resident_id, list);
   }
   return byResident;

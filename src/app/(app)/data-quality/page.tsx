@@ -9,6 +9,8 @@ import {
 import type { DataQualityRow } from "@/lib/queries/data-quality";
 import { listDoubleEntries } from "@/lib/queries/double-entries";
 import { getCurrentProfile } from "@/lib/get-current-profile";
+import { getImpactMetrics } from "@/lib/queries/impact-metrics";
+import { ALL_TIME } from "@/lib/report-period";
 import { CheckCircle2, ChevronRight } from "lucide-react";
 import { SectionIcon } from "@/components/section-icon";
 import { ClipboardCheck } from "lucide-react";
@@ -44,13 +46,17 @@ function Section({ title, rows }: { title: string; rows: DataQualityRow[] }) {
 }
 
 export default async function DataQualityPage() {
-  const [report, volunteerVisitGapCount, unreviewedCounts, doubleEntries, profile] = await Promise.all([
+  const [report, volunteerVisitGapCount, unreviewedCounts, doubleEntries, profile, allTime] = await Promise.all([
     getDataQualityReport(),
     getVolunteerVisitGapCount(),
     getUnreviewedCountsByType(),
     listDoubleEntries(),
     getCurrentProfile(),
+    getImpactMetrics(ALL_TIME),
   ]);
+  // To confirm by hand, one at a time (Q5 and C2, Nov 3, 2026).
+  const foodNotRecorded = allTime.values.food_not_recorded ?? 0;
+  const attendanceNotRecorded = allTime.values.attendance_not_recorded_entries ?? 0;
   const doubleEntryCount = doubleEntries.open.length;
   // Only admins answer double entries, so only they see the card
   // (director, Oct 20, 2026: kept out of the everyday staff workflow).
@@ -144,11 +150,50 @@ export default async function DataQualityPage() {
         </Card>
       </Link>
 
+      <ConfirmCard
+        href="/impact/records?metric=attendance_not_recorded&period=all"
+        title="Staff attendance not recorded"
+        count={attendanceNotRecorded}
+        text="Older programs, food deliveries and volunteer visits that don't say whether staff were there (unknown, not absent). Open one and answer who was there. The ones that decide a facility-day are listed first."
+      />
+      <ConfirmCard
+        href="/impact/records?metric=food_not_recorded&period=all"
+        title="Food deliveries with no people count"
+        count={foodNotRecorded}
+        text="Deliveries where “How many people received food?” is blank. They're shown as not recorded, never guessed. Fill one in if you know it."
+      />
+
       <Section title="Contacts missing a phone number" rows={report.contactsMissingPhone} />
       <Section title="Contacts missing an email" rows={report.contactsMissingEmail} />
       <Section title="Facilities missing a main phone number" rows={report.facilitiesMissingPhone} />
       <Section title="Facilities missing an address" rows={report.facilitiesMissingAddress} />
       <Section title="Organizations missing a main phone number" rows={report.organizationsMissingPhone} />
     </div>
+  );
+}
+
+function ConfirmCard({ href, title, count, text }: { href: string; title: string; count: number; text: string }) {
+  return (
+    <Link href={href} className="block">
+      <Card className="transition-colors hover:border-foreground/30">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-base">{title}</CardTitle>
+          <div className="flex items-center gap-2">
+            {count > 0 ? <Badge variant="warning">{count}</Badge> : null}
+            <ChevronRight className="size-4 text-muted-foreground" />
+          </div>
+        </CardHeader>
+        <CardContent>
+          {count === 0 ? (
+            <div className="flex items-center gap-2 rounded-lg bg-success/10 px-3 py-2.5 text-sm text-success">
+              <CheckCircle2 className="size-4 shrink-0" />
+              <span>Nothing to confirm.</span>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">{text}</p>
+          )}
+        </CardContent>
+      </Card>
+    </Link>
   );
 }

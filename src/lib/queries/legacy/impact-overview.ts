@@ -1,8 +1,12 @@
+// PREVIOUS EXPORT FORMAT, frozen as it was on Oct 28, 2026 (PR #145).
+// Kept unchanged so the earlier funder export stays available until the
+// new one is verified (director, Nov 3, 2026). Don't change the counting
+// here; when the new export is verified, delete this folder and route.
 import { createClient } from "@/lib/supabase/server";
 import { orgDayStartIso, orgMonthKey } from "@/lib/format-date";
 import { ACTIVE_RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { HOLIDAYS, FAMILY_NEEDS } from "@/lib/domain/interaction";
-import { pad2, selectAllPages } from "@/lib/queries/impact";
+import { pad2, selectAllPages } from "@/lib/queries/legacy/impact";
 import { inPeriod, monthsOf, periodBounds, previousPeriod, type ReportPeriod } from "@/lib/report-period";
 import {
   facilityPresence,
@@ -20,7 +24,7 @@ import {
   type EngagedLinks,
   type PartnerContacts,
   type TeamLinks,
-} from "@/lib/queries/report-rules";
+} from "@/lib/queries/legacy/report-rules";
 
 // What each section of the Impact page counts. Kept here so every number
 // on the page uses the same definitions.

@@ -287,3 +287,14 @@ export type AnalyzeResult =
 
 export type ApplyStep = { label: string; ok: boolean; href?: string; error?: string };
 export type ApplyResult = { ok: boolean; steps: ApplyStep[] };
+
+/** Answers the Quick Log check screen collects beside the plan, one per
+ * interaction (null when none is asked): whether our staff were there on
+ * a program, food delivery or staff appreciation, and whether a food
+ * delivery's people count is unknown (Nov 3, 2026). Never filled in by
+ * Claude -- only by the person. */
+export type QuickLogDetail = { staffThere: boolean | null; countUnknown: boolean } | null;
+
+export const quickLogDetailsSchema = z.array(
+  z.object({ staffThere: z.boolean().nullable(), countUnknown: z.boolean() }).nullable()
+);

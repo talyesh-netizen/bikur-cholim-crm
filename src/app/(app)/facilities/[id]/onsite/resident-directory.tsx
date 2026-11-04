@@ -23,7 +23,9 @@ export type DirectoryResident = {
   needsVisit: boolean;
   seenToday: boolean;
   /** Newest "About them" notes, shown when the resident is opened. */
-  notes?: { text: string; date: string }[];
+  notes?: { text: string; date: string; by?: string | null }[];
+  /** Newest notes from their visits and calls (Q-N1, Nov 3, 2026). */
+  visitNotes?: { text: string; date: string; by: string | null; kind: string }[];
   family?: DirectoryFamily[];
   openTasks?: number;
   /** Staff who already logged a visit with them today. */
@@ -226,7 +228,30 @@ function ResidentPanel({
           <ul className="flex flex-col gap-1">
             {notes.map((n, i) => (
               <li key={i}>
-                {n.text} <span className="text-xs text-muted-foreground">· {n.date}</span>
+                {n.text}{" "}
+                <span className="text-xs text-muted-foreground">
+                  · {n.date}
+                  {n.by ? ` · ${n.by}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section>
+        <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Notes from recent visits</h3>
+        {(resident.visitNotes ?? []).length === 0 ? (
+          <p className="text-muted-foreground">No notes from visits or calls yet.</p>
+        ) : (
+          <ul className="flex flex-col gap-1.5">
+            {(resident.visitNotes ?? []).map((n, i) => (
+              <li key={i}>
+                <span className="text-xs text-muted-foreground">
+                  {n.date} · {n.kind}
+                  {n.by ? ` · ${n.by}` : ""}
+                </span>
+                <p className="whitespace-pre-wrap">{n.text}</p>
               </li>
             ))}
           </ul>

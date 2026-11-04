@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { MissingNameBadge, ResidentActiveStatus } from "@/components/status-badge";
 import { ClusterBadge } from "@/components/cluster-badge";
 import { getResident, getResidentFacilityHistory } from "@/lib/queries/residents";
-import { listInteractionsForResident, listVolunteersForResident } from "@/lib/queries/interactions";
+import { listInteractionsForResident, listRecentVisitNotes, listVolunteersForResident } from "@/lib/queries/interactions";
+import { INTERACTION_TYPES, labelFor } from "@/lib/domain/interaction";
 import { VisitPartnersCard } from "@/components/visit-partners-card";
 import { listResidentContacts } from "@/lib/queries/contacts";
 import { listTasks } from "@/lib/queries/tasks";
@@ -47,7 +48,7 @@ export default async function ResidentDetailPage({
   const back = safeReturnTo((await searchParams).back);
   // Saving a log or task started here goes back where the person began.
   const backParam = back ? `&back=${encodeURIComponent(back)}` : "";
-  const [resident, history, interactions, volunteers, familyContacts, tasks, profileNotes, profile, changes, stories] = await Promise.all([
+  const [resident, history, interactions, volunteers, familyContacts, tasks, profileNotes, profile, changes, stories, visitNotes] = await Promise.all([
     getResident(id),
     getResidentFacilityHistory(id),
     listInteractionsForResident(id),
@@ -58,7 +59,11 @@ export default async function ResidentDetailPage({
     getCurrentProfile(),
     listChangesForRecord("residents", id),
     listStories({ residentId: id }),
+    listRecentVisitNotes([id]),
   ]);
+  // Notes from recent visits and calls (Q-N1, Nov 3, 2026): read straight
+  // from the saved entries -- written once, never copied.
+  const recentNotes = visitNotes.get(id) ?? [];
 
   if (!resident) notFound();
 
@@ -142,6 +147,10 @@ export default async function ResidentDetailPage({
         <div className="min-w-0 rounded-xl border border-border bg-card p-3 sm:p-4">
           <dt className="text-xs text-muted-foreground">Last visit</dt>
           <dd className="mt-1 truncate text-sm font-semibold sm:text-base">{formatDateTime(resident.last_visit_at) ?? "None yet"}</dd>
+          {/* In person and other contact kept apart (Q3, Nov 3, 2026). */}
+          {resident.last_contact_at && resident.last_contact_at !== resident.last_visit_at ? (
+            <dd className="mt-0.5 truncate text-xs text-muted-foreground">Last contact {formatDateTime(resident.last_contact_at)}</dd>
+          ) : null}
         </div>
         <div className="min-w-0 rounded-xl border border-border bg-card p-3 sm:p-4">
           <dt className="text-xs text-muted-foreground">Next follow-up</dt>
@@ -163,6 +172,42 @@ export default async function ResidentDetailPage({
 
       <Fold title="About them" count={profileNotes.length} open>
         <ProfileNotesCard targetType="resident" targetId={resident.id} notes={profileNotes} compact />
+      </Fold>
+
+      {/* The five newest entries with notes (A9, Nov 3, 2026): read from the
+          entries themselves, so a note is written once and shown here and
+          in the history. */}
+      <Fold
+        title="Notes from recent visits"
+        count={recentNotes.length}
+        open={recentNotes.length > 0}
+        action={
+          interactions.length > 0 ? (
+            <Link href={`/interactions?resident=${resident.id}`} className="text-sm font-medium text-primary hover:underline">
+              Full history
+            </Link>
+          ) : undefined
+        }
+      >
+        {recentNotes.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No notes from visits, calls or family conversations yet.</p>
+        ) : (
+          <ol className="flex flex-col gap-3">
+            {recentNotes.map((note) => (
+              <li key={note.id} className="text-sm">
+                <Link href={`/interactions/${note.id}`} className="-mx-1.5 block rounded-md px-1.5 py-0.5 hover:bg-accent/50">
+                  <p className="text-xs text-muted-foreground">
+                    <span className="font-medium text-foreground">{formatDateTime(note.occurred_at)}</span> ·{" "}
+                    {labelFor(INTERACTION_TYPES, note.interaction_type)}
+                    {note.attended.length > 0 ? ` · Attended: ${note.attended.join(", ")}` : ""}
+                    {note.entered_by ? ` · Written by ${note.entered_by}` : note.by ? ` · Written by ${note.by}` : ""}
+                  </p>
+                  <p className="whitespace-pre-wrap">{note.notes}</p>
+                </Link>
+              </li>
+            ))}
+          </ol>
+        )}
       </Fold>
 
       <Fold

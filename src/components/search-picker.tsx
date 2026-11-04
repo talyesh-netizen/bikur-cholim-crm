@@ -196,6 +196,7 @@ export function MultiSearchPicker({
   value,
   onChange,
   placeholder = "Type a name to add…",
+  elsewhere,
 }: {
   options: PickerOption[];
   name: string;
@@ -203,6 +204,10 @@ export function MultiSearchPicker({
   value: string[];
   onChange: (ids: string[]) => void;
   placeholder?: string;
+  /** People left out of `options` on purpose (e.g. residents of another
+   * facility): named when they match, with why they can't be added, so
+   * the list never just looks empty. */
+  elsewhere?: { options: PickerOption[]; note: string };
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -217,6 +222,10 @@ export function MultiSearchPicker({
   const available = useMemo(() => options.filter((o) => !value.includes(o.id)), [options, value]);
   const matches = useMemo(() => matchOptions(available, query), [available, query]);
   const shown = matches.slice(0, SHOWN);
+  const elsewhereMatches = useMemo(
+    () => (elsewhere && query.trim() ? matchOptions(elsewhere.options.filter((o) => !value.includes(o.id)), query).slice(0, 3) : []),
+    [elsewhere, query, value]
+  );
 
   function add(optionId: string) {
     if (!optionId) return;
@@ -263,6 +272,12 @@ export function MultiSearchPicker({
             cancelClose();
             setOpen(true);
           }}
+          // After picking someone the list closes but the box keeps focus,
+          // so a second tap or click has to open it again (Nov 3, 2026 QA).
+          onClick={() => {
+            cancelClose();
+            setOpen(true);
+          }}
           onChange={(e) => {
             cancelClose();
             setQuery(e.target.value);
@@ -306,6 +321,7 @@ export function MultiSearchPicker({
             onChoose={add}
             query={query}
             moreCount={matches.length - SHOWN}
+            elsewhere={elsewhereMatches.length > 0 && elsewhere ? { options: elsewhereMatches, note: elsewhere.note } : undefined}
           />
         ) : null}
       </div>
@@ -322,6 +338,7 @@ function ResultList({
   onChoose,
   query,
   moreCount,
+  elsewhere,
 }: {
   listId: string;
   options: PickerOption[];
@@ -331,6 +348,8 @@ function ResultList({
   onChoose: (id: string) => void;
   query: string;
   moreCount: number;
+  /** Matches that can't be picked here, and why (see MultiSearchPicker). */
+  elsewhere?: { options: PickerOption[]; note: string };
 }) {
   return (
     <ul
@@ -338,7 +357,7 @@ function ResultList({
       role="listbox"
       className="absolute inset-x-0 top-full z-40 mt-1 max-h-[50vh] overflow-y-auto rounded-lg border border-border bg-card py-1 shadow-lg"
     >
-      {options.length === 0 ? (
+      {options.length === 0 && elsewhere ? null : options.length === 0 ? (
         <li className="px-3 py-3 text-sm text-muted-foreground">
           {query.trim() ? <>Nothing matches &ldquo;{query.trim()}&rdquo;.</> : "Nothing left to choose."}
         </li>
@@ -371,6 +390,17 @@ function ResultList({
       )}
       {moreCount > 0 ? (
         <li className="px-3 py-2 text-xs text-muted-foreground">{moreCount} more — keep typing to narrow it down.</li>
+      ) : null}
+      {elsewhere ? (
+        <li className="border-t border-border px-3 py-2 text-sm text-muted-foreground">
+          <span className="block text-xs font-medium">{elsewhere.note}</span>
+          {elsewhere.options.map((o) => (
+            <span key={o.id} className="block truncate">
+              {o.label}
+              {o.detail ? ` · ${o.detail}` : ""}
+            </span>
+          ))}
+        </li>
       ) : null}
     </ul>
   );
