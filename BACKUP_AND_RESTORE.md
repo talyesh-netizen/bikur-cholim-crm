@@ -45,15 +45,19 @@ Do this on the first working day of each month, and before any big change.
    or much smaller than last month.
 4. Move the .zip (don't copy it) into the organization's private, restricted
    drive folder **CRM Backups**. Keep the name it came with, for example
-   `crm-backup-2026-12-01.zip`.
+   `crm-backup-2026-12-01.zip`. The folder should be on the organization's
+   own drive (which encrypts stored files), shared only with the named
+   admins who need it, not with "anyone with the link".
 5. Empty the file out of Downloads and the computer's trash.
 6. Open Supabase (supabase.com, sign in) → **Bikur Cholim CRM** project →
    **Database → Backups**. Check that the newest backup is from the last
    day or so.
 7. Write one line in the log at the bottom of this page (or in the
    drive folder): date, who did it, "counts OK", "Supabase backup seen".
-8. Delete monthly copies older than 12 months (proposed rule, still
-   waiting for approval).
+8. Delete monthly copies older than 12 months, and empty them from the
+   drive's trash (approved by the director and ChatGPT, Nov 4, 2026). If
+   the drive can delete old files automatically, turn that on; otherwise
+   this step does it by hand each month.
 
 The file contains real resident information. Never email it, never save
 it to a personal drive or a USB stick, and never leave it in Downloads.
@@ -94,6 +98,19 @@ fresh database and load the spreadsheets back into it. Staff then set
 new passwords with "Forgot password", because the .zip doesn't contain
 sign-ins. This is the last resort. It's slower, but nothing is lost up
 to the date of that .zip.
+
+## Backup download check (Nov 4, 2026)
+
+The admin download now includes all 23 tables (change history and facility
+photo details were added, approved Nov 4, 2026). Checked before publishing:
+- With test data: all 23 spreadsheets present, every row exactly once
+  (including a table over 2,000 rows), READ-ME lists change history.
+- Staff, intern and signed-out users are refused; nothing is read.
+- If any table can't be read, the whole download stops with a message
+  instead of giving an incomplete file.
+- On the live database's access rules (read only): an admin can read
+  every record in all 23 tables (counts match the baseline below); a staff
+  account sees none of the change history.
 
 ## Restore test record
 
