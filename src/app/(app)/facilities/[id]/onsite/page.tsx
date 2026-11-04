@@ -212,7 +212,7 @@ export default async function FacilityOnsitePage({
           needsVisit: needsVisit(resident.last_visit_at),
           // Visited today (Cleveland time) -- drops off the list once logged.
           seenToday: !!resident.last_visit_at && toOrgDatetimeLocalValue(resident.last_visit_at).slice(0, 10) === today,
-          notes: (notesByResident.get(resident.id) ?? []).map((n) => ({ text: n.text, date: formatRelative(n.created_at) ?? "" })),
+          notes: (notesByResident.get(resident.id) ?? []).map((n) => ({ text: n.text, date: formatRelative(n.created_at) ?? "", by: n.by })),
           visitNotes: (visitNotesByResident.get(resident.id) ?? []).map((n) => ({
             text: n.notes,
             date: formatRelative(n.occurred_at) ?? "",

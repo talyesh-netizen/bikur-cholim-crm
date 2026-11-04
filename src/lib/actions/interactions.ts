@@ -34,6 +34,7 @@ import { nextDay, orgDateToIso, orgDayStartIso } from "@/lib/format-date";
 import { PARTNER_CONTACT_TYPES } from "@/lib/domain/contact";
 import { withSaved } from "@/lib/saved-flash";
 import { saveQuarterAsFirstRecorded } from "@/lib/actions/double-entries";
+import { PROFILE_NOTE_MAX, PROFILE_NOTE_TOO_LONG, saveNoteToProfiles } from "@/lib/visit-note-target";
 
 const typeValues = INTERACTION_TYPES.map((o) => o.value) as [string, ...string[]];
 const emptyToUndefined = (val: unknown) => (val === "" ? undefined : val);
@@ -283,9 +284,6 @@ const submissionIdSchema = z.string().uuid();
 
 const RESIDENT_REQUIRED_MESSAGE = "Please choose the resident.";
 
-/** The longest note a resident's profile takes (as in profile-notes.ts). */
-const PROFILE_NOTE_MAX = 1500;
-
 /** Kinds that are one in-person encounter with a resident. */
 const REPEAT_CHECK_TYPES: readonly string[] = ["resident_visit", "volunteer_visit"];
 
@@ -528,7 +526,7 @@ export async function createInteraction(
   if (profileNote && profileNote.length > PROFILE_NOTE_MAX) {
     return {
       error: "Please fix the highlighted fields.",
-      fieldErrors: { notes: "A note for the resident's profile can be up to 1,500 characters. Shorten it, or save it with this visit." },
+      fieldErrors: { notes: PROFILE_NOTE_TOO_LONG },
       values: raw,
       checkedVolunteerIds: volunteerIds,
       people,
@@ -603,16 +601,12 @@ export async function createInteraction(
   // and when (the existing "About them" notes). If that fails, it goes on
   // the visit instead, so it's never lost and never in both places.
   if (profileNote) {
-    const noteResidents = [...new Set(rows.map((r) => r.resident_id).filter((r): r is string => !!r))];
-    const { error: noteError } = noteResidents.length
-      ? await supabase.from("profile_notes").insert(
-          noteResidents.map((residentId) => ({ resident_id: residentId, facility_id: null, raw_note: profileNote, clean_note: profileNote, created_by: user.id }))
-        )
-      : { error: { message: "no resident" } };
-    if (noteError) {
-      console.error("Visit note to profile failed; kept on the visit instead", noteError.message);
-      await supabase.from("interactions").update({ notes: profileNote }).in("id", createdIds);
-    }
+    await saveNoteToProfiles(supabase, {
+      residentIds: rows.map((r) => r.resident_id).filter((r): r is string => !!r),
+      note: profileNote,
+      authorId: user.id,
+      interactionIds: createdIds,
+    });
   }
 
   for (const [i, createdId] of createdIds.entries()) {

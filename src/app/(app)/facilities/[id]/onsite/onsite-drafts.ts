@@ -7,7 +7,14 @@
 
 /** startedAt: when the note was begun -- a visit typed Friday and saved
  * Saturday is dated Friday. Missing on drafts kept before Oct 11, 2026. */
-export type OnsiteDraft = { notes: string; submissionId: string; updatedAt: number; startedAt?: number };
+export type OnsiteDraft = {
+  notes: string;
+  submissionId: string;
+  updatedAt: number;
+  startedAt?: number;
+  /** A visit's note: this visit (default) or the resident's profile (Nov 4, 2026). */
+  noteTarget?: "visit" | "profile";
+};
 
 const PREFIX = "onsite-entry:";
 // Unsaved notes are kept a long while (a month): a past visit is never

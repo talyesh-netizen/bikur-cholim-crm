@@ -9,6 +9,7 @@ import { capitalizeWords } from "@/lib/format-text";
 import { CONTACT_TYPES, OFFERED_RELATIONSHIPS, labelFor } from "@/lib/domain/contact";
 import { formatTimeOfDay, getLocalToday } from "@/lib/format-date";
 import { createHash } from "crypto";
+import { PROFILE_NOTE_MAX, PROFILE_NOTE_TOO_LONG, saveNoteToProfiles } from "@/lib/visit-note-target";
 
 /**
  * On-site mode's one visit workflow (director, Oct 9, 2026): find
@@ -41,10 +42,13 @@ const entrySchema = z.object({
   /** A colleague who took part ("With Sara" ticked on this card; Q-N2,
    * Nov 3, 2026): on this entry's team. Never added unless ticked. */
   teamIds: z.array(id).max(5).optional(),
+  /** Where a visit's note goes (Nov 4, 2026): this visit (default) or the
+   * resident's profile -- one or the other, never both. */
+  noteTarget: z.enum(["visit", "profile"]).optional(),
 });
 
 export type OnsiteEntryResult =
-  | { ok: true; interactionId: string; time: string }
+  | { ok: true; interactionId: string; time: string; noteOnProfile?: boolean }
   | { ok: false; error: string };
 
 function revalidateOnsite(facilityId: string, residentId?: string) {
@@ -65,6 +69,8 @@ export async function saveOnsiteEntry(input: z.input<typeof entrySchema>): Promi
   }
   if (kind === "visit" && !residentId) return { ok: false, error: "Choose who you visited." };
   if (kind !== "visit" && !contactId) return { ok: false, error: "Choose who you talked with." };
+  const profileNote = kind === "visit" && parsed.data.noteTarget === "profile" && notes ? notes : null;
+  if (profileNote && profileNote.length > PROFILE_NOTE_MAX) return { ok: false, error: `NOT saved: ${PROFILE_NOTE_TOO_LONG}` };
 
   const supabase = await createClient();
   const {
@@ -82,7 +88,8 @@ export async function saveOnsiteEntry(input: z.input<typeof entrySchema>): Promi
       contact_id: contactId ?? null,
       staff_member_id: user.id,
       occurred_at: occurredAt,
-      notes: notes || null,
+      // A note sent to the profile isn't kept on the visit too.
+      notes: profileNote ? null : notes || null,
       client_submission_id: submissionId,
       // Logged on site: we were there (counts staff conversations as a
       // facility visit-day, decision B, Oct 19, 2026).
@@ -111,6 +118,11 @@ export async function saveOnsiteEntry(input: z.input<typeof entrySchema>): Promi
     };
   }
 
+  // The note on the resident's profile instead (falls back to the visit).
+  const noteOnProfile = profileNote
+    ? await saveNoteToProfiles(supabase, { residentIds: [residentId!], note: profileNote, authorId: user.id, interactionIds: [created.id] })
+    : undefined;
+
   const team = (parsed.data.teamIds ?? []).filter((t) => t !== user.id);
   if (team.length > 0) {
     const { error: teamError } = await supabase.rpc("set_interaction_people", {
@@ -126,12 +138,13 @@ export async function saveOnsiteEntry(input: z.input<typeof entrySchema>): Promi
         ok: true,
         interactionId: created.id,
         time: `${formatTimeOfDay(created.occurred_at) ?? ""} (your colleague couldn't be added -- tap Fix to add them)`,
+        noteOnProfile,
       };
     }
   }
 
   revalidateOnsite(facilityId, residentId);
-  return { ok: true, interactionId: created.id, time: formatTimeOfDay(created.occurred_at) ?? "" };
+  return { ok: true, interactionId: created.id, time: formatTimeOfDay(created.occurred_at) ?? "", noteOnProfile };
 }
 
 export type PossibleMatch = { id: string; name: string; detail: string; here: boolean };

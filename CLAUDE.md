@@ -300,6 +300,10 @@ These replace any earlier rule above that says otherwise (including the
   date and author, kept exactly as typed) and the visit is saved without
   it: one or the other, never both. If the profile save fails, the note
   stays on the visit. Calls, other kinds and edits are unchanged.
+  On-site Mode (Sara's main workflow) asks the same once a note is typed
+  on a visit; an empty visit stays one tap. Both use
+  `src/lib/visit-note-target.ts`. On site, "About them" notes show
+  their author beside the date.
 - The previous funder export stays available, unchanged
   (`/api/impact-report/previous`, `src/lib/queries/legacy/`), until the
   new one is verified. No grand total of different kinds.
