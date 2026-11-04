@@ -166,6 +166,9 @@ export function InteractionForm({
   // or replaced (A6). Both are answered by the person, never assumed.
   const [recipientsUnknown, setRecipientsUnknown] = useState(state.values?.recipients_unknown === "on");
   const [legacyTotal, setLegacyTotal] = useState(state.values?.legacy_total ?? "");
+  // Where a new visit's note is saved (Nov 4, 2026): this visit (default)
+  // or the resident's profile -- one or the other, never both.
+  const [noteTarget, setNoteTarget] = useState<"visit" | "profile">(state.values?.note_target === "profile" ? "profile" : "visit");
   const isEditing = !!initialValues;
 
   // Where and who: picking a resident fills in their facility; once a
@@ -417,6 +420,8 @@ export function InteractionForm({
     if (idField instanceof HTMLInputElement) idField.value = submissionIdRef.current;
   }
 
+  // A new visit's note can go to the resident's profile instead (Nov 4, 2026).
+  const noteChoice = interactionType === "resident_visit" && !isEditing;
   // The form's pieces, each placed by fieldOrderFor (Nov 3, 2026).
   const pieces: Record<FormPiece, React.ReactNode> = {
     resident: (
@@ -1098,8 +1103,43 @@ export function InteractionForm({
           <p className="text-xs text-muted-foreground">
             {interactionType === "staff_appreciation"
               ? "Optional. One entry per delivery, however many staff enjoyed it."
+              : noteChoice && noteTarget === "profile"
+              ? "Saved on their page under “About them”, with today’s date and your name. This visit is still logged, without the note."
               : "About this visit or call only. Lasting facts (like “hard of hearing”) go in Profile notes on their page."}
           </p>
+          {noteChoice ? (
+            <div className="flex flex-col gap-1.5">
+              <input type="hidden" name="note_target" value={noteTarget} readOnly />
+              <span className="text-sm font-medium" id="note_target_label">
+                Save note to:
+              </span>
+              <div role="group" aria-labelledby="note_target_label" className="flex flex-wrap gap-2">
+                {(
+                  [
+                    ["visit", "This visit"],
+                    ["profile", residentIds.length > 1 ? "Residents’ profiles" : "Resident profile"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={noteTarget === value}
+                    onClick={() => {
+                      setNoteTarget(value);
+                      setIsDirty(true);
+                    }}
+                    className={
+                      noteTarget === value
+                        ? "rounded-full bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground"
+                        : "rounded-full bg-card px-3 py-1.5 text-sm font-medium ring-1 ring-border hover:ring-primary/50"
+                    }
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </Field>
       </>
     ),

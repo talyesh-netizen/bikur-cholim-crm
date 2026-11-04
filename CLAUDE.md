@@ -294,6 +294,12 @@ These replace any earlier rule above that says otherwise (including the
   staff there and not counted as "no staff there". Volunteer outings
   before Nov 4, 2026 are an estimate (grouped by volunteers, facility and
   day) and are labelled so on the Impact page and export.
+- A new resident visit asks "Save note to: This visit (default) /
+  Resident profile" (director, Nov 4, 2026). Profile saves the note once
+  on each resident's "About them" notes (existing profile_notes, with
+  date and author, kept exactly as typed) and the visit is saved without
+  it: one or the other, never both. If the profile save fails, the note
+  stays on the visit. Calls, other kinds and edits are unchanged.
 - The previous funder export stays available, unchanged
   (`/api/impact-report/previous`, `src/lib/queries/legacy/`), until the
   new one is verified. No grand total of different kinds.

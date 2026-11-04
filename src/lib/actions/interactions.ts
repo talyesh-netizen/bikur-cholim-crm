@@ -129,6 +129,9 @@ const interactionSchema = z
     // "Yes, a separate visit": saved even though one is already logged for
     // that resident that day (Q4, Nov 3, 2026).
     confirm_repeat: z.preprocess((v) => v === "on" || v === "true", z.boolean()),
+    // Where a new visit's note goes (Nov 4, 2026): the visit (default) or
+    // the resident's profile ("About them") -- one or the other, never both.
+    note_target: z.preprocess(emptyToUndefined, z.enum(["visit", "profile"]).optional()),
   })
   .superRefine((data, ctx) => {
     // A staff conversation with only partners needs no facility: checked
@@ -279,6 +282,9 @@ async function projectRoot(
 const submissionIdSchema = z.string().uuid();
 
 const RESIDENT_REQUIRED_MESSAGE = "Please choose the resident.";
+
+/** The longest note a resident's profile takes (as in profile-notes.ts). */
+const PROFILE_NOTE_MAX = 1500;
 
 /** Kinds that are one in-person encounter with a resident. */
 const REPEAT_CHECK_TYPES: readonly string[] = ["resident_visit", "volunteer_visit"];
@@ -515,8 +521,23 @@ export async function createInteraction(
   // for each, with the same day, place and notes. One insert, so either
   // all are saved or none; the submission ID on the first is enough to
   // recognize a repeat. A group head count isn't copied to each.
+  // The note goes to the resident's profile instead of the visit (Nov 4,
+  // 2026): the visit is saved without it, so it's never in both places.
+  const noteToProfile = parsed.data.interaction_type === "resident_visit" && parsed.data.note_target === "profile" && !!parsed.data.notes;
+  const profileNote = noteToProfile ? parsed.data.notes! : null;
+  if (profileNote && profileNote.length > PROFILE_NOTE_MAX) {
+    return {
+      error: "Please fix the highlighted fields.",
+      fieldErrors: { notes: "A note for the resident's profile can be up to 1,500 characters. Shorten it, or save it with this visit." },
+      values: raw,
+      checkedVolunteerIds: volunteerIds,
+      people,
+      residentIds: chosenResidents,
+    };
+  }
   const row = {
     ...toInteractionRow(parsed.data, people, true),
+    ...(noteToProfile ? { notes: null } : {}),
     // One volunteer outing, however many residents it saw (A2): every
     // record saved here shares it, so reports count one outing.
     ...(parsed.data.interaction_type === "volunteer_visit" ? { outing_id: crypto.randomUUID() } : {}),
@@ -576,6 +597,22 @@ export async function createInteraction(
       people,
       residentIds: chosenResidents,
     };
+  }
+
+  // The note, saved once on each resident's profile, with who wrote it
+  // and when (the existing "About them" notes). If that fails, it goes on
+  // the visit instead, so it's never lost and never in both places.
+  if (profileNote) {
+    const noteResidents = [...new Set(rows.map((r) => r.resident_id).filter((r): r is string => !!r))];
+    const { error: noteError } = noteResidents.length
+      ? await supabase.from("profile_notes").insert(
+          noteResidents.map((residentId) => ({ resident_id: residentId, facility_id: null, raw_note: profileNote, clean_note: profileNote, created_by: user.id }))
+        )
+      : { error: { message: "no resident" } };
+    if (noteError) {
+      console.error("Visit note to profile failed; kept on the visit instead", noteError.message);
+      await supabase.from("interactions").update({ notes: profileNote }).in("id", createdIds);
+    }
   }
 
   for (const [i, createdId] of createdIds.entries()) {
