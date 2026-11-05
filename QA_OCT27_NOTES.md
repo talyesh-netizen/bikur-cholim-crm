@@ -898,3 +898,72 @@ Shortest hands-on check (TEST preview, practice accounts):
    Previous format.
 7. Quick Log (on TEST, typed note "Brought lunch for the staff at
    Cedarbrook"): it asks "Were our staff there?" before Save.
+
+## Open list for ChatGPT: visit planning review (Nov 5, 2026)
+
+From a read-only review of Oct 8 - Nov 5, 2026 activity, done to plan
+Sara's week of Nov 9. Nothing below is approved or built, and no record
+was changed. Resident names are left out on purpose.
+
+**Decided today (director), not a build item:** who covers each facility,
+decided for the whole facility (if a place is right for Sara, all its
+residents are). Sara 24, director 16, neither 4 (Landerhaven, The Hamlet,
+StoryPoint Shaker, Cedar Living), needs review 2 (Avenue at Brooklyn,
+Eliza Jennings Health Campus). Reasons a facility isn't for Sara alone:
+condition or safety, no staff relationship yet, resident needs a Rabbi,
+too far for one resident. Full list in the planning worksheet (kept off
+GitHub because it names residents).
+
+1. **Facility profile: "not visited routinely" and "covered by"**
+   (question sent to ChatGPT). Today nothing on a facility says it has
+   Jewish residents but isn't visited routinely, why, or who covers it.
+   A: sharpen existing fields. "Recommended visit frequency" becomes a
+   list (Weekly / Twice a month / Monthly / Every 2 months / Holidays
+   only / On request only / Not visited routinely; old typed values kept
+   until someone picks), a reason list when not routine (Condition or
+   safety / No relationship yet / Resident needs a Rabbi / Too far for
+   the number of residents / Not a priority / Other) with a short note,
+   and a new "Covered by" (Sara / Director / Both / Unassigned).
+   B: no new fields; Low priority plus "Not routine" typed in frequency
+   and the reason in Notes. Claude recommends A (three small fields, no
+   new screen). Also needed: does "Bimonthly" mean twice a month or
+   every two months? Both readings are in use.
+2. **Who counts for "needs a visit".** The earlier comparison counted
+   every resident record, so Twinsburg Acute (only resident deceased)
+   looked overdue, and 8 more facilities would too (Phoenix of Fairlawn,
+   Slovene Home, Avon Oaks, Cleveland Clinic Rehab Avon, McGregor,
+   Breckenridge Village, Abington Arms, Phoenix of Maple Heights). The
+   CRM's own screens are already right: they count Active and
+   Temporarily hospitalized only. Any future visit list should use the
+   same rule and show Location unknown (6 residents) apart.
+3. **"Due for a visit" list (idea).** One list of facilities and
+   residents not seen in X weeks, grouped by area and by "Covered by", so
+   Sara can draft her own week. Depends on item 1. Later, not now.
+4. **Data Quality checks (ideas).**
+   - Rehab residents still Active long after their last visit:
+     Cleveland Clinic Rehab Science Park shows 12 active; stays are short.
+   - Residents with an incomplete name: 5 with a first name only, 4 with
+     only a room number (Avenue at Aurora 1, Solon Pointe 3).
+   - Facility status that contradicts the data: Heritage of Euclid and
+     Eliza Jennings Health Campus say "No Jewish residents known" but have
+     an active resident; Avenue at Lyndhurst and Maplewood say "Not
+     contacted" though visited in October.
+5. **Areas (geographic clusters).** Two clusters are both called
+   "Zone 7" (Aurora/Chagrin Falls and North Royalton/Parma). Avenue at
+   Brooklyn is filed under Beachwood (Zone 2) but is on the west side.
+   The Villas at King David has no city.
+6. **Records to check by hand (no build).**
+   - One resident at King David Post Acute has an apartment room number
+     ("Apt 708"): still there, or at the Villas?
+   - One food delivery at The Ashton is dated Saturday Oct 17, 10:30 PM
+     (typed Oct 19): correct day, or should it be Friday or Sunday?
+   - 2 residents temporarily hospitalized since about Oct 5: back yet?
+7. **Logging by other staff.** In the four weeks only the director and
+   Sara logged anything; Kevin, Lisa and Suree logged nothing. Do they
+   visit and not log, or don't they do visits? Affects whether reports
+   show the full picture.
+8. **Calendar (outside the CRM).** Claude could read only the director's
+   Google Calendar (through Trello Planner), with start times but no end
+   times or attendees, and not Sara's. For Sara to plan her own week,
+   her calendar (or a shared one) needs to be visible. No calendar sync
+   is proposed; see PRIVACY_AND_SECURITY.md before adding one.
