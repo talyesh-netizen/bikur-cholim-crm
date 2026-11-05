@@ -114,11 +114,33 @@ photo details were added, approved Nov 4, 2026). Checked before publishing:
 
 ## Restore test record
 
-The first test is planned straight after the Pro upgrade. Results go here.
+Repeat this test once a year, or after any big change to the database.
 
 | Date | Backup used | Tables matched (of 23) | Staff sign-ins matched | Result | By |
 |---|---|---|---|---|---|
-| | | | | | |
+| Nov 5, 2026 | Daily backup, Nov 5, 09:13 UTC (4:13 am Cleveland) | 23 of 23 | 6 of 6 | **Passed** | Claude, started by the director |
+
+How the Nov 5 test was done: **Restore to a new project** made a separate
+copy ("CRM restore test - delete after"); the live CRM kept running. Every
+table was compared with the live CRM, row by row (a checksum of each
+table's contents, not only counts), all read only:
+- 16 CRM tables, staff profiles, sign-in identities and all 9 internal
+  repair-snapshot tables (`crm_backup`) were identical.
+- The other 7 tables differed only by work entered after the backup was
+  taken (5 new entries, 2 new notes, edits to 8 residents, 2 contacts,
+  5 tasks and 1 private note, and the 16 change-history lines for those
+  edits). With those records set aside, every remaining record was
+  identical.
+- Staff sign-ins: all 6 accounts came back with the same email and the
+  same stored (scrambled) password, so staff could sign in to a restored
+  CRM with their usual passwords.
+- The copy had no scheduled jobs or outside connections switched on.
+- Not part of a database restore, as expected: photo files (there are
+  none yet), Supabase settings such as sign-in email templates, and the
+  website (GitHub/Vercel).
+
+After the test the temporary copy is deleted (Supabase → that project →
+Project Settings → General → Delete project) so it stops costing money.
 
 Baseline counts from the live CRM, Nov 4, 2026, 20:41 UTC (before the upgrade):
 profiles 5, geographic_clusters 13, facilities 134, residents 234,

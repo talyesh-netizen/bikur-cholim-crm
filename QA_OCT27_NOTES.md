@@ -898,3 +898,25 @@ Shortest hands-on check (TEST preview, practice accounts):
    Previous format.
 7. Quick Log (on TEST, typed note "Brought lunch for the staff at
    Cedarbrook"): it asks "Were our staff there?" before Save.
+
+## Open list for ChatGPT: backups, speed and security (Nov 5, 2026)
+
+1. **Dashboard sometimes fails to load** (question sent Nov 5): on Nov 5
+   at 12:47 Cleveland time the Dashboard showed "Something went wrong"
+   for about 2 minutes. Its "residents not visited in 30 days" and
+   "recent activity" lists ran past the database's 8-second limit
+   (the access rules are checked one row at a time on the smallest
+   server size), and repeated "Try again" taps made it worse. Nothing
+   was lost; it had happened once before (Sept 29, Nov 4). A: move the
+   live database to the Micro size (covered by the plan, 1-2 minutes
+   offline). B: A plus make those two lists lighter, with no change to
+   what anyone sees. Claude recommends B.
+2. **Two-step sign-in** on the Vercel, GitHub and Supabase accounts.
+3. **Who has access** to Vercel, GitHub and Supabase: list and trim.
+4. **Vercel plan:** the website runs on Vercel's free Hobby plan (meant
+   for personal projects; no support; 1 hour of error logs). Pro is
+   about $20 a month.
+5. **Internal repair snapshots (`crm_backup`, 9 tables):** the restore
+   test passed on Nov 5 (see `BACKUP_AND_RESTORE.md`), so the rule
+   "keep until a restore test passes" is met. Keep them, or export them
+   to the private drive and remove them from the database?
