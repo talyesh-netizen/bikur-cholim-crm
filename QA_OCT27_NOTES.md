@@ -927,7 +927,7 @@ Shortest hands-on check (TEST preview, practice accounts):
   live - Nov 2026" (Default workspace, linked to Tzvi's account) set as
   `ANTHROPIC_API_KEY` for Production only; live site restarted on the same
   code; Quick Log checked by the director. **Renew before Nov 5, 2027.**
-  Old key "Bikur Cholim CRM" to be switched off in the Claude Console.
+  Old key "Bikur Cholim CRM" disabled in the Claude Console (Nov 5).
 - Two-step sign-in is now on for Vercel (director). GitHub and Supabase
   still to do (item 2 above).
 - For the security project: the AI key is tied to a person's account
