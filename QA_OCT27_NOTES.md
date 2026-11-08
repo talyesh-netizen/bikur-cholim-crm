@@ -921,6 +921,14 @@ Shortest hands-on check (TEST preview, practice accounts):
    "keep until a restore test passes" is met. Keep them, or export them
    to the private drive and remove them from the database?
 
+6. **Linking two residents** (director, Nov 8): e.g. a married couple at the
+   same facility. Residents can be linked to non-resident family today, but
+   not to each other. A: a display-only "Related resident" link (spouse,
+   sibling, other) on both pages, shown only to staff who can see both,
+   no effect on counts. B: A plus "Also visited [spouse]?" when logging
+   (each saved as its own visit). C: not now; use "About them" notes.
+   Claude recommends A.
+
 ### Done and noted (Nov 5, 2026)
 
 - **Quick Log AI key renewed** (the old one expired Nov 5): new key "CRM
