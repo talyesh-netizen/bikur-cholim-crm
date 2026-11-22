@@ -898,3 +898,65 @@ Shortest hands-on check (TEST preview, practice accounts):
    Previous format.
 7. Quick Log (on TEST, typed note "Brought lunch for the staff at
    Cedarbrook"): it asks "Were our staff there?" before Save.
+
+## Open list for ChatGPT: everyday-work cleanup batch, review (Nov 22, 2026)
+
+Review only; nothing built. Live data was read for counts and entry ids
+only (no names or notes).
+
+1. **Hospital on Today.** Works: "In hospital" status exists (Edit form,
+   Quick Log); the facility stays linked. Gaps: no one-tap button; Today
+   has no hospital section; no "since" date (only in admin change
+   history); hospitalised residents still appear on the 30-day list and
+   the on-site roster. Smallest change: In hospital / Back from hospital
+   buttons on the profile (records the day), a "In hospital" card on
+   Today. Decision Q1.
+2. **Attempted visits.** Today there is no way to record one. A Facility
+   visit counts the facility-day, but nothing shows on the resident.
+   Counting today: facility coverage is each facility once a day; staff
+   visits are each person once per facility per day, so three residents
+   on one trip = 1 (correct) but a second trip the same day is NOT
+   counted. Facility "last visit" is really last contact of any kind
+   (calls included). Smallest change: a "Resident unavailable" tap on the
+   on-site card that saves a "Visit attempted" entry (counts the
+   facility-day and staff visit, never the resident's last visit or
+   engagement), shown on the resident page. Decisions Q2, Q3.
+3. **Back to where I started.** Works: on-site, profile and facility
+   page starts return there. Gaps: the 30-day list (Needs attention) and
+   the Residents list don't pass their address on, so saving lands on the
+   resident page; the 30-day list has no filters; making a facility
+   inactive returns to the facility. Smallest change: pass the list's
+   address (with filters and the section) through; inactive goes to
+   Facilities.
+4. **Facilities.** Search on the list is the database's word match, not
+   the forgiving picker match ("saint joseph", "landerhaven" fail there);
+   it needs the Search button; no Clear button; filter says "Cluster"
+   not "Area". Area colour exists (left edge, dot). Card shows "last
+   contact" (any kind). Hiding priority and engagement affects "Facilities
+   to check on" (built on them). Impact photos exist only on facility
+   pages today. Resident count counts "active" only, not "in hospital".
+   No filter answers "Sara can visit on her own". Decisions Q4, Q8.
+5. **Corrections.** Change facility always records a move (history row
+   plus an "Other" entry at the new facility, which counts as facility
+   engaged and as last contact there). Correct facility needs its own
+   action that fixes the roster and the open history row, no entry.
+   Deceased: status exists and takes them off rosters, 30-day list and
+   lists; no date; open follow-ups stay. Decisions Q5, Q9.
+6. **Linking and on site.** Family can be linked only from the resident's
+   page. Picking a family member doesn't fill the resident. New contact
+   form has no facility for staff (only from the facility's page). "Log
+   with [name]" pre-selects the person (code checked; click-test on
+   TEST). On site: family conversation is inside each resident's card
+   with the facility set; Food today returns to on site, one entry, one
+   number, but still asks "Were our staff there?"; no Staff appreciation
+   shortcut. Decision Q7.
+7. **Impact, October.** Fuchs Mizrachi program (Oct 15): no facility, in
+   person elsewhere, 90 total = 90 students, so not split 0: counts once
+   as a school program, 90 students, 0 facility visits. New: three Oct 9
+   programs with another school at three facilities were edited Nov 9 to
+   15 students each (45). October students are now 135, school programs
+   4, not the Nov 3 baseline (90, 1). Full October re-reconciliation not
+   re-run in this review. School staff: a conversation needs no facility
+   when everyone picked is filed as a partner. Decision Q6.
+
+Questions Q1-Q9: see the ChatGPT block in the Nov 22 review reply.
