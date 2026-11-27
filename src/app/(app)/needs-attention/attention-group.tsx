@@ -38,8 +38,9 @@ export function AttentionGroup({
             {shown.map((r) => (
               <Link
                 key={r.id}
-                href={`/residents/${r.id}`}
-                className="flex min-h-12 items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0 hover:text-primary"
+                id={`r-${r.id}`}
+                href={`/residents/${r.id}?back=${encodeURIComponent(`/needs-attention${showAll ? "?all=1" : ""}#r-${r.id}`)}`}
+                className="scroll-mt-24 flex min-h-12 items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0 hover:text-primary"
               >
                 <div className="min-w-0">
                   <p className="font-medium leading-tight">{residentName(r)}</p>

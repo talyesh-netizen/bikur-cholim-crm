@@ -179,3 +179,63 @@ export async function updateResident(
   revalidatePath(`/residents/${residentId}`);
   redirect(withSaved(`/residents/${residentId}`, "resident-saved"));
 }
+
+/**
+ * One-tap status changes from the resident's page (Nov 27, 2026): In
+ * hospital, Back at [facility], Passed away. Only the status changes: the
+ * facility stays linked and nothing else is touched. Every change is in the
+ * change history (who and when). For Passed away, a date if one was given
+ * is kept as a dated "About them" note; it is never guessed.
+ */
+const QUICK_STATUS = {
+  in_hospital: { status: "temporarily_hospitalized", saved: "resident-in-hospital" },
+  back: { status: "active", saved: "resident-back" },
+  deceased: { status: "deceased", saved: "resident-deceased" },
+} as const;
+
+export type QuickStatusState = { error: string | null };
+
+export async function setResidentQuickStatus(
+  residentId: string,
+  change: keyof typeof QUICK_STATUS,
+  back: string | null,
+  _prev: QuickStatusState,
+  formData: FormData
+): Promise<QuickStatusState> {
+  const target = QUICK_STATUS[change];
+  if (!target) return { error: "Something is missing. Please try again." };
+  const dateRaw = String(formData.get("date_of_death") ?? "").trim();
+  if (dateRaw && (!/^\d{4}-\d{2}-\d{2}$/.test(dateRaw) || dateRaw > getLocalToday())) {
+    return { error: "That date looks wrong. Leave it blank if you don't know it." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "NOT saved: your sign-in expired. Please sign in again." };
+
+  const { data: updated, error } = await supabase
+    .from("residents")
+    .update({ status: target.status })
+    .eq("id", residentId)
+    .select("id");
+  if (error) return { error: "NOT saved: something went wrong. Please try again." };
+  if (!updated || updated.length === 0) return { error: "NOT saved: this resident no longer exists or you don't have access." };
+
+  if (change === "deceased" && dateRaw) {
+    const [y, m, d] = dateRaw.split("-").map(Number);
+    const day = new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" });
+    const note = `Passed away: ${day}`;
+    const { error: noteError } = await supabase
+      .from("profile_notes")
+      .insert({ resident_id: residentId, facility_id: null, raw_note: note, clean_note: note, created_by: user.id });
+    if (noteError) console.error("Date of passing note failed:", noteError.message);
+  }
+
+  revalidatePath("/residents");
+  revalidatePath(`/residents/${residentId}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/needs-attention");
+  redirect(withSaved(`/residents/${residentId}${back ? `?back=${encodeURIComponent(back)}` : ""}`, target.saved));
+}

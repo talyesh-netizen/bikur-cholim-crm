@@ -47,21 +47,22 @@ export default async function NeedsAttentionPage({ searchParams }: { searchParam
         residents={noRecentVisit}
         detail={(r) => `${facility(r)} · ${r.last_visit_at ? `last in-person visit ${formatRelative(r.last_visit_at)}` : "no in-person visit yet"}${lastContact(r)}`}
       />
-      <Card>
+      <Card id="facilities">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            Facilities to check on
+            No staff visit this quarter
             <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
               {facilities.length}
             </span>
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Marked &ldquo;follow up needed&rdquo;, or high priority with nothing logged in two weeks.
+            Active facilities with Jewish residents on file where no staff visit (in person) is logged since the quarter
+            began. Volunteer visits are shown beside it but don&apos;t count as a staff visit.
           </p>
         </CardHeader>
         <CardContent>
           {facilities.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nothing right now.</p>
+            <p className="text-sm text-muted-foreground">Every facility with residents on file has a staff visit this quarter.</p>
           ) : (
             <div className="flex flex-col divide-y divide-border">
               {facilities.map((f) => (
@@ -71,10 +72,13 @@ export default async function NeedsAttentionPage({ searchParams }: { searchParam
                   className="flex min-h-12 items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0 hover:text-primary"
                 >
                   <div className="min-w-0">
-                    <p className="font-medium leading-tight">{f.name}</p>
+                    <p className="break-words font-medium leading-tight [overflow-wrap:anywhere]">{f.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {f.engagement_status === "follow_up_needed" ? "Follow up needed · " : ""}
-                      {f.last_visit_at ? `last contact ${formatRelative(f.last_visit_at)}` : "nothing logged yet"}
+                      {f.active_resident_count} resident{f.active_resident_count === 1 ? "" : "s"} on file ·{" "}
+                      {f.last_staff_visit_at ? `last staff visit ${formatRelative(f.last_staff_visit_at)}` : "no staff visit in the last year"}
+                      {f.volunteer_visits_this_quarter > 0
+                        ? ` · volunteers ${f.volunteer_visits_this_quarter}× this quarter (last ${formatRelative(f.last_volunteer_visit_at)})`
+                        : " · no volunteer visits this quarter"}
                     </p>
                   </div>
                   <ChevronRight className="size-4 shrink-0 text-muted-foreground" />

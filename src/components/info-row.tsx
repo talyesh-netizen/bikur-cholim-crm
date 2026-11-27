@@ -15,7 +15,7 @@ export function InfoRow({
   return (
     <div className="flex flex-col gap-0.5 sm:grid sm:grid-cols-[minmax(9rem,2fr)_5fr] sm:gap-4">
       <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="break-words">
+      <span className="min-w-0 break-words [overflow-wrap:anywhere]">
         {value ? (
           href ? (
             <a

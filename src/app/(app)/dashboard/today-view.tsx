@@ -2,10 +2,12 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TaskCard } from "../tasks/task-card";
 import { DashboardOnsiteLauncher } from "@/components/dashboard-onsite-launcher";
-import { CheckCircle2, ChevronRight, UserRoundX } from "lucide-react";
+import { BedDouble, CheckCircle2, ChevronRight, UserRoundX } from "lucide-react";
 import { labelFor, INTERACTION_TYPES, type InteractionWithNames } from "@/lib/domain/interaction";
 import type { TaskWithNames } from "@/lib/domain/task";
-import { formatTimeOfDay } from "@/lib/format-date";
+import { formatRelative, formatTimeOfDay } from "@/lib/format-date";
+
+export type HospitalResident = { id: string; name: string; facility: string | null; lastContactAt: string | null };
 
 /** What Today shows, given its data (kept apart from the fetching so it
  * can be previewed on its own). */
@@ -16,6 +18,7 @@ export function TodayView({
   due,
   mine,
   staleResidentsTotal,
+  inHospital = [],
 }: {
   heading: string;
   today: string;
@@ -23,6 +26,7 @@ export function TodayView({
   due: TaskWithNames[];
   mine: InteractionWithNames[];
   staleResidentsTotal: number;
+  inHospital?: HospitalResident[];
 }) {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
@@ -36,6 +40,36 @@ export function TodayView({
       <DashboardOnsiteLauncher
         facilities={facilities}
       />
+
+      {inHospital.length > 0 ? (
+        <Card className="border-[var(--tone-attention-fg)]/40">
+          <CardHeader className="flex-row items-baseline justify-between space-y-0 pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <BedDouble className="size-5 shrink-0" /> In hospital
+            </CardTitle>
+            <span className="text-sm text-muted-foreground">{inHospital.length}</span>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-2 text-sm text-muted-foreground">A family call, a care package or help from the wider team may be needed.</p>
+            <ul className="-my-1 flex flex-col divide-y divide-border">
+              {inHospital.map((r) => (
+                <li key={r.id}>
+                  <Link href={`/residents/${r.id}?back=/dashboard`} className="flex min-h-11 items-center gap-3 py-2">
+                    <span className="min-w-0 flex-1 text-sm">
+                      <span className="font-medium">{r.name}</span>
+                      <span className="text-muted-foreground">
+                        {r.facility ? ` · usually at ${r.facility}` : ""}
+                        {r.lastContactAt ? ` · last contact ${formatRelative(r.lastContactAt)}` : " · no contact logged"}
+                      </span>
+                    </span>
+                    <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader className="flex-row items-baseline justify-between space-y-0 pb-3">

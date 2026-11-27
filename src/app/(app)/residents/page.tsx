@@ -15,6 +15,9 @@ export default async function ResidentsPage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const params = await searchParams;
+  // This list as it is now (filters kept), for coming back after a save.
+  const listQuery = new URLSearchParams(Object.entries(params).filter((e): e is [string, string] => !!e[1])).toString();
+  const listHref = `/residents${listQuery ? `?${listQuery}` : ""}`;
 
   const [residents, facilities] = await Promise.all([
     listResidents({
@@ -58,7 +61,7 @@ export default async function ResidentsPage({
       ) : (
         <div className="flex flex-col gap-3">
           {residents.map((resident) => (
-            <ResidentCard key={resident.id} resident={resident} />
+            <ResidentCard key={resident.id} resident={resident} back={listHref} />
           ))}
         </div>
       )}

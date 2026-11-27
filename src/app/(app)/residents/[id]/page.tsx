@@ -30,6 +30,8 @@ import { getCurrentProfile } from "@/lib/get-current-profile";
 import { listChangesForRecord } from "@/lib/queries/change-log";
 import { ChangeHistoryList } from "@/components/change-history-list";
 import { StoryList } from "@/components/story-list";
+import { setResidentQuickStatus } from "@/lib/actions/residents";
+import { QuickStatus } from "./quick-status";
 import { listStories } from "@/lib/queries/stories";
 
 function residenceUnitLabel(facilityType: string | null) {
@@ -73,6 +75,11 @@ export default async function ResidentDetailPage({
 
   return (
     <div className="flex flex-col gap-4">
+      {back ? (
+        <Link href={back} className="flex min-h-11 w-fit items-center text-sm font-medium text-primary hover:underline">
+          &larr; Back to the list
+        </Link>
+      ) : null}
       <ChainNav
         steps={[
           { label: facility?.parent_healthcare_group ?? "", href: owner ? `/facilities/groups/${owner.id}` : undefined },
@@ -130,7 +137,16 @@ export default async function ResidentDetailPage({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <ResidentActiveStatus status={resident.status} />
+        <div className="flex flex-col gap-2">
+          <ResidentActiveStatus status={resident.status} />
+          <QuickStatus
+            status={resident.status}
+            facilityName={resident.current_facility_name}
+            inHospital={setResidentQuickStatus.bind(null, resident.id, "in_hospital", back ?? null)}
+            back={setResidentQuickStatus.bind(null, resident.id, "back", back ?? null)}
+            deceased={setResidentQuickStatus.bind(null, resident.id, "deceased", back ?? null)}
+          />
+        </div>
         <div className="flex gap-4 text-sm">
           <Link href={`/residents/${resident.id}/edit`} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
             <Pencil className="size-4" />

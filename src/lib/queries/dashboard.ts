@@ -6,7 +6,9 @@ import { ACTIVE_RESIDENT_STATUSES } from "@/lib/domain/resident";
 import type { ResidentWithSummary } from "@/lib/domain/resident";
 import { listTasks, SELECT_WITH_NAMES, toTaskWithNames } from "./tasks";
 import { listRecentInteractions } from "./interactions";
-import { getLocalToday } from "@/lib/format-date";
+import { getLocalToday, orgDayStartIso } from "@/lib/format-date";
+import { currentQuarter } from "@/lib/report-period";
+import { fetchLastStaffVisits } from "./report-rules";
 
 // A resident with no logged visit in this many days shows up under
 // "residents without a recent visit." Phase One keeps this a single
@@ -14,10 +16,6 @@ import { getLocalToday } from "@/lib/format-date";
 // preferred_visit_frequency — see the Design Principles in ROADMAP.md
 // ("prefer clear workflows over advanced options").
 const STALE_RESIDENT_VISIT_DAYS = 30;
-
-// High-priority facilities get a shorter "needs attention" window than
-// the resident default, since visit_priority already signals urgency.
-const STALE_HIGH_PRIORITY_FACILITY_VISIT_DAYS = 14;
 
 /** Today shows only the first few of each list; Needs attention has them all. */
 export const TODAY_SNAPSHOT_SIZE = 5;
@@ -35,7 +33,7 @@ export type DashboardSummary = {
   staleResidents: ResidentWithSummary[];
   /** ...and how many there are in all (the full list is on Needs attention). */
   staleResidentsTotal: number;
-  facilitiesNeedingAttention: FacilityWithSummary[];
+  facilitiesNeedingAttention: CoverageGapFacility[];
   recentActivity: Awaited<ReturnType<typeof listRecentInteractions>>;
   counts: {
     openTasks: number;
@@ -110,25 +108,47 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
   };
 }
 
-/** Facilities flagged "follow up needed", plus high-priority ones with
- * nothing logged in STALE_HIGH_PRIORITY_FACILITY_VISIT_DAYS -- one list,
- * no duplicates, longest-quiet first. Used by Today (first few) and
- * Needs attention (all). */
-export async function getFacilitiesNeedingAttention(): Promise<FacilityWithSummary[]> {
+/** Quarterly coverage (Nov 27, 2026): active facilities with Jewish
+ * residents on file and no staff visit (in person, confirmed) logged this
+ * quarter, longest without one first, each with this quarter's volunteer
+ * activity beside it. Used by Needs attention (all) and Today. */
+export type CoverageGapFacility = FacilityWithSummary & {
+  last_staff_visit_at: string | null;
+  /** Volunteer visits there this quarter (entries) and the newest one. */
+  volunteer_visits_this_quarter: number;
+  last_volunteer_visit_at: string | null;
+};
+
+export async function getFacilitiesNeedingAttention(): Promise<CoverageGapFacility[]> {
   const supabase = await createClient();
-  const staleFacilityCutoff = daysAgoIso(STALE_HIGH_PRIORITY_FACILITY_VISIT_DAYS);
-  const [followUp, highPriority] = await Promise.all([
-    supabase.from("facility_summary").select("*").eq("active", true).eq("engagement_status", "follow_up_needed"),
+  const quarter = currentQuarter();
+  const quarterStart = orgDayStartIso(quarter.from!)!;
+  const [{ data, error }, lastStaff, volunteer] = await Promise.all([
+    supabase.from("facility_summary").select("*").eq("active", true).gt("active_resident_count", 0),
+    fetchLastStaffVisits(supabase),
     supabase
-      .from("facility_summary")
-      .select("*")
-      .eq("active", true)
-      .eq("visit_priority", "high")
-      .or(`last_visit_at.is.null,last_visit_at.lt.${staleFacilityCutoff}`),
+      .from("interactions")
+      .select("facility_id, occurred_at")
+      .eq("interaction_type", "volunteer_visit")
+      .is("voided_at", null)
+      .is("counted_in_id", null)
+      .not("facility_id", "is", null)
+      .gte("occurred_at", quarterStart),
   ]);
-  if (followUp.error) throw new Error(followUp.error.message);
-  if (highPriority.error) throw new Error(highPriority.error.message);
-  const byId = new Map<string, FacilityWithSummary>();
-  for (const f of [...(followUp.data ?? []), ...(highPriority.data ?? [])] as FacilityWithSummary[]) byId.set(f.id, f);
-  return [...byId.values()].sort((a, b) => (a.last_visit_at ?? "").localeCompare(b.last_visit_at ?? ""));
+  if (error) throw new Error(error.message);
+  if (volunteer.error) throw new Error(volunteer.error.message);
+  const vol = new Map<string, { n: number; last: string }>();
+  for (const v of volunteer.data ?? []) {
+    const cur = vol.get(v.facility_id as string);
+    vol.set(v.facility_id as string, { n: (cur?.n ?? 0) + 1, last: !cur || v.occurred_at > cur.last ? v.occurred_at : cur.last });
+  }
+  return ((data ?? []) as FacilityWithSummary[])
+    .map((f) => ({
+      ...f,
+      last_staff_visit_at: lastStaff.get(f.id) ?? null,
+      volunteer_visits_this_quarter: vol.get(f.id)?.n ?? 0,
+      last_volunteer_visit_at: vol.get(f.id)?.last ?? null,
+    }))
+    .filter((f) => !f.last_staff_visit_at || f.last_staff_visit_at < quarterStart)
+    .sort((a, b) => (a.last_staff_visit_at ?? "").localeCompare(b.last_staff_visit_at ?? "") || a.name.localeCompare(b.name));
 }

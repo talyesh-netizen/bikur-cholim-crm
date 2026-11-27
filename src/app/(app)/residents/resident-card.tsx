@@ -11,7 +11,9 @@ function residenceUnitLabel(facilityType: string | null) {
   return facilityType === "assisted_living" || facilityType === "independent_living" || facilityType === "senior_apartment" ? "Apt" : "Room";
 }
 
-export function ResidentCard({ resident }: { resident: ResidentWithSummary }) {
+/** `back`: the list this card is on (with its filters), so saving a log
+ * started from the resident comes back to this same card. */
+export function ResidentCard({ resident, back }: { resident: ResidentWithSummary; back?: string }) {
   const displayName = residentName(resident);
   const lastVisit = formatRelative(resident.last_visit_at);
   const details = [
@@ -23,7 +25,7 @@ export function ResidentCard({ resident }: { resident: ResidentWithSummary }) {
     .join(" · ");
 
   return (
-    <Link href={`/residents/${resident.id}`} className="group block">
+    <Link id={`r-${resident.id}`} href={back ? `/residents/${resident.id}?back=${encodeURIComponent(`${back}#r-${resident.id}`)}` : `/residents/${resident.id}`} className="group block scroll-mt-24">
       <Card
         className="border-l-4 transition-colors group-hover:border-primary/50"
         style={{ borderLeftColor: clusterColor(resident.current_facility_cluster_id) }}

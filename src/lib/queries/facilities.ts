@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { FacilityWithSummary, GeographicCluster } from "@/lib/domain/facility";
-import { searchWords, everyWordInAny } from "@/lib/supabase-filters";
+import { matchFacilities } from "@/lib/facility-match";
 
 export type FacilityFilters = {
   search?: string;
@@ -26,10 +26,6 @@ export async function listFacilities(filters: FacilityFilters = {}) {
   if (!filters.showInactive) {
     query = query.eq("active", true);
   }
-  if (filters.search) {
-    const match = everyWordInAny(searchWords(filters.search), ["name", "city"]);
-    if (match) query = query.or(match);
-  }
   if (filters.clusterId) {
     query = query.eq("geographic_cluster_id", filters.clusterId);
   }
@@ -48,7 +44,11 @@ export async function listFacilities(filters: FacilityFilters = {}) {
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
-  return (data ?? []) as FacilityWithSummary[];
+  const rows = (data ?? []) as FacilityWithSummary[];
+  // One search rule across the CRM (Nov 27, 2026): the same forgiving
+  // match as every facility picker ("saint joseph", "landerhaven", initials,
+  // city or healthcare group), not the database's plain word match.
+  return filters.search?.trim() ? matchFacilities(rows, filters.search) : rows;
 }
 
 /** The other kinds of care a facility offers besides its main type

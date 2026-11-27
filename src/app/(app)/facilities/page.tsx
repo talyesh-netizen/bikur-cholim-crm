@@ -9,6 +9,8 @@ import { FacilityFilters } from "./facility-filters";
 import { FacilityCard } from "./facility-card";
 import { SectionIcon } from "@/components/section-icon";
 import { clusterColorMap } from "@/lib/category-colors";
+import { createClient } from "@/lib/supabase/server";
+import { fetchLastStaffVisits } from "@/lib/queries/report-rules";
 
 export default async function FacilitiesPage({
   searchParams,
@@ -18,17 +20,17 @@ export default async function FacilitiesPage({
   const params = await searchParams;
   const profile = await getCurrentProfile();
 
-  const [facilities, clusters] = await Promise.all([
+  const supabase = await createClient();
+  const [facilities, clusters, lastStaffVisits] = await Promise.all([
     listFacilities({
       search: params.search,
       clusterId: params.cluster,
-      engagementStatus: params.engagement,
-      visitPriority: params.priority,
       facilityType: params.type,
       showInactive: params.inactive === "1",
       withResidents: params.residents === "1",
     }),
     listGeographicClusters(true),
+    fetchLastStaffVisits(supabase),
   ]);
 
   const areaColors = clusterColorMap(clusters);
@@ -81,6 +83,7 @@ export default async function FacilitiesPage({
             <FacilityCard
               key={facility.id}
               facility={facility}
+              lastStaffVisitAt={lastStaffVisits.get(facility.id) ?? null}
               areaColor={facility.geographic_cluster_id ? areaColors.get(facility.geographic_cluster_id) : undefined}
             />
           ))}

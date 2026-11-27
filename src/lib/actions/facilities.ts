@@ -167,7 +167,9 @@ export async function setFacilityActive(facilityId: string, active: boolean) {
   }
   revalidatePath("/facilities");
   revalidatePath(`/facilities/${facilityId}`);
-  redirect(withSaved(`/facilities/${facilityId}`, "facility-status-saved"));
+  // Saved as inactive: back to the Facilities list (Nov 27, 2026), where it
+  // has dropped off. Made active again: stay on the facility.
+  redirect(withSaved(active ? `/facilities/${facilityId}` : "/facilities", "facility-status-saved"));
 }
 
 function flattenErrors(error: z.ZodError): Record<string, string> {

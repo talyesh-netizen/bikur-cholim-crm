@@ -1,3 +1,4 @@
+import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getResident } from "@/lib/queries/residents";
@@ -97,6 +98,13 @@ export default async function NewInteractionPage({
       }
     : undefined;
 
+  // Each family member's linked residents (Nov 27, 2026), for filling in
+  // the resident when one is picked. Only links this person can see.
+  const supabase = await createClient();
+  const { data: familyLinks } = await supabase.from("resident_contacts").select("contact_id, resident_id").eq("active", true);
+  const familyResidents: Record<string, string[]> = {};
+  for (const l of familyLinks ?? []) (familyResidents[l.contact_id as string] ??= []).push(l.resident_id as string);
+
   const isVisit = defaultType === "resident_visit";
   // "Note" on the onsite directory opens this as type "other".
   const heading = chosenContact ? `Log: talked with ${chosenContact.name}` : isVisit ? "Log a visit" : defaultType === "other" ? "Add a note" : defaultType ? `Log: ${labelFor(INTERACTION_TYPES, defaultType)}` : "Log an interaction";
@@ -134,6 +142,7 @@ export default async function NewInteractionPage({
             defaultInteractionType={defaultType}
             defaultContactId={chosenContact?.id}
             familyContactIds={familyContactIds}
+            familyResidents={familyResidents}
             defaultInPerson={from === "onsite"}
             defaultPartnerId={activity.partners.some((p) => p.id === partner) ? partner : undefined}
             fixedResident={fixedResident}

@@ -72,6 +72,7 @@ export function InteractionForm({
   initialPartOf,
   selfId,
   familyContactIds,
+  familyResidents,
   submitLabel = "Log interaction",
   savingLabel = "Saving…",
 }: {
@@ -129,6 +130,9 @@ export function InteractionForm({
   /** People filed as family members: the only ones a Family entry offers
    * (Oct 27, 2026 QA). */
   familyContactIds?: string[];
+  /** Family member -> the residents they're linked to as family (Nov 27,
+   * 2026): picking one fills in their resident when there's only one. */
+  familyResidents?: Record<string, string[]>;
   submitLabel?: string;
   savingLabel?: string;
 }) {
@@ -319,7 +323,20 @@ export function InteractionForm({
   const peopleShown = familyOnly ? engaged.filter((id) => familyIds.has(id)) : engaged;
   function choosePeople(ids: string[]) {
     setEngaged(familyOnly ? [...engaged.filter((id) => !familyIds.has(id)), ...ids] : ids);
+    // A family member linked to exactly one resident fills that resident in
+    // when none is chosen yet (Nov 27, 2026); it can be cleared or changed.
+    // Linked to several: nothing is picked, the hint below asks.
+    if (interactionType === "family_communication" && residentIds.length === 0 && !fixedResident) {
+      const added = ids.find((id) => !engaged.includes(id));
+      const linked = added ? familyResidents?.[added] ?? [] : [];
+      if (linked.length === 1 && (residents ?? []).some((r) => r.id === linked[0])) setResidentIds([linked[0]]);
+    }
   }
+  // The family members picked who are linked to several residents.
+  const familyWithSeveral =
+    interactionType === "family_communication" && residentIds.length === 0
+      ? engaged.filter((id) => (familyResidents?.[id]?.length ?? 0) > 1)
+      : [];
   function chooseType(type: string) {
     setInteractionType(type);
     if (
@@ -330,6 +347,12 @@ export function InteractionForm({
       !checkedVolunteerIds.includes(defaultContactId)
     ) {
       setCheckedVolunteerIds([...checkedVolunteerIds, defaultContactId]);
+    }
+    // "Log with [family member]", then Family conversation: their one
+    // linked resident is filled in (Nov 27, 2026), never several.
+    if (type === "family_communication" && !isEditing && residentIds.length === 0 && !fixedResident && engaged.length === 1) {
+      const linked = familyResidents?.[engaged[0]] ?? [];
+      if (linked.length === 1 && (residents ?? []).some((r) => r.id === linked[0])) setResidentIds([linked[0]]);
     }
   }
 
@@ -480,6 +503,7 @@ export function InteractionForm({
               {interactionType === "family_communication" ? (
                 <p className="text-xs text-muted-foreground">
                   Whose family, if it&apos;s about a resident; the family member goes below.
+                  {familyWithSeveral.length > 0 ? " The family member you picked is linked to more than one resident: pick which one, or leave it blank." : ""}
                 </p>
               ) : null}
               {residentIds.length > 1 ? (

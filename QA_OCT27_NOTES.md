@@ -960,3 +960,36 @@ only (no names or notes).
    when everyone picked is filed as a partner. Decision Q6.
 
 Questions Q1-Q9: see the ChatGPT block in the Nov 22 review reply.
+
+## Second handoff: build log, part 1 (Nov 27, 2026)
+
+Director's simplified decisions (Nov 27) replace the Nov 22 questions
+where they differ. Built on `claude/laughing-johnson-s9gqi7`; not merged,
+not deployed, no database change. Not pushed until this branch's preview
+has its own TEST database settings (it would use the live database).
+
+Built (app only):
+- Facilities list: same forgiving search as every picker; Clear search
+  and Clear all filters; Area (not Cluster) with a soft area colour;
+  Engagement and Priority filters removed; card shows type, area, active,
+  residents on file, last staff visit (in person, confirmed), last contact
+  when newer; long names wrap on phones.
+- Facility page: "Residents and visits" (residents on file, last staff
+  visit, last contact); "No current Jewish residents on file, please
+  check" when active with none; estimate, known-residents tick,
+  engagement, priority, frequency and kosher food hidden from the page and
+  the form (kept exactly as saved); one "Facility notes" section (dated
+  notes, older notes box inside); long text and links wrap.
+- Mark inactive returns to the Facilities list.
+- Needs attention: "No staff visit this quarter" (active facilities with
+  residents on file), volunteer visits this quarter beside it; replaces
+  the engagement/priority list.
+- Back to the list: from the 30-day list and the Residents list (filters
+  and the card's place kept), "Back to the list" on the resident page.
+- Resident page: In hospital / Back at [facility] / Passed away (confirm
+  once, optional date kept as a dated About them note). Today: "In
+  hospital" card.
+- Log form: picking a family member linked to one resident fills that
+  resident in (clearable); several: a hint, nothing picked.
+
+Checks: type check, lint, build, counting checks all pass.

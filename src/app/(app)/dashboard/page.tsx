@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getLocalToday } from "@/lib/format-date";
 import { TodayView } from "./today-view";
 import { ORGANIZATION_TIMEZONE } from "@/lib/config";
+import { residentName } from "@/lib/domain/resident-name";
 
 /** The server (Vercel) runs in UTC, not Cleveland time, so reading the
  * hour/date directly off `new Date()` here could show "Good evening" at
@@ -28,11 +29,18 @@ export default async function DashboardPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const [summary, facilities, mine, profileRow] = await Promise.all([
+  const [summary, facilities, mine, profileRow, hospital] = await Promise.all([
     getDashboardSummary(),
     listFacilities(),
     user ? listInteractionsByStaffOnDay(user.id, getLocalToday()) : Promise.resolve([]),
     user ? supabase.from("profiles").select("full_name").eq("id", user.id).single() : Promise.resolve({ data: null }),
+    // In hospital now (Nov 27, 2026): who may need a family call, a care
+    // package or the wider team. Only residents this person can see.
+    supabase
+      .from("resident_summary")
+      .select("id, first_name, last_name, preferred_name, current_facility_name, last_contact_at")
+      .eq("status", "temporarily_hospitalized")
+      .order("last_name", { ascending: true }),
   ]);
   const firstName = profileRow.data?.full_name?.split(" ")[0] ?? "";
 
@@ -61,6 +69,12 @@ export default async function DashboardPage() {
       due={due}
       mine={mine}
       staleResidentsTotal={summary.staleResidentsTotal}
+      inHospital={(hospital.data ?? []).map((r) => ({
+        id: r.id as string,
+        name: residentName(r as Parameters<typeof residentName>[0]),
+        facility: (r.current_facility_name as string | null) ?? null,
+        lastContactAt: (r.last_contact_at as string | null) ?? null,
+      }))}
     />
   );
 }

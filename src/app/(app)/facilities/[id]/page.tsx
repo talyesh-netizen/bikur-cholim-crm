@@ -15,14 +15,13 @@ import { setFacilityContactActive, setPrimaryFacilityContact } from "@/lib/actio
 import {
   labelFor,
   FACILITY_TYPES,
-  ENGAGEMENT_STATUSES,
-  VISIT_PRIORITIES,
-  KOSHER_FOOD_OPTIONS,
 } from "@/lib/domain/facility";
 import { RESIDENT_STATUSES } from "@/lib/domain/resident";
 import { ClusterBadge } from "@/components/cluster-badge";
 import { labelFor as labelForContact, CONTACT_TYPES } from "@/lib/domain/contact";
 import { formatDateTime } from "@/lib/format-date";
+import { createClient } from "@/lib/supabase/server";
+import { fetchLastStaffVisits } from "@/lib/queries/report-rules";
 import { telHref, websiteHref, mapsHref } from "@/lib/link-helpers";
 import { InteractionList } from "@/app/(app)/interactions/interaction-list";
 import { TaskList } from "@/app/(app)/tasks/task-list";
@@ -70,6 +69,7 @@ export default async function FacilityDetailPage({
   ]);
 
   if (!facility) notFound();
+  const lastStaffVisitAt = (await fetchLastStaffVisits(await createClient(), [id])).get(id) ?? null;
 
   // Includes follow-ups filed against this facility's residents, not
   // just ones filed against the facility itself.
@@ -94,7 +94,7 @@ export default async function FacilityDetailPage({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold">{facility.name}</h1>
+            <h1 className="min-w-0 break-words text-2xl font-semibold [overflow-wrap:anywhere]">{facility.name}</h1>
             {!facility.active ? <Badge variant="outline">Inactive</Badge> : null}
           </div>
           <p className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
@@ -126,16 +126,6 @@ export default async function FacilityDetailPage({
           Start visit here
         </Link>
       </Button>
-
-      <div className="flex flex-wrap gap-2">
-        <Badge>{labelFor(ENGAGEMENT_STATUSES, facility.engagement_status)}</Badge>
-        <Badge variant="secondary">
-          {labelFor(VISIT_PRIORITIES, facility.visit_priority)} priority
-        </Badge>
-        {facility.jewish_residents_currently_known ? (
-          <Badge variant="secondary">Jewish residents known</Badge>
-        ) : null}
-      </div>
 
       {mainContact ? (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-border bg-card px-4 py-2.5 text-sm">
@@ -184,38 +174,37 @@ export default async function FacilityDetailPage({
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Jewish resident engagement</CardTitle>
+            <CardTitle className="text-base">Residents and visits</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-2 text-sm">
-            <InfoRow
-              label="Approx. Jewish residents"
-              value={facility.approx_jewish_resident_count?.toString()}
-            />
-            <InfoRow
-              label="Active residents on file"
-              value={facility.active_resident_count.toString()}
-            />
-            <InfoRow
-              label="Recommended visit frequency"
-              value={facility.recommended_visit_frequency}
-            />
-            <InfoRow
-              label="Kosher food availability"
-              value={
-                facility.kosher_food_availability
-                  ? labelFor(KOSHER_FOOD_OPTIONS, facility.kosher_food_availability)
-                  : undefined
-              }
-            />
-            <InfoRow
-              label="Last contact"
-              value={formatDateTime(facility.last_visit_at) ?? "Nothing logged yet"}
-            />
+            {/* From the roster (Nov 27, 2026). The manual estimate, the
+                known-residents tick, visit frequency, priority, engagement and
+                kosher food are kept on file but no longer shown or asked. */}
+            <InfoRow label="Active residents on file" value={facility.active_resident_count.toString()} />
+            {facility.active && facility.active_resident_count === 0 ? (
+              <p className="rounded-md bg-[var(--tone-attention-bg)] px-3 py-2 text-[var(--tone-attention-fg)]">
+                No current Jewish residents on file. Please check: if there are none, mark this facility inactive.
+              </p>
+            ) : null}
+            <InfoRow label="Last staff visit" value={formatDateTime(lastStaffVisitAt) ?? "None logged in the last year"} />
+            {facility.last_visit_at && facility.last_visit_at !== lastStaffVisitAt ? (
+              <InfoRow label="Last contact (any kind)" value={formatDateTime(facility.last_visit_at)} />
+            ) : null}
           </CardContent>
         </Card>
       </div>
 
-      <ProfileNotesCard targetType="facility" targetId={facility.id} notes={profileNotes} />
+      {/* One place for notes about this facility (Nov 27, 2026): the dated
+          notes, with the older single notes box shown inside, not apart. */}
+      <Fold title="Facility notes" count={profileNotes.length + (facility.notes ? 1 : 0)} open>
+        {facility.notes ? (
+          <div className="mb-3 rounded-md border border-border p-3 text-sm">
+            <p className="text-xs text-muted-foreground">Earlier notes</p>
+            <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{facility.notes}</p>
+          </div>
+        ) : null}
+        <ProfileNotesCard targetType="facility" targetId={facility.id} notes={profileNotes} compact />
+      </Fold>
 
       <Fold
         title="Stories"
@@ -418,17 +407,6 @@ export default async function FacilityDetailPage({
           <InteractionList interactions={interactions} variant="facility" />
         </CardContent>
       </Card>
-
-      {facility.notes ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Notes</CardTitle>
-          </CardHeader>
-          <CardContent className="whitespace-pre-wrap text-sm text-muted-foreground">
-            {facility.notes}
-          </CardContent>
-        </Card>
-      ) : null}
 
       <div className="flex flex-wrap items-center gap-x-6 gap-y-1 border-t pt-4 text-sm">
         <form action={toggleActive}>

@@ -487,3 +487,33 @@ export function isSchoolProgram(r: CountableRow): boolean {
   if (r.partner_org_type) return r.partner_org_type === "school";
   return r.interaction_type === "school_engagement" && r.program_partner !== "shul";
 }
+
+/** The newest day our staff were confirmed there in person, per facility
+ * (Nov 27, 2026: "Last staff visit"). Same rules as Impact's staff visits:
+ * calls, volunteer-only visits and attendance not recorded never count.
+ * Looks back about 13 months. */
+export async function fetchLastStaffVisits(supabase: Client, facilityIds?: string[]): Promise<Map<string, string>> {
+  const since = new Date(Date.now() - 400 * 24 * 60 * 60 * 1000).toISOString();
+  const types = [...new Set([...VISIT_DAY_TYPES, ...STAFF_SUPPORT_TYPES, "volunteer_visit"])];
+  const [rows, team] = await Promise.all([
+    selectAllPages<CountableRow>((from, to) => {
+      let q = supabase
+        .from("interactions")
+        .select("id, interaction_type, occurred_at, facility_id, contact_id, staff_member_id, method, in_person, lead_attended, voided_at, counted_in_id")
+        .not("facility_id", "is", null)
+        .is("voided_at", null)
+        .is("counted_in_id", null)
+        .in("interaction_type", types)
+        .gte("occurred_at", since);
+      if (facilityIds) q = q.in("facility_id", facilityIds);
+      return q.order("occurred_at", { ascending: false }).order("id").range(from, to);
+    }),
+    fetchTeamLinks(supabase),
+  ]);
+  const last = new Map<string, string>();
+  for (const r of rows) {
+    if (!r.facility_id || last.has(r.facility_id)) continue;
+    if (staffAttendance(r, team).confirmed.length > 0) last.set(r.facility_id, r.occurred_at);
+  }
+  return last;
+}

@@ -1,13 +1,12 @@
 "use client";
 
 import { offeredOptions } from "@/lib/domain/offered";
-import { OFFERED_FACILITY_TYPES, OFFERED_ENGAGEMENT_STATUSES } from "@/lib/domain/facility";
+import { OFFERED_FACILITY_TYPES } from "@/lib/domain/facility";
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -15,11 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  FACILITY_TYPES,
-  ENGAGEMENT_STATUSES,
-  VISIT_PRIORITIES,
-} from "@/lib/domain/facility";
+import { FACILITY_TYPES } from "@/lib/domain/facility";
 import type { Facility, GeographicCluster } from "@/lib/domain/facility";
 import type { FacilityFormState } from "@/lib/actions/facilities";
 import { capitalizeAsYouType } from "@/lib/format-text";
@@ -184,64 +179,21 @@ export function FacilityForm({
         </Field>
       </section>
 
-      <section className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold text-muted-foreground">Jewish resident engagement</h2>
-
-        <div className="flex items-center gap-2">
-          <Checkbox
-            id="jewish_residents_currently_known"
-            name="jewish_residents_currently_known"
-            defaultChecked={values.jewish_residents_currently_known === "true"}
-          />
-          <Label htmlFor="jewish_residents_currently_known" className="font-normal">
-            Jewish residents are currently known to live here
-          </Label>
-        </div>
-
-        <Field
-          label="Approximate number of Jewish residents"
-          htmlFor="approx_jewish_resident_count"
-          error={fieldErrors.approx_jewish_resident_count}
-        >
-          <Input
-            id="approx_jewish_resident_count"
-            name="approx_jewish_resident_count"
-            type="number"
-            min={0}
-            defaultValue={values.approx_jewish_resident_count}
-          />
-        </Field>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Engagement status" htmlFor="engagement_status" required>
-            <SelectField
-              name="engagement_status"
-              defaultValue={values.engagement_status}
-              options={offeredOptions(ENGAGEMENT_STATUSES, OFFERED_ENGAGEMENT_STATUSES, values.engagement_status)}
-            />
-          </Field>
-          <Field label="Visit priority" htmlFor="visit_priority" required>
-            <SelectField
-              name="visit_priority"
-              defaultValue={values.visit_priority}
-              options={VISIT_PRIORITIES}
-            />
-          </Field>
-          <Field label="Recommended visit frequency" htmlFor="recommended_visit_frequency">
-            <Input
-              id="recommended_visit_frequency"
-              name="recommended_visit_frequency"
-              placeholder="e.g., Weekly, Monthly"
-              defaultValue={values.recommended_visit_frequency}
-            />
-          </Field>
-          {/* Not asked any more (rarely known); a saved value is kept. */}
-          <input type="hidden" name="kosher_food_availability" value={values.kosher_food_availability ?? ""} readOnly />
-        </div>
-      </section>
+      {/* No longer asked (Nov 27, 2026): residents on file come from the
+          roster, and estimate, known-residents tick, engagement, priority,
+          visit frequency and kosher food are kept exactly as saved. */}
+      {values.jewish_residents_currently_known === "true" ? (
+        <input type="hidden" name="jewish_residents_currently_known" value="on" readOnly />
+      ) : null}
+      <input type="hidden" name="approx_jewish_resident_count" value={values.approx_jewish_resident_count ?? ""} readOnly />
+      <input type="hidden" name="engagement_status" value={values.engagement_status ?? "not_contacted"} readOnly />
+      <input type="hidden" name="visit_priority" value={values.visit_priority ?? "medium"} readOnly />
+      <input type="hidden" name="recommended_visit_frequency" value={values.recommended_visit_frequency ?? ""} readOnly />
+      <input type="hidden" name="kosher_food_availability" value={values.kosher_food_availability ?? ""} readOnly />
 
       <section className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold text-muted-foreground">Notes</h2>
+        <h2 className="text-sm font-semibold text-muted-foreground">Earlier notes</h2>
+        <p className="-mt-2 text-xs text-muted-foreground">New notes go under Facility notes on the facility&apos;s page, each with its date.</p>
         <Textarea id="notes" name="notes" rows={4} defaultValue={values.notes} />
       </section>
 
