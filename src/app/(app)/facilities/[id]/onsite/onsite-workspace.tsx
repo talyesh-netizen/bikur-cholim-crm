@@ -11,6 +11,7 @@ import { StaffList, type OnsiteStaff } from "./staff-list";
 import { TodayList, type LoggedToday } from "./today-list";
 import type { OnsiteTab } from "@/lib/onsite-links";
 import { cn } from "@/lib/utils";
+import { useTripParam } from "@/lib/use-trip";
 import { endVisitSession } from "@/lib/visit-session";
 import { CompanionProvider, VisitingWith, clearCompanion, type Companion } from "./companion";
 
@@ -47,6 +48,8 @@ export function OnsiteWorkspace({
   colleagues?: Companion[];
 }) {
   const [tab, setTab] = useState<OnsiteTab>(initialTab);
+  // This trip, carried into Food today (Nov 27, 2026).
+  const tripParam = useTripParam(facilityId);
   // "I saw them" on the Finish check: open that resident's visit.
   const [visitRequest, setVisitRequest] = useState<{ id: string; key: number } | null>(null);
   const [finishing, setFinishing] = useState(false);
@@ -95,7 +98,7 @@ export function OnsiteWorkspace({
     <>
       <VisitingWith facilityId={facilityId} colleagues={colleagues} api={companionApi} />
       <Button variant="outline" className="h-12 w-full justify-start gap-2 text-base" asChild>
-        <Link href={`/interactions/new?facility=${facilityId}&type=food_delivery&from=onsite`}>
+        <Link href={`/interactions/new?facility=${facilityId}&type=food_delivery&from=onsite${tripParam}`}>
           <Cookie className="size-5" /> Food today
           <span className="ml-auto text-sm font-normal text-muted-foreground">counted once for {facilityName}</span>
         </Link>

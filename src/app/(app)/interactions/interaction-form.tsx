@@ -60,6 +60,7 @@ export function InteractionForm({
   defaultInteractionType,
   defaultContactId,
   defaultInPerson,
+  tripId,
   defaultPartnerId,
   fixedResident,
   residents,
@@ -85,6 +86,8 @@ export function InteractionForm({
   defaultContactId?: string;
   /** Opened from on site: a staff conversation starts ticked "In person". */
   defaultInPerson?: boolean;
+  /** The On-site trip this entry was made during (Nov 27, 2026). */
+  tripId?: string;
   /** Opened from a Strategic Partner's page: that partner is chosen. */
   defaultPartnerId?: string;
   /** Set when logging from a resident's page — already chosen. */
@@ -1178,6 +1181,7 @@ export function InteractionForm({
       className="flex flex-col gap-4"
     >
       <input type="hidden" name="client_submission_id" defaultValue="" />
+      {tripId ? <input type="hidden" name="trip_id" value={tripId} readOnly /> : null}
       {/* Tells the server this form shows who did it and the staff linked,
           so saving it replaces them (an older form leaves them alone). */}
       {activity ? <input type="hidden" name="people_form" value="1" readOnly /> : null}

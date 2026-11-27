@@ -1083,3 +1083,26 @@ For the hosted preview (after the TEST database change): speed on a real
 phone; area colours on the Facilities list; tap Finish visit → Done on a
 real phone (the test browser had to press it directly); Food today and
 other forms opened from On site don't carry the trip number yet.
+
+## Trip number carried into forms opened On-site (Nov 27, 2026)
+
+Food today and Staff conversation, opened from On-site, now carry the
+current trip number (only from On-site; checked to be a real id). Fix and
+Follow-up links don't record activity and are unchanged. Counting check
+added: two trips, food delivered on the second, belongs to trip two, still
+two visits.
+
+Phone-size run (local copy, demo data), the director's example: trip 1
+(resident unavailable), Finish visit → Done with real taps (landed on
+Today), trip 2 Food today (6 people, staff there) → saved with trip two's
+number, back on the same On-site screen; 2 trips that day; Impact facility
+visits went up by exactly 2. Pass.
+
+Test-browser note: its phone imitation reports positions 50 px apart
+depending on how they are read; that, not anything on screen, was why the
+earlier taps on Finish visit missed. Real taps now pass.
+
+Hosted TEST, checked from here (read-only public key): the new columns
+don't exist yet ("trip_id does not exist"). Steps and expected results:
+`TEST_MIGRATION_20261127.md`. October outing entries on live: left as they
+are (rule settled: 15 students once, activity at all three sites).

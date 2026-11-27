@@ -333,6 +333,11 @@ check(
   ];
   const olderV = computeImpactMetrics(older, ctx()).values;
   check("older entries with no trip: still once per facility per day", olderV.activity_days === 1 && olderV.staff_visits_confirmed === 1, olderV);
+  // Director's example (Nov 27, 2026): two trips, food delivered on the second.
+  const food2 = mrow({ interaction_type: "food_delivery", people_reached: 6, lead_attended: true, trip_id: tripB, occurred_at: "2026-10-20T19:30:00Z" });
+  const foodCov = facilityCoverage([...morning, afternoon, food2], new Map());
+  const foodVisit = foodCov.days.find((d) => d.ids.includes(food2.id));
+  check("food delivered on the second trip belongs to trip two; still 2 visits", foodCov.activityDays === 2 && !!foodVisit?.key.endsWith(tripB) && foodVisit.ids.includes(afternoon.id), foodCov.days.map((d) => d.key));
   const otherFacility = mrow({ interaction_type: "resident_visit", resident_id: "res-5", trip_id: tripA, facility_id: "facility-2", occurred_at: "2026-10-20T15:00:00Z" });
   check("a trip id never joins two facilities into one visit", computeImpactMetrics([...morning, otherFacility], ctx()).values.activity_days === 2);
 }

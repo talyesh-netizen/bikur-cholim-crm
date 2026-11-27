@@ -20,9 +20,11 @@ import { Mic } from "lucide-react";
 export default async function NewInteractionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ resident?: string; facility?: string; type?: string; from?: string; contact?: string; back?: string; returnTo?: string; partner?: string }>;
+  searchParams: Promise<{ resident?: string; facility?: string; type?: string; from?: string; contact?: string; back?: string; returnTo?: string; partner?: string; trip?: string }>;
 }) {
-  const { resident: residentId, facility: facilityId, type, from, contact: contactId, back: backParam, returnTo, partner } = await searchParams;
+  const { resident: residentId, facility: facilityId, type, from, contact: contactId, back: backParam, returnTo, partner, trip } = await searchParams;
+  // The On-site trip this is part of (Nov 27, 2026); only from On-site.
+  const tripId = from === "onsite" && trip && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trip) ? trip : undefined;
   // Where to go after saving; returnTo is the older name for the same thing.
   const back = backParam ?? returnTo;
   const defaultType = INTERACTION_TYPES.some((t) => t.value === type) ? type : undefined;
@@ -144,6 +146,7 @@ export default async function NewInteractionPage({
             familyContactIds={familyContactIds}
             familyResidents={familyResidents}
             defaultInPerson={from === "onsite"}
+            tripId={tripId}
             defaultPartnerId={activity.partners.some((p) => p.id === partner) ? partner : undefined}
             fixedResident={fixedResident}
             residents={residents}

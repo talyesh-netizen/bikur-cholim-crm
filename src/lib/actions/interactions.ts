@@ -361,6 +361,11 @@ function peopleForRecords(interactionType: string, people: PeopleChoice, contact
  * (director, Oct 20 and 21, 2026). Not facility visits, staff, programs
  * or anything else; not a group visit counted with "Residents reached";
  * and an older entry saved without one can still be edited as it is. */
+/** A trip id sent by a form opened On-site, if it is a real id. */
+function tripIdFrom(value: unknown): string | null {
+  return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value) ? value : null;
+}
+
 const RESIDENT_REQUIRED_TYPES: readonly string[] = ["resident_visit", "visit_attempt", "resident_phone_call"];
 function missingResident(
   data: { interaction_type: string; resident_id?: string; people_reached?: number },
@@ -539,6 +544,8 @@ export async function createInteraction(
     // One volunteer outing, however many residents it saw (A2): every
     // record saved here shares it, so reports count one outing.
     ...(parsed.data.interaction_type === "volunteer_visit" ? { outing_id: crypto.randomUUID() } : {}),
+    // Saved from a form opened On-site: part of that trip (Nov 27, 2026).
+    ...(tripIdFrom(raw.trip_id) ? { trip_id: tripIdFrom(raw.trip_id) } : {}),
   };
   // Several residents on one volunteer visit too (Q2, Nov 3, 2026).
   const residentIds = parsed.data.interaction_type === "resident_visit" || parsed.data.interaction_type === "volunteer_visit" ? chosenResidents : [];

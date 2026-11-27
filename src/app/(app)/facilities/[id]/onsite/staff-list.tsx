@@ -1,5 +1,6 @@
 "use client";
 
+import { useTripParam } from "@/lib/use-trip";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, MessageCircle, Phone, Plus, Search, Star } from "lucide-react";
@@ -48,8 +49,10 @@ export function StaffList({ facilityId, staff }: { facilityId: string; staff: On
     [staff, query]
   );
   const talkedCount = staff.filter((s) => s.talkedTodayBy).length;
+  // This trip, carried into the conversation form (Nov 27, 2026).
+  const tripParam = useTripParam(facilityId);
   const logHref = (contactId?: string) =>
-    `/interactions/new?facility=${facilityId}&type=facility_staff_communication&from=onsite${contactId ? `&contact=${contactId}` : ""}`;
+    `/interactions/new?facility=${facilityId}&type=facility_staff_communication&from=onsite${contactId ? `&contact=${contactId}` : ""}${tripParam}`;
 
   return (
     <Card>
