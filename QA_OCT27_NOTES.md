@@ -993,3 +993,25 @@ Built (app only):
   resident in (clearable); several: a hint, nothing picked.
 
 Checks: type check, lint, build, counting checks all pass.
+
+## Phone-size test run (Nov 27, 2026)
+
+Run inside this session on a private local copy of the CRM (all 57
+database changes applied) with the repo's invented demo data and practice
+accounts made for this run only. No live or TEST data touched. iPhone 13
+size, production build.
+
+1. Today, In hospital section: pass (appears when marked, gone after Back).
+2. Resident In hospital / Back at [facility] / Passed away confirm: pass.
+3. Facilities search, Clear search, Clear all filters: pass ("silverbirch",
+   "mg", "park rehab", "beachwood", "cedar" all found).
+4. Facility pages: pass (no sideways scroll with a very long name and
+   website; retired fields gone from page and form; zero-roster prompt;
+   Mark inactive returns to the list).
+5. Back to the list after logging: failed at first (landed below the list,
+   because the save kept the form's scroll position); fixed with a
+   scroll-back to the section; then pass, from the 30-day list and from the
+   Residents list with a search kept.
+
+Still to see on the hosted preview: area colours on the Facilities list
+(only areas named "(Zone N)" get a colour; the demo areas aren't).

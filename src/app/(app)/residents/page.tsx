@@ -7,6 +7,7 @@ import { listResidents } from "@/lib/queries/residents";
 import { listFacilities } from "@/lib/queries/facilities";
 import { ResidentFilters } from "./resident-filters";
 import { ResidentCard } from "./resident-card";
+import { ScrollToPlace } from "@/components/scroll-to-place";
 import { SectionIcon } from "@/components/section-icon";
 
 export default async function ResidentsPage({
@@ -16,7 +17,7 @@ export default async function ResidentsPage({
 }) {
   const params = await searchParams;
   // This list as it is now (filters kept), for coming back after a save.
-  const listQuery = new URLSearchParams(Object.entries(params).filter((e): e is [string, string] => !!e[1])).toString();
+  const listQuery = new URLSearchParams(Object.entries(params).filter((e): e is [string, string] => !!e[1] && !["saved", "savedId", "at"].includes(e[0]))).toString();
   const listHref = `/residents${listQuery ? `?${listQuery}` : ""}`;
 
   const [residents, facilities] = await Promise.all([
@@ -31,6 +32,7 @@ export default async function ResidentsPage({
 
   return (
     <div className="flex flex-col gap-4">
+      <ScrollToPlace />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2.5 text-2xl font-semibold">

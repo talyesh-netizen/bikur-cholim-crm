@@ -5,6 +5,7 @@ import { getNeedsAttention, NO_VISIT_DAYS, type AttentionResident } from "@/lib/
 import { getFacilitiesNeedingAttention } from "@/lib/queries/dashboard";
 import { formatRelative } from "@/lib/format-date";
 import { AttentionGroup as Group } from "./attention-group";
+import { ScrollToPlace } from "@/components/scroll-to-place";
 
 export default async function NeedsAttentionPage({ searchParams }: { searchParams: Promise<{ all?: string }> }) {
   const showAll = (await searchParams).all === "1";
@@ -19,6 +20,7 @@ export default async function NeedsAttentionPage({ searchParams }: { searchParam
 
   return (
     <div className="flex flex-col gap-4">
+      <ScrollToPlace />
       <div>
         <h1 className="text-2xl font-semibold">Needs attention</h1>
         <p className="text-sm text-muted-foreground">
@@ -29,6 +31,7 @@ export default async function NeedsAttentionPage({ searchParams }: { searchParam
       <Group
         showAll={showAll}
         title="Location unknown"
+        anchor="location-unknown"
         explanation="We don't know where they are living right now. Try to find out, then use “Move to another facility”."
         residents={locationUnknown}
         detail={(r) => `${r.last_visit_at ? `Last in-person visit ${formatRelative(r.last_visit_at)}` : "No in-person visits logged"}${lastContact(r)}`}
@@ -36,6 +39,7 @@ export default async function NeedsAttentionPage({ searchParams }: { searchParam
       <Group
         showAll={showAll}
         title="No facility recorded"
+        anchor="no-facility"
         explanation="No facility is on file for them. If they live at home, that's fine: calls and visits can be logged without a facility. Otherwise, use “Move to another facility”."
         residents={noFacility}
         detail={(r) => `${r.last_visit_at ? `Last in-person visit ${formatRelative(r.last_visit_at)}` : "No in-person visits logged"}${lastContact(r)}`}
@@ -43,6 +47,7 @@ export default async function NeedsAttentionPage({ searchParams }: { searchParam
       <Group
         showAll={showAll}
         title={`No in-person visit in ${NO_VISIT_DAYS}+ days`}
+        anchor="no-visit"
         explanation="Active residents nobody has visited in person recently. Phone calls are shown beside it but don't count as a visit. Longest wait first."
         residents={noRecentVisit}
         detail={(r) => `${facility(r)} · ${r.last_visit_at ? `last in-person visit ${formatRelative(r.last_visit_at)}` : "no in-person visit yet"}${lastContact(r)}`}
@@ -91,6 +96,7 @@ export default async function NeedsAttentionPage({ searchParams }: { searchParam
       <Group
         showAll={showAll}
         title="Missing a name"
+        anchor="missing-name"
         explanation="Saved with only a first or last name. Fill in the other when you learn it."
         residents={missingName}
         detail={(r) => `${facility(r)} · ${!r.last_name?.trim() ? "last name missing" : "first name missing"}`}

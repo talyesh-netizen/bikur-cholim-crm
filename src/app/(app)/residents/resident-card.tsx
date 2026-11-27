@@ -25,7 +25,7 @@ export function ResidentCard({ resident, back }: { resident: ResidentWithSummary
     .join(" · ");
 
   return (
-    <Link id={`r-${resident.id}`} href={back ? `/residents/${resident.id}?back=${encodeURIComponent(`${back}#r-${resident.id}`)}` : `/residents/${resident.id}`} className="group block scroll-mt-24">
+    <Link id={`r-${resident.id}`} href={back ? `/residents/${resident.id}?back=${encodeURIComponent(`${back}${back.includes("?") ? "&" : "?"}at=r-${resident.id}`)}` : `/residents/${resident.id}`} className="group block scroll-mt-24">
       <Card
         className="border-l-4 transition-colors group-hover:border-primary/50"
         style={{ borderLeftColor: clusterColor(resident.current_facility_cluster_id) }}

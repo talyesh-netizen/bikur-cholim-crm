@@ -12,6 +12,7 @@ export function AttentionGroup({
   residents,
   detail,
   showAll = false,
+  anchor,
 }: {
   title: string;
   explanation: string;
@@ -19,10 +20,13 @@ export function AttentionGroup({
   detail: (r: AttentionResident) => string;
   /** Long lists stop at SHOW_AT_MOST with a link to see everyone. */
   showAll?: boolean;
+  /** This section's place on the page: saving a log started from one of
+   * its residents comes back here (the resident may have dropped off). */
+  anchor: string;
 }) {
   const shown = showAll ? residents : residents.slice(0, SHOW_AT_MOST);
   return (
-    <Card>
+    <Card id={anchor} className="scroll-mt-20">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           {title}
@@ -38,9 +42,8 @@ export function AttentionGroup({
             {shown.map((r) => (
               <Link
                 key={r.id}
-                id={`r-${r.id}`}
-                href={`/residents/${r.id}?back=${encodeURIComponent(`/needs-attention${showAll ? "?all=1" : ""}#r-${r.id}`)}`}
-                className="scroll-mt-24 flex min-h-12 items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0 hover:text-primary"
+                href={`/residents/${r.id}?back=${encodeURIComponent(`/needs-attention?${showAll ? "all=1&" : ""}at=${anchor}`)}`}
+                className="flex min-h-12 items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0 hover:text-primary"
               >
                 <div className="min-w-0">
                   <p className="font-medium leading-tight">{residentName(r)}</p>
