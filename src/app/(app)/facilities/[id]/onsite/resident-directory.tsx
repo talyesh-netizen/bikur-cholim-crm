@@ -2,7 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, Plus, HandHeart, ChevronDown, CheckCircle2, Phone, MessageCircle, ListChecks, UserRound } from "lucide-react";
+import { Search, Plus, HandHeart, ChevronDown, CheckCircle2, Phone, MessageCircle, ListChecks, UserRound, DoorClosed, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useTransition } from "react";
+import { saveOnsiteEntry } from "@/lib/actions/onsite-entries";
+import { currentTripId } from "@/lib/visit-session";
+import { newSubmissionId } from "./onsite-drafts";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +35,8 @@ export type DirectoryResident = {
   openTasks?: number;
   /** Staff who already logged a visit with them today. */
   visitedTodayBy?: string[];
+  /** Tried today but unavailable (Nov 27, 2026). Not a visit. */
+  attemptedToday?: boolean;
 };
 
 /** The on-site visit workflow (director, Oct 9, 2026): find someone,
@@ -132,6 +139,7 @@ export function ResidentDirectory({
                           {by.length ? <span className="min-w-0 [overflow-wrap:anywhere]">by {by.join(", ")}</span> : null}
                         </>
                       )
+                        : resident.attemptedToday ? <StatusBadge tone="muted">Unavailable today</StatusBadge>
                         : resident.needsVisit ? <StatusBadge tone="attention">Visit due</StatusBadge> : null}
                       {resident.seenToday ? null : <span>{resident.lastVisitAt ? `Last visit ${resident.lastVisit.replace("Yesterday", "yesterday")}` : "Never visited"}</span>}
                     </span>
@@ -319,6 +327,7 @@ function ResidentPanel({
         {visiting ? null : (
           <Button className="h-11" onClick={onVisit}><HandHeart /> Visit</Button>
         )}
+        {visiting || resident.seenToday ? null : <UnavailableButton facilityId={facilityId} resident={resident} />}
         <Button variant="outline" className="h-11" asChild>
           <Link href={`/tasks/new?facility=${facilityId}&resident=${resident.id}&from=onsite`}>
             <ListChecks /> Follow-up{resident.openTasks ? ` (${resident.openTasks} open)` : ""}
@@ -328,6 +337,53 @@ function ResidentPanel({
           <Link href={`/residents/${resident.id}`}><UserRound /> Full profile</Link>
         </Button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * "Resident unavailable" (Nov 27, 2026): one tap saves an Attempted visit
+ * -- this resident, this facility, now, you, this trip. It counts the trip
+ * as a facility visit; it never marks them seen or changes their last
+ * visit. A tap that doesn't get an answer can be tried again safely: the
+ * same submission id is reused, so it's saved once.
+ */
+function UnavailableButton({ facilityId, resident }: { facilityId: string; resident: DirectoryResident }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [submissionId] = useState(() => newSubmissionId());
+  if (resident.attemptedToday) {
+    return <p className="col-span-2 self-center text-sm text-muted-foreground sm:col-span-1">Attempt saved today.</p>;
+  }
+  return (
+    <div className="flex flex-col gap-1">
+      <Button
+        variant="outline"
+        className="h-11"
+        disabled={pending}
+        onClick={() =>
+          startTransition(async () => {
+            setError(null);
+            try {
+              const result = await saveOnsiteEntry({
+                kind: "attempt",
+                facilityId,
+                residentId: resident.id,
+                submissionId,
+                tripId: currentTripId(facilityId),
+              });
+              if (!result.ok) setError(result.error);
+              else router.refresh();
+            } catch {
+              setError("NOT saved: no connection. Tap again when you have signal.");
+            }
+          })
+        }
+      >
+        {pending ? <Loader2 className="animate-spin" /> : <DoorClosed />} Unavailable
+      </Button>
+      {error ? <p role="alert" className="text-xs font-medium text-destructive">{error}</p> : null}
     </div>
   );
 }

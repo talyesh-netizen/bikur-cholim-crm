@@ -223,6 +223,8 @@ export default async function FacilityOnsitePage({
             .filter((f) => f.resident_id === resident.id)
             .map((f) => ({ contactId: f.contact_id, name: f.name, relationship: f.relationship, phone: f.phone })),
           openTasks: tasksByResident.get(resident.id)?.length ?? 0,
+          // Tried today but unavailable (Nov 27, 2026): never "seen".
+          attemptedToday: loggedToday.some((x) => x.resident_id === resident.id && x.interaction_type === "visit_attempt"),
           visitedTodayBy: [
             ...new Set(
               loggedToday

@@ -1,5 +1,7 @@
 "use client";
 
+import { currentTripId } from "@/lib/visit-session";
+
 import { createContext, useContext, useEffect, useState, useTransition } from "react";
 import { Loader2, UserPlus, X } from "lucide-react";
 import { recordCompanionPresence } from "@/lib/actions/onsite-entries";
@@ -75,7 +77,7 @@ export function VisitingWith({ facilityId, colleagues, api }: { facilityId: stri
   const pick = (c: Companion) => {
     setError(null);
     startTransition(async () => {
-      const result = await recordCompanionPresence({ facilityId, profileId: c.id });
+      const result = await recordCompanionPresence({ facilityId, profileId: c.id, tripId: currentTripId(facilityId) });
       if (!result.ok) {
         setError(result.error);
         return;

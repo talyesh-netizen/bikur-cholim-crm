@@ -137,7 +137,7 @@ export default async function ImpactRecordsPage({
             </tbody>
           </table>
           <p className="border-t border-border px-3 py-2 text-sm font-medium">
-            {n(days.length)} facility-day{days.length === 1 ? "" : "s"}
+            {n(days.length)} facility visit{days.length === 1 ? "" : "s"}
             {key === "staff_visits_confirmed" ? ` · ${n(days.reduce((s, d) => s + d.confirmedStaff.length, 0))} staff visits` : ""}
             {key === "staff_visits_not_recorded" ? ` · ${n(days.reduce((s, d) => s + d.unverifiedStaff.length, 0))} staff visits not recorded` : ""}
             {key.startsWith("facilities_") ? ` · ${n(new Set(days.map((d) => d.facility_id)).size)} different facilities` : ""}

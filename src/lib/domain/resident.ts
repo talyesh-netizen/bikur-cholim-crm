@@ -74,6 +74,10 @@ export type ResidentWithSummary = Resident & {
   last_visit_at: string | null;
   /** Newest visit, volunteer visit or phone call (Nov 3, 2026). */
   last_contact_at?: string | null;
+  /** Newest Attempted visit (resident unavailable; Nov 27, 2026). */
+  last_attempt_at?: string | null;
+  /** Optional date of passing (Nov 27, 2026). */
+  date_of_death?: string | null;
   next_follow_up_date: string | null;
   primary_contact_resident_contact_id: string | null;
 };

@@ -53,7 +53,7 @@ export type MetricRow = CountableRow & {
 };
 
 /** What a number counts, said once (shown in lists and the export). */
-export type Unit = "people" | "entries" | "facility-days" | "staff-days" | "outings" | "head count" | "facilities" | "organizations";
+export type Unit = "people" | "entries" | "facility-days" | "staff-days" | "visits" | "staff visits" | "outings" | "head count" | "facilities" | "organizations";
 
 export type MetricDef = {
   key: string;
@@ -72,7 +72,7 @@ export type SectionKey = "residents" | "coverage" | "programs" | "school" | "vol
 
 export const SECTIONS: { key: SectionKey; title: string; intro: string }[] = [
   { key: "residents", title: "Resident engagement", intro: "One-on-one visits and calls with residents, plus referrals and rides (shown apart, not counted as engagements)." },
-  { key: "coverage", title: "Facility coverage", intro: "Each facility once per day. Staff presence is counted only when it's confirmed." },
+  { key: "coverage", title: "Facility coverage", intro: "Each trip to a facility once (one stop counts once; older entries once per facility per day). Staff presence is counted only when it's confirmed." },
   { key: "programs", title: "Programs", intro: "Programs held and residents attending." },
   { key: "school", title: "School engagement", intro: "Programs with schools, the students and school staff who took part, and students on volunteer visits." },
   { key: "volunteers", title: "Community volunteers", intro: "Volunteer outings, the community volunteers on them, and the residents they visited." },
@@ -91,16 +91,17 @@ export const METRICS: MetricDef[] = [
   { key: "group_visits", section: "residents", label: "Group visits", short: "no resident named", unit: "entries", full: "Visits logged with a \"Residents reached\" number instead of a named resident. Their residents aren't in \"Residents served\"." },
   { key: "group_visit_reached", section: "residents", label: "Residents reached at group visits", short: "approx.", unit: "head count", approx: true, full: "The \"Residents reached\" numbers on group visits added up. The same person can be counted more than once." },
   { key: "referrals", section: "residents", label: "Referrals", short: "service activity", unit: "entries", full: "Medical and other referrals. A service activity, shown apart: not a resident engagement." },
+  { key: "visit_attempts", section: "residents", label: "Attempted visits", short: "resident unavailable", unit: "entries", full: "We went to see a resident who was unavailable (Nov 27, 2026). Counts as a facility visit for coverage; never as a completed visit or a resident engagement." },
   { key: "rides", section: "residents", label: "Rides arranged", short: "service activity", unit: "entries", full: "Rides arranged through Bikur Cholim (older entries; no longer asked). Not a resident engagement." },
   // Facility coverage
-  { key: "activity_days", section: "coverage", label: "Facility activity-days", short: "per facility, per day", unit: "facility-days", full: "Days anything was done at a facility in person (by staff, volunteers or a group), each facility once a day. The three lines below add up to this." },
-  { key: "staff_confirmed_days", section: "coverage", label: "Staff presence confirmed", short: "facility-days", unit: "facility-days", full: "Facility-days our staff were confirmed there in person." },
-  { key: "not_recorded_days", section: "coverage", label: "Staff attendance not recorded", short: "facility-days", unit: "facility-days", full: "Facility-days with only entries whose staff attendance wasn't recorded (older programs, food deliveries and volunteer visits). The activity happened; whether staff were there isn't known. Never counted as \"no staff there\" until someone confirms it." },
-  { key: "no_staff_days", section: "coverage", label: "No staff there", short: "volunteers or groups", unit: "facility-days", full: "Facility-days where it was recorded that no staff were there: volunteers on their own, or a program or delivery saved with \"No staff were there\"." },
-  { key: "staff_visits_confirmed", section: "coverage", label: "Staff visits (confirmed)", short: "per person, per facility-day", unit: "staff-days", full: "Each staff member once per facility per day they were confirmed there in person." },
-  { key: "staff_visits_not_recorded", section: "coverage", label: "Staff visits not recorded", short: "until confirmed", unit: "staff-days", full: "Staff on an older program, food delivery or volunteer visit whose attendance wasn't recorded, each once per facility per day. Not counted as there, and not counted as absent, until someone confirms it." },
-  { key: "facilities_with_activity", section: "coverage", label: "Facilities with in-person activity", short: "different facilities", unit: "facilities", full: "Different facilities with at least one activity-day." },
-  { key: "facilities_with_staff", section: "coverage", label: "Facilities with confirmed staff presence", short: "different facilities", unit: "facilities", full: "Different facilities with at least one day of confirmed staff presence." },
+  { key: "activity_days", section: "coverage", label: "Facility visits", short: "each trip once", unit: "visits", full: "Trips to a facility where anything was done in person (by staff, volunteers or a group). Several things done during one stop count once; two separate trips the same day count twice when they were logged as separate On-site visits. Older entries, and entries with no trip recorded, count once per facility per day. An Attempted visit (the resident was unavailable) counts. The three lines below add up to this." },
+  { key: "staff_confirmed_days", section: "coverage", label: "Staff presence confirmed", short: "facility visits", unit: "visits", full: "Facility visits where our staff were confirmed there in person." },
+  { key: "not_recorded_days", section: "coverage", label: "Staff attendance not recorded", short: "facility visits", unit: "visits", full: "Facility visits with only entries whose staff attendance wasn't recorded (older programs, food deliveries and volunteer visits). The activity happened; whether staff were there isn't known. Never counted as \"no staff there\" until someone confirms it." },
+  { key: "no_staff_days", section: "coverage", label: "No staff there", short: "volunteers or groups", unit: "visits", full: "Facility visits where it was recorded that no staff were there: volunteers on their own, or a program or delivery saved with \"No staff were there\"." },
+  { key: "staff_visits_confirmed", section: "coverage", label: "Staff visits (confirmed)", short: "per person, per trip", unit: "staff visits", full: "Each staff member once per facility visit they were confirmed there for in person (once per facility per day when no separate trip was recorded)." },
+  { key: "staff_visits_not_recorded", section: "coverage", label: "Staff visits not recorded", short: "until confirmed", unit: "staff-days", full: "Staff on an older program, food delivery or volunteer visit whose attendance wasn't recorded, each once per facility visit. Not counted as there, and not counted as absent, until someone confirms it." },
+  { key: "facilities_with_activity", section: "coverage", label: "Facilities with in-person activity", short: "different facilities", unit: "facilities", full: "Different facilities with at least one facility visit." },
+  { key: "facilities_with_staff", section: "coverage", label: "Facilities with confirmed staff presence", short: "different facilities", unit: "facilities", full: "Different facilities with at least one visit with confirmed staff presence." },
   { key: "facilities_engaged", section: "coverage", label: "Facilities engaged", short: "any contact", unit: "facilities", full: "Different facilities on any entry at all, calls and emails included. An entry with no facility never counts here." },
   // Programs
   { key: "programs", section: "programs", label: "Programs held", short: "each program once", unit: "entries", full: "Programs (including school and shul programs), each counted once." },
@@ -199,6 +200,8 @@ function recordLines(key: string, rows: MetricRow[], ctx: Context): RecordLine[]
       return each((r) => REFERRALS.has(r.interaction_type));
     case "rides":
       return each((r) => r.interaction_type === "ride_arranged");
+    case "visit_attempts":
+      return each((r) => r.interaction_type === "visit_attempt");
     case "staff_resident_visits":
       return each((r) => r.interaction_type === "resident_visit" && !!r.resident_id);
     case "phone_calls":
@@ -439,7 +442,7 @@ function compute(rows: MetricRow[], ctx: Context): ImpactMetrics {
 }
 
 const ROW_COLUMNS =
-  "id, interaction_type, occurred_at, staff_member_id, entered_by, resident_id, contact_id, facility_id, people_reached, holiday, family_need, participants, student_count, volunteer_count, chaperone_count, outing_id, part_of_id, counted_in_id, in_person, method, voided_at, lead_attended, program_partner, partner_organization_id, organizations(organization_type)";
+  "id, interaction_type, occurred_at, staff_member_id, entered_by, resident_id, contact_id, facility_id, people_reached, holiday, family_need, participants, student_count, volunteer_count, chaperone_count, outing_id, part_of_id, counted_in_id, in_person, method, voided_at, lead_attended, program_partner, partner_organization_id, organizations(organization_type), trip_id";
 
 type FetchedRow = Omit<MetricRow, "partner_org_type"> & { organizations: { organization_type: string | null } | null };
 
@@ -541,7 +544,7 @@ export async function getMetricRecords(
   if (key === "attendance_not_recorded" && lines) {
     // The entries that decide a facility-day first.
     const deciding = new Set(metrics.coverage.days.filter((d) => d.status === "not_recorded").flatMap((d) => d.ids));
-    lines = lines.map((l) => ({ ...l, note: deciding.has(l.id) ? "Decides a facility-day" : undefined }));
+    lines = lines.map((l) => ({ ...l, note: deciding.has(l.id) ? "Decides a facility visit" : undefined }));
     lines.sort((a, b) => Number(!!b.note) - Number(!!a.note));
   }
   return { lines, days: null, value: metrics.values[key] ?? null, metrics };

@@ -8,6 +8,8 @@ export { labelFor } from "./options";
 
 export const INTERACTION_TYPES = [
   { value: "resident_visit", label: "Resident visit" },
+  // Went to see a resident who was unavailable (Nov 27, 2026).
+  { value: "visit_attempt", label: "Attempted visit" },
   { value: "volunteer_visit", label: "Volunteer visit" },
   { value: "volunteer_meeting", label: "Meeting with a volunteer" },
   { value: "resident_phone_call", label: "Phone call with resident" },
@@ -46,6 +48,8 @@ export const TYPE_BUTTONS: {
   { key: "resident_visit", label: "Visit", choices: [{ value: "resident_visit", label: "Visit" }] },
   { key: "volunteer", label: "Volunteer visit", choices: [{ value: "volunteer_visit", label: "Volunteer visit" }] },
   { key: "phone", label: "Phone call", choices: [{ value: "resident_phone_call", label: "Phone call" }] },
+  // We went; the resident was unavailable (Nov 27, 2026).
+  { key: "attempt", label: "Attempted visit", choices: [{ value: "visit_attempt", label: "Attempted visit" }] },
   { key: "family", label: "Family", choices: [{ value: "family_communication", label: "Family" }] },
   { key: "delivery", label: "Food", choices: [{ value: "food_delivery", label: "Food" }] },
   { key: "referral", label: "Referral", choices: [{ value: "medical_referral", label: "Referral" }] },
@@ -198,7 +202,7 @@ export const FACILITY_OPTIONAL_TYPES: readonly string[] = [
  * facility is filled in and can be cleared (a visit at home or in a
  * hospital). Saved "in person elsewhere", so it never counts as a
  * facility visit. Without a resident these still need a facility. */
-export const NO_FACILITY_RESIDENT_TYPES: readonly string[] = ["resident_visit", "volunteer_visit", "food_delivery", "medical_referral", "referral"];
+export const NO_FACILITY_RESIDENT_TYPES: readonly string[] = ["resident_visit", "visit_attempt", "volunteer_visit", "food_delivery", "medical_referral", "referral"];
 
 /** Programs and food deliveries ask which staff were physically there
  * (D4, Nov 3, 2026). Nothing is assumed: the person typing it in isn't

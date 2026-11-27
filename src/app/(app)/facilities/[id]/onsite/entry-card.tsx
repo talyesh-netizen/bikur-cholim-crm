@@ -10,9 +10,10 @@ import { saveOnsiteEntry, type OnsiteEntryKind } from "@/lib/actions/onsite-entr
 import { getLocalToday, orgLocalToIso, toOrgDatetimeLocalValue, formatDateOnly } from "@/lib/format-date";
 import { draftKey, newSubmissionId, readDraft, removeDraft, writeDraft } from "./onsite-drafts";
 import { useCompanion, WithCompanionToggle } from "./companion";
+import { currentTripId } from "@/lib/visit-session";
 
-const SAVE_LABEL: Record<OnsiteEntryKind, string> = { visit: "Save visit", staff: "Save conversation", family: "Save conversation" };
-const SAVED_LABEL: Record<OnsiteEntryKind, string> = { visit: "Visit saved", staff: "Staff conversation saved", family: "Family support saved" };
+const SAVE_LABEL: Record<OnsiteEntryKind, string> = { visit: "Save visit", attempt: "Save attempt", staff: "Save conversation", family: "Save conversation" };
+const SAVED_LABEL: Record<OnsiteEntryKind, string> = { visit: "Visit saved", attempt: "Attempt saved", staff: "Staff conversation saved", family: "Family support saved" };
 
 /**
  * Record what happened with one person, right where they're listed:
@@ -136,6 +137,7 @@ export function EntryCard({
           contactId,
           notes: notes.trim() || undefined,
           submissionId: submissionId.current,
+          tripId: currentTripId(facilityId),
           occurredAt: earlierAt ? orgLocalToIso(earlierAt) ?? undefined : undefined,
           teamIds: companion && withCompanion ? [companion.id] : undefined,
           noteTarget: askWhere ? noteTarget : undefined,

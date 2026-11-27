@@ -300,6 +300,53 @@ check(
   serviceNumbersLine({ interaction_type: "school_engagement", people_reached: null, participants: 20 }) === "20 people took part (not split)"
 );
 
+
+// --- Attempted visits and separate trips (Nov 27, 2026) ---------------------
+{
+  const attempt = mrow({ interaction_type: "visit_attempt", resident_id: "res-1", lead_attended: null });
+  const v = computeImpactMetrics([attempt], ctx()).values;
+  check("attempted visit = 1 facility visit, 1 staff visit", v.activity_days === 1 && v.staff_visits_confirmed === 1, v);
+  check("attempted visit is never a resident engagement or completed visit", v.resident_engagements === 0 && v.staff_resident_visits === 0 && v.residents_served === 0, v);
+  check("attempted visits shown on their own line", v.visit_attempts === 1, v.visit_attempts);
+
+  const tripA = "trip-a";
+  const tripB = "trip-b";
+  const morning = [
+    mrow({ interaction_type: "resident_visit", resident_id: "res-1", trip_id: tripA, occurred_at: "2026-10-20T14:00:00Z" }),
+    mrow({ interaction_type: "visit_attempt", resident_id: "res-2", trip_id: tripA, occurred_at: "2026-10-20T14:10:00Z" }),
+    mrow({ interaction_type: "resident_visit", resident_id: "res-3", trip_id: tripA, occurred_at: "2026-10-20T14:20:00Z" }),
+  ];
+  const oneTrip = computeImpactMetrics(morning, ctx()).values;
+  check("three residents tried on one trip = 1 facility visit, 1 staff visit", oneTrip.activity_days === 1 && oneTrip.staff_visits_confirmed === 1, oneTrip);
+  const afternoon = mrow({ interaction_type: "resident_visit", resident_id: "res-2", trip_id: tripB, occurred_at: "2026-10-20T19:00:00Z" });
+  const twoTrips = computeImpactMetrics([...morning, afternoon], ctx()).values;
+  check("returning later that day = 2 facility visits, 2 staff visits", twoTrips.activity_days === 2 && twoTrips.staff_visits_confirmed === 2, twoTrips);
+  const untagged = mrow({ interaction_type: "food_delivery", people_reached: 4, lead_attended: true, occurred_at: "2026-10-20T20:00:00Z" });
+  const withUntagged = computeImpactMetrics([...morning, afternoon, untagged], ctx()).values;
+  check("an entry with no trip recorded never adds a visit on a day with trips", withUntagged.activity_days === 2, withUntagged.activity_days);
+  const otherStaff = mrow({ interaction_type: "resident_visit", resident_id: "res-4", trip_id: tripB, staff_member_id: STAFF_B, occurred_at: "2026-10-20T19:05:00Z" });
+  const credit = computeImpactMetrics([...morning, afternoon, otherStaff], ctx()).values;
+  check("staff credit goes to each person who went on each trip", credit.staff_visits_confirmed === 3, credit.staff_visits_confirmed);
+  const older = [
+    mrow({ interaction_type: "resident_visit", resident_id: "res-1", occurred_at: "2026-09-10T14:00:00Z" }),
+    mrow({ interaction_type: "resident_visit", resident_id: "res-2", occurred_at: "2026-09-10T19:00:00Z" }),
+  ];
+  const olderV = computeImpactMetrics(older, ctx()).values;
+  check("older entries with no trip: still once per facility per day", olderV.activity_days === 1 && olderV.staff_visits_confirmed === 1, olderV);
+  const otherFacility = mrow({ interaction_type: "resident_visit", resident_id: "res-5", trip_id: tripA, facility_id: "facility-2", occurred_at: "2026-10-20T15:00:00Z" });
+  check("a trip id never joins two facilities into one visit", computeImpactMetrics([...morning, otherFacility], ctx()).values.activity_days === 2);
+}
+
+// --- One school outing at three sites (decision 6, Nov 27, 2026) -----------
+{
+  const first = mrow({ interaction_type: "program", student_count: 15, partner_org_type: "school", partner_organization_id: "school-1", facility_id: "facility-1", lead_attended: true });
+  const second = mrow({ interaction_type: "program", student_count: 15, partner_org_type: "school", partner_organization_id: "school-1", facility_id: "facility-2", lead_attended: true, part_of_id: first.id });
+  const third = mrow({ interaction_type: "program", student_count: 15, partner_org_type: "school", partner_organization_id: "school-1", facility_id: "facility-3", lead_attended: true, part_of_id: first.id });
+  const v = computeImpactMetrics([first, second, third], ctx()).values;
+  check("one outing to three sites: 15 students once", v.students === 15, v.students);
+  check("... with activity at all three sites", v.facilities_with_activity === 3 && v.activity_days === 3, v);
+}
+
 // --- Form options --------------------------------------------------------
 check("Facility visit is under More types", MORE_TYPES.includes("facility_visit"));
 check("Family needs no facility", FACILITY_OPTIONAL_TYPES.includes("family_communication"));

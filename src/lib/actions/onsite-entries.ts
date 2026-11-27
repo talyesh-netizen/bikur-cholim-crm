@@ -24,13 +24,15 @@ const id = z.string().uuid();
 
 const ENTRY_TYPES = {
   visit: "resident_visit",
+  // "Resident unavailable" (Nov 27, 2026): we went, they couldn't be seen.
+  attempt: "visit_attempt",
   staff: "facility_staff_communication",
   family: "family_communication",
 } as const;
 export type OnsiteEntryKind = keyof typeof ENTRY_TYPES;
 
 const entrySchema = z.object({
-  kind: z.enum(["visit", "staff", "family"]),
+  kind: z.enum(["visit", "attempt", "staff", "family"]),
   facilityId: id,
   residentId: id.optional(),
   contactId: id.optional(),
@@ -45,6 +47,8 @@ const entrySchema = z.object({
   /** Where a visit's note goes (Nov 4, 2026): this visit (default) or the
    * resident's profile -- one or the other, never both. */
   noteTarget: z.enum(["visit", "profile"]).optional(),
+  /** This On-site visit (trip), from the phone (Nov 27, 2026). */
+  tripId: id.optional(),
 });
 
 export type OnsiteEntryResult =
@@ -67,8 +71,8 @@ export async function saveOnsiteEntry(input: z.input<typeof entrySchema>): Promi
   if (givenMs !== null && (givenMs > nowMs + 5 * 60_000 || givenMs < nowMs - 62 * 24 * 60 * 60_000)) {
     return { ok: false, error: "NOT saved: that visit date looks wrong. Please check it." };
   }
-  if (kind === "visit" && !residentId) return { ok: false, error: "Choose who you visited." };
-  if (kind !== "visit" && !contactId) return { ok: false, error: "Choose who you talked with." };
+  if ((kind === "visit" || kind === "attempt") && !residentId) return { ok: false, error: "Choose who you visited." };
+  if (kind !== "visit" && kind !== "attempt" && !contactId) return { ok: false, error: "Choose who you talked with." };
   const profileNote = kind === "visit" && parsed.data.noteTarget === "profile" && notes ? notes : null;
   if (profileNote && profileNote.length > PROFILE_NOTE_MAX) return { ok: false, error: `NOT saved: ${PROFILE_NOTE_TOO_LONG}` };
 
@@ -91,6 +95,7 @@ export async function saveOnsiteEntry(input: z.input<typeof entrySchema>): Promi
       // A note sent to the profile isn't kept on the visit too.
       notes: profileNote ? null : notes || null,
       client_submission_id: submissionId,
+      trip_id: parsed.data.tripId ?? null,
       // Logged on site: we were there (counts staff conversations as a
       // facility visit-day, decision B, Oct 19, 2026).
       in_person: true,
@@ -387,10 +392,10 @@ export type CompanionResult = { ok: true; already: boolean } | { ok: false; erro
  * added to a resident or conversation entry only when ticked on it. Only
  * ever one per person, facility and day.
  */
-export async function recordCompanionPresence(input: { facilityId: string; profileId: string }): Promise<CompanionResult> {
-  const parsed = z.object({ facilityId: id, profileId: id }).safeParse(input);
+export async function recordCompanionPresence(input: { facilityId: string; profileId: string; tripId?: string }): Promise<CompanionResult> {
+  const parsed = z.object({ facilityId: id, profileId: id, tripId: id.optional() }).safeParse(input);
   if (!parsed.success) return { ok: false, error: "Something is missing. Please pick them again." };
-  const { facilityId, profileId } = parsed.data;
+  const { facilityId, profileId, tripId } = parsed.data;
   const supabase = await createClient();
   const {
     data: { user },
@@ -401,7 +406,8 @@ export async function recordCompanionPresence(input: { facilityId: string; profi
   if (!colleague || colleague.active === false) return { ok: false, error: "That staff member couldn't be found." };
 
   const day = getLocalToday();
-  const submissionId = stableId(`onsite-companion|${facilityId}|${day}|${profileId}`);
+  // Once per person and trip (Nov 27, 2026); once a day without a trip.
+  const submissionId = stableId(`onsite-companion|${facilityId}|${day}|${profileId}${tripId ? `|${tripId}` : ""}`);
   const { error } = await supabase.from("interactions").insert({
     interaction_type: "facility_visit",
     facility_id: facilityId,
@@ -409,6 +415,7 @@ export async function recordCompanionPresence(input: { facilityId: string; profi
     occurred_at: new Date().toISOString(),
     notes: null,
     client_submission_id: submissionId,
+    trip_id: tripId ?? null,
     in_person: true,
     method: "in_person",
     lead_attended: true,

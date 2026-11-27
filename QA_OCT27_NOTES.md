@@ -1015,3 +1015,71 @@ size, production build.
 
 Still to see on the hosted preview: area colours on the Facilities list
 (only areas named "(Zone N)" get a colour; the demo areas aren't).
+
+## TEST batch: attempted visits, separate trips, six decisions (Nov 27, 2026)
+
+Built on `claude/laughing-johnson-s9gqi7`. Not merged, not deployed; the
+live database was not changed.
+
+Database change (add-only): `20261127000001_attempts_trips_passing.sql`
+(undo in `supabase/rollback/`). Applied and tested on the private local
+copy only, undo tested in a thrown-away transaction. **Not yet applied to
+the hosted TEST database** (this session has no SQL access to it). Until
+it is, the preview's Impact and Needs attention pages will show an error.
+
+What it does:
+- New kind "Attempted visit" (resident unavailable): On site, open a
+  resident, tap Unavailable (one tap); or Log with → Attempted visit.
+  Counts as a facility visit and a staff visit; never a completed visit,
+  never a resident engagement; Impact shows "Attempted visits" on its own
+  line. Resident page: "Visit attempted on [date] · Resident unavailable"
+  until a completed visit is newer. Last visit date never changes.
+- Separate trips: each On-site visit gets a trip number (kept on the
+  phone; a new one after Finish visit → Done). Two trips the same day = two
+  facility visits; everything in one stop = one. Staff credit per person
+  per trip. Entries with no trip (all older entries, and forms opened from
+  site such as Food today) count as before: once per facility per day, and
+  never add a visit on a day that has trips. Impact "Facility activity-days"
+  is now "Facility visits".
+- Needs attention, this quarter: "no contact logged" and "contact made"
+  (called, not seen or tried) kept apart; "Attempted this quarter" listed
+  separately (the attempt clears the flag; only a completed visit is seen).
+  The 30-day list shows a recent attempt beside the name.
+- Decision 1: Rehabilitation center shown as Short-Term Rehab; Short-Term
+  Rehab and Continuing care offered; Hospital and Other kept; Nursing home /
+  rehab entries left as recorded.
+- Decision 2: no existing photo spot in Impact or Stories; Impact Photos
+  deferred (still on facility pages).
+- Decision 3: Passed away offers "Close them" (default) or "Keep them open
+  for family follow-up"; closed ones are cancelled with the reason and can
+  be reopened.
+- Decision 4: date of passing saved in its own optional field; no note
+  written; earlier notes untouched.
+- Decision 5: Last staff visit counts confirmed presence only (unchanged);
+  Active residents on file now include residents in hospital.
+- Decision 6: counting checked (15 students once, activity at all three
+  sites) using "Part of". The live entries are NOT changed yet. Proposed
+  fix, for approval (live, two entries; old values stay in the history):
+    update interactions set part_of_id = 'd017ca68-aa7a-4f50-a8dc-c6505ea5206e'
+     where id in ('74895b2f-82d1-4ab8-9af7-78ae395df978','46ecc5c6-0c9c-4114-8850-057d7fe60aa7');
+
+Checks: type check, lint, build; counting checks all pass (11 new).
+
+Phone-size run (local copy, demo data, iPhone 13): all pass.
+1. On site Unavailable: saved with a trip number; card shows "Unavailable
+   today"; resident page shows the attempt; last visit unchanged.
+2. Second trip after Finish → Done: 2 trips at the facility today; Impact
+   Facility visits went up by one; earlier untagged visit didn't add one.
+3. Log form Attempted visit: saves; resident appears under "Attempted this
+   quarter", not in the flagged lists.
+4. Quarter lists: no contact (Ida), contact made (Sam, Estelle) apart.
+5. In hospital: facility's Active residents on file unchanged (2 → 2).
+6. Passed away: date saved in the field and shown; 1 open follow-up closed
+   with the reason; no note written.
+Found and fixed: the On-site badge was cut off on a phone ("Tried today ·
+unavail…"), now "Unavailable today".
+
+For the hosted preview (after the TEST database change): speed on a real
+phone; area colours on the Facilities list; tap Finish visit → Done on a
+real phone (the test browser had to press it directly); Food today and
+other forms opened from On site don't carry the trip number yet.

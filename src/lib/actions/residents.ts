@@ -215,22 +215,25 @@ export async function setResidentQuickStatus(
   } = await supabase.auth.getUser();
   if (!user) return { error: "NOT saved: your sign-in expired. Please sign in again." };
 
-  const { data: updated, error } = await supabase
-    .from("residents")
-    .update({ status: target.status })
-    .eq("id", residentId)
-    .select("id");
+  // Passed away: the optional date goes in its own field (decision 4,
+  // Nov 27, 2026); earlier notes are left exactly as they are.
+  const changes: { status: string; date_of_death?: string } = { status: target.status };
+  if (change === "deceased" && dateRaw) changes.date_of_death = dateRaw;
+  const { data: updated, error } = await supabase.from("residents").update(changes).eq("id", residentId).select("id");
   if (error) return { error: "NOT saved: something went wrong. Please try again." };
   if (!updated || updated.length === 0) return { error: "NOT saved: this resident no longer exists or you don't have access." };
 
-  if (change === "deceased" && dateRaw) {
-    const [y, m, d] = dateRaw.split("-").map(Number);
-    const day = new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" });
-    const note = `Passed away: ${day}`;
-    const { error: noteError } = await supabase
-      .from("profile_notes")
-      .insert({ resident_id: residentId, facility_id: null, raw_note: note, clean_note: note, created_by: user.id });
-    if (noteError) console.error("Date of passing note failed:", noteError.message);
+  // Their open follow-ups (decision 3): closed when the person chose to
+  // close them (the default), or kept open for family follow-up. Closed
+  // ones are "cancelled" with a reason and can be reopened.
+  if (change === "deceased" && formData.get("followups") === "close") {
+    const { error: taskError } = await supabase
+      .from("tasks")
+      .update({ status: "cancelled", completion_notes: "Closed: the resident passed away." })
+      .eq("resident_id", residentId)
+      .in("status", ["open", "in_progress", "waiting"]);
+    if (taskError) console.error("Closing follow-ups failed:", taskError.message);
+    revalidatePath("/tasks");
   }
 
   revalidatePath("/residents");

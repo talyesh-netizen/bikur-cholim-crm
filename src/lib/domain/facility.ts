@@ -10,7 +10,8 @@
 export const FACILITY_TYPES = [
   { value: "nursing_home", label: "Nursing home / rehab" },
   { value: "assisted_living", label: "Assisted living" },
-  { value: "rehabilitation_center", label: "Rehabilitation center" },
+  // Decision 1 (Nov 27, 2026): shown as Short-Term Rehab.
+  { value: "rehabilitation_center", label: "Short-Term Rehab" },
   { value: "memory_care", label: "Memory care" },
   { value: "independent_living", label: "Independent / senior apartments" },
   { value: "senior_apartment", label: "Senior apartment building" },
@@ -35,7 +36,10 @@ export const ENGAGEMENT_STATUSES = [
 ] as const;
 
 /** The short lists a form offers (older values still display). */
-export const OFFERED_FACILITY_TYPES = ["nursing_home", "assisted_living", "memory_care", "independent_living", "hospital", "other"] as const;
+// Decision 1 (Nov 27, 2026): Short-Term Rehab (rehabilitation_center) and
+// Continuing care offered; Hospital and Other kept. Nursing home / rehab
+// entries stay as recorded until each facility's services are checked.
+export const OFFERED_FACILITY_TYPES = ["nursing_home", "assisted_living", "memory_care", "independent_living", "rehabilitation_center", "continuing_care", "hospital", "other"] as const;
 export const OFFERED_ENGAGEMENT_STATUSES = ["not_contacted", "initial_contact", "recurring_visits", "no_known_jewish_residents"] as const;
 
 export type EngagementStatus = (typeof ENGAGEMENT_STATUSES)[number]["value"];

@@ -25,7 +25,7 @@ const SECTION_COLORS: Record<SectionKey, string> = {
 
 /** Which numbers each section shows, in order (Q7, Nov 3, 2026). */
 const SECTION_METRICS: Record<SectionKey, string[]> = {
-  residents: ["residents_served", "resident_engagements", "staff_resident_visits", "phone_calls", "volunteer_resident_visits", "group_visits", "group_visit_reached", "referrals", "rides"],
+  residents: ["residents_served", "resident_engagements", "staff_resident_visits", "phone_calls", "volunteer_resident_visits", "group_visits", "group_visit_reached", "visit_attempts", "referrals", "rides"],
   coverage: ["activity_days", "staff_confirmed_days", "not_recorded_days", "no_staff_days", "staff_visits_confirmed", "staff_visits_not_recorded", "facilities_with_activity", "facilities_with_staff", "facilities_engaged"],
   programs: ["programs", "program_residents", "not_split"],
   school: ["school_programs", "schools_involved", "students", "chaperones", "student_volunteers"],
@@ -224,7 +224,7 @@ export function ImpactView({
         />
         <HeadlineTile
           color={SECTION_COLORS.coverage}
-          label="Facility activity-days"
+          label="Facility visits"
           href={recordsHref("activity_days", period)}
           value={n(v.activity_days)}
           detail={`${n(v.staff_confirmed_days)} staff confirmed · ${n(v.not_recorded_days)} not recorded · ${n(v.no_staff_days)} no staff`}
@@ -265,7 +265,7 @@ export function ImpactView({
           </dl>
           {s.key === "coverage" ? (
             <p className="text-xs text-muted-foreground">
-              Staff presence confirmed + attendance not recorded + no staff there = facility activity-days. Phone calls and entries with no
+              Staff presence confirmed + attendance not recorded + no staff there = facility visits (each trip once). Phone calls and entries with no
               facility never count here.
             </p>
           ) : null}

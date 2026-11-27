@@ -69,6 +69,9 @@ export const STAFF_SUPPORT_TYPES = new Set(["facility_staff_communication", "fac
  * volunteer visits (no staff there) and never calls. */
 export const VISIT_DAY_TYPES = new Set([
   "resident_visit",
+  // Went to see a resident who was unavailable (Nov 27, 2026): staff were
+  // there in person, so it is a facility visit -- never a completed visit.
+  "visit_attempt",
   "facility_visit",
   "facility_discovery_visit",
   "program",
@@ -100,6 +103,8 @@ export type CountableRow = {
   chaperone_count?: number | null;
   /** Volunteer visits saved together as one outing (A2, Nov 3, 2026). */
   outing_id?: string | null;
+  /** One On-site trip to a facility (Nov 27, 2026); null = not recorded. */
+  trip_id?: string | null;
   part_of_id?: string | null;
   counted_in_id?: string | null;
   in_person?: boolean | null;
@@ -220,12 +225,53 @@ export async function fetchTeamLinks(supabase: Client): Promise<TeamLinks> {
   return links;
 }
 
-/** Staff visits: each staff member (lead or team) once per facility per
- * Cleveland day they were there in person. Volunteer visits never. */
+/**
+ * Which facility visit (trip) each in-person entry belongs to (Nov 27,
+ * 2026): "facility|day" when no separate trip is recorded that day (all
+ * older entries: one visit per facility per day, as before), else
+ * "facility|day|trip". Two On-site trips the same day are two visits;
+ * entries with no trip recorded join that day's first trip, so they
+ * never add a visit of their own.
+ */
+export function visitKeys(rows: CountableRow[]): Map<string, string> {
+  const trips = new Map<string, string[]>();
+  for (const r of rows) {
+    if (!r.trip_id || !inPersonAtFacility(r)) continue;
+    const base = `${r.facility_id}|${orgDayKey(r.occurred_at)}`;
+    const list = trips.get(base) ?? [];
+    if (!list.includes(r.trip_id)) list.push(r.trip_id);
+    trips.set(base, list);
+  }
+  // The day's first trip: the one with the earliest entry.
+  const firstAt = new Map<string, string>();
+  for (const r of rows) {
+    if (!r.trip_id) continue;
+    const seen = firstAt.get(r.trip_id);
+    if (!seen || r.occurred_at < seen) firstAt.set(r.trip_id, r.occurred_at);
+  }
+  const keys = new Map<string, string>();
+  for (const r of rows) {
+    if (!inPersonAtFacility(r)) continue;
+    const base = `${r.facility_id}|${orgDayKey(r.occurred_at)}`;
+    const list = trips.get(base);
+    if (!list?.length) {
+      keys.set(r.id, base);
+      continue;
+    }
+    const first = [...list].sort((a, b) => (firstAt.get(a) ?? "").localeCompare(firstAt.get(b) ?? "") || a.localeCompare(b))[0];
+    keys.set(r.id, `${base}|${r.trip_id ?? first}`);
+  }
+  return keys;
+}
+
+/** Staff visits: each staff member (lead or team) once per facility visit
+ * (trip; once per facility per day when no trip is recorded) they were
+ * there for in person. Volunteer visits never. */
 export function staffVisits(rows: CountableRow[], team: TeamLinks): number {
   const visits = new Set<string>();
+  const keys = visitKeys(rows);
   for (const r of rows) {
-    const day = visitDayKey(r);
+    const day = visitDayKey(r) ? keys.get(r.id) : null;
     if (!day) continue;
     for (const person of new Set([r.staff_member_id, ...(team.get(r.id) ?? [])])) {
       if (person) visits.add(`${person}|${day}`);
@@ -275,12 +321,11 @@ export function facilityPresence(rows: CountableRow[]): FacilityPresence {
   const staff = new Set<string>();
   const volunteer = new Set<string>();
   const engaged = new Set<string>();
+  const keys = visitKeys(rows);
   for (const r of rows) {
     if (r.facility_id) engaged.add(r.facility_id);
-    const s = visitDayKey(r);
-    if (s) staff.add(s);
-    const v = volunteerDayKey(r);
-    if (v) volunteer.add(v);
+    if (visitDayKey(r)) staff.add(keys.get(r.id)!);
+    if (volunteerDayKey(r)) volunteer.add(keys.get(r.id)!);
   }
   const presence = new Set([...staff, ...volunteer]);
   return {
@@ -391,11 +436,14 @@ export type FacilityCoverage = {
 export function facilityCoverage(rows: CountableRow[], team: TeamLinks): FacilityCoverage {
   const byKey = new Map<string, { facility_id: string; day: string; confirmed: Set<string>; unverified: Set<string>; volunteers: boolean; ids: string[] }>();
   const engaged = new Set<string>();
+  // Each facility visit (trip) once (Nov 27, 2026); once a day when no
+  // separate trip is recorded.
+  const keys = visitKeys(rows);
   for (const r of rows) {
     if (r.facility_id) engaged.add(r.facility_id);
     if (!inPersonAtFacility(r)) continue;
     const day = orgDayKey(r.occurred_at);
-    const key = `${r.facility_id}|${day}`;
+    const key = keys.get(r.id)!;
     const d = byKey.get(key) ?? { facility_id: r.facility_id!, day, confirmed: new Set<string>(), unverified: new Set<string>(), volunteers: false, ids: [] };
     const att = staffAttendance(r, team);
     att.confirmed.forEach((p) => d.confirmed.add(p));
@@ -499,7 +547,7 @@ export async function fetchLastStaffVisits(supabase: Client, facilityIds?: strin
     selectAllPages<CountableRow>((from, to) => {
       let q = supabase
         .from("interactions")
-        .select("id, interaction_type, occurred_at, facility_id, contact_id, staff_member_id, method, in_person, lead_attended, voided_at, counted_in_id")
+        .select("id, interaction_type, occurred_at, facility_id, contact_id, staff_member_id, method, in_person, lead_attended, voided_at, counted_in_id, trip_id")
         .not("facility_id", "is", null)
         .is("voided_at", null)
         .is("counted_in_id", null)

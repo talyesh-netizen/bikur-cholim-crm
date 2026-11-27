@@ -18,12 +18,15 @@ export function QuickStatus({
   inHospital,
   back,
   deceased,
+  openFollowUps = 0,
 }: {
   status: string;
   facilityName: string | null;
   inHospital: Action;
   back: Action;
   deceased: Action;
+  /** Their open follow-ups, offered for closing (Nov 27, 2026). */
+  openFollowUps?: number;
 }) {
   const [hospitalState, hospitalAction, hospitalPending] = useActionState(inHospital, { error: null });
   const [backState, backAction, backPending] = useActionState(back, { error: null });
@@ -58,8 +61,23 @@ export function QuickStatus({
         <form action={deceasedAction} className="flex flex-col gap-2 rounded-md border border-border bg-muted/40 p-3 text-sm">
           <p className="font-medium">Mark as passed away?</p>
           <p className="text-muted-foreground">
-            They come off current rosters and visit lists. Their profile and full history are kept. Open follow-ups stay until someone closes them.
+            They come off current rosters and visit lists. Their profile and full history are kept.
           </p>
+          {openFollowUps > 0 ? (
+            <fieldset className="flex flex-col gap-1">
+              <legend className="mb-1 text-xs text-muted-foreground">
+                {openFollowUps} open follow-up{openFollowUps === 1 ? "" : "s"}
+              </legend>
+              <label className="flex min-h-11 items-center gap-2">
+                <input type="radio" name="followups" value="close" defaultChecked className="size-4" />
+                Close {openFollowUps === 1 ? "it" : "them"}
+              </label>
+              <label className="flex min-h-11 items-center gap-2">
+                <input type="radio" name="followups" value="keep" className="size-4" />
+                Keep {openFollowUps === 1 ? "it" : "them"} open for family follow-up
+              </label>
+            </fieldset>
+          ) : null}
           <div className="flex flex-col gap-1">
             <Label htmlFor="date_of_death" className="text-xs text-muted-foreground">Date (optional)</Label>
             <Input id="date_of_death" name="date_of_death" type="date" className="w-fit" />

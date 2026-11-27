@@ -139,12 +139,16 @@ export default async function ResidentDetailPage({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-col gap-2">
           <ResidentActiveStatus status={resident.status} />
+          {resident.status === "deceased" && resident.date_of_death ? (
+            <p className="text-sm text-muted-foreground">Passed away {formatDateOnly(resident.date_of_death)}</p>
+          ) : null}
           <QuickStatus
             status={resident.status}
             facilityName={resident.current_facility_name}
             inHospital={setResidentQuickStatus.bind(null, resident.id, "in_hospital", back ?? null)}
             back={setResidentQuickStatus.bind(null, resident.id, "back", back ?? null)}
             deceased={setResidentQuickStatus.bind(null, resident.id, "deceased", back ?? null)}
+            openFollowUps={tasks.filter((t) => t.status === "open" || t.status === "in_progress" || t.status === "waiting").length}
           />
         </div>
         <div className="flex gap-4 text-sm">
@@ -166,6 +170,12 @@ export default async function ResidentDetailPage({
           {/* In person and other contact kept apart (Q3, Nov 3, 2026). */}
           {resident.last_contact_at && resident.last_contact_at !== resident.last_visit_at ? (
             <dd className="mt-0.5 truncate text-xs text-muted-foreground">Last contact {formatDateTime(resident.last_contact_at)}</dd>
+          ) : null}
+          {/* An attempt is never a visit (Nov 27, 2026): shown apart. */}
+          {resident.last_attempt_at && (!resident.last_visit_at || resident.last_attempt_at > resident.last_visit_at) ? (
+            <dd className="mt-0.5 text-xs text-muted-foreground">
+              Visit attempted on {formatDateTime(resident.last_attempt_at)} · Resident unavailable
+            </dd>
           ) : null}
         </div>
         <div className="min-w-0 rounded-xl border border-border bg-card p-3 sm:p-4">

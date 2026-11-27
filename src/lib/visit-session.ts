@@ -17,7 +17,18 @@ const KEY = "onsite-visit-session";
 // The old "last facility opened" memory this replaces -- removed on sight.
 const OLD_KEY = "last-onsite-facility";
 
-export type VisitSession = { facilityId: string; facilityName: string; day: string; startedAt: number };
+/** tripId (Nov 27, 2026): one per visit, saved on every on-site entry, so a
+ * second trip the same day (after Finish visit → Done) counts as a second
+ * facility visit. Kept for a continuing visit. */
+export type VisitSession = { facilityId: string; facilityName: string; day: string; startedAt: number; tripId?: string };
+
+function newTripId(): string {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return "";
+  }
+}
 
 function read(): VisitSession | null {
   try {
@@ -36,7 +47,13 @@ export function startVisitSession(facilityId: string, facilityName: string) {
     const continuing = current && current.facilityId === facilityId && current.day === today;
     window.localStorage.setItem(
       KEY,
-      JSON.stringify({ facilityId, facilityName, day: today, startedAt: continuing ? current.startedAt : Date.now() })
+      JSON.stringify({
+        facilityId,
+        facilityName,
+        day: today,
+        startedAt: continuing ? current.startedAt : Date.now(),
+        tripId: (continuing ? current.tripId : undefined) || newTripId() || undefined,
+      })
     );
   } catch {
     // Blocked storage: nothing to resume later, nothing assumed either.
@@ -57,6 +74,17 @@ export function readActiveVisitSession(): VisitSession | null {
     return session;
   } catch {
     return null;
+  }
+}
+
+/** This phone's current trip to a facility (today, not finished), if any. */
+export function currentTripId(facilityId: string): string | undefined {
+  try {
+    const session = read();
+    if (!session || session.facilityId !== facilityId || session.day !== getLocalToday()) return undefined;
+    return session.tripId || undefined;
+  } catch {
+    return undefined;
   }
 }
 

@@ -9,7 +9,7 @@ import { ScrollToPlace } from "@/components/scroll-to-place";
 
 export default async function NeedsAttentionPage({ searchParams }: { searchParams: Promise<{ all?: string }> }) {
   const showAll = (await searchParams).all === "1";
-  const [{ locationUnknown, noFacility, missingName, noRecentVisit }, facilities] = await Promise.all([
+  const [{ locationUnknown, noFacility, missingName, noRecentVisit, quarter, attemptedThisQuarter, quarterNoContact, quarterContactOnly }, facilities] = await Promise.all([
     getNeedsAttention(),
     getFacilitiesNeedingAttention(),
   ]);
@@ -50,7 +50,31 @@ export default async function NeedsAttentionPage({ searchParams }: { searchParam
         anchor="no-visit"
         explanation="Active residents nobody has visited in person recently. Phone calls are shown beside it but don't count as a visit. Longest wait first."
         residents={noRecentVisit}
-        detail={(r) => `${facility(r)} · ${r.last_visit_at ? `last in-person visit ${formatRelative(r.last_visit_at)}` : "no in-person visit yet"}${lastContact(r)}`}
+        detail={(r) => `${facility(r)} · ${r.last_visit_at ? `last in-person visit ${formatRelative(r.last_visit_at)}` : "no in-person visit yet"}${lastContact(r)}${r.last_attempt_at && (!r.last_visit_at || r.last_attempt_at > r.last_visit_at) ? ` · attempted ${formatRelative(r.last_attempt_at)}` : ""}`}
+      />
+      <Group
+        showAll={showAll}
+        title="Not seen or tried this quarter: no contact logged"
+        anchor="quarter-no-contact"
+        explanation={`${quarter.label}. Active residents with no in-person visit, no attempt and no call logged this quarter.`}
+        residents={quarterNoContact}
+        detail={(r) => `${facility(r)} · No contact logged · ${r.last_visit_at ? `last in-person visit ${formatRelative(r.last_visit_at)}` : "no in-person visit yet"}`}
+      />
+      <Group
+        showAll={showAll}
+        title="Not seen or tried this quarter: contact made"
+        anchor="quarter-contact-only"
+        explanation="Called this quarter, but no in-person visit or attempt logged. Review whether they need a visit."
+        residents={quarterContactOnly}
+        detail={(r) => `${facility(r)} · Contact made ${formatRelative(r.last_contact_at)} · No in-person visit this quarter`}
+      />
+      <Group
+        showAll={showAll}
+        title="Attempted this quarter"
+        anchor="quarter-attempted"
+        explanation="We went but they were unavailable. The attempt clears the quarterly flag; they're still due an in-person visit, and only a completed visit counts as seen."
+        residents={attemptedThisQuarter}
+        detail={(r) => `${facility(r)} · Attempted ${formatRelative(r.last_attempt_at)} · ${r.last_visit_at ? `last in-person visit ${formatRelative(r.last_visit_at)}` : "no in-person visit yet"}`}
       />
       <Card id="facilities">
         <CardHeader>

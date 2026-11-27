@@ -361,7 +361,7 @@ function peopleForRecords(interactionType: string, people: PeopleChoice, contact
  * (director, Oct 20 and 21, 2026). Not facility visits, staff, programs
  * or anything else; not a group visit counted with "Residents reached";
  * and an older entry saved without one can still be edited as it is. */
-const RESIDENT_REQUIRED_TYPES: readonly string[] = ["resident_visit", "resident_phone_call"];
+const RESIDENT_REQUIRED_TYPES: readonly string[] = ["resident_visit", "visit_attempt", "resident_phone_call"];
 function missingResident(
   data: { interaction_type: string; resident_id?: string; people_reached?: number },
   residentChosen: boolean,
